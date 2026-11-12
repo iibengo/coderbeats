@@ -52,6 +52,15 @@ describe('analyzeEchoTest', () => {
     expect(analyzeEchoTest(clicks, [{ time: 2.5, strength: 0.1 }])).toMatchObject({ bleed: false, matched: 0 })
   })
 
+  it('retrasos inconsistentes (ruido casual) no son eco', () => {
+    const r = analyzeEchoTest(clicks, [
+      { time: 1.2, strength: 0.05 },
+      { time: 1.45, strength: 0.05 },
+      { time: 1.9, strength: 0.05 },
+    ])
+    expect(r.bleed).toBe(false)
+  })
+
   it('basta con 2 de 3 clics para considerar fuga', () => {
     expect(analyzeEchoTest(clicks, [{ time: 1.03, strength: 0.02 }, { time: 1.43, strength: 0.02 }]).bleed).toBe(true)
   })

@@ -1,6 +1,20 @@
 import { ref, shallowRef } from 'vue'
-import { KITS, STEPS_PER_BAR } from '~/lib/constants'
-import type { Instrument, KitId, Pattern } from '~/lib/types'
+import { analyzeEchoTest, type EchoTestResult } from '~/lib/echoGate'
+import { KIT_ORDER } from '~/lib/constants'
+import {
+  activeAt,
+  addHit,
+  emptyLoop,
+  place,
+  settle,
+  totalSteps,
+  type AddResult,
+  type Loop,
+  type LoopTiming,
+} from '~/lib/looper'
+import { detectOnsets, minGapForCell } from '~/lib/onsets'
+import type { CalibrationSample, Instrument, KitId, Norm } from '~/lib/types'
+import type { FromWorker, ToWorker } from '~/lib/workerProtocol'
 
 type ToneModule = typeof import('tone')
 
@@ -17,8 +31,35 @@ export interface TakeOptions {
   bpm: number
   countInBeats: number
   recordBeats: number
-  /** se llama (aprox.) en cada clic; beat negativo = cuenta atrás */
   onBeat?: (beat: number) => void
+}
+
+export interface LiveEvent {
+  time: number
+  instrument: Instrument | 'unknown'
+  confidence: number
+  strength: number
+  decisionMs: number
+  /** ms desde el onset hasta que se procesó en el hilo principal */
+  uiMs: number
+  result: AddResult | 'echo' | 'unknown' | 'paused'
+  step?: number
+}
+
+export interface LooperSettings {
+  bpm: number
+  quantizeEvery: 1 | 2
+  /** latencia a compensar (calibración), s */
+  latency: number
+}
+
+export interface RecordedTake {
+  buffer: Float32Array
+  sampleRate: number
+  startTime: number
+  anchor: number
+  settings: LooperSettings
+  events: LiveEvent[]
 }
 
 // Estado de módulo: la app es una sola página y solo corre en el cliente.
@@ -26,17 +67,30 @@ let ctx: AudioContext | null = null
 let Tone: ToneModule | null = null
 let stream: MediaStream | null = null
 let capture: AudioWorkletNode | null = null
+let worker: Worker | null = null
 let chunks: { frame: number; data: Float32Array }[] = []
 let onStopped: (() => void) | null = null
 const players = new Map<KitId, import('tone').Players>()
 let sequence: import('tone').Sequence<number> | null = null
+let timing: LoopTiming | null = null
+let settings: LooperSettings | null = null
+let capturingTake = false
 
 const ready = ref(false)
 const level = ref(0)
-const playing = ref(false)
-const currentStep = ref(-1)
 const kit = ref<KitId>('909')
-const pattern = shallowRef<Pattern | null>(null)
+const echo = shallowRef<EchoTestResult | null>(null)
+
+// looper
+const loop = shallowRef<Loop>(emptyLoop(1))
+const playing = ref(false)
+const countingIn = ref(false)
+const overdub = ref(false)
+const metronome = ref(true)
+const currentStep = ref(-1)
+const currentLap = ref(0)
+const events = shallowRef<LiveEvent[]>([])
+const lastTake = shallowRef<RecordedTake | null>(null)
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
@@ -44,6 +98,8 @@ function requireCtx(): AudioContext {
   if (!ctx) throw new Error('AudioContext no iniciado')
   return ctx
 }
+
+const toWorker = (m: ToWorker) => worker?.postMessage(m)
 
 /** Clic de metrónomo nativo, programado en tiempo de AudioContext. */
 function click(time: number, accent: boolean) {
@@ -73,6 +129,7 @@ function stopCapture(): Promise<{ buffer: Float32Array; startTime: number }> {
       const last = chunks[chunks.length - 1]!
       const buffer = new Float32Array(last.frame - first.frame + last.data.length)
       for (const ch of chunks) buffer.set(ch.data, ch.frame - first.frame)
+      chunks = []
       resolve({ buffer, startTime: first.frame / c.sampleRate })
     }
     capture?.port.postMessage('stop')
@@ -90,16 +147,49 @@ async function loadKit(id: KitId) {
   })
 }
 
+/** Prueba de eco: 3 clics con el micro abierto. ¿Los oye el micro? */
+async function runEchoTest(): Promise<EchoTestResult> {
+  const c = requireCtx()
+  const at = c.currentTime + 0.3
+  const clicks = [at, at + 0.4, at + 0.8]
+  clicks.forEach((t) => click(t, true))
+  startCapture()
+  await wait((at + 1.2 - c.currentTime) * 1000)
+  const { buffer, startTime } = await stopCapture()
+  const onsets = detectOnsets(buffer, c.sampleRate).map((o) => ({ time: o.time + startTime, strength: o.strength }))
+  return analyzeEchoTest(clicks, onsets)
+}
+
+function pushEvent(e: LiveEvent) {
+  events.value = [e, ...events.value].slice(0, 200)
+}
+
+function onWorkerMessage(m: FromWorker) {
+  const c = ctx
+  if (!c) return
+  const uiMs = (c.currentTime - m.time) * 1000
+  if (m.type === 'echo') {
+    pushEvent({ time: m.time, instrument: 'unknown', confidence: 0, strength: m.strength, decisionMs: 0, uiMs, result: 'echo' })
+    return
+  }
+  const base = { time: m.time, instrument: m.instrument, confidence: m.confidence, strength: m.strength, decisionMs: m.decisionMs, uiMs }
+  if (m.instrument === 'unknown') return pushEvent({ ...base, result: 'unknown' })
+  if (!overdub.value || !timing || !settings) return pushEvent({ ...base, result: 'paused' })
+  const placement = place(m.time - settings.latency, timing)
+  const r = addHit(loop.value, { placement, instrument: m.instrument, strength: m.strength, confidence: m.confidence })
+  loop.value = r.loop
+  pushEvent({ ...base, result: r.result, step: placement.step })
+}
+
 export function useAudioEngine() {
   /**
    * Debe llamarse dentro del gesto del usuario (botón Empezar): crea y reanuda el
    * AudioContext de forma síncrona antes de cualquier await (requisito de iOS Safari).
    */
-  async function start() {
+  async function start(calibration: { samples: CalibrationSample[]; norm: Norm } | null) {
     if (ready.value) return
     ctx ??= new AudioContext({ latencyHint: 'interactive' })
     void ctx.resume()
-    // buffer silencioso para terminar de desbloquear iOS
     const silent = ctx.createBufferSource()
     silent.buffer = ctx.createBuffer(1, 1, ctx.sampleRate)
     silent.connect(ctx.destination)
@@ -109,7 +199,8 @@ export function useAudioEngine() {
       audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 },
     })
 
-    await ctx.audioWorklet.addModule(`${useRuntimeConfig().app.baseURL}worklets/capture-processor.js`)
+    const base = useRuntimeConfig().app.baseURL
+    await ctx.audioWorklet.addModule(`${base}worklets/capture-processor.js`)
     const source = ctx.createMediaStreamSource(stream)
     capture = new AudioWorkletNode(ctx, 'capture-processor', { numberOfInputs: 1, numberOfOutputs: 1 })
     capture.port.onmessage = (e: MessageEvent) => {
@@ -122,14 +213,35 @@ export function useAudioEngine() {
     mute.gain.value = 0
     source.connect(capture).connect(mute).connect(ctx.destination)
 
+    // worker de análisis con un canal directo desde el worklet
+    worker = new Worker(new URL('../workers/analysis.worker.ts', import.meta.url), { type: 'module' })
+    worker.onmessage = (e: MessageEvent<FromWorker>) => onWorkerMessage(e.data)
+    const channel = new MessageChannel()
+    capture.port.postMessage({ type: 'stream-port' }, [channel.port1])
+    const plain = JSON.parse(
+      JSON.stringify({ samples: calibration?.samples ?? [], norm: calibration?.norm ?? { mean: [], std: [] } }),
+    ) as { samples: CalibrationSample[]; norm: Norm }
+    worker.postMessage(
+      { type: 'init', sampleRate: ctx.sampleRate, ...plain } satisfies ToWorker,
+      [channel.port2],
+    )
+
     Tone = await import('tone')
     Tone.setContext(ctx)
     await loadKit(kit.value)
-    void Promise.all((Object.keys(KITS) as KitId[]).map(loadKit))
+    void Promise.all(KIT_ORDER.map(loadKit))
+
+    echo.value = await runEchoTest()
+    metronome.value = !echo.value.bleed
     ready.value = true
   }
 
-  /** Metrónomo + grabación. Devuelve el buffer y la posición del primer tiempo grabado. */
+  function setCalibration(c: { samples: CalibrationSample[]; norm: Norm }) {
+    const plain = JSON.parse(JSON.stringify({ samples: c.samples, norm: c.norm })) as typeof c
+    toWorker({ type: 'calibration', ...plain })
+  }
+
+  /** Metrónomo + grabación (calibración de latencia). */
   async function recordTake(o: TakeOptions): Promise<Take> {
     const c = requireCtx()
     stop()
@@ -159,46 +271,106 @@ export function useAudioEngine() {
     return { buffer, sampleRate: c.sampleRate }
   }
 
-  function setPattern(p: Pattern | null) {
-    pattern.value = p
-  }
-
-  function play(bpm: number) {
-    if (!Tone || !pattern.value) return
-    stop()
+  /** Arranca el loop. Con `countIn`, 1 compás de clics antes del primer paso. */
+  function play(s: LooperSettings, countIn = false) {
+    if (!Tone || !ctx) return
+    stop(true)
     const T = Tone
+    const c = ctx
+    settings = s
+    loop.value = settle(loop.value)
     const transport = T.getTransport()
-    transport.bpm.value = bpm
-    const steps = pattern.value.bars * STEPS_PER_BAR
+    transport.bpm.value = s.bpm
+    const stepSec = 60 / s.bpm / 4
+    const beat = stepSec * 4
+    const steps = totalSteps(loop.value)
+    const loopDur = steps * stepSec
+
+    const anchor = c.currentTime + 0.15 + (countIn ? 4 * beat : 0)
+    timing = { anchor, stepSeconds: stepSec, quantizeEvery: s.quantizeEvery, totalSteps: steps }
+
+    const echoCfg = echo.value?.bleed ? { roundTrip: echo.value.roundTrip, echoLevel: echo.value.echoLevel } : null
+    toWorker({ type: 'start', minGap: minGapForCell(stepSec * s.quantizeEvery), echo: echoCfg })
+    capture?.port.postMessage('stream-on')
+
+    if (countIn) {
+      countingIn.value = true
+      const times = Array.from({ length: 4 }, (_, i) => anchor - (4 - i) * beat)
+      times.forEach((t, i) => click(t, i === 0))
+      toWorker({ type: 'output', times })
+      setTimeout(() => (countingIn.value = false), (anchor - c.currentTime) * 1000)
+    }
+
     sequence = new T.Sequence<number>(
       (time, step) => {
-        const inst: Instrument | null = pattern.value?.steps[step] ?? null
+        const lap = Math.round((time - anchor - step * stepSec) / loopDur)
+        const out: number[] = []
         const kp = players.get(kit.value)
-        if (inst && kp?.loaded) kp.player(inst).start(time)
-        T.getDraw().schedule(() => (currentStep.value = step), time)
+        if (kp?.loaded)
+          for (const inst of activeAt(loop.value, step, lap)) {
+            kp.player(inst).start(time)
+            out.push(time)
+          }
+        if (metronome.value && step % 4 === 0) {
+          click(time, step % 16 === 0)
+          out.push(time)
+        }
+        if (out.length) toWorker({ type: 'output', times: out })
+        T.getDraw().schedule(() => {
+          currentStep.value = step
+          currentLap.value = lap
+        }, time)
       },
       Array.from({ length: steps }, (_, i) => i),
       '16n',
     )
     sequence.start(0)
     transport.position = 0
-    transport.start('+0.05')
+    transport.start(anchor)
     playing.value = true
+
+    if (import.meta.dev && !capturingTake) {
+      capturingTake = true
+      startCapture()
+    }
   }
 
-  function stop() {
+  /** Para el loop. Con `restart`, sigue capturando la toma de diagnóstico (se va a rearrancar). */
+  function stop(restart = false) {
     if (!Tone) return
     const transport = Tone.getTransport()
     transport.stop()
     transport.cancel()
     sequence?.dispose()
     sequence = null
+    capture?.port.postMessage('stream-off')
+    toWorker({ type: 'stop' })
+    const wasPlaying = playing.value
     playing.value = false
+    countingIn.value = false
+    overdub.value = false
     currentStep.value = -1
+    if (!restart && capturingTake && wasPlaying && timing && settings) {
+      capturingTake = false
+      const t = timing
+      const s = settings
+      const evs = events.value
+      void stopCapture().then(({ buffer, startTime }) => {
+        lastTake.value = { buffer, sampleRate: requireCtx().sampleRate, startTime, anchor: t.anchor, settings: s, events: evs }
+      })
+    }
   }
 
-  function setBpm(bpm: number) {
-    if (Tone) Tone.getTransport().bpm.value = bpm
+  /** REC: parado → cuenta atrás de 1 compás y overdub; sonando → activa/pausa el overdub. */
+  function toggleOverdub(s: LooperSettings) {
+    if (!playing.value) {
+      play(s, true)
+      overdub.value = true
+    } else overdub.value = !overdub.value
+  }
+
+  function setLoop(next: Loop) {
+    loop.value = next
   }
 
   async function setKit(id: KitId) {
@@ -209,18 +381,26 @@ export function useAudioEngine() {
   return {
     ready,
     level,
-    playing,
-    currentStep,
     kit,
-    pattern,
+    echo,
+    loop,
+    playing,
+    countingIn,
+    overdub,
+    metronome,
+    currentStep,
+    currentLap,
+    events,
+    lastTake,
     sampleRate: () => ctx?.sampleRate ?? 0,
     start,
+    setCalibration,
     recordTake,
     captureWindow,
-    setPattern,
     play,
     stop,
-    setBpm,
+    toggleOverdub,
+    setLoop,
     setKit,
   }
 }

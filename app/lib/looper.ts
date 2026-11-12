@@ -153,3 +153,9 @@ export function activeAt(loop: Loop, step: number, lap: number): Instrument[] {
 }
 
 export const hitTotal = (loop: Loop): number => loop.layers.reduce((n, l) => n + l.hits.length, 0)
+
+/** Al (re)arrancar el loop las vueltas vuelven a 0: todo lo grabado suena desde ya. */
+export const settle = (loop: Loop): Loop => ({
+  ...loop,
+  layers: loop.layers.map((l) => ({ ...l, hits: l.hits.map((h) => ({ ...h, activeFromLap: 0 })) })),
+})

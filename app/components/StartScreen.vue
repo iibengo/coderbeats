@@ -1,6 +1,7 @@
 <script setup lang="ts">
 const emit = defineEmits<{ started: [] }>()
 const { start } = useAudioEngine()
+const { data } = useCalibration()
 const busy = ref(false)
 const error = ref<string | null>(null)
 const secure = import.meta.client ? window.isSecureContext : true
@@ -9,7 +10,7 @@ async function onStart() {
   busy.value = true
   error.value = null
   try {
-    await start()
+    await start(data.value)
     emit('started')
   } catch (e) {
     const name = e instanceof DOMException ? e.name : ''
@@ -36,7 +37,7 @@ async function onStart() {
       :disabled="busy || !secure"
       @click="onStart"
     >
-      {{ busy ? 'Iniciando…' : 'Empezar' }}
+      {{ busy ? 'Comprobando audio…' : 'Empezar' }}
     </button>
     <p v-if="!secure" class="max-w-sm text-sm text-amber-300">
       El micro solo funciona con HTTPS o en localhost. Abre la web con https://

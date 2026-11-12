@@ -563,7 +563,7 @@ Hay dos causas, comprobadas con audio sintético (no con tu toma):
 
 **Correcciones (entran en esta enmienda):**
 - **a) Prueba de eco** al pulsar Empezar: suenan 3 clics con el micro abierto.
-  - Si se detectan, aparece el aviso "el micro oye los altavoces: usa cascos".
+  - Si se detectan (al menos 2 de 3, **con retrasos consistentes**: dispersión ≤ 15 ms, porque un eco real siempre llega con el mismo retraso y el ruido casual no), aparece el aviso "el micro oye los altavoces: usa cascos".
   - Con lo mismo se mide la **latencia pura del sistema** (salida + entrada), separada de tu tiempo de reacción.
 - **b) Filtro de eco** (solo se activa si la prueba de eco detecta que el micro oye la salida):
   - Sabemos cuándo suena cada clic y cada sample. Se descartan los onsets que caen a ±25 ms del momento en que debería llegar su eco.

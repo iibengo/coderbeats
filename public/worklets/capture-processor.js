@@ -1,7 +1,15 @@
 // Captura del micro con marca de tiempo exacta (currentFrame del AudioContext).
-// Mensajes de entrada: 'start' | 'stop'
-// Mensajes de salida: { type: 'chunk', frame, data } | { type: 'stopped' } | { type: 'level', peak }
+//
+// Mensajes de entrada (port):
+//   'start' | 'stop'                       captura a buffer (calibración, tomas)
+//   { type: 'stream-port' } + [MessagePort] puerto directo al worker de análisis
+//   'stream-on' | 'stream-off'             envío continuo al worker
+// Mensajes de salida (port):
+//   { type: 'chunk', frame, data } | { type: 'stopped' } | { type: 'level', peak }
+// Mensajes de salida (stream port):
+//   { type: 'chunk', frame, data }         bloques de STREAM_CHUNK muestras
 const CHUNK = 4096
+const STREAM_CHUNK = 512
 const LEVEL_EVERY = 16 // bloques de 128 (~43 ms a 48 kHz)
 
 class CaptureProcessor extends AudioWorkletProcessor {
@@ -11,16 +19,30 @@ class CaptureProcessor extends AudioWorkletProcessor {
     this.buf = new Float32Array(CHUNK)
     this.n = 0
     this.startFrame = 0
+    this.streamPort = null
+    this.streaming = false
+    this.sbuf = new Float32Array(STREAM_CHUNK)
+    this.sn = 0
+    this.sStart = 0
     this.peak = 0
     this.blocks = 0
     this.port.onmessage = (e) => {
-      if (e.data === 'start') {
+      const m = e.data
+      if (m === 'start') {
         this.active = true
         this.n = 0
-      } else if (e.data === 'stop') {
+      } else if (m === 'stop') {
         this.flush()
         this.active = false
         this.port.postMessage({ type: 'stopped' })
+      } else if (m === 'stream-on') {
+        this.streaming = true
+        this.sn = 0
+      } else if (m === 'stream-off') {
+        this.streaming = false
+        this.sn = 0
+      } else if (m && m.type === 'stream-port') {
+        this.streamPort = e.ports[0]
       }
     }
   }
@@ -34,6 +56,7 @@ class CaptureProcessor extends AudioWorkletProcessor {
   process(inputs) {
     const ch = inputs[0] && inputs[0][0]
     if (!ch) return true
+    const stream = this.streaming && this.streamPort
     for (let i = 0; i < ch.length; i++) {
       const v = ch[i]
       const a = v < 0 ? -v : v
@@ -42,6 +65,16 @@ class CaptureProcessor extends AudioWorkletProcessor {
         if (this.n === 0) this.startFrame = currentFrame + i
         this.buf[this.n++] = v
         if (this.n === CHUNK) this.flush()
+      }
+      if (stream) {
+        if (this.sn === 0) this.sStart = currentFrame + i
+        this.sbuf[this.sn++] = v
+        if (this.sn === STREAM_CHUNK) {
+          const data = this.sbuf
+          this.streamPort.postMessage({ type: 'chunk', frame: this.sStart, data }, [data.buffer])
+          this.sbuf = new Float32Array(STREAM_CHUNK)
+          this.sn = 0
+        }
       }
     }
     if (++this.blocks >= LEVEL_EVERY) {

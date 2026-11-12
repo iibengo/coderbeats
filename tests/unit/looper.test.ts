@@ -8,6 +8,7 @@ import {
   hitTotal,
   place,
   setBars,
+  settle,
   stepsOf,
   undoLayer,
   type Loop,
@@ -130,5 +131,13 @@ describe('capas y compases', () => {
     const one = setBars(two, 1)
     expect(stepsOf(one)).toEqual(stepsOf(base()))
     expect(hasHitsInBar2(one)).toBe(false)
+  })
+})
+
+describe('settle', () => {
+  it('al rearrancar, todo lo grabado suena desde la vuelta 0', () => {
+    const { loop } = add(emptyLoop(), 10 + 3 * LOOP + 4 * STEP, 'sd')
+    expect(activeAt(loop, 4, 0)).toEqual([])
+    expect(activeAt(settle(loop), 4, 0)).toEqual(['sd'])
   })
 })

@@ -51,9 +51,12 @@ export interface EchoTestResult {
   matched: number
 }
 
+/** dispersión máxima (s) entre los retrasos de los ecos para considerarlos eco real */
+export const MAX_ECHO_SPREAD = 0.015
+
 /**
  * Prueba de eco: dados los tiempos de los clics emitidos y los onsets oídos (misma escala),
- * decide si hay fuga y mide la latencia pura del sistema (mediana) y el nivel del eco.
+ * decide si hay fuga (≥ la mitad de clics oídos con retraso consistente) y mide la latencia pura del sistema (mediana) y el nivel del eco.
  */
 export function analyzeEchoTest(clickTimes: number[], onsets: { time: number; strength: number }[]): EchoTestResult {
   const delays: number[] = []
@@ -69,8 +72,10 @@ export function analyzeEchoTest(clickTimes: number[], onsets: { time: number; st
     const s = [...v].sort((a, b) => a - b)
     return s.length ? s[s.length >> 1]! : 0
   }
+  // un eco real llega siempre con el mismo retraso; ruido casual no
+  const spread = delays.length ? Math.max(...delays) - Math.min(...delays) : Infinity
   return {
-    bleed: clickTimes.length > 0 && delays.length >= Math.ceil(clickTimes.length / 2),
+    bleed: clickTimes.length > 0 && delays.length >= Math.ceil(clickTimes.length / 2) && spread <= MAX_ECHO_SPREAD,
     roundTrip: med(delays),
     echoLevel: med(levels),
     matched: delays.length,

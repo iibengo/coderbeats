@@ -67,7 +67,9 @@ export function useCalibration() {
     write({ ...base(sampleRate), latency })
   }
 
-  function saveSamples(samples: CalibrationSample[], sampleRate: number) {
+  function saveSamples(reactiveSamples: CalibrationSample[], sampleRate: number) {
+    // copia plana: puede venir de un ref de Vue (proxy) y debe poder enviarse al worker
+    const samples = JSON.parse(JSON.stringify(reactiveSamples)) as CalibrationSample[]
     write({
       ...base(sampleRate),
       createdAt: new Date().toISOString(),
