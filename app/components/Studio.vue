@@ -98,7 +98,7 @@ function download(name: string, data: BlobPart, type: string) {
 function downloadTake() {
   const t = lastTake.value
   if (!t) return
-  const stamp = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '')
+  const stamp = new Date().toISOString().slice(0, 16).replace(/\D/g, '')
   download(`coderbeats-${stamp}.take.wav`, encodeWav(t.buffer, t.sampleRate), 'audio/wav')
   const meta = {
     sampleRate: t.sampleRate,
