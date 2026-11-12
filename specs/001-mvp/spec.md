@@ -927,7 +927,7 @@ stack(
 7. Con 1 a 8 loops el volumen percibido varía como mucho ±3 dB y la salida nunca supera −1 dBFS.
 8. **Agua a 60 fps** en un Android de gama media (Pixel 6a) con 8 loops en drum and bass: p95 del tiempo de frame ≤ 16,7 ms. Funciona sin WebGL2 (respaldo) y respeta `prefers-reduced-motion`.
 9. En la vista principal solo se ven Play/Stop, estilo, kit, ajustes y "ver código".
-10. **Fondo musical**: suena al dar Play si está activado y se quita o se pone con el interruptor sin cortar la batería. El cambio se aplica en el siguiente compás.
+10. **Fondo musical**: se comporta según el modo (§16.13). En progresivo, al dar Play solo suenan tus loops, el bajo entra con 2 loops activos y los acordes con 3. Cada parte entra en una línea de compás con el filtro abriéndose de forma continua (sin escalones audibles) y se retira en orden inverso. El interruptor lo quita o lo pone sin cortar la batería.
 11. **Sidechain audible**: con fondo y bombo, el bajo y los acordes bajan con cada bombo (con `duckdepth` ≥ 0,5) y la mezcla no supera −1 dBFS.
 12. **Código = sonido**: el código mostrado, pegado en strudel.cc, suena igual que en coderbeats (mismo patrón, fase, kit y fondo). Las únicas diferencias admitidas son las de los propios samples si strudel.cc carga otro archivo, y eso se resuelve en el spike.
 13. **Gestos**: arrastrar en vertical u horizontal cambia el filtro o el espacio de forma audible en ≤ 1 semicorchea, sin reevaluar el código y sin cortes.
@@ -987,7 +987,7 @@ Con Strudel, **Tone.js se retira** y el metrónomo pasa a ser un patrón más (`
 
 #### Fondo musical por estilo (opcional)
 
-Cada estilo trae un **bajo y unos acordes en la misma tonalidad**, que suenan al dar Play si el fondo está activado (por defecto, activado). Los valores concretos (notas, filtros y niveles) se afinan de oído en la implementación. Esta es la intención:
+Cada estilo trae un **bajo y unos acordes en la misma tonalidad**. Por defecto **no suenan al dar Play**: entran poco a poco a medida que construyes la canción con la boca (fondo progresivo, §16.13). Los valores concretos (notas, filtros y niveles) se afinan de oído en la implementación. Esta es la intención:
 
 | Estilo | Tonalidad | Bajo | Acordes |
 |---|---|---|---|
@@ -1037,3 +1037,42 @@ Ejecutado con la página `/spike` en Chrome (escritorio, headless, micro simulad
 - **Carga**: `@strudel/web` se importa justo tras Empezar, en paralelo con la prueba de eco (en el iPhone el import son ~0,6 s).
 - **El metrónomo** es un patrón de Strudel solo del motor: no aparece en el código mostrado, porque es una ayuda y no forma parte de la música.
 - **Cierre de frase y planificación**: Strudel consulta unos 100–150 ms por delante. Para que un loop empiece justo en la línea de compás B, la frase se decide en **B − 0,3 s** con los golpes conocidos hasta entonces. Un golpe tardío que caiga en esos últimos 0,3 s abre la frase siguiente (normalmente es un golpe adelantado al 1).
+
+### 16.13 Fondo progresivo (añadido el 2026-11-12, antes de la A3.2)
+
+**Construir la canción poco a poco con la boca.** El fondo deja de sonar de golpe al dar Play.
+
+**Modos** (ajustes → "Fondo"):
+- **Progresivo** (por defecto):
+  - Al dar Play solo suenan tus loops.
+  - Con **2 loops activos** (no silenciados) entra el **bajo**.
+  - Con **3 o más**, entran los **acordes**.
+  - Si silencias o borras loops y el número baja, se retiran en **orden inverso**: primero los acordes (con menos de 3) y después el bajo (con menos de 2).
+- **Completo**: bajo y acordes entran desde el inicio, abriéndose en el primer compás tras Play.
+- **Sin fondo**: nunca suena.
+
+El **interruptor "fondo"** de la vista principal alterna entre "sin fondo" y el último modo elegido (por defecto, progresivo).
+
+**Cómo entra y sale cada parte:**
+- **Entrada**: siempre en una **línea de compás**. Durante **1 compás en hip hop y house y 2 en drum and bass** (unos 2–3 s en los tres estilos) se hace lo siguiente:
+  - el **filtro paso bajo** de la parte sube de forma exponencial de **150 Hz a abierto** (20 kHz; el tono propio de cada parte lo dan sus `lpf`),
+  - su ganancia sube de 0 a 1 durante el primer tiempo, para que no haya clic.
+- **Salida**: en la siguiente línea de compás, el mismo recorrido al revés durante 1 compás.
+- Si la decisión cambia mientras una rampa está en curso, la nueva rampa parte del valor actual. Nada salta.
+
+**Implementación** (con lo que permite superdough):
+- **Un bus por parte**: el bajo va en el **orbit 2** y los acordes en el **orbit 3**. El sidechain del bombo los empuja a los dos: `.duckorbit("2:3")`.
+- **Filtro continuo**: el filtro de Strudel se aplica por evento, y el bajo hace notas de un compás, así que una rampa por evento iría a saltos. En su lugar, el motor crea esos orbits al arrancar (`controller.getOrbit(n)`) e **inserta entre su salida y el destino un `BiquadFilter` paso bajo y un `GainNode` nativos**. Las rampas (`exponentialRampToValueAtTime`) son exactas al sample y empiezan justo en la línea de compás.
+- **Sin reevaluar**: en los modos progresivo y completo, el código del motor lleva siempre las dos partes del fondo, y lo que hace que suenen o no son esos nodos nativos. Entrar y salir no reevalúa nada.
+- **Código mostrado**: solo aparecen las partes que han entrado (o están entrando). La rampa de entrada es una automatización del motor, como los gestos, y no se escribe en el código. El código copiado suena con la parte ya abierta.
+- **A verificar al inicio de la A3.2** (comprobación rápida en `/spike`):
+  1. insertar los nodos nativos en el orbit y que sobrevivan a hush/play,
+  2. `duckorbit("2:3")`,
+  3. que un loop nuevo no suene antes de su compás de nacimiento: el motor lo filtra con `filterHaps` por ciclo.
+
+  Si (1) falla, la alternativa es una rampa por evento con `ref()` sobre `lpf` y `gain`. Con notas largas iría a escalones, y entonces te aviso.
+
+**Lógica pura** (`lib/background.ts`, con tests):
+- `targetParts(activeLoops, mode) → { bass, chords }`,
+- el plan de rampas (qué parte, entrada o salida, en qué compás y durante cuántos compases según el estilo),
+- y que la retirada sea en orden inverso.
