@@ -1223,3 +1223,5 @@ interface VisualTheme {
 **5. Niveles del agua** (actualiza §16.3): **WebGL2** (simulación con texturas half-float; los canales R, G y B son bombo, caja y platillo, y A es el pulso neutro) → **Canvas 2D** (anillos que se expanden). Se descarta el nivel intermedio de WebGL1 analítico: WebGL2 está en todos los navegadores objetivo (Chrome Android y Safari iOS 15+), y el Canvas 2D cubre el resto y `prefers-reduced-motion` (sin ondas: solo el anillo y un leve latido de opacidad).
 
 **6. Persistencia** (adelantada de la A3.4): ajustes, estilo, kit, efectos y loops se guardan en `localStorage` (`coderbeats:prefs:v1`, `coderbeats:loops:v1`).
+
+**Estado (2026-11-12):** A3.3 hecha. Capa común (`VisualStage`, `PhraseRing`, `lib/drift.ts`), interfaz de temas (`app/themes/`) y el agua como primer tema: WebGL2 con 4 canales half-float (alturas limitadas a ±1,5 para no desbordar), respaldo en Canvas 2D y modo reducido. De la A3.4 entran ya la pantalla principal mínima, la hoja de ajustes (ajustes, código y diagnóstico) y la persistencia. Queda pendiente la prueba en el móvil: 60 fps reales y el tacto.

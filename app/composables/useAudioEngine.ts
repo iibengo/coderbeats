@@ -49,13 +49,20 @@ export interface DiagEvent {
 export type PhraseMode = 'silence' | 'bar'
 export type RepeatMode = 'replace' | 'accumulate'
 
-/** Golpe para la capa visual: `hit` = suena; `heard` = se acaba de oír por el micro (§16.15). */
+/**
+ * Evento para la capa visual (§16.16):
+ * - `hit`: suena un golpe (de un loop o del fondo), entregado en su tiempo de audio
+ * - `heard`: el micro acaba de oír un golpe (al instante); `step` = paso dentro del compás
+ * - `birth`: nace (o se sustituye) un loop; `time` = la línea de compás en la que empieza a sonar
+ */
 export interface VisualHit {
-  kind: 'hit' | 'heard'
+  kind: 'hit' | 'heard' | 'birth'
   loopId: number | null
   instrument: Instrument | 'bass' | 'chords' | null
-  /** tiempo de contexto en que suena */
   time: number
+  /** 0..1 */
+  strength: number
+  step?: number
 }
 
 /** Correspondencia ciclo ↔ tiempo de contexto, a partir del último pulso. */
@@ -241,6 +248,7 @@ function onTrigger(hap: StrudelHap, t: number) {
     loopId,
     instrument: loop?.instrument ?? (color === 'bass' || color === 'chords' ? color : null),
     time,
+    strength: Math.min(1, Number(hap.value.gain ?? 1)),
   }
   setTimeout(() => visualListeners.forEach((f) => f(visual)), Math.max(0, (time - ctx.currentTime) * 1000))
 }
@@ -367,7 +375,19 @@ function birth(phrase: ClosedPhrase, bornAt: number, amend = false) {
     amend,
   })
   loops.value = r.state
-  for (const e of r.events) logLoopEvent(e)
+  for (const e of r.events) {
+    logLoopEvent(e)
+    if (e.type === 'born' || e.type === 'replaced') {
+      const birthEvent: VisualHit = {
+        kind: 'birth',
+        loopId: e.loop.id,
+        instrument: e.loop.instrument,
+        time: barTime(bornAt),
+        strength: 1,
+      }
+      visualListeners.forEach((f) => f(birthEvent))
+    }
+  }
   reevaluate()
   updateBackground()
 }
@@ -380,7 +400,15 @@ function onWorkerMessage(m: FromWorker) {
   if (m.instrument === 'unknown') return log('unknown', `golpe desconocido (${m.strength.toFixed(3)})`, uiMs)
   if (!playing.value || !tracker) return log('stopped', `${m.instrument} sin loop en marcha`, uiMs)
   log('hit', `${m.instrument} ${(m.confidence * 100).toFixed(0)}%`, uiMs)
-  const heard: VisualHit = { kind: 'heard', loopId: null, instrument: m.instrument, time: m.time }
+  const gs = tracker.globalStep(m.time - latencySec)
+  const heard: VisualHit = {
+    kind: 'heard',
+    loopId: null,
+    instrument: m.instrument,
+    time: m.time,
+    strength: Math.min(1, m.strength * 4),
+    step: ((gs % 16) + 16) % 16,
+  }
   visualListeners.forEach((f) => f(heard))
   const r = tracker.add({
     tCorr: m.time - latencySec,
@@ -642,6 +670,12 @@ export function useAudioEngine() {
     }, (release - ctx.currentTime) * 1000)
   }
 
+  /** Restaura loops guardados (persistencia, §16.16). */
+  function setLoops(state: LoopsState) {
+    loops.value = { ...state, loops: state.loops.map(({ prev: _prev, ...l }) => ({ ...l, bornAt: 0 })) }
+    reevaluate()
+  }
+
   function mute(id: number) {
     loops.value = toggleMute(loops.value, id)
     reevaluate()
@@ -716,6 +750,7 @@ export function useAudioEngine() {
     setRepeatMode,
     setFx,
     drop,
+    setLoops,
     mute,
     remove,
     clearAll,

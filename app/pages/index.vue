@@ -18,11 +18,11 @@ function afterLatency() {
 </script>
 
 <template>
-  <main class="mx-auto flex min-h-dvh max-w-xl flex-col px-4 py-5">
+  <Studio v-if="screen === 'studio'" @recalibrate="(s) => (screen = s)" />
+  <main v-else class="mx-auto flex min-h-dvh max-w-xl flex-col px-4 py-5">
     <header v-if="screen !== 'start'" class="mb-6 text-sm font-medium tracking-tight">coderbeats</header>
     <StartScreen v-if="screen === 'start'" @started="afterStart" />
     <LatencyStep v-else-if="screen === 'latency'" @done="afterLatency" />
     <SoundStep v-else-if="screen === 'sounds'" @done="afterSounds" />
-    <Studio v-else @recalibrate="(s) => (screen = s)" />
   </main>
 </template>
