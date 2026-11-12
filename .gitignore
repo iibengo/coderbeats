@@ -23,3 +23,8 @@ logs
 .env.*
 !.env.example
 coverage
+
+# Tomas de voz de diagnóstico (privadas, nunca al repo)
+tests/fixtures/voice/
+*.take.wav
+*.take.json

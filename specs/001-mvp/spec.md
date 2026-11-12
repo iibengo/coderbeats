@@ -1,6 +1,7 @@
 # 001 · MVP de coderbeats
 
 > Estado: **aprobada** el 2026-11-12, con cambios: estilo premium minimalista y preguntas abiertas resueltas (§13).
+> **Enmienda 1 (modo looper, §15): aprobada el 2026-11-12.**
 > Fecha: 2026-11-12
 
 coderbeats convierte un beatbox grabado con el micro del navegador en un loop de batería con samples de calidad y muestra el patrón como código [Strudel](https://strudel.cc) listo para copiar.
@@ -536,3 +537,172 @@ En este orden. **Cada punto tendrá su propia spec** (`specs/00N-…/spec.md`) c
 6. **Precisión**: editar pasos tocando el anillo, **aprender de mis correcciones** (que pasen a ser muestras de calibración) y usar el **contexto musical** para desempatar golpes dudosos (por ejemplo, bombo en tiempo fuerte o caja en 2 y 4).
 
 La lista de "Fuera del MVP" de §2 queda como referencia; el orden lo fija esta hoja de ruta.
+
+---
+
+## 15. Enmienda 1: modo looper
+
+> Estado: **aprobada** (2026-11-12), con las decisiones de §15.10.
+> **Sustituye** a §3.4 (Grabación), §3.5 (Análisis), §5.1 (Tiempos de grabación), el `Pattern` de §6, los criterios 4, 5, 6 y 10 de §11 y la fase A de §12.
+> **Adapta** §5.2 (onsets), §5.5 (cuantización) y §5.7 (Strudel).
+> **No cambia**: calibración de latencia (§3.2), calibración de sonidos (§3.3), features y k-NN (§5.3, §5.4), kits, estilos, diseño (§8) ni la hoja de ruta (§14).
+
+### 15.1 Motivo
+El prototipo reconoce bien los sonidos, pero no se siente en directo: grabas 4 compases, esperas y escuchas. Pasamos a un looper tipo RC-505: el loop gira sin parar y cada golpe se detecta, se ve y se añade mientras tocas.
+
+### 15.2 Diagnóstico: ¿por qué 48 onsets en 4 compases?
+
+Hay dos causas, comprobadas con audio sintético (no con tu toma):
+
+1. **El metrónomo entra por el micro.** Un clic que llega al micro a −30 dBFS o más se detecta en el **100 % de los casos**: 20 de 20, que son los 4 de la cuenta atrás y los 16 de la grabación. Además se clasifica como uno de tus sonidos. A −40 dBFS ya no se detecta. Con altavoces, o con cascos abiertos a volumen alto, −30 dBFS es fácil de alcanzar. Los clics de la cuenta atrás también quedan en el buffer: no llegan a la rejilla, pero sí suman al recuento de onsets. **20 clics más unos 28 golpes reales dan unos 48**, que encaja con lo que viste.
+2. **Doble disparo del "bum".** La explosiva "b" y la vocal "um", unos 70 ms después, dan **2 onsets** en la simulación. La separación mínima actual (60 ms) es demasiado corta. A 90 BPM una semicorchea dura 167 ms, así que el segundo onset cae en el mismo paso o en el siguiente. Eso son los "bombos seguidos".
+
+**Cómo confirmarlo con tu toma sin tocar código** (tabla Diagnóstico):
+- Los onsets con `t` menor de unos 3,0 s están en la cuenta atrás, donde tú no hablas: son el metrónomo entrando por el micro.
+- Las parejas de "bum" separadas menos de 0,15 s son dobles disparos.
+
+**Correcciones (entran en esta enmienda):**
+- **a) Prueba de eco** al pulsar Empezar: suenan 3 clics con el micro abierto.
+  - Si se detectan, aparece el aviso "el micro oye los altavoces: usa cascos".
+  - Con lo mismo se mide la **latencia pura del sistema** (salida + entrada), separada de tu tiempo de reacción.
+- **b) Filtro de eco** (solo se activa si la prueba de eco detecta que el micro oye la salida):
+  - Sabemos cuándo suena cada clic y cada sample. Se descartan los onsets que caen a ±25 ms del momento en que debería llegar su eco.
+  - Excepción: si superan en +10 dB el nivel de eco medido, se aceptan. Cuando tocas a la vez que el loop, tu voz pegada al micro suena más fuerte que el eco.
+- **c) Anti-doble disparo**: separación mínima ligada a la rejilla de grabación, `clamp(0,6 × celda, 60 ms, 120 ms)`. Sale 100 ms en hip hop 90, 72 ms en house 124 y 103 ms en drum and bass (celda de corchea).
+- **d) Puerta relativa**: se descartan los onsets más de 24 dB por debajo de la mediana de los últimos 8 golpes (respiraciones, chasquidos de labios). Es un valor ajustable.
+- **e) Botón "Descargar toma"** (solo en desarrollo): baja el WAV y un JSON con los onsets, para ajustar umbrales con tus grabaciones reales.
+
+### 15.3 Flujo looper
+Pantalla de estudio:
+- **Duración del loop**: 1 compás (por defecto) o 2.
+- **Tempo**: el que marca el estilo (90, 124 o 174 BPM). **Se graba al tempo del estilo**, así que desaparece la regla de grabar siempre a 90 BPM.
+- **Rejilla de grabación por estilo**: hip hop y house cuantizan a semicorcheas. **Drum and bass cuantiza a corcheas al grabar** (172 ms a 174 BPM, la sensación de medio tiempo típica del dnb). El loop suena a 174 y el patrón se guarda igualmente en 16 pasos por compás; los golpes solo caen en los pasos pares.
+- **▶ Play / ■ Stop**: el loop gira sin parar y el cabezal no se detiene nunca. Al parar se conserva el patrón.
+- **Metrónomo**: interruptor que se puede cambiar sin cortar el loop.
+- **● Overdub** (grabar/pausar):
+  - Con el overdub activado, cada golpe detectado se añade. Desactivado, puedes tocar encima sin añadir nada.
+  - Si pulsas REC con el loop parado, suena 1 compás de cuenta atrás y luego arrancan el loop y la grabación.
+  - Si pulsas REC con el loop en marcha, la grabación empieza al instante.
+- **Cada golpe**, unos 100 ms después de hacerlo:
+  - se enciende en la rejilla como *pendiente* (contorno de su color),
+  - aparece en el código en ese mismo instante, con un destello,
+  - **suena desde la siguiente vuelta**, en su paso cuantizado. A partir de ahí la rejilla lo muestra relleno.
+- **Capas**: cada vuelta con el overdub activado en la que entra al menos un golpe nuevo es una capa.
+  - **Deshacer capa** quita la última capa. Se puede repetir y funciona con el loop sonando.
+  - **Borrar todo** deja el loop vacío, pero sigue girando.
+- **Cambiar de 1 a 2 compases** duplica el compás. **De 2 a 1** pide confirmación si el segundo compás tiene golpes.
+- El kit (y en la fase B las ruedas y el drop) cambia en vivo.
+- El flujo anterior (grabar 4 compases, analizar y reproducir) **desaparece de la UI**. El análisis offline se queda en `lib/` para la calibración y los tests.
+
+### 15.4 Arquitectura de streaming
+
+```
+mic → AudioWorklet (captura) ──MessageChannel──► Web Worker de análisis
+                                                 StreamingOnsetDetector → features → k-NN → filtro de eco
+                                                         │ LiveHit { frame, instrument, confidence, strength }
+hilo principal ◄─────────────────────────────────────────┘
+  LooperEngine: frame → tiempo de contexto → − latencia → vuelta y paso del loop → capa actual
+  Tone.Transport (loop de 1m/2m) + Sequence de 16/32 pasos que dispara los golpes activos
+```
+
+- **El análisis va en un Web Worker** y el hilo principal solo pinta.
+  - El worklet manda bloques de unas 512 muestras (unos 10 ms) **directamente al worker** por un `MessageChannel`, sin pasar por el hilo principal.
+  - Meyda funciona en el worker (no usa el DOM). El clasificador se construye en el worker a partir de la calibración que se le pasa al arrancar.
+- **`lib/streamingOnsets.ts`** (puro):
+  - Es el mismo algoritmo de §5.2, pero incremental.
+  - Necesita mirar por delante: 8 frames de mediana (unos 43 ms) más la ventana de features (2048 muestras, unos 43 ms). Por eso **decide unos 100 ms después del golpe** (objetivo: ≤ 120 ms).
+  - El ruido de fondo es el percentil 10 de los últimos 3 s.
+- **Tiempos**:
+  - `t = frame / sampleRate` (el reloj del AudioContext) y `tCorr = t − latencia`.
+  - El Transport registra en qué tiempo de contexto empieza cada vuelta.
+  - `paso = round(((tCorr − inicioVuelta) mod duraciónLoop) / semicorchea) mod N`.
+- **Capa de un golpe**: la vuelta en la que lo hiciste (por `tCorr`). Deshacer capa quita lo que hiciste en esa vuelta.
+- **"Suena desde la siguiente vuelta"**: cada golpe guarda `activeFromLap = vuelta cuantizada + 1`, y la Sequence solo lo dispara a partir de esa vuelta. La vuelta cuantizada es la del instante de la rejilla al que se redondea: un golpe un poco adelantado al 1 pertenece musicalmente a la vuelta siguiente, así que empieza a sonar una vuelta después. Así nunca suena encima de tu propia voz.
+- Con REC desde parado, los golpes de la cuenta atrás que se redondean al paso 0 de la primera vuelta cuentan. El resto se descartan.
+- **Duplicados**: si ese instrumento ya está en ese paso (en cualquier capa), el golpe se ignora y solo hay un destello visual. Dentro de una misma vuelta el beatbox es monofónico: si caen dos instrumentos en un paso, gana el más fuerte.
+- **Filtro de eco**: el hilo principal manda al worker la lista de eventos de salida programados (clics y samples), con su tiempo de contexto y el nivel esperado.
+
+### 15.5 Modelo de datos (sustituye a `Pattern`)
+
+```ts
+export type LoopBars = 1 | 2
+
+/** worker → hilo principal */
+export interface LiveHit {
+  frame: number
+  instrument: Instrument | 'unknown'
+  confidence: number
+  strength: number
+}
+
+export interface LoopHit {
+  step: number            // 0..bars*16-1
+  instrument: Instrument
+  layerId: number
+  activeFromLap: number
+  strength: number
+  confidence: number
+  offsetMs: number        // desviación respecto a la rejilla (para el swing futuro)
+}
+
+export interface Layer { id: number; lap: number; hits: LoopHit[] }
+
+export interface Loop {
+  bars: LoopBars
+  stepsPerBar: 16
+  layers: Layer[]
+}
+```
+
+- Derivado: `stepsOf(loop): Instrument[][]`, con **polifonía por paso**, porque varias capas pueden apilar `bd` y `hh` en el mismo paso.
+- Persistencia: `coderbeats:loop:v1` guarda el último loop.
+
+### 15.6 Código Strudel (adapta §5.7)
+Con capas hay polifonía, así que el código pasa a tener **una línea por instrumento** dentro de `stack()`:
+
+```js
+setcpm(90/4)
+stack(
+  s("bd ~ ~ ~ ~ ~ ~ ~ bd ~ bd ~ ~ ~ ~ ~"),
+  s("~ ~ ~ ~ sd ~ ~ ~ ~ ~ ~ ~ sd ~ ~ ~"),
+  s("hh ~ hh ~ hh ~ hh ~ hh ~ hh ~ hh ~ hh ~"),
+).bank("RolandTR909")
+```
+
+- Solo aparecen los instrumentos con golpes. Si solo hay uno, no se usa `stack`: queda `s("…").bank("…")`.
+- Con 2 compases cada línea es `"<[compás 1] [compás 2]>"`, y se colapsa a uno si los dos son iguales.
+- Cada golpe nuevo cambia su token en el sitio, con un destello, sin volver a teclear todo. El tecleo completo se usa solo al cargar o al deshacer o borrar. Los efectos de las ruedas siguen como en §5.7 (fase B).
+
+### 15.7 Tests nuevos
+- **streamingOnsets**: mismo resultado que el detector offline (±1 ms) metiendo el buffer en trozos de tamaño aleatorio. La decisión llega ≤ 120 ms después del golpe.
+- **Anti-doble disparo**: un "bum" con explosiva separada da 1 onset. En house 124 (separación mínima de 72 ms), dos golpes a 90 ms siguen siendo 2.
+- **Filtro de eco**: descarta los onsets en los tiempos de eco esperados y conserva un golpe simultáneo 10 dB más fuerte.
+- **looper** (estado puro, `lib/looper.ts`):
+  - cálculo de vuelta y paso con latencia y paso por el 0,
+  - `activeFromLap`,
+  - duplicados y colisiones dentro de una vuelta,
+  - deshacer capa, borrar todo y cambio entre 1 y 2 compases.
+- **strudel**: `stack` por instrumento, una sola línea si solo hay un instrumento y 2 compases.
+
+### 15.8 Criterios de aceptación (sustituyen a los 4, 5, 6 y 10 de §11)
+1. Tras Play, el loop gira indefinidamente sin cortes. Encender o apagar el metrónomo no lo corta.
+2. Con el overdub activado, cada golpe se enciende en la rejilla y aparece en el código **≤ 150 ms** después de hacerlo. En desarrollo se registra el tiempo desde el onset hasta que se pinta.
+3. El golpe suena desde la vuelta siguiente, en su paso cuantizado, y **nunca en la misma vuelta**.
+4. Deshacer capa quita exactamente los golpes de la última capa. Borrar todo deja el loop vacío y girando.
+5. Con el overdub desactivado se puede tocar encima sin que se añada nada.
+6. Con cascos con cable, un patrón de hip hop de 1 compás hecho en una vuelta a 90 BPM: **≥ 90 %** de los golpes en su paso e instrumento, y **0 golpes fantasma** del metrónomo en 8 vueltas.
+7. Sin cascos (altavoces): la prueba de eco avisa. Con el filtro de eco activo el loop no se retroalimenta: 8 vueltas con el overdub activado y tú en silencio dan **0 golpes nuevos**.
+8. El análisis va en el worker y no hay tareas largas de más de 50 ms en el hilo principal con el loop sonando.
+
+### 15.9 Plan (nueva fase A2, entre la A y la B)
+- **A2.1** `lib/`: streamingOnsets, anti-doble disparo, filtro de eco, estado del looper y Strudel con `stack`, con sus tests.
+- **A2.2** Worker de análisis, canal entre worklet y worker, y prueba de eco.
+- **A2.3** LooperEngine con Tone: loop de 1 o 2 compases, metrónomo y `activeFromLap`.
+- **A2.4** UI básica: play/stop, overdub, metrónomo, 1/2 compases, deshacer capa, borrar todo, rejilla y código en vivo, y descargar toma.
+- **A2.5** Lo pruebas con tu voz. Después, la fase B (diseño, ruedas y drop) sigue igual.
+
+### 15.10 Decisiones (antes preguntas abiertas)
+1. **REC con el loop parado**: 1 compás de cuenta atrás.
+2. **Drum and bass a 174**: el loop suena a 174 con rejilla de 16, pero al grabar cuantiza a corcheas (172 ms). El patrón se guarda en 16 pasos (§15.3).
+3. **Metrónomo**: encendido por defecto, salvo que la prueba de eco detecte que el micro oye los altavoces.
+4. **Tomas de diagnóstico**: solo en local, fuera de git. Si se usan como fixtures van en `tests/fixtures/voice/`, que está en `.gitignore`, y los tests que las usan se saltan si la carpeta no existe.
