@@ -1225,3 +1225,40 @@ interface VisualTheme {
 **6. Persistencia** (adelantada de la A3.4): ajustes, estilo, kit, efectos y loops se guardan en `localStorage` (`coderbeats:prefs:v1`, `coderbeats:loops:v1`).
 
 **Estado (2026-11-12):** A3.3 hecha. Capa común (`VisualStage`, `PhraseRing`, `lib/drift.ts`), interfaz de temas (`app/themes/`) y el agua como primer tema: WebGL2 con 4 canales half-float (alturas limitadas a ±1,5 para no desbordar), respaldo en Canvas 2D y modo reducido. De la A3.4 entran ya la pantalla principal mínima, la hoja de ajustes (ajustes, código y diagnóstico) y la persistencia. Queda pendiente la prueba en el móvil: 60 fps reales y el tacto.
+
+### 16.17 Fondo manual, anillo = mapa del ritmo y centrado en escritorio (añadido el 2026-11-12)
+
+**1. Fondo manual (nuevo modo por defecto).**
+- Dos **bolas fijas abajo**, a los lados de Play: **"bajo"** y **"acordes"**, con una etiqueta mínima debajo.
+- **Estados**:
+  - apagada: blanco tenue;
+  - pendiente: borde que parpadea, porque entra en el siguiente compás;
+  - sonando: blanca con brillo, **late con cada golpe de su parte** como los loops;
+  - saliendo: medio apagada.
+- **Tocar una bola** la hace entrar en la **siguiente línea de compás** con la rampa de filtro de §16.13. **Tocarla otra vez** la retira.
+  - En manual, si se encienden las dos a la vez, entran juntas (sin escalonar).
+  - La elección se mantiene al parar y volver a dar Play, y se guarda en prefs.
+- **Modos en ⋯ → Fondo**: manual (por defecto) · progresivo · completo · sin fondo. Las bolas solo aparecen en modo manual. Los dos dedos alternan "sin fondo" ↔ el último modo.
+- Lógica: `targetParts(activos, 'manual', elegidas)` devuelve lo elegido; `planTransitions(…, stagger = false)` en manual.
+
+**2. Anillo = mapa del ritmo** (sustituye al anillo simple de §16.16).
+- **Tres aros**: bombo dentro, caja en medio, platillo fuera, para que no se solapen.
+- **Cada golpe de cada loop** queda marcado en su paso como un **punto pequeño y tenue de su color** (el compás que suena de cada loop, según su longitud y su fase). Un **loop silenciado** se ve con **puntos huecos**.
+- **Cabezal**: una línea fina que cruza los tres aros. **Cuando pasa y suena, el punto se enciende** (brillo y escala) y **la onda sale desde ese punto** del anillo.
+- Los golpes de la **frase en curso** aparecen al instante, más grandes, en su aro.
+- Las **bolas flotantes** se mantienen para tocar (silenciar) y mantener (borrar), y vibran al sonar.
+- El motor añade el paso (`step`, del ciclo de Strudel) a cada golpe que suena, para encender el punto exacto.
+
+**3. Centrado y sin scroll en escritorio.** No se reprodujo en Chrome headless (1440×900 con escala 1 y 1,5). Aun así, el diseño es robusto por construcción:
+- el escenario y el canvas llevan la posición fija y el tamaño de la ventana como estilos en línea, sin depender de clases generadas;
+- las medidas salen de `innerWidth`/`innerHeight`;
+- el documento no hace scroll mientras se ve el escenario;
+- el anillo se limita a 240 px de radio y nunca invade la zona de Play.
+
+También se corrige que el tema Canvas 2D no ajustaba su resolución interna al cambiar de tamaño.
+
+**4. Bolas vivas al sonar** (punto 5 de la misma ronda):
+- En cada golpe de su loop, la bola **late y brilla**: crece y vuelve en 220 ms, con subida de 40 ms y bajada suave, con `brightness` y un halo de su color que se agranda.
+- **Latido por instrumento**: bombo +30 %, caja +25 %, platillo +20 %. Las bolas del fondo, más suaves.
+- **Onda clara en el agua desde la bola**, con peso por instrumento (bombo 1, caja 0,75, platillo 0,5) en amplitud y radio. El color de las ondas es más visible. El punto del anillo suelta además una onda pequeña (35 %).
+- La intensidad de la onda tiene un mínimo (`0,6 + 0,4 × ganancia`) para que con muchos loops la mezcla automática no la haga desaparecer.

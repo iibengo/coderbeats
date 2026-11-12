@@ -13,6 +13,8 @@ out vec2 vUv;
 void main() { vUv = aPos * 0.5 + 0.5; gl_Position = vec4(aPos, 0.0, 1.0); }`
 
 const MAX_DROPS = 24
+/** peso de la onda por instrumento (§16.17, punto 5) */
+const WEIGHT: Record<string, number> = { bd: 1, sd: 0.75, hh: 0.5, bass: 0.35, chords: 0.3 }
 
 const SIM_FS = `#version 300 es
 precision highp float;
@@ -64,9 +66,9 @@ void main() {
   float spec = pow(max(dot(reflect(-light, normal), vec3(0.0, 0.0, 1.0)), 0.0), 32.0);
   vec3 base = vec3(0.043, 0.043, 0.059);
   vec3 col = base
-    + uBd * smoothstep(0.0, 0.9, abs(h.r)) * 0.42
-    + uSd * smoothstep(0.0, 0.9, abs(h.g)) * 0.42
-    + uHh * smoothstep(0.0, 0.9, abs(h.b)) * 0.42
+    + uBd * smoothstep(0.0, 0.7, abs(h.r)) * 0.62
+    + uSd * smoothstep(0.0, 0.7, abs(h.g)) * 0.62
+    + uHh * smoothstep(0.0, 0.7, abs(h.b)) * 0.62
     + vec3(1.0) * smoothstep(0.0, 0.8, abs(h.a)) * 0.12
     + vec3(spec) * 0.12;
   // viñeta muy suave
@@ -251,8 +253,10 @@ export function createWaterWebGL2(): VisualTheme | null {
     },
     hit(e) {
       const m = maskOf(e.instrument)
-      if (e.kind === 'heard') push(e.x, e.y, 6, 0.35, m)
-      else push(e.x, e.y, 8, 0.15 + 0.3 * e.strength, m)
+      if (e.kind === 'heard') return push(e.x, e.y, 6, 0.35, m)
+      // el bombo, la onda más fuerte y ancha; el platillo, la más ligera
+      const w = WEIGHT[e.instrument] ?? 0.4
+      push(e.x, e.y, 7 + 7 * w, 0.75 * w * e.strength, m)
     },
     birth(e) {
       push(e.x, e.y, 20, 1.1, maskOf(e.instrument))

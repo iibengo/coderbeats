@@ -16,6 +16,7 @@ interface Ring {
  */
 export function createWaterCanvas2D(): VisualTheme {
   let ctx: CanvasRenderingContext2D | null = null
+  let el: HTMLCanvasElement | null = null
   let w = 0
   let h = 0
   let dpr = 1
@@ -35,6 +36,7 @@ export function createWaterCanvas2D(): VisualTheme {
     label: 'Agua',
     renderer: () => (reduced ? 'canvas2d-reducido' : 'canvas2d'),
     mount(canvas, opts) {
+      el = canvas
       ctx = canvas.getContext('2d')
       dpr = opts.dpr
       reduced = opts.reducedMotion
@@ -43,6 +45,10 @@ export function createWaterCanvas2D(): VisualTheme {
       w = width
       h = height
       dpr = d
+      if (el) {
+        el.width = Math.round(w * dpr)
+        el.height = Math.round(h * dpr)
+      }
     },
     beat(e) {
       glow = { x: e.x, y: e.y, amp: e.downbeat ? 0.16 : 0.07, born: now() }
@@ -51,7 +57,10 @@ export function createWaterCanvas2D(): VisualTheme {
     hit(e) {
       const rgb = INSTRUMENT_RGB[e.instrument]
       if (e.kind === 'heard') add({ x: e.x, y: e.y, rgb, amp: 0.35, speed: 70, life: 0.9 })
-      else add({ x: e.x, y: e.y, rgb, amp: 0.25 + 0.5 * e.strength, speed: 110, life: 1.6 })
+      else {
+        const w = ({ bd: 1, sd: 0.75, hh: 0.5 } as Record<string, number>)[e.instrument] ?? 0.4
+        add({ x: e.x, y: e.y, rgb, amp: 0.9 * w * e.strength, speed: 90 + 50 * w, life: 1.2 + 0.8 * w })
+      }
     },
     birth(e) {
       const rgb = INSTRUMENT_RGB[e.instrument]

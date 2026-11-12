@@ -1,17 +1,21 @@
 <script setup lang="ts">
-// Capa visual común (§16.14, §16.16): canvas del tema, anillo de compás, loops flotantes
-// (tocar = silenciar, mantener = borrar), gestos sobre el agua y bucle rAF único.
-import { spawnPoint, stepDrift, type Body, type DriftBounds } from '~/lib/drift'
-import { dragValue, lockAxis, type Axis } from '~/lib/gestures'
+// Capa visual común (§16.14, §16.16, §16.17): canvas del tema, anillo = mapa del ritmo,
+// loops flotantes (tocar = silenciar, mantener = borrar), bolas del fondo manual,
+// gestos sobre el agua y bucle rAF único.
+import type { Part } from '~/lib/background'
 import { STYLES } from '~/lib/constants'
+import { spawnPoint, stepDrift, type Body, type DriftBounds } from '~/lib/drift'
+import { loopBarAt } from '~/lib/freeLoops'
+import { dragValue, lockAxis, type Axis } from '~/lib/gestures'
 import type { Instrument } from '~/lib/types'
-import { themeById, DEFAULT_THEME } from '~/themes'
+import { DEFAULT_THEME, themeById } from '~/themes'
 import type { VisualTheme } from '~/themes/types'
 import PhraseRing from './PhraseRing.vue'
+import type { RingDot } from './ring'
 
 const props = withDefaults(defineProps<{ themeId?: string }>(), { themeId: DEFAULT_THEME })
 const engine = useAudioEngine()
-const { loops, playing, phrase, fx, bgParts, style } = engine
+const { loops, playing, phrase, fx, bgParts, bgMode, bgManual, style, currentBar } = engine
 
 const root = ref<HTMLElement | null>(null)
 const canvasHost = ref<HTMLElement | null>(null)
@@ -20,20 +24,54 @@ const view = reactive({ w: 390, h: 844 })
 const reduced = import.meta.client && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 const rendererName = ref('')
 
-// ── geometría ───────────────────────────────────────────────────────────────────
-const ringGeo = computed(() => ({ x: view.w / 2, y: view.h * 0.42, r: Math.min(view.w * 0.3, view.h * 0.19) }))
+// ── geometría (todo centrado en la ventana, también en escritorio) ───────────────
+const PLAY_FROM_BOTTOM = 56 // centro del botón Play desde abajo (px)
+const ringGeo = computed(() => {
+  const r = Math.max(70, Math.min(view.w * 0.3, view.h * 0.21, 240))
+  return { x: view.w / 2, y: Math.min(view.h * 0.43, view.h - PLAY_FROM_BOTTOM - 120 - r), r }
+})
+const bgBalls = computed(() => {
+  const y = view.h - PLAY_FROM_BOTTOM
+  return [
+    { part: 'bass' as Part, label: 'bajo', x: view.w / 2 - 96, y },
+    { part: 'chords' as Part, label: 'acordes', x: view.w / 2 + 96, y },
+  ]
+})
 const bounds = computed<DriftBounds>(() => ({
   w: view.w,
   h: view.h,
   margin: 16,
   avoid: [
-    { x: ringGeo.value.x, y: ringGeo.value.y, r: ringGeo.value.r + 22 },
-    { x: view.w / 2, y: view.h - 64, r: 52 }, // Play
+    { x: ringGeo.value.x, y: ringGeo.value.y, r: ringGeo.value.r + 26 },
+    { x: view.w / 2, y: view.h - PLAY_FROM_BOTTOM, r: 52 }, // Play
+    ...bgBalls.value.map((b) => ({ x: b.x, y: b.y, r: 40 })),
     { x: view.w / 2, y: 28, r: 40 }, // estilo
     { x: view.w - 28, y: 28, r: 26 }, // ⋯
   ],
 }))
 const loopSize = (hits: number) => 26 + Math.min(14, hits * 1.5)
+
+// ── anillo: golpes de cada loop en el compás que suena ──────────────────────────
+const ringDots = computed<RingDot[]>(() => {
+  const g = playing.value ? currentBar.value : 0
+  const out: RingDot[] = []
+  for (const l of loops.value.loops) {
+    const bar = loopBarAt(l, g)
+    for (const h of l.hits) {
+      if (h.pos < bar * 16 - 0.5 || h.pos >= bar * 16 + 15.5) continue
+      const step = h.pos - bar * 16
+      out.push({ key: `${l.id}-${Math.round(h.pos * 100)}`, loopId: l.id, step, instrument: l.instrument, muted: l.muted })
+    }
+  }
+  return out
+})
+const phraseDots = computed(() =>
+  (phrase.value?.hits ?? []).map((h, i) => ({
+    key: `${Math.round(h.globalStep)}-${h.instrument}-${i}`,
+    step: ((h.globalStep % 16) + 16) % 16,
+    instrument: h.instrument,
+  })),
+)
 
 // ── loops flotantes (posición fuera de la reactividad; se escribe en el DOM en cada frame) ──
 const bodies = new Map<number, Body>()
@@ -42,6 +80,19 @@ const els = new Map<number, HTMLElement>()
 const setEl = (id: number) => (el: Element | ComponentPublicInstance | null) => {
   if (el instanceof HTMLElement) els.set(id, el)
   else els.delete(id)
+}
+const ballEls = new Map<Part, HTMLElement>()
+const setBall = (p: Part) => (el: Element | ComponentPublicInstance | null) => {
+  if (el instanceof HTMLElement) ballEls.set(p, el)
+  else ballEls.delete(p)
+}
+/** Latido de una bola al sonar (§16.17, punto 5): el bombo, el más fuerte; el platillo, el más ligero. */
+const PULSE_AMP: Record<Instrument | 'bass' | 'chords', number> = { bd: 0.3, sd: 0.25, hh: 0.2, bass: 0.18, chords: 0.14 }
+const PULSE_MS = 220
+const pulse = (el: HTMLElement | undefined, instrument: keyof typeof PULSE_AMP) => {
+  if (!el) return
+  el.dataset.pulse = String(performance.now())
+  el.dataset.amp = String(PULSE_AMP[instrument])
 }
 
 function ensureBody(id: number, hits: number) {
@@ -77,7 +128,8 @@ function mountTheme() {
   const tryMount = (t: VisualTheme): boolean => {
     canvas?.remove()
     canvas = document.createElement('canvas')
-    canvas.className = 'absolute inset-0 h-full w-full'
+    // estilos en línea: no dependen de que una clase CSS esté generada
+    Object.assign(canvas.style, { position: 'absolute', inset: '0', width: '100%', height: '100%', display: 'block' })
     canvasHost.value!.appendChild(canvas)
     try {
       t.mount(canvas, { dpr: dpr(), reducedMotion: reduced })
@@ -94,14 +146,14 @@ function mountTheme() {
   if (!tryMount(entry.create({ reducedMotion: reduced }))) tryMount(entry.create({ reducedMotion: true }))
 }
 
-// ── eventos del motor → tema ─────────────────────────────────────────────────────
+// ── eventos del motor → anillo, bolas y tema ────────────────────────────────────
 let offVisual: (() => void) | null = null
 function onEngineVisual(h: Parameters<Parameters<typeof engine.onVisual>[0]>[0]) {
   if (!theme || !h.instrument) return
   const g = ringGeo.value
-  if (h.kind === 'heard') {
-    const a = ((h.step ?? 0) / 16) * Math.PI * 2 - Math.PI / 2
-    theme.hit({ kind: 'heard', time: h.time, loopId: null, instrument: h.instrument, x: g.x + Math.cos(a) * g.r, y: g.y + Math.sin(a) * g.r, strength: h.strength })
+  if (h.kind === 'heard' && h.instrument !== 'bass' && h.instrument !== 'chords') {
+    const p = ring.value?.pointOf(h.instrument, h.step ?? 0) ?? { x: g.x, y: g.y }
+    theme.hit({ kind: 'heard', time: h.time, loopId: null, instrument: h.instrument, x: p.x, y: p.y, strength: h.strength })
     return
   }
   if (h.kind === 'birth' && h.loopId !== null) {
@@ -118,16 +170,22 @@ function onEngineVisual(h: Parameters<Parameters<typeof engine.onVisual>[0]>[0])
     }, fallSec * 1000)
     return
   }
-  if (h.kind === 'hit') {
-    if (h.loopId === null) return // el fondo no suelta gotas: el agua es de tu voz
-    const b = bodies.get(h.loopId)
-    if (!b || falls.has(h.loopId)) return
-    theme.hit({ kind: 'hit', time: h.time, loopId: h.loopId, instrument: h.instrument, x: b.x, y: b.y, strength: h.strength })
-    const el = els.get(h.loopId)
-    if (el && !reduced) {
-      el.dataset.pulse = String(performance.now())
-    }
+  if (h.kind !== 'hit') return
+  // fondo: la bola late
+  if (h.instrument === 'bass' || h.instrument === 'chords') {
+    const ball = bgBalls.value.find((b) => b.part === h.instrument)
+    pulse(ballEls.get(h.instrument), h.instrument)
+    if (ball) theme.hit({ kind: 'hit', time: h.time, loopId: null, instrument: h.instrument, x: ball.x, y: ball.y, strength: 0.3 })
+    return
   }
+  if (h.loopId === null || falls.has(h.loopId)) return
+  // loop: la bola late y brilla y suelta su onda clara; su punto del anillo se enciende con una onda pequeña
+  const strength = 0.6 + 0.4 * h.strength // la mezcla baja la ganancia con muchos loops: la onda no debe desaparecer
+  const b = bodies.get(h.loopId)
+  if (b) theme.hit({ kind: 'hit', time: h.time, loopId: h.loopId, instrument: h.instrument, x: b.x, y: b.y, strength })
+  const at = ring.value?.light(h.loopId, h.step ?? 0)
+  if (at) theme.hit({ kind: 'hit', time: h.time, loopId: h.loopId, instrument: h.instrument, x: at.x, y: at.y, strength: strength * 0.35 })
+  pulse(els.get(h.loopId), h.instrument)
 }
 
 // ── bucle rAF ────────────────────────────────────────────────────────────────────
@@ -137,6 +195,17 @@ let lastT = 0
 let simT = 0
 const frameMs: number[] = []
 let quality = 1
+
+/** 0..1: cuánto late ahora (subida rápida de 40 ms y vuelta suave). */
+function pulseK(el: HTMLElement, nowMs: number): number {
+  const since = nowMs - Number(el.dataset.pulse ?? -1e9)
+  if (since < 0 || since > PULSE_MS) return 0
+  if (since < 40) return since / 40
+  const k = 1 - (since - 40) / (PULSE_MS - 40)
+  return k * k
+}
+const pulseScale = (el: HTMLElement, nowMs: number): number =>
+  reduced ? 1 : 1 + Number(el.dataset.amp ?? 0.2) * pulseK(el, nowMs)
 
 function tick() {
   raf = requestAnimationFrame(tick)
@@ -181,13 +250,17 @@ function tick() {
       y = f.fromY + (b.y - f.fromY) * e
       scale = 1.5 - 0.5 * e
       opacity = String(0.4 + 0.6 * k)
-    } else {
-      const since = nowMs - Number(el.dataset.pulse ?? 0)
-      if (since < 140) scale = 1 + 0.18 * (1 - since / 140)
-    }
+    } else scale = pulseScale(el, nowMs)
     el.style.transform = `translate(${x - b.r}px, ${y - b.r}px) scale(${scale})`
     el.style.opacity = opacity
+    // brillo al latir
+    const k = pulseK(el, nowMs)
+    el.style.filter = k > 0 ? `brightness(${1 + 0.6 * k})` : ''
+    // en reposo, el brillo base (color al 33 %); al latir, crece y se satura
+    const glow = el.dataset.glow
+    el.style.boxShadow = glow ? `0 0 ${18 + 34 * k}px ${glow}${k > 0.05 ? '' : '55'}` : 'none'
   }
+  for (const el of ballEls.values()) el.style.transform = `translate(-50%, -50%) scale(${pulseScale(el, nowMs)})`
 
   // dibujo del tema, con vigilancia del tiempo de frame (§16.14)
   if (theme) {
@@ -220,27 +293,32 @@ function tick() {
 }
 
 function measure() {
-  if (!root.value) return
-  const r = root.value.getBoundingClientRect()
-  view.w = r.width
-  view.h = r.height
+  // la ventana manda: el escenario siempre es exactamente la ventana visible
+  view.w = window.innerWidth
+  view.h = window.innerHeight
   theme?.resize(view.w, view.h, dpr())
 }
 
-let ro: ResizeObserver | null = null
+// mientras se ve el escenario, el documento no hace scroll
+let savedOverflow: [string, string] = ['', '']
 onMounted(() => {
+  savedOverflow = [document.documentElement.style.overflow, document.body.style.overflow]
+  document.documentElement.style.overflow = 'hidden'
+  document.body.style.overflow = 'hidden'
+  window.scrollTo(0, 0)
   measure()
   mountTheme()
   offVisual = engine.onVisual(onEngineVisual)
-  ro = new ResizeObserver(measure)
-  ro.observe(root.value!)
+  window.addEventListener('resize', measure)
   raf = requestAnimationFrame(tick)
 })
 onBeforeUnmount(() => {
   cancelAnimationFrame(raf)
   offVisual?.()
-  ro?.disconnect()
+  window.removeEventListener('resize', measure)
   theme?.dispose()
+  document.documentElement.style.overflow = savedOverflow[0]
+  document.body.style.overflow = savedOverflow[1]
 })
 
 // ── interacción: loops ───────────────────────────────────────────────────────────
@@ -265,6 +343,15 @@ function loopUp(id: number) {
 function loopCancel() {
   if (holdTimer) clearTimeout(holdTimer)
   holding.value = null
+}
+
+/** estado de cada bola del fondo: apagada, pendiente (entra en el siguiente compás), sonando, saliendo */
+function ballState(p: Part): 'off' | 'pending' | 'on' | 'leaving' {
+  const want = bgManual.value[p]
+  const sounding = bgParts.value[p]
+  if (want && sounding) return 'on'
+  if (want) return 'pending'
+  return sounding ? 'leaving' : 'off'
 }
 
 // ── interacción: gestos sobre el agua (vertical = filtro, horizontal = espacio) y 2 dedos = fondo ──
@@ -304,13 +391,6 @@ function waterUp(e: PointerEvent) {
   if (pointers.size === 0) drag.value = null
 }
 
-const ringDots = computed(() =>
-  (phrase.value?.hits ?? []).map((h, i) => ({
-    step: ((Math.round(h.globalStep) % 16) + 16) % 16,
-    instrument: h.instrument,
-    key: `${Math.round(h.globalStep)}-${h.instrument}-${i}`,
-  })),
-)
 const fill: Record<Instrument, string> = { bd: '#F496BC', sd: '#B9A6F2', hh: '#8ECFF2' }
 defineExpose({ rendererName })
 </script>
@@ -318,15 +398,24 @@ defineExpose({ rendererName })
 <template>
   <div
     ref="root"
-    class="fixed inset-0 touch-none overflow-hidden bg-ink select-none"
+    class="touch-none bg-ink select-none"
+    style="position: fixed; inset: 0; overflow: hidden"
     @pointerdown="waterDown"
     @pointermove="waterMove"
     @pointerup="waterUp"
     @pointercancel="waterUp"
   >
-    <div ref="canvasHost" class="absolute inset-0" />
+    <div ref="canvasHost" style="position: absolute; inset: 0" />
 
-    <PhraseRing ref="ring" :x="ringGeo.x" :y="ringGeo.y" :r="ringGeo.r" :dots="ringDots" :playing="playing" />
+    <PhraseRing
+      ref="ring"
+      :x="ringGeo.x"
+      :y="ringGeo.y"
+      :r="ringGeo.r"
+      :dots="ringDots"
+      :phrase-dots="phraseDots"
+      :playing="playing"
+    />
 
     <!-- guía fina del gesto -->
     <div
@@ -340,21 +429,38 @@ defineExpose({ rendererName })
       :style="{ top: `${drag.y}px` }"
     />
 
+    <!-- bolas del fondo (modo manual, §16.17) -->
+    <template v-if="bgMode === 'manual'">
+      <button
+        v-for="b in bgBalls"
+        :key="b.part"
+        :ref="setBall(b.part)"
+        class="bg-ball absolute rounded-full"
+        :data-state="ballState(b.part)"
+        :style="{ left: `${b.x}px`, top: `${b.y}px` }"
+        :aria-label="`${b.label}: ${ballState(b.part) === 'off' ? 'apagado' : 'encendido'}`"
+        @pointerdown.stop
+        @click="engine.toggleBackgroundPart(b.part)"
+      >
+        <span class="bg-ball-label">{{ b.label }}</span>
+      </button>
+    </template>
+
     <!-- loops flotantes -->
     <button
       v-for="l in loops.loops"
       :key="l.id"
       :ref="setEl(l.id)"
-      class="loop absolute top-0 left-0 rounded-full will-change-transform"
-      :class="l.muted ? 'border-2 bg-transparent' : ''"
+      class="absolute top-0 left-0 rounded-full will-change-transform"
       :style="{
         width: `${loopSize(l.hits.length)}px`,
         height: `${loopSize(l.hits.length)}px`,
         background: l.muted ? 'transparent' : fill[l.instrument],
-        borderColor: fill[l.instrument],
+        border: `2px solid ${fill[l.instrument]}`,
         opacity: l.muted ? 0.45 : 1,
-        boxShadow: l.muted ? 'none' : `0 0 18px ${fill[l.instrument]}55`,
       }"
+      data-loop
+      :data-glow="l.muted ? '' : fill[l.instrument]"
       :aria-label="`loop ${l.instrument}${l.muted ? ' silenciado' : ''}`"
       @pointerdown="loopDown($event, l.id)"
       @pointerup.stop="loopUp(l.id)"
@@ -369,9 +475,48 @@ defineExpose({ rendererName })
 </template>
 
 <style scoped>
+.bg-ball {
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
+  border: 1.5px solid rgb(255 255 255 / 0.18);
+  background: rgb(255 255 255 / 0.04);
+  transition:
+    background 300ms,
+    border-color 300ms,
+    box-shadow 300ms;
+}
+.bg-ball[data-state='pending'] {
+  border-color: rgb(255 255 255 / 0.6);
+  animation: pending 900ms ease-in-out infinite;
+}
+.bg-ball[data-state='on'] {
+  background: rgb(255 255 255 / 0.85);
+  border-color: white;
+  box-shadow: 0 0 22px rgb(255 255 255 / 0.35);
+}
+.bg-ball[data-state='leaving'] {
+  background: rgb(255 255 255 / 0.3);
+  border-color: rgb(255 255 255 / 0.3);
+}
+.bg-ball-label {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: rgb(255 255 255 / 0.35);
+  pointer-events: none;
+  white-space: nowrap;
+}
+@keyframes pending {
+  50% {
+    border-color: rgb(255 255 255 / 0.2);
+  }
+}
 .hold-ring {
   border: 2px solid white;
-  clip-path: inset(0 0 0 0);
   animation: hold 600ms linear forwards;
   mask: conic-gradient(#000 var(--p, 0%), transparent 0);
 }
@@ -383,6 +528,11 @@ defineExpose({ rendererName })
 @keyframes hold {
   to {
     --p: 100%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bg-ball[data-state='pending'] {
+    animation: none;
   }
 }
 </style>

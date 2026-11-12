@@ -51,7 +51,7 @@ export type RepeatMode = 'replace' | 'accumulate'
 
 /**
  * Evento para la capa visual (§16.16):
- * - `hit`: suena un golpe (de un loop o del fondo), entregado en su tiempo de audio
+ * - `hit`: suena un golpe (de un loop o del fondo), entregado en su tiempo de audio; `step` = paso
  * - `heard`: el micro acaba de oír un golpe (al instante); `step` = paso dentro del compás
  * - `birth`: nace (o se sustituye) un loop; `time` = la línea de compás en la que empieza a sonar
  */
@@ -115,8 +115,10 @@ const kit = ref<KitId>('909')
 const style = ref<StyleId>('hiphop90')
 const assist = ref(true)
 const metronome = ref(true)
-const bgMode = ref<BackgroundMode>('progressive')
-const lastBgMode = ref<Exclude<BackgroundMode, 'off'>>('progressive')
+const bgMode = ref<BackgroundMode>('manual')
+const lastBgMode = ref<Exclude<BackgroundMode, 'off'>>('manual')
+/** modo manual: partes que has encendido con las bolas (§16.17) */
+const bgManual = shallowRef<Parts>({ ...NO_PARTS })
 const phraseCloseBeats = ref<1 | 2 | 4>(2)
 const maxPhraseBars = ref<LoopLength>(4)
 const phraseMode = ref<PhraseMode>('bar')
@@ -243,12 +245,15 @@ function onTrigger(hap: StrudelHap, t: number) {
   if (!visualListeners.size || !ctx) return
   const loopId = color.startsWith('l') ? Number(color.slice(1)) : null
   const loop = loopId !== null ? loops.value.loops.find((l) => l.id === loopId) : undefined
+  const begin = Number(hap.whole.begin.valueOf())
   const visual: VisualHit = {
     kind: 'hit',
     loopId,
     instrument: loop?.instrument ?? (color === 'bass' || color === 'chords' ? color : null),
     time,
     strength: Math.min(1, Number(hap.value.gain ?? 1)),
+    // paso dentro del compás (ciclo de Strudel = compás): para encender su punto en el anillo
+    step: (((begin % 1) + 1) % 1) * 16,
   }
   setTimeout(() => visualListeners.forEach((f) => f(visual)), Math.max(0, (time - ctx.currentTime) * 1000))
 }
@@ -330,8 +335,8 @@ function silenceBackgroundNodes() {
 function updateBackground() {
   if (!playing.value || !clock || !ctx) return
   const active = loops.value.loops.filter((l) => !l.muted).length
-  const target = targetParts(active, bgMode.value)
-  const transitions = planTransitions(plannedParts, target, nextBarLine(), style.value)
+  const target = targetParts(active, bgMode.value, bgManual.value)
+  const transitions = planTransitions(plannedParts, target, nextBarLine(), style.value, bgMode.value !== 'manual')
   plannedParts = target
   const c = ctx
   for (const tr of transitions) {
@@ -633,7 +638,17 @@ export function useAudioEngine() {
     }
   }
 
-  /** Interruptor de la vista principal: sin fondo ↔ último modo elegido. */
+  /** Bolas "bajo" / "acordes" (modo manual): entran en el siguiente compás o se retiran. */
+  function toggleBackgroundPart(part: Part) {
+    bgManual.value = { ...bgManual.value, [part]: !bgManual.value[part] }
+    updateBackground()
+  }
+
+  function setBackgroundManual(parts: Parts) {
+    bgManual.value = { ...parts }
+  }
+
+  /** Dos dedos sobre el agua: sin fondo ↔ último modo elegido. */
   function toggleBackground() {
     setBackgroundMode(bgMode.value === 'off' ? lastBgMode.value : 'off')
   }
@@ -721,6 +736,7 @@ export function useAudioEngine() {
     assist,
     metronome,
     bgMode,
+    bgManual,
     phraseCloseBeats,
     maxPhraseBars,
     phraseMode,
@@ -746,6 +762,8 @@ export function useAudioEngine() {
     setAssist,
     setBackgroundMode,
     toggleBackground,
+    toggleBackgroundPart,
+    setBackgroundManual,
     setPhraseOptions,
     setRepeatMode,
     setFx,

@@ -11,6 +11,11 @@ describe('targetParts', () => {
       { bass: true, chords: true },
     ])
   })
+  it('manual: suena exactamente lo elegido, sin importar los loops', () => {
+    expect(targetParts(0, 'manual', { bass: true, chords: false })).toEqual({ bass: true, chords: false })
+    expect(targetParts(6, 'manual', { bass: false, chords: true })).toEqual({ bass: false, chords: true })
+    expect(targetParts(6, 'manual')).toEqual({ bass: false, chords: false })
+  })
   it('completo y sin fondo', () => {
     expect(targetParts(0, 'full')).toEqual({ bass: true, chords: true })
     expect(targetParts(8, 'off')).toEqual({ bass: false, chords: false })
@@ -37,6 +42,13 @@ describe('planTransitions', () => {
     expect(planTransitions(all, off, 10, 'hiphop90')).toEqual([
       { part: 'chords', dir: 'out', bar: 10, bars: 1 },
       { part: 'bass', dir: 'out', bar: 11, bars: 1 },
+    ])
+  })
+
+  it('manual (sin escalonar): las dos entran en el mismo compás', () => {
+    expect(planTransitions(off, all, 4, 'dnb', false)).toEqual([
+      { part: 'bass', dir: 'in', bar: 4, bars: 2 },
+      { part: 'chords', dir: 'in', bar: 4, bars: 2 },
     ])
   })
 

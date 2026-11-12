@@ -38,6 +38,7 @@ function recalibrate(what: 'latency' | 'sounds') {
 }
 
 const BG_MODES: { id: BackgroundMode; label: string }[] = [
+  { id: 'manual', label: 'manual' },
   { id: 'progressive', label: 'progresivo' },
   { id: 'full', label: 'completo' },
   { id: 'off', label: 'sin fondo' },

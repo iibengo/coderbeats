@@ -1,4 +1,4 @@
-import type { BackgroundMode } from '~/lib/background'
+import type { BackgroundMode, Parts } from '~/lib/background'
 import type { LoopsState } from '~/lib/freeLoops'
 import type { LoopLength } from '~/lib/phrases'
 import type { SongFx } from '~/lib/song'
@@ -15,6 +15,7 @@ export interface StudioPrefs {
   assist: boolean
   metronome: boolean
   bgMode: BackgroundMode
+  bgManual?: Parts
   phraseMode: PhraseMode
   repeatMode: RepeatMode
   phraseCloseBeats: 1 | 2 | 4
@@ -60,6 +61,7 @@ export function usePrefs() {
       engine.setAssist(p.assist)
       engine.metronome.value = p.metronome && !engine.echo.value?.bleed
       engine.bgMode.value = p.bgMode
+      if (p.bgManual) engine.setBackgroundManual(p.bgManual)
       engine.setPhraseOptions({ mode: p.phraseMode, closeBeats: p.phraseCloseBeats, maxBars: p.maxPhraseBars })
       engine.setRepeatMode(p.repeatMode)
       engine.setFx(p.fx)
@@ -78,6 +80,7 @@ export function usePrefs() {
           assist: engine.assist.value,
           metronome: engine.metronome.value,
           bgMode: engine.bgMode.value,
+          bgManual: { ...engine.bgManual.value },
           phraseMode: engine.phraseMode.value,
           repeatMode: engine.repeatMode.value,
           phraseCloseBeats: engine.phraseCloseBeats.value,
