@@ -1,9 +1,14 @@
 <template>
-  <div>
-     <div class="text-xl font-medium text-green-500">
-    ¡Tailwind funciona! 🎉
-  </div>
+  <div class="min-h-dvh bg-ink font-sans text-neutral-100 antialiased">
     <NuxtRouteAnnouncer />
-    <NuxtWelcome />
+    <NuxtPage />
   </div>
 </template>
+
+<style>
+html,
+body {
+  background: #0b0b0f;
+  color-scheme: dark;
+}
+</style>

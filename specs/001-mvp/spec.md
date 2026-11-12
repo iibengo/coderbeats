@@ -197,6 +197,7 @@ Sin Pinia: composables con estado a nivel de módulo (`ref`/`shallowRef`), porqu
 - **Umbral adaptativo**: `mediana(ventana de ±8 frames) · 1,5 + δ`, donde δ sale del ruido de fondo medido en los primeros 200 ms.
 - **Selección de picos**: máximo local por encima del umbral y separación mínima de 60 ms entre onsets (la semicorchea más corta que se graba dura 167 ms).
 - **Puerta de energía**: se descartan los picos cuyo RMS en los 20 ms siguientes no supera el ruido de fondo + 12 dB.
+- **Subida real**: el RMS de los 20 ms siguientes debe superar en ≥ 6 dB al de los 20 ms anteriores. Así se descartan los picos de flujo en las colas de un golpe que decae.
 - **Ajuste fino del tiempo**: desde el frame del pico se retrocede sobre la envolvente de energía (ventanas de 64 muestras) hasta el punto en que cruza el 20 % del máximo local. El onset se coloca ahí, con precisión de unos 2 ms.
 - La FFT la proporciona Meyda (`amplitudeSpectrum`). El resto es código propio y determinista.
 
@@ -495,15 +496,19 @@ Scripts nuevos en `package.json`: `test` (`vitest run`), `test:watch` y `typeche
 
 ---
 
-## 12. Plan de implementación (tras la aprobación)
+## 12. Plan de implementación (reordenado el 2026-11-12: primero que suene)
 
-1. Base: renombrar el paquete, `strict`, `routeRules`, tokens de Tailwind, fuentes, instalar dependencias y Vitest.
-2. `lib/` puro y sus tests: types, knobs, strudel, quantize, latency, classifier, features, onsets, pipeline.
-3. Motor de audio: AudioWorklet de captura, metrónomo, cadena Tone y kits (con los samples descargados).
-4. Flujos: Inicio, calibración de latencia y calibración de sonidos.
-5. Estudio: grabación, análisis, reproducción y drop.
-6. UI premium minimalista: anillo con colores por instrumento, ruedas, código con tecleo, grano y latido.
-7. Pruebas en dispositivos (Chrome Android y Safari iOS) y ajuste fino de los umbrales.
+### Fase A: versión que suena (UI básica, para probar con la voz)
+1. Base: renombrar el paquete, `strict`, `routeRules`, dependencias y Vitest.
+2. `lib/` puro **que usa esta versión** y sus tests: types, onsets, features, classifier, quantize, latency, strudel y pipeline.
+3. Audio: AudioWorklet de captura, metrónomo, kits con `Tone.Players` y loop con `Tone.Sequence` (sin cadena de efectos).
+4. UI funcional sin pulir: Empezar → calibración de latencia → calibración de sonidos → grabar (estilo) → loop con selector de kit, play/stop, regrabar y código Strudel con botón de copiar. Rejilla simple de 16 pasos en lugar del anillo.
+5. **Hito: lo pruebas con tu voz** y ajustamos umbrales y clasificador con lo que salga.
+
+### Fase B: después de la prueba
+6. Cadena de efectos, las tres ruedas (`lib/knobs.ts` y sus tests), drop y efectos en el código Strudel.
+7. UI premium minimalista (§8): anillo, ruedas, código con tecleo, grano y latido.
+8. Persistencia de prefs y del último patrón, avisos de iOS y pruebas en dispositivos (Chrome Android y Safari iOS).
 
 Cada paso termina con un commit.
 
