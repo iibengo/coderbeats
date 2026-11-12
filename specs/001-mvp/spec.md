@@ -2,6 +2,7 @@
 
 > Estado: **aprobada** el 2026-11-12, con cambios: estilo premium minimalista y preguntas abiertas resueltas (§13).
 > **Enmienda 1 (modo looper, §15): aprobada el 2026-11-12.**
+> **Enmienda 2 (instrumento para jugar: loops libres, ayuda, agua, canción, §16): aprobada el 2026-11-12.** Motor: @strudel/web (sujeto al spike A3.0); licencia del proyecto: AGPL-3.0.
 > Fecha: 2026-11-12
 
 coderbeats convierte un beatbox grabado con el micro del navegador en un loop de batería con samples de calidad y muestra el patrón como código [Strudel](https://strudel.cc) listo para copiar.
@@ -706,3 +707,300 @@ stack(
 2. **Drum and bass a 174**: el loop suena a 174 con rejilla de 16, pero al grabar cuantiza a corcheas (172 ms). El patrón se guarda en 16 pasos (§15.3).
 3. **Metrónomo**: encendido por defecto, salvo que la prueba de eco detecte que el micro oye los altavoces.
 4. **Tomas de diagnóstico**: solo en local, fuera de git. Si se usan como fixtures van en `tests/fixtures/voice/`, que está en `.gitignore`, y los tests que las usan se saltan si la carpeta no existe.
+
+---
+
+## 16. Enmienda 2: un instrumento para jugar
+
+> Estado: **aprobada** (2026-11-12). Motor @strudel/web y licencia AGPL-3.0 confirmados; también el interruptor de fondo, el filtro por evento y el código congelado.
+> **Cambia el concepto**: coderbeats deja de ser una herramienta de producción y pasa a ser un **instrumento para jugar con el sonido**. Lo que haces suena, se queda girando y se ve como gotas en el agua.
+> **Sustituye** de la enmienda 1: el botón Grabar/overdub, las capas por vuelta y "deshacer capa", el loop único de 1 o 2 compases y la rejilla en la vista principal (§15.3, partes de §15.5 y §15.6).
+> **Sustituye** de la spec base: el anillo de 16 pasos y el latido de fondo (§8.2) y el layout de §8.6.
+> **Mantiene** lo que funciona: calibración de latencia y de sonidos, detección en streaming, clasificación k-NN, filtro y prueba de eco, compensación de latencia y worker de análisis.
+
+### 16.1 Loops libres
+
+**Frase.** Es un grupo de golpes seguidos. El tempo y la rejilla son globales (los del estilo), y las frases se cortan por compases:
+- Una frase **empieza** en el compás de su primer golpe. Un golpe un poco adelantado al 1 cuenta para el compás siguiente.
+- Una frase **se cierra** en una línea de compás si en los **últimos 2 tiempos no ha habido ningún golpe**, o al llegar a **4 compases**. El silencio de cierre se ajusta en ajustes: **1 tiempo, 2 tiempos (por defecto) o 1 compás**.
+- La longitud del loop es la de la frase **redondeada hacia arriba a 1, 2 o 4 compases**.
+- Ejemplo: un bombo en 1 y 3 deja 2 tiempos de silencio al final del compás, así que nace un loop de 1 compás al instante. Si tocas sin parar 2 compases, nace un loop de 2.
+
+**Nacimiento.**
+- Al cerrarse la frase nace un **loop por cada instrumento** de la frase (decidido): un "bum pff ts" da 3 loops, uno de cada color.
+- El loop empieza a sonar en la **siguiente línea de compás**. Nunca suena encima de lo que acabas de hacer.
+- Cada loop conserva su **fase**: su compás 1 cae en el mismo sitio relativo a los demás loops que cuando lo tocaste. Así varios loops de distinta longitud (1, 2, 4) encajan entre sí.
+
+**Sin duplicados.** Si la frase nueva repite lo que ya hace un loop activo (mismo instrumento, misma longitud y ≥ 80 % de golpes en los mismos pasos), no nace otro loop. El existente "brilla" como confirmación. Así, repetir tu patrón no apila copias.
+
+**Varios del mismo instrumento.** Se permiten: 3 loops de bombo distintos conviven, cada uno como un objeto propio.
+
+**Objetos en pantalla.**
+- **Tocar** un loop lo silencia o lo activa, con un fundido de 30 ms al siguiente golpe.
+- **Mantener pulsado 600 ms** lo borra: un anillo se completa mientras mantienes y el loop se disuelve en una onda.
+
+**Máximo: 8 loops a la vez** (activos más silenciados).
+- **Mezcla**: 8 capas percusivas ya están cerca del límite de lo que se distingue con 3 timbres. Con más, el auto-mix tendría que bajar tanto cada loop que todos sonarían flojos.
+- **Pantalla**: en un móvil, 8 objetos flotando todavía se tocan bien con el dedo (unos 44 px de diana) sin taparse.
+- **Rendimiento**: disparar samples cuesta poco. El límite real son las gotas: 8 loops a 16 pasos dan hasta unas 50 gotas por segundo en drum and bass, que la simulación de agua aguanta en el móvil.
+- **Al llegar al máximo**: si nace otro, primero se borra el loop silenciado más antiguo. Si no hay ninguno silenciado, se desvanece el loop más antiguo (fundido de 1 compás).
+
+### 16.2 Interruptor "ayuda" (activado por defecto)
+
+**Cuantización con criterio de estilo.**
+- Cada estilo define, por instrumento, cuánto "atrae" cada paso del compás (prior). Para cada golpe se elige el paso con mayor `log(prior) − (distancia en pasos)² / (2σ²)`, con σ = 0,35 pasos.
+- **Nunca mueve un golpe más de 1 paso** de donde lo hiciste.
+
+| Estilo | Bombo | Caja | Platillo |
+|---|---|---|---|
+| hip hop 90 | fuerte en 1; medio en 3 y en "y del 2" (paso 10) | fuerte en 2 y 4 (pasos 4, 12) | corcheas |
+| house 124 | **negras** (0, 4, 8, 12) muy fuertes | 2 y 4 | contratiempos (2, 6, 10, 14) |
+| drum and bass 174 | 1 y "y del 3" (pasos 0, 10) | **2 y 4** (4, 12) muy fuertes | corcheas |
+
+En drum and bass, además, se graba en corcheas (§15.3).
+
+**Golpe suelto → patrón típico.** Si una frase tiene **un solo golpe** de un instrumento, ese loop se convierte en el patrón típico del estilo para ese instrumento (1 compás):
+
+| Estilo | bum | pff | ts |
+|---|---|---|---|
+| hip hop 90 | `bd ~ ~ ~ ~ ~ ~ ~ bd ~ bd ~ ~ ~ ~ ~` | `~ ~ ~ ~ sd ~ ~ ~ ~ ~ ~ ~ sd ~ ~ ~` | `hh ~ hh ~ hh ~ hh ~ hh ~ hh ~ hh ~ hh ~` |
+| house 124 | `bd ~ ~ ~ bd ~ ~ ~ bd ~ ~ ~ bd ~ ~ ~` | `~ ~ ~ ~ sd ~ ~ ~ ~ ~ ~ ~ sd ~ ~ ~` | `~ ~ hh ~ ~ ~ hh ~ ~ ~ hh ~ ~ ~ hh ~` |
+| drum and bass 174 | `bd ~ ~ ~ ~ ~ ~ ~ ~ ~ bd ~ ~ ~ ~ ~` | `~ ~ ~ ~ sd ~ ~ ~ ~ ~ ~ ~ sd ~ ~ ~` | `hh ~ hh ~ hh ~ hh ~ hh ~ hh ~ hh ~ hh ~` |
+
+Las tablas viven en `lib/styles.ts` y se pueden ampliar (la hoja de ruta prevé más estilos).
+
+**Mezcla automática.**
+- Cada loop activo se multiplica por `g(n) = 1/√n`, donde n es el número de loops activos, más un balance fijo por instrumento: bd 0 dB, sd −1 dB, hh −6 dB.
+- Los cambios de ganancia se hacen en rampa de 200 ms.
+- Al final de la cadena va un **Limiter a −1 dBFS**, también con la ayuda desactivada, para que nunca sature.
+
+**Con la ayuda desactivada.**
+- **Se respeta tu ritmo exacto**: cada golpe suena en su posición real dentro del compás, con la latencia compensada pero sin cuantizar.
+- No hay patrones típicos ni prior de estilo. La mezcla automática y el limitador se mantienen.
+- El código Strudel se aproxima a la semicorchea más cercana y lo indica ("ritmo exacto: el código está cuantizado").
+
+### 16.3 Visual: agua
+
+- **Toda la pantalla es una superficie de agua** oscura (`#0B0B0F`), minimalista, sin bordes ni paneles por encima salvo los controles mínimos (§16.4).
+- **Gotas**: cada golpe que suena cae como una gota **en la posición de su loop** y genera ondas del color de su instrumento (rosa bombo, lila caja, azul platillo). Las ondas de varios loops se cruzan e interfieren.
+- **Loops**: pequeñas formas (círculos de 28 a 36 px) que **flotan a la deriva** despacio, sin salirse de la pantalla y apartándose entre sí. Al sonar su golpe **vibran** (pulso de escala de 1 a 1,15, 120 ms).
+  - Un loop silenciado se ve hueco y apagado, y no suelta gotas.
+  - Con varios del mismo instrumento, se distinguen por tamaño, que crece con el número de golpes del loop.
+- **Simulación**, en `components/water/`:
+  1. **WebGL2**: campo de alturas 2D (ecuación de onda discreta con amortiguación) en texturas half-float con ping-pong.
+     - **Un canal por instrumento** (R = bombo, G = caja, B = platillo). Así cada onda conserva su color y se cruzan de forma natural.
+     - Pasada de render: el color es la suma de las alturas de cada canal por el color de su instrumento, con un brillo especular sutil a partir del gradiente.
+     - Resolución de simulación reducida: unas 256 celdas en el lado largo, escaladas con filtrado. Se ajusta automáticamente si el frame pasa de 14 ms.
+  2. **Respaldo WebGL1** (sin texturas flotantes renderizables): ondas **analíticas**. El shader suma anillos amortiguados de las últimas 48 gotas, pasadas como uniforms. No hay reflexiones, pero sí cruces.
+  3. **Respaldo Canvas 2D**: anillos que se expanden con `globalCompositeOperation: 'lighter'`.
+- **Rendimiento**: un solo bucle `requestAnimationFrame`, `devicePixelRatio` limitado a 2, y pausa con `visibilitychange`. Las gotas se programan con `Tone.Draw` para que coincidan con el audio.
+- **`prefers-reduced-motion`**: sin simulación ni deriva. Los loops quedan fijos y cada golpe es un breve aumento de opacidad del loop, sin ondas.
+
+### 16.4 Menos botones
+
+- **El micro escucha siempre que suena el loop**: con Play activo, todo lo que haces genera frases y loops. **Desaparece el botón Grabar.** Con Stop, el micro no escucha.
+- **Vista principal**: Play/Stop (centro abajo), el interruptor **fondo** junto a Play (§16.11), estilo y kit (arriba, en texto pequeño), un icono de **ajustes** y la pestaña **"ver código"**.
+- **Gestos sobre el agua** (sustituyen a las ruedas de la fase B), sobre cualquier zona que no sea un loop:
+  - **Arrastrar en vertical = Filtro**: arriba abre y abajo cierra (paso bajo de 200 Hz a 18 kHz, exponencial).
+  - **Arrastrar en horizontal = Espacio**: hacia la derecha más reverb y delay.
+  - El gesto se fija a un eje según el primer movimiento (≥ 12 px). El valor se queda donde lo sueltas.
+  - Mientras arrastras, una línea fina horizontal o vertical (blanca, 20 % de opacidad) y el agua se oscurece o se suaviza ligeramente, como respuesta visual.
+  - **Tocar** el agua fuera de un loop no hace nada (decidido).
+- **Ajustes** (hoja inferior):
+  - ayuda (sí/no) y metrónomo,
+  - **Calor** (deslizador) y **Drop** (botón),
+  - silencio que cierra una frase (1 tiempo, 2 tiempos o 1 compás),
+  - longitud máxima de frase (1, 2 o 4 compases; por defecto 4),
+  - borrar todo, recalibrar latencia y sonidos, y el diagnóstico.
+- **"Ver código"** (hoja inferior plegable): una fila por loop con sus golpes y su color, y el código Strudel con botón de copiar.
+
+### 16.5 Modelo de datos (sustituye a `Loop` y `Layer` de §15.5)
+
+```ts
+export type LoopLength = 1 | 2 | 4
+
+export interface FreeLoop {
+  id: number
+  instrument: Instrument
+  bars: LoopLength
+  /** compás global en el que empieza (fase); suena el compás (g - phaseBar) mod bars */
+  phaseBar: number
+  /** posición en semicorcheas desde el inicio del loop; con ayuda = entero, sin ayuda = decimal */
+  hits: { pos: number; strength: number }[]
+  muted: boolean
+  bornAt: number          // compás global de nacimiento
+  fromTemplate: boolean   // nació de un golpe suelto
+}
+
+export interface Phrase {
+  startBar: number
+  hits: { tCorr: number; instrument: Instrument; strength: number; confidence: number }[]
+}
+
+export interface StudioPrefs {
+  assist: boolean
+  metronome: boolean
+  background: boolean
+  maxPhraseBars: LoopLength
+  /** silencio que cierra una frase, en tiempos: 1, 2 o 4 (= 1 compás) */
+  phraseCloseBeats: 1 | 2 | 4
+  /** 0..1 */
+  filter: number
+  space: number
+  warmth: number
+}
+```
+
+Persistencia: `coderbeats:loops:v1` (loops) y `coderbeats:prefs:v1` (prefs, kit, estilo).
+
+**Programación**: depende del motor (§16.11).
+- Con **Strudel** (recomendado), el estado (loops, fondo, ajustes) se traduce a un patrón y se reevalúa al nacer, silenciar o borrar un loop. Los cambios se aplican en el siguiente ciclo.
+- Los gestos no reevalúan: van por `ref(() => valor)`.
+- Cada evento que suena llega por `onTrigger` con su tiempo de contexto. Desde ahí se avisa al worker (filtro de eco) y a la capa visual (gota).
+
+### 16.6 Código Strudel (adapta §15.6)
+
+**Con el motor Strudel, el código mostrado es exactamente el que suena**: es la misma cadena que se evalúa. El estado se compone así:
+
+```js
+setcpm(174/4)
+stack(
+  // fondo · dnb · re menor
+  note("<d1 d1 bb0 c1>").s("sawtooth").lpf(380).lpenv(3).lpq(6).gain(0.55).orbit(2),
+  note("<[d3,f3,a3,c4] [bb2,d3,f3,a3]>/2").s("supersaw").lpf(1800).room(0.8).gain(0.25).orbit(2),
+  // tus loops
+  s("bd ~ ~ ~ ~ ~ ~ ~ ~ ~ bd ~ ~ ~ ~ ~").bank("RolandTR909").duckorbit(2).duckdepth(0.6),
+  s("<[~ ~ ~ ~ sd ~ ~ ~ ~ ~ ~ ~ sd ~ ~ ~] [~ ~ ~ ~ sd ~ ~ ~ ~ ~ ~ ~ sd ~ ~ sd]>").bank("RolandTR909"),
+  s("hh ~ hh ~ hh ~ hh ~ hh ~ hh ~ hh ~ hh ~").bank("RolandTR909").gain(0.5),
+  // s("bd ~ ~ bd ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~").bank("RolandTR909"),   ← silenciado
+).lpf(18000).room(0.15)
+```
+
+- **Una línea por loop**, con su longitud y su fase. Los compases de un loop de L compases se rotan para que el ciclo 0 de Strudel coincida con el compás global 0. Así, pegado en strudel.cc, suena con la misma fase. Los loops silenciados aparecen comentados.
+- **El fondo** va en su propio bloque comentado y desaparece del código si se quita.
+- **Gestos y ajustes** se ven como los valores actuales de `.lpf()` y `.room()` / `.delay()` del final, y de `.shape()` (Calor). En el motor van por `ref()`. En el código copiado aparecen como números fijos con el valor del momento.
+- **Ayuda desactivada (ritmo exacto)**: cada línea sigue en 16 pasos y añade `.nudge("…")` con el desplazamiento de cada golpe en segundos, con la misma estructura de pasos. **El código sigue siendo exactamente lo que suena.**
+- **Samples**: los samples locales se registran con los nombres de Strudel (`RolandTR909_bd`, …). Para que en strudel.cc suenen **los mismos archivos**, se elige como sample de cada instrumento el que tiene índice 0 en el mapa de Strudel, o se emite `.n(k)`. Se verifica en el spike (§16.11).
+
+### 16.7 Tests nuevos (lógica pura)
+- **phrases**:
+  - inicio y cierre (2 tiempos de silencio en la línea de compás o 4 compases máximo),
+  - longitud redondeada a 1, 2 o 4,
+  - golpe adelantado al 1,
+  - una frase de varios instrumentos da un loop por instrumento.
+- **freeLoops**:
+  - fase y qué compás suena en cada compás global,
+  - deduplicación (≥ 80 %),
+  - máximo de 8 (sale primero el silenciado más antiguo y luego el más antiguo),
+  - silenciar y borrar.
+- **assist**:
+  - prior: una caja de dnb a 0,8 pasos del 4 cae en el 4 y nunca se mueve más de 1 paso,
+  - plantillas de golpe suelto por estilo,
+  - con la ayuda desactivada se conservan las posiciones decimales (±1 ms).
+- **mix**:
+  - `g(n)` y el balance por instrumento,
+  - la suma de picos con 8 loops y el limitador no supera −1 dBFS (modelo de ganancias).
+- **strudel**:
+  - longitudes mixtas, rotación de fase, silenciados comentados, `.gain`.
+- **song** (generación del código completo):
+  - fondo por estilo, sidechain (`duckorbit`) solo en las líneas de bombo,
+  - `.nudge()` con la ayuda desactivada,
+  - fondo desactivado = sin bloque de fondo,
+  - salida determinista.
+- **gestures**: fijación del eje (≥ 12 px), mapeo vertical → Hz exponencial y horizontal → espacio, límites.
+- **water** (solo la parte pura):
+  - un paso de la ecuación de onda en CPU (el mismo kernel que el shader) conserva la simetría y se amortigua.
+
+### 16.8 Criterios de aceptación (sustituyen a los de §15.8 salvo el 2, el 6, el 7 y el 8)
+1. Con Play, una frase de beatbox se convierte en loops que empiezan a sonar en la línea de compás siguiente a su cierre, sin pulsar nada más.
+2. Repetir el mismo patrón no crea loops duplicados; el loop existente brilla.
+3. Tocar un loop lo silencia o lo activa de forma audible en el siguiente golpe. Mantenerlo pulsado 600 ms lo borra.
+4. Nunca hay más de 8 loops. Al llegar al máximo se aplica la regla de §16.1.
+5. Con la ayuda activada:
+   - un golpe suelto da el patrón típico del estilo,
+   - en drum and bass una caja hecha cerca del 2 o del 4 cae en el 2 o el 4,
+   - en house un bombo cerca de una negra cae en la negra.
+6. Con la ayuda desactivada, los golpes suenan en su posición real (±5 ms tras compensar la latencia).
+7. Con 1 a 8 loops el volumen percibido varía como mucho ±3 dB y la salida nunca supera −1 dBFS.
+8. **Agua a 60 fps** en un Android de gama media (Pixel 6a) con 8 loops en drum and bass: p95 del tiempo de frame ≤ 16,7 ms. Funciona sin WebGL2 (respaldo) y respeta `prefers-reduced-motion`.
+9. En la vista principal solo se ven Play/Stop, estilo, kit, ajustes y "ver código".
+10. **Fondo musical**: suena al dar Play si está activado y se quita o se pone con el interruptor sin cortar la batería. El cambio se aplica en el siguiente compás.
+11. **Sidechain audible**: con fondo y bombo, el bajo y los acordes bajan con cada bombo (con `duckdepth` ≥ 0,5) y la mezcla no supera −1 dBFS.
+12. **Código = sonido**: el código mostrado, pegado en strudel.cc, suena igual que en coderbeats (mismo patrón, fase, kit y fondo). Las únicas diferencias admitidas son las de los propios samples si strudel.cc carga otro archivo, y eso se resuelve en el spike.
+13. **Gestos**: arrastrar en vertical u horizontal cambia el filtro o el espacio de forma audible en ≤ 1 semicorchea, sin reevaluar el código y sin cortes.
+14. Se mantienen los criterios 2 (≤ 150 ms del golpe a la pantalla), 6 (precisión y 0 golpes fantasma), 7 (sin retroalimentación con altavoces) y 8 (worker) de §15.8.
+
+### 16.9 Plan (nueva fase A3; sustituye lo que quedaba de la fase B en diseño)
+- **A3.0 Spike de @strudel/web** (máximo 1 día, en una rama). Hay que verificar:
+  1. Comparte nuestro AudioContext (`setAudioContext`) con el worklet del micro y el worker.
+  2. Los tiempos de `onTrigger` coinciden con el sonido real (±3 ms).
+  3. Reevaluar al nacer un loop no produce cortes.
+  4. Se desbloquea el audio en iOS.
+  5. `duckorbit` y un limitador maestro sobre el nodo de salida funcionan.
+  6. Peso del bundle con gzip (carga diferida tras Empezar).
+  7. Índices de los samples para que coincidan con strudel.cc.
+
+  **Si algún punto falla**, se sigue con Tone.js (§16.11, alternativa) y se te avisa antes de seguir.
+- **A3.1** `lib/`: phrases, freeLoops, assist y styles (con sus fondos), mix, generador de canción (Strudel), gestures y kernel de onda, con sus tests.
+- **A3.2** Motor: Strudel (o Tone si el spike falla), escucha continua con Play, fondo, sidechain, auto-mix y limitador, Calor y Drop. Se retiran el overdub y Tone si Strudel pasa el spike.
+- **A3.3** Agua: simulación WebGL2 con 3 canales, respaldos y loops flotantes con toque y pulsación larga.
+- **A3.4** UI mínima: interruptor de fondo, gestos de filtro y espacio, ajustes y "ver código" como hojas inferiores, y persistencia.
+- **A3.5** Lo pruebas con tu voz, en el ordenador y en el móvil, y ajustamos el prior, el cierre de frase y el agua.
+
+### 16.10 Decisiones (antes preguntas abiertas)
+1. **Una frase con varios sonidos** da un loop por instrumento.
+2. **Ruedas y drop**: Filtro y Espacio pasan a ser **gestos sobre el agua** (vertical y horizontal). Calor y Drop van a ajustes (§16.4).
+3. **Tocar el agua** fuera de un loop no hace nada.
+4. **Máximo de 8 loops.**
+5. **Cierre de frase**: 2 tiempos de silencio por defecto, ajustable a 1 tiempo, 2 tiempos o 1 compás.
+
+### 16.11 Que suene a canción, como en strudel.cc
+
+#### Motor de sonido: @strudel/web frente a Tone.js
+
+Datos comprobados en el código publicado: `@strudel/web` 1.3.0, `superdough` 1.3.0 y `@strudel/core` 1.2.6, todos con licencia **AGPL-3.0-or-later**.
+
+| | **@strudel/web** | **Tone.js** (actual) |
+|---|---|---|
+| Código mostrado = sonido | **Sí, literalmente**: se evalúa la misma cadena | No: el código es una traducción y puede sonar distinto en strudel.cc |
+| Paridad con strudel.cc | Total (mismo motor `superdough`) | Aproximada (sintes y efectos propios) |
+| Sintes para el fondo | De serie: `sawtooth`, `supersaw`, `lpf` + `lpenv` + `lpq`, `room`, `delay` | Hay que construirlos (Synth, Filter, envolventes) |
+| Sidechain | **De serie**: `duckorbit`, `duckdepth`, `duckattack` | A mano: automatizar la ganancia en cada bombo (fácil, porque sabemos cuándo suena) |
+| Compresión y limitador | `compressor` por evento/orbit. Limitador maestro sobre el nodo de salida del controlador (a verificar en el spike) | `Compressor` y `Limiter` de serie |
+| Valores en tiempo real (gestos) | `ref(() => valor)` sin reevaluar. El filtro es **por evento**: el cambio se oye en el siguiente golpe o nota, no a mitad de una nota larga | `rampTo` continuo sobre un filtro maestro |
+| Ritmo exacto (ayuda desactivada) | `.nudge()` por golpe, visible en el código | Programación exacta, invisible en el código |
+| Integración con micro y worker | `setAudioContext` (contexto compartido) y `onTrigger` (tiempos de contexto para el eco y las gotas) | Ya funciona |
+| Peso | Mayor (el paquete web desempaquetado ocupa unos 1,5 MB; gzip por medir en el spike). Se carga tras Empezar | Menor (~200 KB min) |
+| Madurez y API | 1.x, pensada para el REPL. La API de incrustado está menos documentada, así que se fija la versión exacta | Muy estable y documentada |
+| **Licencia** | **AGPL-3.0**: coderbeats tendría que publicarse también como AGPL (o compatible) y **ofrecer su código fuente a quien use la web**, también desplegada (cláusula de red). Impide una versión cerrada o comercial sin otra licencia de los autores de Strudel | MIT: sin restricciones |
+
+**Recomendación: @strudel/web**, con dos condiciones:
+1. **Pasar el spike A3.0** (§16.9). Si falla, se sigue con Tone.js y se replica el fondo con sus sintes.
+2. **Licenciar coderbeats como AGPL-3.0** (`LICENSE` en el repo y enlace "código fuente" en la app).
+
+Por qué: tu objetivo explícito es que suene **igual que strudel.cc** y que el código sea **exactamente lo que suena**. Solo Strudel lo garantiza por construcción, y además trae de serie los sintes del fondo, la reverb y el sidechain. La AGPL encaja con un repo que quieres poder hacer público. Lo que cierra es la puerta a una versión privada o comercial. Si eso te importa, la recomendación cambia a Tone.js.
+
+Con Strudel, **Tone.js se retira** y el metrónomo pasa a ser un patrón más (`s("rim*4")` o un clic propio registrado como sample). El micro, el worklet, el worker, la detección y el clasificador no cambian.
+
+#### Fondo musical por estilo (opcional)
+
+Cada estilo trae un **bajo y unos acordes en la misma tonalidad**, que suenan al dar Play si el fondo está activado (por defecto, activado). Los valores concretos (notas, filtros y niveles) se afinan de oído en la implementación. Esta es la intención:
+
+| Estilo | Tonalidad | Bajo | Acordes |
+|---|---|---|---|
+| hip hop 90 | la menor | `triangle` grave y redondo, notas largas: `<a1 a1 d2 e2>`, `lpf` 600 | Rhodes suave (`sine`/`triangle` con `room` 0,4): `Am7 – Dm7`, 1 acorde por compás |
+| house 124 | fa menor | `sawtooth` corto en contratiempo (`~ f1 ~ f1`), `lpf` 500 + `lpenv` | Stabs de `supersaw` en contratiempo: `Fm9 – B♭m9`, `room` 0,3 |
+| drum and bass 174 | re menor | **`sawtooth` con filtro** (`lpf` 380, `lpenv` 3, `lpq` 6), estilo reese, `<d1 d1 b♭0 c1>` | **Pads de fondo con reverb**: `supersaw` filtrado, `Dm7 – B♭maj7`, 2 compases cada uno, `room` 0,8 |
+
+- **Tus loops de batería se suman encima** en sus propias líneas.
+- **Quitar o poner el fondo**: con el interruptor **fondo** junto a Play, siempre visible porque es parte del juego. También con un **toque con dos dedos** sobre el agua. El cambio entra en el siguiente compás con un fundido de 1 tiempo.
+- Si cambias de estilo, el fondo cambia de tonalidad y tempo. Tus loops se mantienen.
+
+#### Mezcla tipo canción
+
+- **Buses (orbits)**: batería en el orbit 1, fondo en el orbit 2.
+- **Sidechain**: las líneas de bombo llevan `.duckorbit(2).duckdepth(0.6).duckattack(0.15)`, así que cada bombo empuja el bajo y los acordes. Con la ayuda desactivada se mantiene igual.
+- **Compresión**: `compressor` suave en el bus de batería (umbral −18 dB, ratio 3). El **Calor** de ajustes sube la saturación (`shape`) y la compresión.
+- **Auto-mix**: el reparto de §16.2 se aplica a los loops de batería. El fondo queda fijo 4 dB por debajo de la batería.
+- **Salida**: limitador maestro a −1 dBFS sobre el nodo de salida, nunca satura (se verifica en el spike).
+- **Drop** (ajustes): cierra el filtro global hasta 200 Hz durante el compás actual y lo suelta en el 1 del siguiente. El fondo también se filtra, y eso es lo que da la sensación de "drop".
