@@ -521,3 +521,18 @@ Cada paso termina con un commit.
 3. **Swing**: no entra en el MVP; queda como siguiente paso (§2).
 4. **Efectos en el código Strudel**: sí, aproximados y con tooltip (§5.7, §8.4).
 5. **Estilo**: premium minimalista en blanco y negro, con un color por sonido (§8). Sustituye a "estudio nocturno".
+
+---
+
+## 14. Hoja de ruta (después del MVP)
+
+En este orden. **Cada punto tendrá su propia spec** (`specs/00N-…/spec.md`) cuando le toque; aquí solo se fija la prioridad.
+
+1. **Exportar a WAV**: render del loop con el kit y los efectos actuales.
+2. **Swing y más estilos**: swing por estilo y nuevos estilos, empezando por **rock (~120 BPM) con el kit acústico**.
+3. **Varias capas**: grabar más pasadas encima del patrón y combinarlas.
+4. **Tararear el bajo**: detección de tono de la voz y **ajuste a escala tipo autotune** para convertirla en una línea de bajo.
+5. **Loop crudo estilo RC-505**: grabar la voz tal cual, sin convertirla en batería, en capas, con efectos (reverb, delay, filtro, pitch, robot).
+6. **Precisión**: editar pasos tocando el anillo, **aprender de mis correcciones** (que pasen a ser muestras de calibración) y usar el **contexto musical** para desempatar golpes dudosos (por ejemplo, bombo en tiempo fuerte o caja en 2 y 4).
+
+La lista de "Fuera del MVP" de §2 queda como referencia; el orden lo fija esta hoja de ruta.
