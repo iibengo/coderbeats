@@ -112,7 +112,7 @@ const bgMode = ref<BackgroundMode>('progressive')
 const lastBgMode = ref<Exclude<BackgroundMode, 'off'>>('progressive')
 const phraseCloseBeats = ref<1 | 2 | 4>(2)
 const maxPhraseBars = ref<LoopLength>(4)
-const phraseMode = ref<PhraseMode>('silence')
+const phraseMode = ref<PhraseMode>('bar')
 const repeatMode = ref<RepeatMode>('replace')
 /** frase en curso: golpes oídos (al instante) y compás en el que nacería el loop */
 const phrase = shallowRef<PhraseSnapshot | null>(null)

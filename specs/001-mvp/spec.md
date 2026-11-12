@@ -1164,7 +1164,7 @@ export interface VisualTheme {
 **3. Modo "loop de 1 compás"** (ajustes → "Frase").
 - **Por silencio** (el actual): la frase se cierra al callar.
 - **1 compás**: lo que haces en un compás suena en bucle **desde el siguiente**, sin esperar al silencio. Cada compás con golpes es una frase de 1 compás.
-- Es para comparar los dos. Por defecto se queda **por silencio** hasta que decidas cuál prefieres.
+- Es para comparar los dos. **Decidido tras probarlo: por defecto "loop de 1 compás"** (§16.16).
 
 **4. Sustituir en vez de acumular** (ajustes → "Repetir instrumento").
 - **Sustituye** (por defecto): un loop nuevo de un instrumento **reemplaza al loop más reciente de ese instrumento**.
@@ -1185,3 +1185,41 @@ s("[~ oh]*4").gain(0.25)                                            // platillo 
 - `oh` va **sin `.bank()`**, como en tu reel. En strudel.cc es el `oh` por defecto (`uzu-drumkit`, índice 0, licencia Unlicense), y coderbeats registra ese mismo archivo (`public/samples/default/oh.wav`).
 - Se mantienen el fondo progresivo y el sidechain (`duckorbit("2:3")` también empuja el platillo abierto).
 - Tonalidad: re menor (`Dm – Dm – F – C`).
+
+### 16.16 Controlable sin pensar (añadido el 2026-11-12, antes de la A3.3)
+
+**Tras la prueba con voz de §16.15:** "loop de 1 compás" + "sustituye" van bastante bien y **pasan a ser los valores por defecto**. Pero sigue sintiéndose como un estudio: no se sabe bien cuándo empieza el compás ni cuándo está "grabando".
+
+**Objetivo de la A3.3**: además de bonita, el agua tiene que poder controlarse sin pensar.
+
+**1. Pulso y compás visibles.**
+- **Anillo de compás** en el centro del agua (capa común, igual para todos los temas): un círculo fino con 16 marcas (las de los tiempos más marcadas) y un **cabezal** que lo recorre una vez por compás.
+- **El agua late en cada tiempo**: una onda neutra (blanca, tenue) sale del centro en cada tiempo, y **en el 1 la onda es claramente más fuerte**.
+
+**2. Se nota cuándo estás grabando.**
+- Cada golpe oído aparece **al instante** como un punto de su color **sobre el anillo**, en su paso del compás, y suelta una gota pequeña de su color en el agua.
+- Cuando nace el loop, en la línea de compás, los puntos se recogen en una esfera de su color que **cae al agua** en su sitio con un salpicón claro. Después flota. Si sustituye a otro loop, cae sobre él.
+
+**3. Pantalla principal casi vacía.**
+- Visible: el agua, los loops flotando, **Play/Stop** (abajo, centrado) y **el estilo** (arriba, tres palabras pequeñas).
+- **Todo lo demás, escondido** tras un icono "⋯" (arriba a la derecha) que abre una hoja: kit, fondo (modo e interruptor), metrónomo, ayuda, frase, repetir, cierre, máximo, calor, drop, borrar todo, recalibrar, **ver código** y diagnóstico.
+- El interruptor de fondo deja la vista principal (§16.4 queda así). Se mantiene el toque con dos dedos sobre el agua para quitarlo o ponerlo.
+- **Mínimo texto**: iconos en lugar de palabras donde se pueda (Play ▶/■, "⋯") y nada de mensajes de estado en la vista principal. El estado se ve en el agua y en el anillo.
+
+**4. Interfaz de temas (actualiza §16.14).** La capa común entrega al tema estos eventos, todos ya en el tiempo de audio:
+
+```ts
+interface VisualTheme {
+  // … mount / resize / frame / dispose como en §16.14
+  /** un tiempo del compás (beat 0 = el 1) */
+  beat(e: { time: number; beat: number; downbeat: boolean }): void
+  /** golpe: 'hit' = suena un loop · 'heard' = el micro acaba de oír un golpe (sobre el anillo) */
+  hit(e: VisualHitEvent & { kind: 'hit' | 'heard' }): void
+  /** nace un loop: cae al agua en (x, y) */
+  birth(e: { time: number; loopId: number; instrument: Instrument; x: number; y: number }): void
+}
+```
+
+**5. Niveles del agua** (actualiza §16.3): **WebGL2** (simulación con texturas half-float; los canales R, G y B son bombo, caja y platillo, y A es el pulso neutro) → **Canvas 2D** (anillos que se expanden). Se descarta el nivel intermedio de WebGL1 analítico: WebGL2 está en todos los navegadores objetivo (Chrome Android y Safari iOS 15+), y el Canvas 2D cubre el resto y `prefers-reduced-motion` (sin ondas: solo el anillo y un leve latido de opacidad).
+
+**6. Persistencia** (adelantada de la A3.4): ajustes, estilo, kit, efectos y loops se guardan en `localStorage` (`coderbeats:prefs:v1`, `coderbeats:loops:v1`).
