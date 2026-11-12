@@ -1004,3 +1004,33 @@ Cada estilo trae un **bajo y unos acordes en la misma tonalidad**, que suenan al
 - **Auto-mix**: el reparto de §16.2 se aplica a los loops de batería. El fondo queda fijo 4 dB por debajo de la batería.
 - **Salida**: limitador maestro a −1 dBFS sobre el nodo de salida, nunca satura (se verifica en el spike).
 - **Drop** (ajustes): cierra el filtro global hasta 200 Hz durante el compás actual y lo suelta en el 1 del siguiente. El fondo también se filtra, y eso es lo que da la sensación de "drop".
+
+### 16.12 Resultados del spike A3.0 (2026-11-12): **@strudel/web validado**
+
+Ejecutado con la página `/spike` en Chrome (escritorio, headless, micro simulado) y en **Safari iOS (iPhone)**, con resultados equivalentes. Se mide grabando la salida real de superdough con nuestro worklet.
+
+| # | Comprobación | Escritorio | iPhone |
+|---|---|---|---|
+| 1 | AudioContext compartido (micro grabando mientras suena) | ✓ | ✓ |
+| 2 | `onTrigger` frente al sonido real | +2,0 ms constantes | +2,0 ms constantes |
+| 3 | 10 reevaluaciones sin cortes | 0 huecos y 0 duplicados | 0 huecos y 0 duplicados |
+| 4 | iOS: desbloqueo de audio y altavoz | — | ✓ (se oye bien) |
+| 5a | Sidechain `duckorbit` | −10,9 dB | −12,5 dB |
+| 5b | Limitador maestro sobre `controller.output.destinationGain` | −1,80 dBFS | −1,76 dBFS |
+| 5c | El limitador sobrevive a hush/play | ✓ | ✓ |
+| 6 | Peso | 210 KB gzip (trozo diferido) | import 634 ms |
+| 7 | Mismos samples que strudel.cc | ver abajo | — |
+| + | `ref()` en vivo sin reevaluar | +13,2 dB | +13,3 dB |
+| + | `nudge` | 50,7 ms por 50 | 50,7 ms por 50 |
+| + | Bloqueo del hilo principal | 50 y 120 ms: 0 pérdidas; **250 ms: 1 semicorchea perdida** | igual |
+
+**Decisiones que salen del spike:**
+- **Samples**: en el mapa de strudel.cc, la caja del 909 (`sd01`) y el bombo y la caja del 808 (`BD0010`, `SD0010`) están en el **índice 1**. Esas líneas llevan `.n(1)` y el registro local replica el índice. El resto está en el 0.
+- **`onTrigger` no incluye el `nudge`**: el filtro de eco y las gotas le suman el `nudge` de cada golpe.
+- **El limitador nativo añade ~5 ms** a toda la salida. Todo (metrónomo incluido) sale por el mismo camino, y la prueba de eco mide con ese camino.
+- **El planificador de Strudel corre en el hilo principal** (`setInterval`, ~100 ms de margen):
+  - el agua no puede bloquear más de unos 100 ms; objetivo de frame ≤ 16,7 ms y ninguna tarea > 50 ms,
+  - al pasar a segundo plano se pausa.
+- **Carga**: `@strudel/web` se importa justo tras Empezar, en paralelo con la prueba de eco (en el iPhone el import son ~0,6 s).
+- **El metrónomo** es un patrón de Strudel solo del motor: no aparece en el código mostrado, porque es una ayuda y no forma parte de la música.
+- **Cierre de frase y planificación**: Strudel consulta unos 100–150 ms por delante. Para que un loop empiece justo en la línea de compás B, la frase se decide en **B − 0,3 s** con los golpes conocidos hasta entonces. Un golpe tardío que caiga en esos últimos 0,3 s abre la frase siguiente (normalmente es un golpe adelantado al 1).
