@@ -722,7 +722,7 @@ stack(
 
 **Frase.** Es un grupo de golpes seguidos. El tempo y la rejilla son globales (los del estilo), y las frases se cortan por compases:
 - Una frase **empieza** en el compás de su primer golpe. Un golpe un poco adelantado al 1 cuenta para el compás siguiente.
-- Una frase **se cierra** en una línea de compás si en los **últimos 2 tiempos no ha habido ningún golpe**, o al llegar a **4 compases**. El silencio de cierre se ajusta en ajustes: **1 tiempo, 2 tiempos (por defecto) o 1 compás**.
+- Una frase **se cierra** en una línea de compás si **después del inicio de los últimos 2 tiempos no ha habido ningún golpe nuevo** (un golpe justo en ese inicio, como el bombo en el 3, sí deja cerrar), o al llegar a **4 compases**. El silencio de cierre se ajusta en ajustes: **1 tiempo, 2 tiempos (por defecto) o 1 compás**.
 - La longitud del loop es la de la frase **redondeada hacia arriba a 1, 2 o 4 compases**.
 - Ejemplo: un bombo en 1 y 3 deja 2 tiempos de silencio al final del compás, así que nace un loop de 1 compás al instante. Si tocas sin parar 2 compases, nace un loop de 2.
 
@@ -878,7 +878,10 @@ stack(
 
 - **Una línea por loop**, con su longitud y su fase. Los compases de un loop de L compases se rotan para que el ciclo 0 de Strudel coincida con el compás global 0. Así, pegado en strudel.cc, suena con la misma fase. Los loops silenciados aparecen comentados.
 - **El fondo** va en su propio bloque comentado y desaparece del código si se quita.
-- **Gestos y ajustes** se ven como los valores actuales de `.lpf()` y `.room()` / `.delay()` del final, y de `.shape()` (Calor). En el motor van por `ref()`. En el código copiado aparecen como números fijos con el valor del momento.
+- **Gestos y ajustes**:
+  - El **Filtro** es `.djf()` sobre todo el `stack` (filtro DJ por bus de Strudel: 0,5 = abierto, menos = paso bajo). No pisa los `lpf` propios del bajo y los acordes, cosa que un `.lpf()` global sí haría.
+  - El **Espacio** (`.room()` / `.delay()`) y el **Calor** (`.shape()`) van sobre el sub-`stack` de tus loops, para no pisar la reverb propia del fondo.
+  - En el motor van por `ref()`. En el código copiado aparecen como números fijos con el valor del momento, y solo si no son neutros.
 - **Ayuda desactivada (ritmo exacto)**: cada línea sigue en 16 pasos y añade `.nudge("…")` con el desplazamiento de cada golpe en segundos, con la misma estructura de pasos. **El código sigue siendo exactamente lo que suena.**
 - **Samples**: los samples locales se registran con los nombres de Strudel (`RolandTR909_bd`, …). Para que en strudel.cc suenen **los mismos archivos**, se elige como sample de cada instrumento el que tiene índice 0 en el mapa de Strudel, o se emite `.n(k)`. Se verifica en el spike (§16.11).
 
@@ -1003,7 +1006,7 @@ Cada estilo trae un **bajo y unos acordes en la misma tonalidad**, que suenan al
 - **Compresión**: `compressor` suave en el bus de batería (umbral −18 dB, ratio 3). El **Calor** de ajustes sube la saturación (`shape`) y la compresión.
 - **Auto-mix**: el reparto de §16.2 se aplica a los loops de batería. El fondo queda fijo 4 dB por debajo de la batería.
 - **Salida**: limitador maestro a −1 dBFS sobre el nodo de salida, nunca satura (se verifica en el spike).
-- **Drop** (ajustes): cierra el filtro global hasta 200 Hz durante el compás actual y lo suelta en el 1 del siguiente. El fondo también se filtra, y eso es lo que da la sensación de "drop".
+- **Drop** (ajustes): cierra el filtro global (`djf` al mínimo) durante el compás actual y lo suelta en el 1 del siguiente. El fondo también se filtra, y eso es lo que da la sensación de "drop".
 
 ### 16.12 Resultados del spike A3.0 (2026-11-12): **@strudel/web validado**
 

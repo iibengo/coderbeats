@@ -15,9 +15,9 @@ export const STYLES: Record<StyleId, Style> = {
 }
 
 export const KITS: Record<KitId, Kit> = {
-  '909': { id: '909', label: '909', strudelBank: 'RolandTR909' },
-  '808': { id: '808', label: '808', strudelBank: 'RolandTR808' },
-  acoustic: { id: 'acoustic', label: 'Acústico', strudelBank: 'AkaiMPC60' },
+  '909': { id: '909', label: '909', strudelBank: 'RolandTR909', sampleIndex: { bd: 0, sd: 1, hh: 0 } },
+  '808': { id: '808', label: '808', strudelBank: 'RolandTR808', sampleIndex: { bd: 1, sd: 1, hh: 0 } },
+  acoustic: { id: 'acoustic', label: 'Acústico', strudelBank: 'AkaiMPC60', sampleIndex: { bd: 0, sd: 0, hh: 0 } },
 }
 
 /** Orden de la UI (las claves numéricas de un objeto se reordenan solas). */

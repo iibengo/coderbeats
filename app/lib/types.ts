@@ -14,6 +14,8 @@ export interface Kit {
   id: KitId
   label: string
   strudelBank: string
+  /** índice del sample en el mapa de strudel.cc (para que suene igual al copiar el código) */
+  sampleIndex: Record<Instrument, number>
 }
 
 /** time en segundos desde el inicio del buffer analizado */
