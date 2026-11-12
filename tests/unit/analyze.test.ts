@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { analyzeTake, strongestOnset } from '../../app/lib/analyze'
 import { KnnClassifier } from '../../app/lib/classifier'
 import { extractFeatures } from '../../app/lib/features'
-import { generateStrudel } from '../../app/lib/strudel'
+import { patternToMini } from '../../app/lib/strudel'
 import type { CalibrationSample, Instrument } from '../../app/lib/types'
 import { place, silence, sound } from '../helpers/synth'
 
@@ -40,9 +40,7 @@ describe('analyzeTake (pipeline puro)', () => {
     const { pattern, onsets } = analyzeTake(buf, SR, calibrate(), { t0, latency, stepSeconds: STEP, bars: 4 })
     expect(onsets).toHaveLength(expected.filter(Boolean).length)
     expect(pattern.steps).toEqual(expected)
-    expect(generateStrudel(pattern, { bpm: 90, bank: 'RolandTR909' })).toContain(
-      's("bd ~ hh ~ sd ~ hh ~ bd ~ bd ~ sd ~ hh ~")',
-    )
+    expect(patternToMini(pattern)).toBe('bd ~ hh ~ sd ~ hh ~ bd ~ bd ~ sd ~ hh ~')
   })
 
   it('strongestOnset devuelve null en silencio', () => {

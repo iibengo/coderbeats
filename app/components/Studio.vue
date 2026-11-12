@@ -2,7 +2,7 @@
 import { analyzeTake, type AnalyzeResult } from '~/lib/analyze'
 import { INSTRUMENT_LABELS, KIT_ORDER, KITS, RECORD_BARS, RECORD_BPM, sixteenthSeconds, STYLES } from '~/lib/constants'
 import { hitCount } from '~/lib/quantize'
-import { generateStrudel } from '~/lib/strudel'
+import { patternToMini } from '~/lib/strudel'
 import type { Instrument, StyleId } from '~/lib/types'
 
 const emit = defineEmits<{ recalibrate: ['latency' | 'sounds'] }>()
@@ -20,7 +20,9 @@ const hideWarning = ref(false)
 
 const bpm = computed(() => STYLES[style.value].bpm)
 const code = computed(() =>
-  pattern.value ? generateStrudel(pattern.value, { bpm: bpm.value, bank: KITS[kit.value].strudelBank }) : '',
+  pattern.value
+    ? `setcpm(${bpm.value}/4)\ns("${patternToMini(pattern.value)}")\n  .bank("${KITS[kit.value].strudelBank}")`
+    : '',
 )
 const sampleRateMismatch = computed(
   () => !!calibration.data.value && engine.sampleRate() !== calibration.data.value.sampleRate,

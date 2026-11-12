@@ -6,6 +6,8 @@ export interface Style {
   id: StyleId
   label: string
   bpm: number
+  /** al grabar, cuantizar cada N semicorcheas (2 = corcheas, medio tiempo de dnb) */
+  quantizeEvery: 1 | 2
 }
 
 export interface Kit {

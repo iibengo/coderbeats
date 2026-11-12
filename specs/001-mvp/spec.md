@@ -568,7 +568,7 @@ Hay dos causas, comprobadas con audio sintético (no con tu toma):
 - **b) Filtro de eco** (solo se activa si la prueba de eco detecta que el micro oye la salida):
   - Sabemos cuándo suena cada clic y cada sample. Se descartan los onsets que caen a ±25 ms del momento en que debería llegar su eco.
   - Excepción: si superan en +10 dB el nivel de eco medido, se aceptan. Cuando tocas a la vez que el loop, tu voz pegada al micro suena más fuerte que el eco.
-- **c) Anti-doble disparo**: separación mínima ligada a la rejilla de grabación, `clamp(0,6 × celda, 60 ms, 120 ms)`. Sale 100 ms en hip hop 90, 72 ms en house 124 y 103 ms en drum and bass (celda de corchea).
+- **c) Anti-doble disparo**: periodo refractario (gana el **primer** onset, que es el ataque, y así se decide sin esperar) ligado a la rejilla de grabación, `clamp(0,6 × celda, 60 ms, 120 ms)`. Sale 100 ms en hip hop 90, 72 ms en house 124 y 103 ms en drum and bass (celda de corchea).
 - **d) Puerta relativa**: se descartan los onsets más de 24 dB por debajo de la mediana de los últimos 8 golpes (respiraciones, chasquidos de labios). Es un valor ajustable.
 - **e) Botón "Descargar toma"** (solo en desarrollo): baja el WAV y un JSON con los onsets, para ajustar umbrales con tus grabaciones reales.
 
