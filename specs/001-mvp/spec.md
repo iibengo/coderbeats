@@ -946,7 +946,7 @@ stack(
   **Si algún punto falla**, se sigue con Tone.js (§16.11, alternativa) y se te avisa antes de seguir.
 - **A3.1** `lib/`: phrases, freeLoops, assist y styles (con sus fondos), mix, generador de canción (Strudel), gestures y kernel de onda, con sus tests.
 - **A3.2** Motor: Strudel (o Tone si el spike falla), escucha continua con Play, fondo, sidechain, auto-mix y limitador, Calor y Drop. Se retiran el overdub y Tone si Strudel pasa el spike.
-- **A3.3** Agua: simulación WebGL2 con 3 canales, respaldos y loops flotantes con toque y pulsación larga.
+- **A3.3** Capa visual común e interfaz de temas (§16.14); primer tema, el agua (simulación WebGL2 de 3 canales y respaldos); loops flotantes con toque y pulsación larga.
 - **A3.4** UI mínima: interruptor de fondo, gestos de filtro y espacio, ajustes y "ver código" como hojas inferiores, y persistencia.
 - **A3.5** Lo pruebas con tu voz, en el ordenador y en el móvil, y ajustamos el prior, el cierre de frase y el agua.
 
@@ -1034,6 +1034,7 @@ Ejecutado con la página `/spike` en Chrome (escritorio, headless, micro simulad
 - **El planificador de Strudel corre en el hilo principal** (`setInterval`, ~100 ms de margen):
   - el agua no puede bloquear más de unos 100 ms; objetivo de frame ≤ 16,7 ms y ninguna tarea > 50 ms,
   - al pasar a segundo plano se pausa.
+- **`initAudio()` explícito** (descubierto en la A3.2): superdough solo carga sus AudioWorklets (`djf`, `shape`…) en el primer `mousedown` real del documento. Sin ellos, cualquier evento con esos efectos lanza un error y se aborta entero, `onTrigger` incluido. El motor llama a `initAudio()` al arrancar y no depende de ese clic (que en móvil puede no llegar).
 - **Carga**: `@strudel/web` se importa justo tras Empezar, en paralelo con la prueba de eco (en el iPhone el import son ~0,6 s).
 - **El metrónomo** es un patrón de Strudel solo del motor: no aparece en el código mostrado, porque es una ayuda y no forma parte de la música.
 - **Cierre de frase y planificación**: Strudel consulta unos 100–150 ms por delante. Para que un loop empiece justo en la línea de compás B, la frase se decide en **B − 0,3 s** con los golpes conocidos hasta entonces. Un golpe tardío que caiga en esos últimos 0,3 s abre la frase siguiente (normalmente es un golpe adelantado al 1).
@@ -1087,3 +1088,61 @@ El **interruptor "fondo"** de la vista principal alterna entre "sin fondo" y el 
 | 4 | La inserción sobrevive a hush/play | ✓ Es el mismo orbit, con el filtro dentro |
 
 Nota de medida: con ventanas que no son múltiplo del periodo de la nota aparece un falso rizado de ±1,2 dB. Hay que medir con ventanas alineadas al periodo.
+
+### 16.14 Visual como tema intercambiable (añadido el 2026-11-12)
+
+El visual es un **tema** detrás de una interfaz común: recibe los golpes y el tiempo del loop, y dibuja. **El agua es el primer tema**; más adelante se añadirán otros sin tocar el motor ni la interfaz.
+
+```ts
+/** Lo que un tema recibe en cada frame. */
+export interface VisualFrame {
+  /** tiempo de contexto actual (s) */
+  time: number
+  playing: boolean
+  /** compás global y fase dentro del compás (0..1) */
+  bar: number
+  barPhase: number
+  bpm: number
+  /** loops con su posición en pantalla (px CSS), calculada por la capa común */
+  loops: { id: number; instrument: Instrument; muted: boolean; x: number; y: number; size: number }[]
+  /** gestos y ajustes (0..1) */
+  fx: { filter: number; space: number; warmth: number }
+  /** partes del fondo sonando */
+  background: { bass: boolean; chords: boolean }
+  reducedMotion: boolean
+}
+
+/** Golpe que suena, ya en su posición (el de un loop, en el sitio de ese loop). */
+export interface VisualHitEvent {
+  time: number
+  loopId: number | null
+  instrument: Instrument | 'bass' | 'chords'
+  x: number
+  y: number
+  strength: number
+}
+
+export interface VisualTheme {
+  id: string
+  label: string
+  /** monta el tema en un canvas a pantalla completa; puede elegir WebGL2, WebGL1 o 2D */
+  mount(canvas: HTMLCanvasElement, opts: { dpr: number; reducedMotion: boolean }): void
+  resize(width: number, height: number, dpr: number): void
+  /** un golpe empieza a sonar (llamado en su tiempo, sincronizado con el audio) */
+  hit(e: VisualHitEvent): void
+  /** un frame (requestAnimationFrame); debe tardar ≪ 16 ms y nunca bloquear > 50 ms */
+  frame(f: VisualFrame): void
+  dispose(): void
+}
+```
+
+**Reparto de responsabilidades:**
+- **Capa común** (`components/visual/VisualStage.vue`, sin cambios entre temas):
+  - canvas a pantalla completa, bucle rAF único, pausa en segundo plano y `devicePixelRatio` limitado a 2,
+  - deriva de los loops (`lib/drift.ts`, puro y testeado) y sus objetos DOM para tocar, mantener pulsado y los gestos,
+  - traduce los golpes del motor (`onTrigger`) a `VisualHitEvent` con la posición del loop,
+  - lee el reloj del motor para `bar` y `barPhase`.
+- **Tema** (`themes/<id>/`): solo dibuja. No toca el audio ni el estado.
+  - `themes/water/`: simulación de §16.3 (WebGL2 de 3 canales, respaldo WebGL1 analítico, respaldo Canvas 2D).
+- **Registro**: `themes/index.ts` exporta la lista de temas. El elegido se guarda en prefs; en la A3.3 solo existe "agua" y no hay selector en la UI.
+- **Rendimiento**: el contrato pide frames ≪ 16 ms porque el planificador de Strudel comparte el hilo principal (§16.12). La capa común mide el tiempo de cada frame. Si el p95 supera 14 ms, avisa al tema con `resize` a menor resolución interna.

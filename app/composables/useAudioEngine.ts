@@ -1,22 +1,24 @@
-import { ref, shallowRef } from 'vue'
+import { reactive, ref, shallowRef } from 'vue'
+import { NO_PARTS, PART_ORBIT, planTransitions, targetParts, type BackgroundMode, type Part, type Parts } from '~/lib/background'
+import { KIT_ORDER, KITS, STYLES } from '~/lib/constants'
 import { analyzeEchoTest, type EchoTestResult } from '~/lib/echoGate'
-import { KIT_ORDER } from '~/lib/constants'
 import {
-  activeAt,
-  addHit,
-  emptyLoop,
-  place,
-  settle,
-  totalSteps,
-  type AddResult,
-  type Loop,
-  type LoopTiming,
-} from '~/lib/looper'
+  addPhrase,
+  clearLoops,
+  emptyLoops,
+  removeLoop,
+  toggleMute,
+  type LoopEvent,
+  type LoopsState,
+} from '~/lib/freeLoops'
+import { DJF_MIN, filterDjf, spaceParams, warmthShape } from '~/lib/gestures'
 import { detectOnsets, minGapForCell } from '~/lib/onsets'
-import type { CalibrationSample, Instrument, KitId, Norm } from '~/lib/types'
+import { PhraseTracker, type ClosedPhrase, type LoopLength } from '~/lib/phrases'
+import { ENGINE_GLOBAL, songCode, type SongFx, type SongState } from '~/lib/song'
+import type { CalibrationSample, Instrument, KitId, Norm, StyleId } from '~/lib/types'
 import type { FromWorker, ToWorker } from '~/lib/workerProtocol'
 
-type ToneModule = typeof import('tone')
+type StrudelModule = typeof import('@strudel/web')
 
 export interface Take {
   buffer: Float32Array
@@ -34,65 +36,85 @@ export interface TakeOptions {
   onBeat?: (beat: number) => void
 }
 
-export interface LiveEvent {
+/** Evento de diagnóstico. */
+export interface DiagEvent {
+  at: number
+  kind: 'hit' | 'echo' | 'unknown' | 'stopped' | 'born' | 'reinforced' | 'removed' | 'phrase' | 'error' | 'background'
+  text: string
+  /** ms desde el golpe hasta que llegó al hilo principal */
+  uiMs?: number
+}
+
+/** Golpe que suena (para la capa visual). */
+export interface VisualHit {
+  loopId: number | null
+  instrument: Instrument | 'bass' | 'chords' | null
+  /** tiempo de contexto en que suena */
   time: number
-  instrument: Instrument | 'unknown'
-  confidence: number
-  strength: number
-  decisionMs: number
-  /** ms desde el onset hasta que se procesó en el hilo principal */
-  uiMs: number
-  result: AddResult | 'echo' | 'unknown' | 'paused'
-  step?: number
 }
 
-export interface LooperSettings {
-  bpm: number
-  quantizeEvery: 1 | 2
-  /** latencia a compensar (calibración), s */
-  latency: number
+/** Correspondencia ciclo ↔ tiempo de contexto, a partir del último pulso. */
+interface Clock {
+  cycle: number
+  time: number
+  barSec: number
 }
 
-export interface RecordedTake {
-  buffer: Float32Array
-  sampleRate: number
-  startTime: number
-  anchor: number
-  settings: LooperSettings
-  events: LiveEvent[]
+interface StrudelHap {
+  whole: { begin: number | { valueOf(): number } }
+  value: Record<string, unknown>
 }
 
-// Estado de módulo: la app es una sola página y solo corre en el cliente.
+// ── Estado de módulo (una sola página, solo cliente) ───────────────────────────
 let ctx: AudioContext | null = null
-let Tone: ToneModule | null = null
+let S: StrudelModule | null = null
 let stream: MediaStream | null = null
 let capture: AudioWorkletNode | null = null
 let worker: Worker | null = null
+let masterIn: GainNode | null = null
 let chunks: { frame: number; data: Float32Array }[] = []
 let onStopped: (() => void) | null = null
-const players = new Map<KitId, import('tone').Players>()
-let sequence: import('tone').Sequence<number> | null = null
-let timing: LoopTiming | null = null
-let settings: LooperSettings | null = null
-let capturingTake = false
+let clock: Clock | null = null
+let tracker: PhraseTracker | null = null
+let latencySec = 0
+let lastPulseCycle = -1
+let plannedParts: Parts = { ...NO_PARTS }
+let timers: ReturnType<typeof setTimeout>[] = []
+let outputBatch: number[] = []
+let evalQueued = false
+let dropActive = false
+const bgNodes: Partial<Record<Part, { lp: BiquadFilterNode; gain: GainNode }>> = {}
+const visualListeners = new Set<(h: VisualHit) => void>()
 
+/** Valores que lee el código evaluado (refs y onTrigger). */
+const cb = {
+  fx: { djf: 0.5, room: 0, delay: 0, shape: 0 },
+  trig: (hap: StrudelHap, t: number) => onTrigger(hap, t),
+}
+
+// ── Estado reactivo ───────────────────────────────────────────────────────────
 const ready = ref(false)
 const level = ref(0)
-const kit = ref<KitId>('909')
 const echo = shallowRef<EchoTestResult | null>(null)
-
-// looper
-const loop = shallowRef<Loop>(emptyLoop(1))
 const playing = ref(false)
-const countingIn = ref(false)
-const overdub = ref(false)
+const kit = ref<KitId>('909')
+const style = ref<StyleId>('hiphop90')
+const assist = ref(true)
 const metronome = ref(true)
-const currentStep = ref(-1)
-const currentLap = ref(0)
-const events = shallowRef<LiveEvent[]>([])
-const lastTake = shallowRef<RecordedTake | null>(null)
+const bgMode = ref<BackgroundMode>('progressive')
+const lastBgMode = ref<Exclude<BackgroundMode, 'off'>>('progressive')
+const phraseCloseBeats = ref<1 | 2 | 4>(2)
+const maxPhraseBars = ref<LoopLength>(4)
+const fx = reactive<SongFx>({ filter: 1, space: 0, warmth: 0 })
+const loops = shallowRef<LoopsState>(emptyLoops())
+/** partes del fondo que han entrado o están entrando (para el código mostrado) */
+const bgParts = shallowRef<Parts>({ ...NO_PARTS })
+const currentBar = ref(0)
+const diag = shallowRef<DiagEvent[]>([])
+const dropping = ref(false)
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
+const later = (fn: () => void, ms: number) => timers.push(setTimeout(fn, Math.max(0, ms)))
 
 function requireCtx(): AudioContext {
   if (!ctx) throw new Error('AudioContext no iniciado')
@@ -101,7 +123,11 @@ function requireCtx(): AudioContext {
 
 const toWorker = (m: ToWorker) => worker?.postMessage(m)
 
-/** Clic de metrónomo nativo, programado en tiempo de AudioContext. */
+function log(kind: DiagEvent['kind'], text: string, uiMs?: number) {
+  diag.value = [{ at: ctx?.currentTime ?? 0, kind, text, uiMs }, ...diag.value].slice(0, 300)
+}
+
+/** Clic nativo por el mismo camino que todo lo demás (limitador incluido). */
 function click(time: number, accent: boolean) {
   const c = requireCtx()
   const osc = c.createOscillator()
@@ -110,7 +136,7 @@ function click(time: number, accent: boolean) {
   gain.gain.setValueAtTime(0, time)
   gain.gain.linearRampToValueAtTime(accent ? 0.5 : 0.3, time + 0.001)
   gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.04)
-  osc.connect(gain).connect(c.destination)
+  osc.connect(gain).connect(masterIn ?? c.destination)
   osc.start(time)
   osc.stop(time + 0.05)
 }
@@ -136,17 +162,6 @@ function stopCapture(): Promise<{ buffer: Float32Array; startTime: number }> {
   })
 }
 
-async function loadKit(id: KitId) {
-  if (!Tone || players.has(id)) return
-  const base = `${useRuntimeConfig().app.baseURL}samples/${id}/`
-  const p = new Tone.Players({ bd: `${base}bd.wav`, sd: `${base}sd.wav`, hh: `${base}hh.wav` }).toDestination()
-  players.set(id, p)
-  await new Promise<void>((resolve) => {
-    const check = () => (p.loaded ? resolve() : setTimeout(check, 50))
-    check()
-  })
-}
-
 /** Prueba de eco: 3 clics con el micro abierto. ¿Los oye el micro? */
 async function runEchoTest(): Promise<EchoTestResult> {
   const c = requireCtx()
@@ -160,27 +175,191 @@ async function runEchoTest(): Promise<EchoTestResult> {
   return analyzeEchoTest(clicks, onsets)
 }
 
-function pushEvent(e: LiveEvent) {
-  events.value = [e, ...events.value].slice(0, 200)
+// ── Reloj: ciclo de Strudel = compás global ───────────────────────────────────
+const stepSeconds = () => 60 / STYLES[style.value].bpm / 4
+const barTime = (bar: number): number => (clock ? clock.time + (bar - clock.cycle) * clock.barSec : Infinity)
+const nextBarLine = (): number => {
+  if (!clock || !ctx) return 0
+  return Math.floor((ctx.currentTime + 0.15 - clock.time) / clock.barSec) + clock.cycle + 1
+}
+
+function onPulse(cycle: number, t: number) {
+  if (cycle === lastPulseCycle) return
+  lastPulseCycle = cycle
+  const barSec = stepSeconds() * 16
+  clock = { cycle, time: t, barSec }
+  const c = requireCtx()
+  later(() => (currentBar.value = cycle), (t - c.currentTime) * 1000)
+  if (!tracker) {
+    tracker = new PhraseTracker(
+      { anchor: t - cycle * barSec, stepSeconds: barSec / 16 },
+      { closeBeats: phraseCloseBeats.value, maxBars: maxPhraseBars.value },
+    )
+    updateBackground()
+  }
+  // la frase se decide poco antes de la siguiente línea de compás (§16.12)
+  const next = cycle + 1
+  later(() => decide(next), (t + barSec - 0.3 - c.currentTime) * 1000)
+}
+
+function onTrigger(hap: StrudelHap, t: number) {
+  const color = String(hap.value.color ?? '')
+  if (color === 'pulse') return onPulse(Math.round(Number(hap.whole.begin.valueOf())), t)
+  const time = t + Number(hap.value.nudge ?? 0)
+  outputBatch.push(time)
+  if (outputBatch.length === 1)
+    queueMicrotask(() => {
+      toWorker({ type: 'output', times: outputBatch })
+      outputBatch = []
+    })
+  if (!visualListeners.size || !ctx) return
+  const loopId = color.startsWith('l') ? Number(color.slice(1)) : null
+  const loop = loopId !== null ? loops.value.loops.find((l) => l.id === loopId) : undefined
+  const visual: VisualHit = {
+    loopId,
+    instrument: loop?.instrument ?? (color === 'bass' || color === 'chords' ? color : null),
+    time,
+  }
+  setTimeout(() => visualListeners.forEach((f) => f(visual)), Math.max(0, (time - ctx.currentTime) * 1000))
+}
+
+// ── Evaluación del código del motor ────────────────────────────────────────────
+function songState(): SongState {
+  return {
+    loops: loops.value.loops,
+    style: style.value,
+    kit: kit.value,
+    background: { mode: bgMode.value, parts: bgParts.value },
+    metronome: metronome.value,
+    fx: { ...fx },
+  }
+}
+
+/** Reevalúa en la siguiente microtarea (agrupa varios cambios seguidos). */
+function reevaluate() {
+  if (evalQueued || !S) return
+  evalQueued = true
+  queueMicrotask(async () => {
+    evalQueued = false
+    try {
+      await S!.evaluate(songCode(songState(), 'engine'), playing.value)
+    } catch (e) {
+      log('error', `evaluate: ${e instanceof Error ? e.message : String(e)}`)
+    }
+  })
+}
+
+// ── Fondo progresivo: nodos nativos en los orbits 2 y 3 (§16.13) ──────────────
+function setupBackgroundNodes() {
+  const controller = S!.getSuperdoughAudioController() as unknown as {
+    getOrbit(n: number, ch: number[]): { output: GainNode }
+    output: { connectToDestination(node: AudioNode, ch?: number[]): void }
+  }
+  for (const part of ['bass', 'chords'] as const) {
+    const orbit = controller.getOrbit(PART_ORBIT[part], [0, 1])
+    const lp = new BiquadFilterNode(ctx!, { type: 'lowpass', frequency: 150, Q: 0.7 })
+    const gain = new GainNode(ctx!, { gain: 0 })
+    orbit.output.disconnect()
+    orbit.output.connect(lp).connect(gain)
+    controller.output.connectToDestination(gain)
+    bgNodes[part] = { lp, gain }
+  }
+}
+
+function rampPart(part: Part, dir: 'in' | 'out', start: number, seconds: number) {
+  const n = bgNodes[part]
+  const c = ctx
+  if (!n || !c) return
+  const beat = stepSeconds() * 4
+  const t = Math.max(start, c.currentTime + 0.01)
+  for (const p of [n.lp.frequency, n.gain.gain]) {
+    const v = p.value
+    p.cancelScheduledValues(t)
+    p.setValueAtTime(v, t)
+  }
+  if (dir === 'in') {
+    n.lp.frequency.exponentialRampToValueAtTime(20000, t + seconds)
+    n.gain.gain.linearRampToValueAtTime(1, t + beat)
+  } else {
+    n.lp.frequency.exponentialRampToValueAtTime(150, t + seconds)
+    n.gain.gain.setValueAtTime(n.gain.gain.value, t + seconds - beat)
+    n.gain.gain.linearRampToValueAtTime(0, t + seconds)
+  }
+}
+
+function silenceBackgroundNodes() {
+  for (const n of Object.values(bgNodes)) {
+    if (!n) continue
+    n.lp.frequency.cancelScheduledValues(0)
+    n.gain.gain.cancelScheduledValues(0)
+    n.lp.frequency.value = 150
+    n.gain.gain.value = 0
+  }
+}
+
+function updateBackground() {
+  if (!playing.value || !clock || !ctx) return
+  const active = loops.value.loops.filter((l) => !l.muted).length
+  const target = targetParts(active, bgMode.value)
+  const transitions = planTransitions(plannedParts, target, nextBarLine(), style.value)
+  plannedParts = target
+  const c = ctx
+  for (const tr of transitions) {
+    const start = barTime(tr.bar)
+    const seconds = tr.bars * clock.barSec
+    rampPart(tr.part, tr.dir, start, seconds)
+    log('background', `${tr.part === 'bass' ? 'bajo' : 'acordes'} ${tr.dir === 'in' ? 'entra' : 'sale'} en el compás ${tr.bar}`)
+    const flip = () => (bgParts.value = { ...bgParts.value, [tr.part]: tr.dir === 'in' })
+    later(flip, ((tr.dir === 'in' ? start : start + seconds) - c.currentTime) * 1000)
+  }
+}
+
+// ── Frases → loops ─────────────────────────────────────────────────────────────
+function decide(bar: number) {
+  if (!playing.value || !tracker) return
+  const closed = tracker.decide(bar)
+  if (closed) birth(closed, bar)
+}
+
+function logLoopEvent(e: LoopEvent) {
+  if (e.type === 'born')
+    log('born', `nace loop ${e.loop.id} (${e.loop.instrument}, ${e.loop.bars} c.${e.loop.fromTemplate ? ', plantilla' : ''})`)
+  else if (e.type === 'reinforced') log('reinforced', `loop ${e.id} reforzado (patrón repetido)`)
+  else log('removed', `loop ${e.id} retirado (${e.reason === 'limit' ? 'máximo de 8' : 'usuario'})`)
+}
+
+function birth(phrase: ClosedPhrase, bornAt: number) {
+  log('phrase', `frase ${phrase.startBar}–${phrase.startBar + phrase.spanBars - 1}: ${phrase.hits.length} golpes → ${phrase.bars} compás(es)`)
+  const r = addPhrase(loops.value, phrase, {
+    assist: assist.value,
+    style: style.value,
+    quantizeEvery: STYLES[style.value].quantizeEvery,
+    bornAt,
+  })
+  loops.value = r.state
+  for (const e of r.events) logLoopEvent(e)
+  reevaluate()
+  updateBackground()
 }
 
 function onWorkerMessage(m: FromWorker) {
   const c = ctx
   if (!c) return
   const uiMs = (c.currentTime - m.time) * 1000
-  if (m.type === 'echo') {
-    pushEvent({ time: m.time, instrument: 'unknown', confidence: 0, strength: m.strength, decisionMs: 0, uiMs, result: 'echo' })
-    return
-  }
-  const base = { time: m.time, instrument: m.instrument, confidence: m.confidence, strength: m.strength, decisionMs: m.decisionMs, uiMs }
-  if (m.instrument === 'unknown') return pushEvent({ ...base, result: 'unknown' })
-  if (!overdub.value || !timing || !settings) return pushEvent({ ...base, result: 'paused' })
-  const placement = place(m.time - settings.latency, timing)
-  const r = addHit(loop.value, { placement, instrument: m.instrument, strength: m.strength, confidence: m.confidence })
-  loop.value = r.loop
-  pushEvent({ ...base, result: r.result, step: placement.step })
+  if (m.type === 'echo') return log('echo', `eco descartado (${m.strength.toFixed(3)})`, uiMs)
+  if (m.instrument === 'unknown') return log('unknown', `golpe desconocido (${m.strength.toFixed(3)})`, uiMs)
+  if (!playing.value || !tracker) return log('stopped', `${m.instrument} sin loop en marcha`, uiMs)
+  log('hit', `${m.instrument} ${(m.confidence * 100).toFixed(0)}%`, uiMs)
+  const closed = tracker.add({
+    tCorr: m.time - latencySec,
+    instrument: m.instrument,
+    strength: m.strength,
+    confidence: m.confidence,
+  })
+  if (closed) birth(closed, nextBarLine())
 }
 
+// ── API ────────────────────────────────────────────────────────────────────────
 export function useAudioEngine() {
   /**
    * Debe llamarse dentro del gesto del usuario (botón Empezar): crea y reanuda el
@@ -195,11 +374,42 @@ export function useAudioEngine() {
     silent.connect(ctx.destination)
     silent.start()
 
+    // cadena maestra: entrada → limitador → techo −1 dB → salida (§16.12)
+    masterIn = new GainNode(ctx)
+    const limiter = new DynamicsCompressorNode(ctx, { threshold: -6, knee: 0, ratio: 20, attack: 0.001, release: 0.1 })
+    const ceiling = new GainNode(ctx, { gain: 10 ** (-1 / 20) })
+    masterIn.connect(limiter).connect(ceiling).connect(ctx.destination)
+
+    const base = useRuntimeConfig().app.baseURL
+    const strudelReady = (async () => {
+      S = await import('@strudel/web')
+      S.setAudioContext(ctx!)
+      // sin esto, los efectos con worklet (djf, shape…) fallan y abortan el evento entero
+      // hasta el primer mousedown real del documento
+      await S.initAudio()
+      await S.initStrudel({
+        prebake: async () => {
+          // mismo índice que en strudel.cc (§16.12): se replica el archivo hasta su posición
+          const map: Record<string, string[]> = {}
+          for (const k of KIT_ORDER)
+            for (const inst of ['bd', 'sd', 'hh'] as const) {
+              const idx = KITS[k].sampleIndex[inst]
+              map[`${KITS[k].strudelBank}_${inst}`] = Array.from({ length: idx + 1 }, () => `${k}/${inst}.wav`)
+            }
+          const g = globalThis as unknown as { samples: (m: object, base: string) => Promise<void> }
+          await g.samples(map, `${location.origin}${base}samples/`)
+        },
+      })
+      ;(globalThis as Record<string, unknown>)[ENGINE_GLOBAL] = cb
+      const dest = S.getSuperdoughAudioController().output.destinationGain
+      dest.disconnect()
+      dest.connect(masterIn!)
+      setupBackgroundNodes()
+    })()
+
     stream = await navigator.mediaDevices.getUserMedia({
       audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 },
     })
-
-    const base = useRuntimeConfig().app.baseURL
     await ctx.audioWorklet.addModule(`${base}worklets/capture-processor.js`)
     const source = ctx.createMediaStreamSource(stream)
     capture = new AudioWorkletNode(ctx, 'capture-processor', { numberOfInputs: 1, numberOfOutputs: 1 })
@@ -213,7 +423,6 @@ export function useAudioEngine() {
     mute.gain.value = 0
     source.connect(capture).connect(mute).connect(ctx.destination)
 
-    // worker de análisis con un canal directo desde el worklet
     worker = new Worker(new URL('../workers/analysis.worker.ts', import.meta.url), { type: 'module' })
     worker.onmessage = (e: MessageEvent<FromWorker>) => onWorkerMessage(e.data)
     const channel = new MessageChannel()
@@ -221,24 +430,22 @@ export function useAudioEngine() {
     const plain = JSON.parse(
       JSON.stringify({ samples: calibration?.samples ?? [], norm: calibration?.norm ?? { mean: [], std: [] } }),
     ) as { samples: CalibrationSample[]; norm: Norm }
-    worker.postMessage(
-      { type: 'init', sampleRate: ctx.sampleRate, ...plain } satisfies ToWorker,
-      [channel.port2],
-    )
+    worker.postMessage({ type: 'init', sampleRate: ctx.sampleRate, ...plain } satisfies ToWorker, [channel.port2])
 
-    Tone = await import('tone')
-    Tone.setContext(ctx)
-    await loadKit(kit.value)
-    void Promise.all(KIT_ORDER.map(loadKit))
-
-    echo.value = await runEchoTest()
-    metronome.value = !echo.value.bleed
+    // la prueba de eco corre mientras se carga Strudel (en el iPhone el import son ~0,6 s)
+    const [echoResult] = await Promise.all([runEchoTest(), strudelReady])
+    echo.value = echoResult
+    metronome.value = !echoResult.bleed
     ready.value = true
   }
 
   function setCalibration(c: { samples: CalibrationSample[]; norm: Norm }) {
     const plain = JSON.parse(JSON.stringify({ samples: c.samples, norm: c.norm })) as typeof c
     toWorker({ type: 'calibration', ...plain })
+  }
+
+  function setLatency(seconds: number) {
+    latencySec = seconds
   }
 
   /** Metrónomo + grabación (calibración de latencia). */
@@ -271,136 +478,200 @@ export function useAudioEngine() {
     return { buffer, sampleRate: c.sampleRate }
   }
 
-  /** Arranca el loop. Con `countIn`, 1 compás de clics antes del primer paso. */
-  function play(s: LooperSettings, countIn = false) {
-    if (!Tone || !ctx) return
-    stop(true)
-    const T = Tone
-    const c = ctx
-    settings = s
-    loop.value = settle(loop.value)
-    const transport = T.getTransport()
-    transport.bpm.value = s.bpm
-    const stepSec = 60 / s.bpm / 4
-    const beat = stepSec * 4
-    const steps = totalSteps(loop.value)
-    const loopDur = steps * stepSec
+  function syncFx() {
+    cb.fx.djf = dropActive ? DJF_MIN : filterDjf(fx.filter)
+    const sp = spaceParams(fx.space)
+    cb.fx.room = sp.room
+    cb.fx.delay = sp.delay
+    cb.fx.shape = warmthShape(fx.warmth)
+  }
 
-    const anchor = c.currentTime + 0.15 + (countIn ? 4 * beat : 0)
-    timing = { anchor, stepSeconds: stepSec, quantizeEvery: s.quantizeEvery, totalSteps: steps }
-
+  async function play() {
+    if (playing.value || !S) return
+    // al arrancar, lo que ya existe suena desde el primer compás
+    loops.value = { ...loops.value, loops: loops.value.loops.map((l) => ({ ...l, bornAt: 0 })) }
+    clock = null
+    tracker = null
+    lastPulseCycle = -1
+    plannedParts = { ...NO_PARTS }
+    bgParts.value = { ...NO_PARTS }
+    silenceBackgroundNodes()
+    syncFx()
     const echoCfg = echo.value?.bleed ? { roundTrip: echo.value.roundTrip, echoLevel: echo.value.echoLevel } : null
-    toWorker({ type: 'start', minGap: minGapForCell(stepSec * s.quantizeEvery), echo: echoCfg })
+    toWorker({ type: 'start', minGap: minGapForCell(stepSeconds() * STYLES[style.value].quantizeEvery), echo: echoCfg })
     capture?.port.postMessage('stream-on')
-
-    if (countIn) {
-      countingIn.value = true
-      const times = Array.from({ length: 4 }, (_, i) => anchor - (4 - i) * beat)
-      times.forEach((t, i) => click(t, i === 0))
-      toWorker({ type: 'output', times })
-      setTimeout(() => (countingIn.value = false), (anchor - c.currentTime) * 1000)
-    }
-
-    sequence = new T.Sequence<number>(
-      (time, step) => {
-        const lap = Math.round((time - anchor - step * stepSec) / loopDur)
-        const out: number[] = []
-        const kp = players.get(kit.value)
-        if (kp?.loaded)
-          for (const inst of activeAt(loop.value, step, lap)) {
-            kp.player(inst).start(time)
-            out.push(time)
-          }
-        if (metronome.value && step % 4 === 0) {
-          click(time, step % 16 === 0)
-          out.push(time)
-        }
-        if (out.length) toWorker({ type: 'output', times: out })
-        T.getDraw().schedule(() => {
-          currentStep.value = step
-          currentLap.value = lap
-        }, time)
-      },
-      Array.from({ length: steps }, (_, i) => i),
-      '16n',
-    )
-    sequence.start(0)
-    transport.position = 0
-    transport.start(anchor)
     playing.value = true
-
-    if (import.meta.dev && !capturingTake) {
-      capturingTake = true
-      startCapture()
+    try {
+      await S.evaluate(songCode(songState(), 'engine'), true)
+    } catch (e) {
+      log('error', `evaluate: ${e instanceof Error ? e.message : String(e)}`)
     }
   }
 
-  /** Para el loop. Con `restart`, sigue capturando la toma de diagnóstico (se va a rearrancar). */
-  function stop(restart = false) {
-    if (!Tone) return
-    const transport = Tone.getTransport()
-    transport.stop()
-    transport.cancel()
-    sequence?.dispose()
-    sequence = null
+  function stop() {
+    if (!S) return
+    if (playing.value) S.hush()
+    timers.forEach(clearTimeout)
+    timers = []
     capture?.port.postMessage('stream-off')
     toWorker({ type: 'stop' })
-    const wasPlaying = playing.value
     playing.value = false
-    countingIn.value = false
-    overdub.value = false
-    currentStep.value = -1
-    if (!restart && capturingTake && wasPlaying && timing && settings) {
-      capturingTake = false
-      const t = timing
-      const s = settings
-      const evs = events.value
-      void stopCapture().then(({ buffer, startTime }) => {
-        lastTake.value = { buffer, sampleRate: requireCtx().sampleRate, startTime, anchor: t.anchor, settings: s, events: evs }
-      })
+    clock = null
+    tracker = null
+    dropActive = false
+    dropping.value = false
+    plannedParts = { ...NO_PARTS }
+    bgParts.value = { ...NO_PARTS }
+    silenceBackgroundNodes()
+  }
+
+  /** Cambio de tempo: se para y se vuelve a arrancar (el reloj de compases cambia). */
+  async function restart() {
+    if (!playing.value) return reevaluate()
+    stop()
+    await play()
+  }
+
+  async function setStyle(id: StyleId) {
+    style.value = id
+    await restart()
+  }
+
+  function setKit(id: KitId) {
+    kit.value = id
+    reevaluate()
+  }
+
+  function setMetronome(on: boolean) {
+    metronome.value = on
+    reevaluate()
+  }
+
+  function setAssist(on: boolean) {
+    assist.value = on
+  }
+
+  function setBackgroundMode(mode: BackgroundMode) {
+    const wasOff = bgMode.value === 'off'
+    if (mode !== 'off') lastBgMode.value = mode
+    bgMode.value = mode
+    if (mode === 'off') {
+      // primero se retiran con su rampa; después se quitan del código del motor
+      updateBackground()
+      const done = clock ? barTime(nextBarLine() + 4) : 0
+      later(() => bgMode.value === 'off' && reevaluate(), (done - (ctx?.currentTime ?? 0)) * 1000)
+    } else {
+      if (wasOff) reevaluate()
+      updateBackground()
     }
   }
 
-  /** REC: parado → cuenta atrás de 1 compás y overdub; sonando → activa/pausa el overdub. */
-  function toggleOverdub(s: LooperSettings) {
-    if (!playing.value) {
-      play(s, true)
-      overdub.value = true
-    } else overdub.value = !overdub.value
+  /** Interruptor de la vista principal: sin fondo ↔ último modo elegido. */
+  function toggleBackground() {
+    setBackgroundMode(bgMode.value === 'off' ? lastBgMode.value : 'off')
   }
 
-  function setLoop(next: Loop) {
-    loop.value = next
+  function setPhraseOptions(o: { closeBeats?: 1 | 2 | 4; maxBars?: LoopLength }) {
+    if (o.closeBeats) phraseCloseBeats.value = o.closeBeats
+    if (o.maxBars) maxPhraseBars.value = o.maxBars
+    tracker = null // se recrea en el siguiente pulso con las nuevas opciones
   }
 
-  async function setKit(id: KitId) {
-    kit.value = id
-    await loadKit(id)
+  function setFx(p: Partial<SongFx>) {
+    Object.assign(fx, p)
+    syncFx()
   }
+
+  /** Drop: cierra el filtro ya y lo suelta en el 1 del compás siguiente. */
+  function drop() {
+    if (!playing.value || !clock || !ctx) return
+    dropActive = true
+    dropping.value = true
+    syncFx()
+    // el código se consulta ~0,15 s por delante: se suelta justo antes de la línea
+    const release = barTime(nextBarLine()) - 0.15
+    later(() => {
+      dropActive = false
+      dropping.value = false
+      syncFx()
+    }, (release - ctx.currentTime) * 1000)
+  }
+
+  function mute(id: number) {
+    loops.value = toggleMute(loops.value, id)
+    reevaluate()
+    updateBackground()
+  }
+
+  function remove(id: number) {
+    loops.value = removeLoop(loops.value, id)
+    logLoopEvent({ type: 'removed', id, reason: 'user' })
+    reevaluate()
+    updateBackground()
+  }
+
+  function clearAll() {
+    loops.value = clearLoops(loops.value)
+    reevaluate()
+    updateBackground()
+  }
+
+  function onVisual(f: (h: VisualHit) => void): () => void {
+    visualListeners.add(f)
+    return () => visualListeners.delete(f)
+  }
+
+  /** Reloj del loop para la capa visual: compás y fase (0..1) en el tiempo de contexto actual. */
+  function clockNow(): { time: number; bar: number; barPhase: number } {
+    const t = ctx?.currentTime ?? 0
+    if (!clock) return { time: t, bar: 0, barPhase: 0 }
+    const pos = (t - clock.time) / clock.barSec + clock.cycle
+    return { time: t, bar: Math.floor(pos), barPhase: pos - Math.floor(pos) }
+  }
+
+  /** Código que se muestra y se copia (§16.6). */
+  const displayCode = () => songCode(songState(), 'display')
 
   return {
     ready,
     level,
-    kit,
     echo,
-    loop,
     playing,
-    countingIn,
-    overdub,
+    kit,
+    style,
+    assist,
     metronome,
-    currentStep,
-    currentLap,
-    events,
-    lastTake,
+    bgMode,
+    phraseCloseBeats,
+    maxPhraseBars,
+    fx,
+    loops,
+    bgParts,
+    currentBar,
+    diag,
+    dropping,
     sampleRate: () => ctx?.sampleRate ?? 0,
     start,
     setCalibration,
+    setLatency,
     recordTake,
     captureWindow,
     play,
     stop,
-    toggleOverdub,
-    setLoop,
+    setStyle,
     setKit,
+    setMetronome,
+    setAssist,
+    setBackgroundMode,
+    toggleBackground,
+    setPhraseOptions,
+    setFx,
+    drop,
+    mute,
+    remove,
+    clearAll,
+    onVisual,
+    clockNow,
+    displayCode,
   }
 }

@@ -8,7 +8,7 @@ export interface StyleMusic {
   priors: Record<Instrument, Prior>
   /** patrón típico (16 tokens) cuando la frase tiene un solo golpe de ese instrumento */
   templates: Record<Instrument, string>
-  /** fondo musical: líneas Strudel completas (sin coma final), ya en el orbit 2 */
+  /** fondo musical: líneas Strudel completas (sin coma final); bajo en el orbit 2 y acordes en el 3 */
   background: { bass: string; chords: string }
 }
 
@@ -33,7 +33,7 @@ export const STYLE_MUSIC: Record<StyleId, StyleMusic> = {
     templates: { bd: 'bd ~ ~ ~ ~ ~ ~ ~ bd ~ bd ~ ~ ~ ~ ~', sd: BACKBEAT, hh: HH_EIGHTHS },
     background: {
       bass: 'note("<a1 d2>").s("triangle").lpf(600).gain(0.7).orbit(2)',
-      chords: 'note("<[a3,c4,e4,g4] [d3,f3,a3,c4]>").s("triangle").lpf(2000).room(0.4).gain(0.22).orbit(2)',
+      chords: 'note("<[a3,c4,e4,g4] [d3,f3,a3,c4]>").s("triangle").lpf(2000).room(0.4).gain(0.22).orbit(3)',
     },
   },
   house: {
@@ -51,7 +51,7 @@ export const STYLE_MUSIC: Record<StyleId, StyleMusic> = {
     background: {
       bass: 'note("<[~ f1 ~ f1] [~ bb0 ~ bb0]>").s("sawtooth").lpf(500).lpenv(2).decay(0.15).sustain(0).gain(0.6).orbit(2)',
       chords:
-        'note("<[f3,ab3,c4,eb4] [bb2,db3,f3,ab3]>").struct("~ x ~ x").s("supersaw").decay(0.2).sustain(0).room(0.3).gain(0.22).orbit(2)',
+        'note("<[f3,ab3,c4,eb4] [bb2,db3,f3,ab3]>").struct("~ x ~ x").s("supersaw").decay(0.2).sustain(0).room(0.3).gain(0.22).orbit(3)',
     },
   },
   dnb: {
@@ -64,7 +64,7 @@ export const STYLE_MUSIC: Record<StyleId, StyleMusic> = {
     templates: { bd: 'bd ~ ~ ~ ~ ~ ~ ~ ~ ~ bd ~ ~ ~ ~ ~', sd: BACKBEAT, hh: HH_EIGHTHS },
     background: {
       bass: 'note("<d1 d1 bb0 c1>").s("sawtooth").lpf(380).lpenv(3).lpq(6).gain(0.55).orbit(2)',
-      chords: 'note("<[d3,f3,a3,c4] [bb2,d3,f3,a3]>/2").s("supersaw").lpf(1800).room(0.8).gain(0.22).orbit(2)',
+      chords: 'note("<[d3,f3,a3,c4] [bb2,d3,f3,a3]>/2").s("supersaw").lpf(1800).room(0.8).gain(0.22).orbit(3)',
     },
   },
 }

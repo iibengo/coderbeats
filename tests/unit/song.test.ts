@@ -20,7 +20,7 @@ const state = (o: Partial<SongState> = {}): SongState => ({
   loops: [],
   style: 'dnb',
   kit: '909',
-  background: false,
+  background: { mode: 'off', parts: { bass: false, chords: false } },
   metronome: false,
   fx: { filter: 1, space: 0, warmth: 0 },
   ...o,
@@ -64,12 +64,31 @@ describe('songCode', () => {
     )
   })
 
-  it('con fondo: bloque de fondo y sidechain solo en el bombo', () => {
-    const code = songCode(state({ background: true, loops: [loop('bd', [0]), loop('hh', [2])] }))
+  const both = { mode: 'progressive' as const, parts: { bass: true, chords: true } }
+
+  it('con fondo: bloque de fondo (bajo orbit 2, acordes orbit 3) y sidechain "2:3" solo en el bombo', () => {
+    const code = songCode(state({ background: both, loops: [loop('bd', [0]), loop('hh', [2])] }))
     expect(code).toContain('// fondo · drum and bass · re menor')
     expect(code).toContain('note("<d1 d1 bb0 c1>").s("sawtooth").lpf(380).lpenv(3).lpq(6).gain(0.55).orbit(2),')
-    expect(code).toMatch(/s\("bd[^\n]*\.duckorbit\(2\)\.duckdepth\(0\.6\)\.duckattack\(0\.15\),/)
+    expect(code).toMatch(/supersaw[^\n]*\.orbit\(3\),/)
+    expect(code).toMatch(/s\("bd[^\n]*\.duckorbit\("2:3"\)\.duckdepth\(0\.6\)\.duckattack\(0\.15\),/)
     expect(code).not.toMatch(/s\("~ ~ hh[^\n]*duckorbit/)
+  })
+
+  it('fondo progresivo: el código mostrado solo lleva las partes que han entrado', () => {
+    const onlyBass = songCode(state({ background: { mode: 'progressive', parts: { bass: true, chords: false } }, loops: [loop('bd', [0])] }))
+    expect(onlyBass).toContain('note("<d1 d1 bb0 c1>")')
+    expect(onlyBass).not.toContain('supersaw')
+    const none = songCode(state({ background: { mode: 'progressive', parts: { bass: false, chords: false } }, loops: [loop('bd', [0])] }))
+    expect(none).not.toMatch(/fondo|duckorbit/)
+  })
+
+  it('motor: lleva siempre las dos partes si el fondo no está desactivado, con etiquetas', () => {
+    const engine = songCode(state({ background: { mode: 'progressive', parts: { bass: false, chords: false } }, loops: [loop('bd', [0])] }), 'engine')
+    expect(engine).toContain('.orbit(2).color("bass")')
+    expect(engine).toContain('.orbit(3).color("chords")')
+    expect(engine).toContain('duckorbit("2:3")')
+    expect(songCode(state({ loops: [loop('bd', [0])] }), 'engine')).not.toMatch(/color\("bass"\)|duckorbit/)
   })
 
   it('silenciados comentados', () => {
@@ -107,6 +126,9 @@ describe('songCode', () => {
     expect(engine).toContain('.djf(ref(() => __cb.fx.djf))')
     expect(engine).toContain('.room(ref(() => __cb.fx.room))')
     expect(engine).toContain('note("[g6 c6 c6 c6]")')
+    expect(engine).toContain('.orbit(4).color("click")')
+    expect(engine).toContain('note("c0").s("sine").gain(0).color("pulse")')
+    expect(engine).toMatch(/\.color\("l\d+"\)\.filterHaps\(\(h\) => h\.whole\.begin >= 0\)/)
     expect(engine).toContain('.onTrigger(')
     const display = songCode(st)
     expect(display).not.toMatch(/ref\(|onTrigger|g6 c6/)
@@ -117,7 +139,7 @@ describe('songCode', () => {
   })
 
   it('determinista', () => {
-    const st = state({ background: true, loops: [loop('hh', [0, 2, 4.4])] })
+    const st = state({ background: both, loops: [loop('hh', [0, 2, 4.4])] })
     expect(songCode(st)).toBe(songCode(st))
   })
 })

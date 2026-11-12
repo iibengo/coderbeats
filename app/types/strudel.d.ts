@@ -5,6 +5,8 @@ declare module '@strudel/web' {
   /** Evalúa código Strudel (transpilado) y lo pone a sonar si `autoplay`. */
   export function evaluate(code: string, autoplay?: boolean): Promise<unknown>
   export function hush(): void
+  /** Carga los AudioWorklets de superdough (djf, shape…). Strudel solo lo hace en el primer mousedown. */
+  export function initAudio(options?: { maxPolyphony?: number }): Promise<void>
   export function setAudioContext(ctx: AudioContext): AudioContext
   export function getAudioContext(): AudioContext
   export function getSuperdoughAudioController(): {
