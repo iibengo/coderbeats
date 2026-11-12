@@ -1292,3 +1292,20 @@ También se corrige que el tema Canvas 2D no ajustaba su resolución interna al 
     - Las enmiendas (golpe tardío) se fusionan sin duplicar.
 - **Como mucho una bola por instrumento** en los dos modos.
 - Lógica pura: `mergeLoops(base, añadido)` y `addPhrase(…, { repeat: 'replace' | 'complete' })`, con tests. Las prefs guardadas con "acumula" pasan a "completa".
+
+### 16.20 Cargar demo (añadido el 2026-11-13)
+
+En ⋯, junto a "Borrar todo", un botón **"Cargar demo"**:
+- Carga una canción de ejemplo **del estilo actual** con los instrumentos que ya existen: bombo, caja y platillo, más bajo y acordes del fondo.
+- **Cada parte es una bola normal**: se puede silenciar, borrar o sustituir con la boca.
+- **Si ya hay loops, pide confirmación** antes de reemplazarlos.
+- Enciende bajo y acordes del fondo: en modo manual, las dos bolas; si el fondo estaba desactivado, pasa a manual.
+- Con el loop sonando, la demo entra en la siguiente línea de compás.
+
+| Estilo | Bombo | Caja | Platillo |
+|---|---|---|---|
+| **drum and bass** (tu primer reel) | `bd ~ ~ ~ ~ ~ ~ ~ ~ ~ bd ~ ~ ~ ~ ~` | `~ ~ ~ ~ sd ~ ~ ~ ~ ~ ~ ~ sd ~ ~ ~` | `hh*16` |
+| **hip hop 90** (boom bap) | `bd ~ ~ ~ ~ ~ ~ bd ~ ~ bd ~ ~ ~ ~ ~` (1, "y" del 2, 3) | 2 y 4 | corcheas |
+| **house** | negras (four on the floor) | 2 y 4 (hace de palmada) | contratiempos `~ ~ hh ~` |
+
+En el código, `hh*16` aparece desplegado en 16 golpes (`hh hh … hh`): es lo mismo, y así cada golpe es un punto del anillo que se puede completar o sustituir. Lógica en `lib/demos.ts`, con tests.

@@ -31,6 +31,13 @@ async function copy() {
   setTimeout(() => (copied.value = false), 1500)
 }
 
+/** Demo del estilo actual; si ya hay loops, se pide confirmación antes de reemplazarlos (§16.20). */
+function loadDemo() {
+  if (loops.value.loops.length && !confirm('¿Reemplazar tus loops por la demo de este estilo?')) return
+  engine.loadDemo()
+  open.value = false
+}
+
 function recalibrate(what: 'latency' | 'sounds') {
   engine.stop()
   open.value = false
@@ -148,6 +155,7 @@ const val = (e: Event) => Number((e.target as HTMLInputElement).value)
             <button class="flex-1 rounded-full border border-white/15 py-2 disabled:opacity-40" :disabled="!loops.loops.length" @click="engine.clearAll()">
               Borrar todo
             </button>
+            <button class="flex-1 rounded-full border border-white/15 py-2" @click="loadDemo">Cargar demo</button>
           </div>
           <p class="text-xs text-neutral-500">
             Arrastra en vertical sobre el agua para el filtro y en horizontal para el espacio. Dos dedos: fondo sí/no.

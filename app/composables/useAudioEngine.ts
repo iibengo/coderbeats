@@ -1,6 +1,7 @@
 import { reactive, ref, shallowRef } from 'vue'
 import { NO_PARTS, PART_ORBIT, planTransitions, targetParts, type BackgroundMode, type Part, type Parts } from '~/lib/background'
 import { KIT_ORDER, KITS, STYLES } from '~/lib/constants'
+import { demoState } from '~/lib/demos'
 import { analyzeEchoTest, type EchoTestResult } from '~/lib/echoGate'
 import {
   addPhrase,
@@ -706,6 +707,27 @@ export function useAudioEngine() {
     updateBackground()
   }
 
+  /**
+   * Carga la demo del estilo actual (§16.20): sustituye los loops por bombo, caja y platillo
+   * de la demo y enciende bajo y acordes del fondo. Sonando, entra en la siguiente línea de compás.
+   */
+  function loadDemo() {
+    const bornAt = playing.value && clock ? nextBarLine() : 0
+    loops.value = demoState(style.value, loops.value.nextId, bornAt)
+    if (bgMode.value === 'off') {
+      bgMode.value = 'manual'
+      lastBgMode.value = 'manual'
+    }
+    bgManual.value = { bass: true, chords: true }
+    log('born', `demo de ${STYLES[style.value].label} cargada`)
+    for (const loop of loops.value.loops) {
+      const e: VisualHit = { kind: 'birth', loopId: loop.id, instrument: loop.instrument, time: barTime(bornAt), strength: 1 }
+      visualListeners.forEach((f) => f(e))
+    }
+    reevaluate()
+    updateBackground()
+  }
+
   function clearAll() {
     loops.value = clearLoops(loops.value)
     reevaluate()
@@ -774,6 +796,7 @@ export function useAudioEngine() {
     mute,
     remove,
     clearAll,
+    loadDemo,
     onVisual,
     clockNow,
     displayCode,
