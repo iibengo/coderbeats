@@ -1076,3 +1076,14 @@ El **interruptor "fondo"** de la vista principal alterna entre "sin fondo" y el 
 - `targetParts(activeLoops, mode) → { bass, chords }`,
 - el plan de rampas (qué parte, entrada o salida, en qué compás y durante cuántos compases según el estilo),
 - y que la retirada sea en orden inverso.
+
+**Comprobación del inicio de la A3.2** (en `/spike`, botón "Comprobaciones A3.2", Chrome):
+
+| # | Comprobación | Resultado |
+|---|---|---|
+| 1 | Filtro y ganancia nativos insertados en el orbit 2; rampa de 150 Hz a 20 kHz en 2 s sobre **una sola nota sostenida** | ✓ Agudos de −12,0 a +0,2 dB, pasos de ~0,8 dB cada 73 ms, **0 bajadas**: continua, sin escalones |
+| 2 | `duckorbit("2:3")` | ✓ Bajo (orbit 2) −12,8 dB y acordes (orbit 3) −12,3 dB |
+| 3 | `filterHaps(h => h.whole.begin >= B)` | ✓ Evaluado en el ciclo ~9 con nacimiento en el 11: el primer golpe cae en el ciclo 11 |
+| 4 | La inserción sobrevive a hush/play | ✓ Es el mismo orbit, con el filtro dentro |
+
+Nota de medida: con ventanas que no son múltiplo del periodo de la nota aparece un falso rizado de ±1,2 dB. Hay que medir con ventanas alineadas al periodo.

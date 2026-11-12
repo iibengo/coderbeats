@@ -293,6 +293,175 @@ async function runSpike() {
     ;(window as Any).__spikeLog = log.value.join('\n')
   }
 }
+
+// ═══ Comprobaciones A3.2 (fondo progresivo, §16.13) ═══════════════════════════
+async function initOnly() {
+  ctx = new AudioContext({ latencyHint: 'interactive' })
+  void ctx.resume()
+  S = await import('@strudel/web')
+  S.setAudioContext(ctx)
+  ;(window as Any).__trig = (h: Any, t: number) =>
+    triggers.push({ name: String(h.value?.s ?? h.value?.note ?? '?'), begin: Number(h.whole.begin), t })
+  await S.initStrudel({
+    prebake: async () => {
+      await (globalThis as Any).samples({ RolandTR909_hh: ['909/hh.wav'] }, `${location.origin}/samples/`)
+    },
+  })
+  await ctx.audioWorklet.addModule('/worklets/capture-processor.js')
+}
+
+/** RMS por ventanas (dB) de una señal, opcionalmente derivada (≈ agudos). */
+function windowsDb(buf: Float32Array, sr: number, win: number, diff = false): number[] {
+  const n = Math.round(win * sr)
+  const out: number[] = []
+  for (let i = 1; i + n < buf.length; i += n) {
+    let sum = 0
+    for (let j = i; j < i + n; j++) {
+      const v = diff ? buf[j]! - buf[j - 1]! : buf[j]!
+      sum += v * v
+    }
+    out.push(10 * Math.log10(sum / n + 1e-12))
+  }
+  return out
+}
+
+async function runA32() {
+  running.value = true
+  log.value = []
+  try {
+    await initOnly()
+    const controller = S.getSuperdoughAudioController() as Any
+    const tap = makeTap()
+    controller.output.destinationGain.connect(tap.node)
+    const sr = ctx.sampleRate
+
+    // ── 1. Nodos nativos en el orbit 2 y rampa continua ────────────────────────
+    const orbit = controller.getOrbit(2, [0, 1])
+    const lp = new BiquadFilterNode(ctx, { type: 'lowpass', frequency: 150, Q: 0.7 })
+    const g = new GainNode(ctx, { gain: 0 })
+    orbit.output.disconnect()
+    orbit.output.connect(lp).connect(g)
+    controller.output.connectToDestination(g)
+    // nota de sierra sostenida un compás entero (2 s a 120 BPM), un evento por ciclo
+    await play(`setcpm(120/4)\nnote("a1").s("sawtooth").attack(0.005).release(0.05).gain(0.4).orbit(2)${hook}`)
+    await wait(600)
+    const measure = async (withRamp: boolean) => {
+      const last = triggers.at(-1)!
+      let line = last.t + 2
+      while (line - ctx.currentTime < 0.4) line += 2
+      lp.frequency.cancelScheduledValues(0)
+      g.gain.cancelScheduledValues(0)
+      if (withRamp) {
+        lp.frequency.setValueAtTime(150, line)
+        lp.frequency.exponentialRampToValueAtTime(20000, line + 2)
+        g.gain.setValueAtTime(0, line)
+        g.gain.linearRampToValueAtTime(1, line + 0.5)
+      } else {
+        lp.frequency.setValueAtTime(20000, ctx.currentTime)
+        g.gain.setValueAtTime(1, ctx.currentTime)
+      }
+      await wait((line - ctx.currentTime - 0.2) * 1000)
+      const rec = await tap.record(2600)
+      const from = Math.round((line - rec.start + 0.55) * sr)
+      return windowsDb(rec.buf.subarray(from, from + Math.round(1.4 * sr)), sr, 4 / 55, true)
+    }
+    const control = await measure(false)
+    const ramped = await measure(true)
+    const rel = ramped.map((v, i) => v - (control[i] ?? v))
+    let maxStep = 0
+    let drops = 0
+    for (let i = 1; i < rel.length; i++) {
+      maxStep = Math.max(maxStep, Math.abs(rel[i]! - rel[i - 1]!))
+      if (rel[i]! < rel[i - 1]! - 0.5) drops++
+    }
+    say(`curva rel (dB): ${rel.map((v) => v.toFixed(1)).join(' ')}`)
+    say(`control (dB): ${control.map((v) => v.toFixed(1)).join(' ')}`)
+    const ctrlDrop = control[0]! - control.at(-1)!
+    set(
+      'A3.2-1 rampa continua (nativa)',
+      rel.at(-1)! - rel[0]! > 10 && maxStep < 3 && drops === 0,
+      `respecto a la misma nota sin rampa: agudos +${(rel.at(-1)! - rel[0]!).toFixed(1)} dB, salto máx. ${maxStep.toFixed(2)} dB por ventana de 73 ms (4 periodos), bajadas ${drops}. (La nota sola cae ${ctrlDrop.toFixed(1)} dB por su envolvente.)`,
+    )
+
+    // ── 2. duckorbit("2:3") ───────────────────────────────────────────────────
+    lp.frequency.cancelScheduledValues(0)
+    lp.frequency.value = 20000
+    g.gain.cancelScheduledValues(0)
+    g.gain.value = 1
+    const duckDb = async (duck: string) => {
+      await play(`setcpm(120/4)
+stack(
+  note("a1").s("sine").attack(0.001).release(0.01).gain(0.4).orbit(2),
+  note("a4").s("sine").attack(0.001).release(0.01).gain(0.2).orbit(3),
+  s("hh*4").bank("RolandTR909").gain(0.01)${duck}${hook},
+)`)
+      await wait(1200)
+      const r = await tap.record(3000)
+      const ts = triggers.filter((x) => x.name.endsWith('hh')).map((x) => x.t - r.start).filter((t) => t > 0.1 && t < 2.6)
+      const rms = (a: number, b: number) => {
+        let sum = 0
+        for (let i = Math.round(a * sr); i < Math.round(b * sr); i++) sum += r.buf[i]! ** 2
+        return Math.sqrt(sum / ((b - a) * sr))
+      }
+      // banda alta (a4 en el orbit 3) con derivada y banda baja (a1 en el orbit 2) con filtro de 150 Hz
+      const hiBand = (a: number, b: number) => {
+        let sum = 0
+        for (let i = Math.round(a * sr); i < Math.round(b * sr); i++) sum += (r.buf[i]! - r.buf[i - 1]!) ** 2
+        return Math.sqrt(sum)
+      }
+      let low = 0
+      let high = 0
+      for (const t of ts) {
+        low += 20 * Math.log10(lowpassRms(r.buf, sr, Math.round((t + 0.38) * sr), Math.round((t + 0.45) * sr)) / (lowpassRms(r.buf, sr, Math.round((t + 0.03) * sr), Math.round((t + 0.07) * sr)) + 1e-9))
+        high += 20 * Math.log10(hiBand(t + 0.38, t + 0.42) / (hiBand(t + 0.03, t + 0.07) + 1e-9))
+      }
+      void rms
+      return { low: low / ts.length, high: high / ts.length }
+    }
+    const both = await duckDb('.duckorbit("2:3").duckdepth(0.8).duckattack(0.15)')
+    const none = await duckDb('')
+    set(
+      'A3.2-2 duckorbit("2:3")',
+      both.low - none.low >= 6 && both.high - none.high >= 6,
+      `bajo (orbit 2) −${(both.low - none.low).toFixed(1)} dB · acordes (orbit 3) −${(both.high - none.high).toFixed(1)} dB respecto a sin duck`,
+    )
+
+    // ── 3. filterHaps: un loop nuevo no suena antes de su compás ──────────────
+    await play(`setcpm(120/4)\nnote("c0").s("sine").gain(0)${hook}`)
+    await wait(1500)
+    const c = Math.floor(triggers.at(-1)!.begin)
+    const born = c + 2
+    triggers.length = 0
+    await S.evaluate(`setcpm(120/4)
+stack(
+  note("c0").s("sine").gain(0),
+  s("hh*16").bank("RolandTR909").gain(0.2).filterHaps((h) => h.whole.begin >= ${born}),
+)${hook}`)
+    await wait(5000)
+    const hhBegins = triggers.filter((x) => x.name.endsWith('hh')).map((x) => x.begin)
+    const first = Math.min(...hhBegins)
+    set(
+      'A3.2-3 filterHaps por ciclo',
+      hhBegins.length > 0 && first === born,
+      `evaluado en el ciclo ~${c}; nacimiento en el ${born}; primer hh en el ciclo ${first} (${hhBegins.length} hh)`,
+    )
+
+    // ── 4. La inserción sobrevive a hush/play ─────────────────────────────────
+    S.hush()
+    await wait(300)
+    await play(`note("a1").s("sine").gain(0.1).orbit(2)`)
+    await wait(300)
+    const sameOrbit = controller.nodes[2] === orbit
+    set('A3.2-4 orbit tras hush/play', sameOrbit, sameOrbit ? 'el orbit 2 (con el filtro insertado) es el mismo' : 'superdough recrea el orbit: hay que reinsertar')
+    S.hush()
+  } catch (e) {
+    set('error', false, e instanceof Error ? `${e.message}\n${e.stack}` : String(e))
+  } finally {
+    running.value = false
+    ;(window as Any).__spikeResults = JSON.parse(JSON.stringify(results))
+    ;(window as Any).__spikeLog = log.value.join('\n')
+  }
+}
 </script>
 
 <template>
@@ -300,6 +469,9 @@ async function runSpike() {
     <h1 class="text-xl font-medium">Spike A3.0 · @strudel/web</h1>
     <button class="rounded-full bg-white px-6 py-2 text-black disabled:opacity-50" :disabled="running" @click="runSpike">
       {{ running ? 'Ejecutando… (~25 s)' : 'Ejecutar spike' }}
+    </button>
+    <button class="ml-2 rounded-full border border-white/40 px-6 py-2 disabled:opacity-50" :disabled="running" @click="runA32">
+      Comprobaciones A3.2
     </button>
     <table class="w-full">
       <tr v-for="(r, k) in results" :key="k" class="border-b border-white/10 align-top">
