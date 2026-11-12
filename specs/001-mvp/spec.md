@@ -732,7 +732,7 @@ stack(
 - El loop empieza a sonar en la **siguiente línea de compás**. Nunca suena encima de lo que acabas de hacer.
 - Cada loop conserva su **fase**: su compás 1 cae en el mismo sitio relativo a los demás loops que cuando lo tocaste. Así varios loops de distinta longitud (1, 2, 4) encajan entre sí.
 
-**Sin duplicados.** Si la frase nueva repite lo que ya hace un loop activo (mismo instrumento, misma longitud y ≥ 80 % de golpes en los mismos pasos), no nace otro loop. El existente "brilla" como confirmación. Así, repetir tu patrón no apila copias.
+~~**Sin duplicados.**~~ *Derogada en §16.19: descartaba frases que completaban un loop.*
 
 **Varios del mismo instrumento.** Se permiten: 3 loops de bombo distintos conviven, cada uno como un objeto propio.
 
@@ -1272,3 +1272,23 @@ También se corrige que el tema Canvas 2D no ajustaba su resolución interna al 
   - Anillo: radio `min(27 % del ancho, 20 % del alto, 230 px)`.
 - **Tocar una bola resalta sus puntos en el anillo**: más grandes y con borde blanco, mientras el resto se atenúa. Dura mientras se pulsa y 1,5 s después.
 - **Centrado**: Play, ⋯ y el estilo se posicionan con estilos en línea (sin clases arbitrarias de Tailwind), como el escenario. En ⋯ → diagnóstico hay una línea "pantalla" con la ventana, el escenario, el tamaño del documento y la posición del anillo, para diagnosticar cualquier descentrado en tu equipo.
+
+### 16.19 Sustituye o completa, una bola por instrumento (añadido el 2026-11-13)
+
+**Bug que lo motiva:** con un loop de platillos de 4 golpes, una vuelta con esos 4 + 1 nuevo coincidía en un 80 % y se descartaba por la regla "sin copias". Lo que querías era **completar** el loop.
+
+**Cambio:**
+- **Se quita la regla "sin copias"** (§16.1) y el evento "reforzado".
+- **Al grabar un instrumento que ya tiene loop**:
+  - **Sustituye** (por defecto): la frase nueva reemplaza el loop entero (como en §16.15).
+  - **Completa** (sustituye al antiguo "acumula"): los golpes nuevos **se añaden** al loop existente (overdub), sin crear otra bola.
+    - Se respeta la fase del loop existente.
+    - Si la frase es más larga, el loop se alarga repitiendo su patrón.
+    - No se duplican pasos ya ocupados (a ±0,5 pasos, también sin ayuda).
+    - Un golpe suelto **completa con ese golpe**, no con la plantilla. La plantilla solo se aplica si el instrumento aún no tiene loop.
+    - Si no entra ningún golpe nuevo, el loop no cambia (sin caída ni reevaluación).
+    - La versión anterior suena hasta la línea de compás.
+    - Un loop silenciado que se completa se reactiva.
+    - Las enmiendas (golpe tardío) se fusionan sin duplicar.
+- **Como mucho una bola por instrumento** en los dos modos.
+- Lógica pura: `mergeLoops(base, añadido)` y `addPhrase(…, { repeat: 'replace' | 'complete' })`, con tests. Las prefs guardadas con "acumula" pasan a "completa".

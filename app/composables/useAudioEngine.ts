@@ -11,6 +11,7 @@ import {
   toggleMute,
   type LoopEvent,
   type LoopsState,
+  type RepeatMode,
 } from '~/lib/freeLoops'
 import { DJF_MIN, filterDjf, spaceParams, warmthShape } from '~/lib/gestures'
 import { detectOnsets, minGapForCell } from '~/lib/onsets'
@@ -40,14 +41,14 @@ export interface TakeOptions {
 /** Evento de diagnóstico. */
 export interface DiagEvent {
   at: number
-  kind: 'hit' | 'echo' | 'unknown' | 'stopped' | 'born' | 'reinforced' | 'removed' | 'phrase' | 'error' | 'background'
+  kind: 'hit' | 'echo' | 'unknown' | 'stopped' | 'born' | 'removed' | 'phrase' | 'error' | 'background'
   text: string
   /** ms desde el golpe hasta que llegó al hilo principal */
   uiMs?: number
 }
 
 export type PhraseMode = 'silence' | 'bar'
-export type RepeatMode = 'replace' | 'accumulate'
+export type { RepeatMode } from '~/lib/freeLoops'
 
 /**
  * Evento para la capa visual (§16.16):
@@ -360,8 +361,9 @@ function decide(bar: number) {
 function logLoopEvent(e: LoopEvent) {
   if (e.type === 'born')
     log('born', `nace loop ${e.loop.id} (${e.loop.instrument}, ${e.loop.bars} c.${e.loop.fromTemplate ? ', plantilla' : ''})`)
-  else if (e.type === 'reinforced') log('reinforced', `loop ${e.id} reforzado (patrón repetido)`)
   else if (e.type === 'replaced') log('born', `loop ${e.loop.id} sustituido (${e.loop.instrument}, ${e.loop.bars} c.)`)
+  else if (e.type === 'completed')
+    log('born', `loop ${e.loop.id} completado (${e.loop.instrument}, +${e.added} golpe${e.added === 1 ? '' : 's'})`)
   else log('removed', `loop ${e.id} retirado (${e.reason === 'limit' ? 'máximo de 8' : 'usuario'})`)
 }
 
@@ -376,13 +378,13 @@ function birth(phrase: ClosedPhrase, bornAt: number, amend = false) {
     style: style.value,
     quantizeEvery: STYLES[style.value].quantizeEvery,
     bornAt,
-    replace: repeatMode.value === 'replace',
+    repeat: repeatMode.value,
     amend,
   })
   loops.value = r.state
   for (const e of r.events) {
     logLoopEvent(e)
-    if (e.type === 'born' || e.type === 'replaced') {
+    if (e.type === 'born' || e.type === 'replaced' || e.type === 'completed') {
       const birthEvent: VisualHit = {
         kind: 'birth',
         loopId: e.loop.id,

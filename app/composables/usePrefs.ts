@@ -63,7 +63,8 @@ export function usePrefs() {
       engine.bgMode.value = p.bgMode
       if (p.bgManual) engine.setBackgroundManual(p.bgManual)
       engine.setPhraseOptions({ mode: p.phraseMode, closeBeats: p.phraseCloseBeats, maxBars: p.maxPhraseBars })
-      engine.setRepeatMode(p.repeatMode)
+      // 'accumulate' (antes de §16.19) pasa a 'complete'
+      engine.setRepeatMode((p.repeatMode as string) === 'accumulate' ? 'complete' : p.repeatMode)
       engine.setFx(p.fx)
     }
     const l = read(LOOPS_KEY, isLoops)

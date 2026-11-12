@@ -3,7 +3,14 @@ import type { ClosedPhrase, LoopLength } from './phrases'
 import type { Instrument, StyleId } from './types'
 
 export const MAX_LOOPS = 8
-export const DEDUPE_OVERLAP = 0.8
+
+/**
+ * Qué pasa al grabar un instrumento que ya tiene loop (§16.19). En los dos casos hay como mucho
+ * una bola por instrumento.
+ * - replace: la frase nueva sustituye al loop entero
+ * - complete: los golpes nuevos se añaden al loop existente (overdub)
+ */
+export type RepeatMode = 'replace' | 'complete'
 
 export interface LoopHit {
   /** semicorcheas desde el inicio del loop; entero con ayuda, decimal sin ella */
@@ -35,8 +42,8 @@ export interface LoopsState {
 
 export type LoopEvent =
   | { type: 'born'; loop: FreeLoop }
-  | { type: 'reinforced'; id: number }
   | { type: 'replaced'; loop: FreeLoop }
+  | { type: 'completed'; loop: FreeLoop; added: number }
   | { type: 'removed'; id: number; reason: 'limit' | 'user' }
 
 export interface BirthOptions {
@@ -45,8 +52,8 @@ export interface BirthOptions {
   quantizeEvery: 1 | 2
   /** compás global en el que nace (el siguiente al cierre) */
   bornAt: number
-  /** true: un loop nuevo sustituye al más reciente de su instrumento; false: se acumulan */
-  replace?: boolean
+  /** qué hacer si el instrumento ya tiene loop (por defecto, sustituir) */
+  repeat?: RepeatMode
   /**
    * Enmienda de una frase ya nacida en `bornAt` (golpe tardío): los loops que nacieron de ella
    * se regeneran en su sitio (mismo id, misma versión previa), en cualquier modo.
@@ -61,14 +68,22 @@ const mod = (a: number, n: number) => ((a % n) + n) % n
 export const loopBarAt = (loop: Pick<FreeLoop, 'bars' | 'phaseBar'>, g: number): number => mod(g - loop.phaseBar, loop.bars)
 
 /** Candidatos (uno por instrumento) a partir de una frase cerrada. */
-export function candidatesFromPhrase(phrase: ClosedPhrase, o: BirthOptions): Omit<FreeLoop, 'id'>[] {
+/**
+ * Candidatos (uno por instrumento) a partir de una frase cerrada. Con `noTemplate`, un golpe
+ * suelto de esos instrumentos se queda como golpe (para completar un loop, no para rellenarlo).
+ */
+export function candidatesFromPhrase(
+  phrase: ClosedPhrase,
+  o: BirthOptions,
+  noTemplate: ReadonlySet<Instrument> = new Set(),
+): Omit<FreeLoop, 'id'>[] {
   const total = phrase.bars * 16
   const byInst = new Map<Instrument, ClosedPhrase['hits']>()
   for (const h of phrase.hits) byInst.set(h.instrument, [...(byInst.get(h.instrument) ?? []), h])
   const out: Omit<FreeLoop, 'id'>[] = []
   for (const [instrument, hits] of byInst) {
     const base = { instrument, bars: phrase.bars, phaseBar: phrase.startBar, muted: false, bornAt: o.bornAt }
-    if (o.assist && hits.length === 1) {
+    if (o.assist && hits.length === 1 && !noTemplate.has(instrument)) {
       const strength = hits[0]!.strength
       const steps = templateFor(instrument, o.style)
       const all = Array.from({ length: phrase.bars }, (_, b) => steps.map((s) => s + b * 16)).flat()
@@ -91,52 +106,78 @@ export function candidatesFromPhrase(phrase: ClosedPhrase, o: BirthOptions): Omi
   return out
 }
 
-/** Pasos (en fase global, módulo la longitud) para comparar loops. */
-function phasedSteps(l: Pick<FreeLoop, 'bars' | 'phaseBar' | 'hits'>): Set<number> {
-  const total = l.bars * 16
-  return new Set(l.hits.map((h) => mod(Math.round(h.pos) + l.phaseBar * 16, total)))
+const sameStep = (a: number, b: number, total: number) => {
+  const d = mod(a - b, total)
+  return Math.min(d, total - d) < 0.5
 }
 
-export function overlap(a: Pick<FreeLoop, 'bars' | 'phaseBar' | 'hits'>, b: Pick<FreeLoop, 'bars' | 'phaseBar' | 'hits'>): number {
-  if (a.bars !== b.bars) return 0
-  const A = phasedSteps(a)
-  const B = phasedSteps(b)
-  let common = 0
-  for (const s of A) if (B.has(s)) common++
-  return common / Math.max(A.size, B.size, 1)
+/**
+ * Overdub (§16.19): añade los golpes de `add` (su fase y longitud) al loop `base`.
+ * Si `add` es más largo, el loop se alarga repitiendo su patrón. No duplica pasos ya ocupados.
+ * Devuelve el loop resultante y cuántos golpes nuevos entraron.
+ */
+export function mergeLoops(
+  base: Pick<FreeLoop, 'bars' | 'phaseBar' | 'hits'>,
+  add: Pick<FreeLoop, 'bars' | 'phaseBar' | 'hits'>,
+): { bars: LoopLength; phaseBar: number; hits: LoopHit[]; added: number } {
+  const bars = Math.max(base.bars, add.bars) as LoopLength
+  const total = bars * 16
+  // el patrón base, repetido hasta la nueva longitud (manteniendo su fase)
+  const hits: LoopHit[] = []
+  for (let k = 0; k < bars / base.bars; k++) for (const h of base.hits) hits.push({ ...h, pos: h.pos + k * base.bars * 16 })
+  let added = 0
+  for (const h of add.hits) {
+    const raw = h.pos + (add.phaseBar - base.phaseBar) * 16
+    const pos = raw >= 0 && raw < total ? raw : mod(raw, total) // sin ruido de coma flotante si no hace falta
+    if (hits.some((x) => sameStep(x.pos, pos, total))) continue
+    hits.push({ ...h, pos })
+    added++
+  }
+  return { bars, phaseBar: base.phaseBar, hits: hits.sort((a, b) => a.pos - b.pos), added }
 }
 
-/** Añade los loops de una frase: deduplica y respeta el máximo. */
+/** Añade los loops de una frase: sustituye o completa el loop de cada instrumento, o crea uno nuevo. */
 export function addPhrase(state: LoopsState, phrase: ClosedPhrase, o: BirthOptions): { state: LoopsState; events: LoopEvent[] } {
   let loops = [...state.loops]
   let nextId = state.nextId
   const events: LoopEvent[] = []
-  for (const c of candidatesFromPhrase(phrase, o)) {
-    if (o.amend) {
-      const own = loops.find((l) => l.instrument === c.instrument && l.bornAt === o.bornAt)
-      if (own) {
-        const loop: FreeLoop = { ...c, id: own.id, muted: own.muted, ...(own.prev ? { prev: own.prev } : {}) }
-        loops = loops.map((l) => (l.id === own.id ? loop : l))
+  const repeat = o.repeat ?? 'replace'
+  const newestOf = (inst: Instrument) =>
+    loops.filter((l) => l.instrument === inst).sort((a, b) => b.bornAt - a.bornAt || b.id - a.id)[0]
+  const noTemplate = new Set<Instrument>(
+    repeat === 'complete' ? (['bd', 'sd', 'hh'] as Instrument[]).filter((i) => newestOf(i)) : [],
+  )
+
+  for (const c of candidatesFromPhrase(phrase, o, noTemplate)) {
+    const own = o.amend ? loops.find((l) => l.instrument === c.instrument && l.bornAt === o.bornAt) : undefined
+    const existing = own ?? newestOf(c.instrument)
+    if (existing) {
+      let loop: FreeLoop
+      if (repeat === 'complete') {
+        // en una enmienda, los golpes de la frase original ya están dentro: el merge no los duplica
+        const m = mergeLoops(existing, c)
+        // nada nuevo que añadir: el loop sigue tal cual (sin caída ni reevaluación)
+        if (m.added === 0) continue
+        const prev = own ? existing.prev : existing.muted ? undefined : { hits: existing.hits, bars: existing.bars, phaseBar: existing.phaseBar }
+        loop = {
+          ...existing,
+          bars: m.bars,
+          phaseBar: m.phaseBar,
+          hits: m.hits,
+          muted: false,
+          bornAt: o.bornAt,
+          fromTemplate: false,
+          ...(prev ? { prev } : {}),
+        }
+        if (!prev) delete loop.prev
+        events.push({ type: 'completed', loop, added: m.added })
+      } else {
+        const prev = own ? existing.prev : existing.muted ? undefined : { hits: existing.hits, bars: existing.bars, phaseBar: existing.phaseBar }
+        loop = { ...c, id: existing.id, muted: own ? existing.muted : false, ...(prev ? { prev } : {}) }
         events.push({ type: 'replaced', loop })
-        continue
       }
-    }
-    const twin = loops.find((l) => !l.muted && l.instrument === c.instrument && overlap(l, c) >= DEDUPE_OVERLAP)
-    if (twin) {
-      events.push({ type: 'reinforced', id: twin.id })
+      loops = loops.map((l) => (l.id === existing.id ? loop : l))
       continue
-    }
-    if (o.replace) {
-      const same = loops
-        .filter((l) => l.instrument === c.instrument)
-        .sort((a, b) => b.bornAt - a.bornAt || b.id - a.id)[0]
-      if (same) {
-        const prev = same.muted ? undefined : { hits: same.hits, bars: same.bars, phaseBar: same.phaseBar }
-        const loop: FreeLoop = { ...c, id: same.id, ...(prev ? { prev } : {}) }
-        loops = loops.map((l) => (l.id === same.id ? loop : l))
-        events.push({ type: 'replaced', loop })
-        continue
-      }
     }
     if (loops.length >= MAX_LOOPS) {
       const byAge = [...loops].sort((a, b) => a.bornAt - b.bornAt || a.id - b.id)

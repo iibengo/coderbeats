@@ -6,7 +6,7 @@ import {
   emptyLoops,
   loopBarAt,
   MAX_LOOPS,
-  overlap,
+  mergeLoops,
   prunePrev,
   removeLoop,
   toggleMute,
@@ -74,41 +74,47 @@ describe('loopBarAt (fase)', () => {
 })
 
 describe('addPhrase', () => {
-  it('nace un loop y repetir el mismo patrón lo refuerza en vez de duplicarlo', () => {
-    let s: LoopsState = emptyLoops()
-    const p = phrase([[0, 'bd'], [8, 'bd'], [10, 'bd']])
-    let r = addPhrase(s, p, opts())
-    expect(r.events.map((e) => e.type)).toEqual(['born'])
+  it('nace un loop por instrumento nuevo', () => {
+    const r = addPhrase(emptyLoops(), phrase([[0, 'bd'], [8, 'bd'], [4, 'sd']]), opts())
+    expect(r.events.map((e) => e.type)).toEqual(['born', 'born'])
+  })
+
+  it('ya no descarta "copias": repetir el patrón con un golpe más no se pierde (§16.19)', () => {
+    const c = opts({ repeat: 'complete' })
+    let s = addPhrase(emptyLoops(), phrase([[0, 'hh'], [4, 'hh'], [8, 'hh'], [12, 'hh']]), c).state
+    const r = addPhrase(s, phrase([[0, 'hh'], [4, 'hh'], [8, 'hh'], [12, 'hh'], [14, 'hh']], 1), { ...c, bornAt: 2 })
+    expect(r.events).toMatchObject([{ type: 'completed', added: 1 }])
     s = r.state
-    r = addPhrase(s, phrase([[0, 'bd'], [8, 'bd'], [10, 'bd']], 3), opts({ bornAt: 4 }))
-    expect(r.events).toEqual([{ type: 'reinforced', id: 1 }])
-    expect(r.state.loops).toHaveLength(1)
+    expect(s.loops).toHaveLength(1)
+    expect(s.loops[0]!.hits.map((h) => h.pos)).toEqual([0, 4, 8, 12, 14])
   })
 
-  it('varios loops del mismo instrumento si el patrón es distinto', () => {
-    let s = emptyLoops()
-    s = addPhrase(s, phrase([[0, 'bd'], [8, 'bd']]), opts()).state
-    s = addPhrase(s, phrase([[2, 'bd'], [6, 'bd'], [14, 'bd']]), opts()).state
-    s = addPhrase(s, phrase([[0, 'bd'], [3, 'bd'], [11, 'bd']]), opts()).state
-    expect(s.loops.filter((l) => l.instrument === 'bd')).toHaveLength(3)
-  })
-
-  it('overlap considera la fase global', () => {
-    const a = { bars: 2 as const, phaseBar: 0, hits: [{ pos: 0, strength: 1 }] }
-    const b = { bars: 2 as const, phaseBar: 1, hits: [{ pos: 16, strength: 1 }] }
-    expect(overlap(a, b)).toBe(1)
-    expect(overlap(a, { ...b, phaseBar: 0 })).toBe(0)
+  it('como mucho una bola por instrumento, en los dos modos', () => {
+    for (const repeat of ['replace', 'complete'] as const) {
+      let s = emptyLoops()
+      for (let i = 0; i < 5; i++) s = addPhrase(s, phrase([[i, 'bd'], [i + 6, 'bd']], i), opts({ repeat, bornAt: i + 1 })).state
+      expect(s.loops.filter((l) => l.instrument === 'bd')).toHaveLength(1)
+    }
   })
 
   it(`máximo ${MAX_LOOPS}: sale primero el silenciado más antiguo y luego el más antiguo`, () => {
-    let s = emptyLoops()
-    for (let i = 0; i < MAX_LOOPS; i++) s = addPhrase(s, phrase([[i, 'hh'], [i + 3, 'hh']]), opts({ bornAt: i })).state
-    s = toggleMute(s, 3)
-    let r = addPhrase(s, phrase([[1, 'sd'], [9, 'sd']]), opts({ bornAt: 20 }))
+    // estado heredado con muchos loops (p. ej. guardado antes de §16.19)
+    const many: LoopsState = {
+      nextId: MAX_LOOPS + 1,
+      loops: Array.from({ length: MAX_LOOPS }, (_, i) => ({
+        id: i + 1,
+        instrument: (['bd', 'sd'] as const)[i % 2]!,
+        bars: 1 as const,
+        phaseBar: 0,
+        hits: [{ pos: i, strength: 1 }],
+        muted: i === 2,
+        bornAt: i,
+        fromTemplate: false,
+      })),
+    }
+    const r = addPhrase(many, phrase([[1, 'hh'], [9, 'hh']]), opts({ bornAt: 20 }))
     expect(r.events[0]).toEqual({ type: 'removed', id: 3, reason: 'limit' })
     expect(r.state.loops).toHaveLength(MAX_LOOPS)
-    r = addPhrase(r.state, phrase([[2, 'sd'], [7, 'sd']]), opts({ bornAt: 21 }))
-    expect(r.events[0]).toEqual({ type: 'removed', id: 1, reason: 'limit' })
   })
 
   it('silenciar, borrar y borrar todo', () => {
@@ -121,8 +127,74 @@ describe('addPhrase', () => {
   })
 })
 
+describe('modo completa (overdub, §16.19)', () => {
+  const c = opts({ repeat: 'complete' })
+
+  it('repetir golpes que ya están no cambia nada (sin evento)', () => {
+    const s = addPhrase(emptyLoops(), phrase([[0, 'hh'], [8, 'hh']]), c).state
+    const r = addPhrase(s, phrase([[0, 'hh'], [8, 'hh']], 1), { ...c, bornAt: 2 })
+    expect(r.events).toEqual([])
+    expect(r.state.loops[0]).toEqual(s.loops[0])
+  })
+
+  it('mergeLoops respeta la fase del loop existente', () => {
+    const m = mergeLoops(
+      { bars: 1, phaseBar: 0, hits: [{ pos: 0, strength: 1 }] },
+      { bars: 1, phaseBar: 3, hits: [{ pos: 6, strength: 1 }] },
+    )
+    expect(m.hits.map((h) => h.pos)).toEqual([0, 6])
+    expect(m.added).toBe(1)
+  })
+
+  it('una frase más larga alarga el loop repitiendo su patrón', () => {
+    const m = mergeLoops(
+      { bars: 1, phaseBar: 0, hits: [{ pos: 0, strength: 1 }, { pos: 8, strength: 1 }] },
+      { bars: 2, phaseBar: 0, hits: [{ pos: 20, strength: 1 }] },
+    )
+    expect(m.bars).toBe(2)
+    expect(m.hits.map((h) => h.pos)).toEqual([0, 8, 16, 20, 24])
+  })
+
+  it('no duplica pasos ya ocupados (también sin ayuda, a ±0,5 pasos)', () => {
+    const m = mergeLoops(
+      { bars: 1, phaseBar: 0, hits: [{ pos: 4.2, strength: 1 }] },
+      { bars: 1, phaseBar: 0, hits: [{ pos: 3.9, strength: 1 }, { pos: 10.1, strength: 1 }] },
+    )
+    expect(m.hits.map((h) => h.pos)).toEqual([4.2, 10.1])
+  })
+
+  it('un golpe suelto completa con ese golpe, no con la plantilla del estilo', () => {
+    let s = addPhrase(emptyLoops(), phrase([[0, 'hh'], [8, 'hh']]), c).state
+    s = addPhrase(s, phrase([[6, 'hh']], 1), { ...c, bornAt: 2 }).state
+    expect(s.loops[0]!.hits.map((h) => h.pos)).toEqual([0, 6, 8])
+  })
+
+  it('pero si el instrumento no tiene loop, un golpe suelto sí da la plantilla', () => {
+    const s = addPhrase(emptyLoops(), phrase([[3, 'hh']]), { ...c, style: 'house' }).state
+    expect(s.loops[0]!.fromTemplate).toBe(true)
+  })
+
+  it('la versión anterior sigue sonando hasta el nacimiento; un loop silenciado se reactiva', () => {
+    let s = addPhrase(emptyLoops(), phrase([[0, 'bd'], [8, 'bd']]), c).state
+    const r = addPhrase(s, phrase([[10, 'bd'], [12, 'bd']], 1), { ...c, bornAt: 2 })
+    expect(r.state.loops[0]!.prev!.hits.map((h) => h.pos)).toEqual([0, 8])
+    s = toggleMute(r.state, 1)
+    s = addPhrase(s, phrase([[14, 'bd'], [4, 'bd']], 2), { ...c, bornAt: 3 }).state
+    expect(s.loops[0]!.muted).toBe(false)
+    expect(s.loops[0]!.prev).toBeUndefined()
+  })
+
+  it('enmienda en modo completa: añade el golpe tardío sin duplicar la frase', () => {
+    let s = addPhrase(emptyLoops(), phrase([[0, 'hh'], [8, 'hh']]), c).state
+    s = addPhrase(s, phrase([[4, 'hh'], [12, 'hh']], 1), { ...c, bornAt: 2 }).state
+    s = addPhrase(s, phrase([[4, 'hh'], [12, 'hh'], [15, 'hh']], 1), { ...c, bornAt: 2, amend: true }).state
+    expect(s.loops[0]!.hits.map((h) => h.pos)).toEqual([0, 4, 8, 12, 15])
+    expect(s.loops[0]!.prev!.hits.map((h) => h.pos)).toEqual([0, 8])
+  })
+})
+
 describe('modo sustituye (§16.15)', () => {
-  const r = (o: Partial<BirthOptions> = {}) => opts({ replace: true, ...o })
+  const r = (o: Partial<BirthOptions> = {}) => opts({ repeat: 'replace', ...o })
 
   it('un loop nuevo de un instrumento sustituye al anterior, con el mismo id y la versión previa', () => {
     let s = addPhrase(emptyLoops(), phrase([[0, 'bd'], [8, 'bd']]), r()).state
@@ -142,11 +214,6 @@ describe('modo sustituye (§16.15)', () => {
     expect(s.loops.map((l) => l.instrument)).toEqual(['bd', 'sd'])
   })
 
-  it('el patrón repetido sigue siendo "reforzado"', () => {
-    const s = addPhrase(emptyLoops(), phrase([[0, 'bd'], [8, 'bd']]), r()).state
-    expect(addPhrase(s, phrase([[0, 'bd'], [8, 'bd']], 4), r()).events).toEqual([{ type: 'reinforced', id: 1 }])
-  })
-
   it('si el anterior estaba silenciado, no hay versión previa que tocar', () => {
     let s = addPhrase(emptyLoops(), phrase([[0, 'hh'], [2, 'hh']]), r()).state
     s = toggleMute(s, 1)
@@ -164,7 +231,7 @@ describe('modo sustituye (§16.15)', () => {
 })
 
 describe('enmienda (amend)', () => {
-  it('regenera en su sitio los loops nacidos de esa frase, también en modo acumula', () => {
+  it('regenera en su sitio los loops nacidos de esa frase', () => {
     let s = addPhrase(emptyLoops(), phrase([[0, 'bd'], [8, 'bd']]), opts({ bornAt: 1 })).state
     const res = addPhrase(s, phrase([[0, 'bd'], [8, 'bd'], [14, 'bd']]), opts({ bornAt: 1, amend: true }))
     expect(res.events.map((e) => e.type)).toEqual(['replaced'])
@@ -174,7 +241,7 @@ describe('enmienda (amend)', () => {
   })
 
   it('conserva la versión previa original (la que sonaba antes)', () => {
-    const r = opts({ replace: true })
+    const r = opts({ repeat: 'replace' })
     let s = addPhrase(emptyLoops(), phrase([[0, 'bd'], [8, 'bd']]), r).state
     s = addPhrase(s, phrase([[0, 'bd'], [6, 'bd'], [10, 'bd']], 2), { ...r, bornAt: 3 }).state
     s = addPhrase(s, phrase([[0, 'bd'], [6, 'bd'], [10, 'bd'], [14, 'bd']], 2), { ...r, bornAt: 3, amend: true }).state

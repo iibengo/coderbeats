@@ -49,7 +49,7 @@ const PHRASE_MODES: { id: PhraseMode; label: string }[] = [
 ]
 const REPEAT_MODES: { id: RepeatMode; label: string }[] = [
   { id: 'replace', label: 'sustituye' },
-  { id: 'accumulate', label: 'acumula' },
+  { id: 'complete', label: 'completa' },
 ]
 const CLOSE: { id: 1 | 2 | 4; label: string }[] = [
   { id: 1, label: '1 tiempo' },
