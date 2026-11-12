@@ -8,7 +8,7 @@ export default defineNuxtConfig({
   typescript: { strict: true },
 
   // Todo el audio corre en el navegador: la página no se renderiza en el servidor.
-  routeRules: { '/': { ssr: false } },
+  routeRules: { '/': { ssr: false }, '/spike': { ssr: false } },
 
   app: {
     head: {
