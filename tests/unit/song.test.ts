@@ -69,16 +69,21 @@ describe('songCode', () => {
   it('con fondo: bloque de fondo (bajo orbit 2, acordes orbit 3) y sidechain "2:3" solo en el bombo', () => {
     const code = songCode(state({ background: both, loops: [loop('bd', [0]), loop('hh', [2])] }))
     expect(code).toContain('// fondo · drum and bass · re menor')
-    expect(code).toContain('note("<d1 d1 bb0 c1>").s("sawtooth").lpf(380).lpenv(3).lpq(6).gain(0.55).orbit(2),')
-    expect(code).toMatch(/supersaw[^\n]*\.orbit\(3\),/)
+    // el fondo de tu primer reel, literal + orbit (§16.15)
+    expect(code).toContain('  note("<d1 d1 f1 c1>").s("sawtooth").lpf(400).distort(0.3).orbit(2),')
+    expect(code).toContain(
+      '  note("<[d3,f3,a3] [d3,f3,a3] [f3,a3,c4] [c3,e3,g3]>").s("triangle").room(0.6).gain(0.3).orbit(3),',
+    )
+    expect(code).toContain('  s("[~ oh]*4").gain(0.25).orbit(3),')
     expect(code).toMatch(/s\("bd[^\n]*\.duckorbit\("2:3"\)\.duckdepth\(0\.6\)\.duckattack\(0\.15\),/)
     expect(code).not.toMatch(/s\("~ ~ hh[^\n]*duckorbit/)
   })
 
   it('fondo progresivo: el código mostrado solo lleva las partes que han entrado', () => {
     const onlyBass = songCode(state({ background: { mode: 'progressive', parts: { bass: true, chords: false } }, loops: [loop('bd', [0])] }))
-    expect(onlyBass).toContain('note("<d1 d1 bb0 c1>")')
-    expect(onlyBass).not.toContain('supersaw')
+    expect(onlyBass).toContain('note("<d1 d1 f1 c1>")')
+    // el platillo abierto entra con los acordes, no con el bajo
+    expect(onlyBass).not.toMatch(/triangle|oh\]/)
     const none = songCode(state({ background: { mode: 'progressive', parts: { bass: false, chords: false } }, loops: [loop('bd', [0])] }))
     expect(none).not.toMatch(/fondo|duckorbit/)
   })
@@ -89,6 +94,17 @@ describe('songCode', () => {
     expect(engine).toContain('.orbit(3).color("chords")')
     expect(engine).toContain('duckorbit("2:3")')
     expect(songCode(state({ loops: [loop('bd', [0])] }), 'engine')).not.toMatch(/color\("bass"\)|duckorbit/)
+  })
+
+  it('sustitución: el motor toca la versión anterior hasta el nacimiento; el mostrado solo la nueva', () => {
+    const l = loop('bd', [0, 8], { bornAt: 12, prev: { hits: [{ pos: 0, strength: 1 }], bars: 1, phaseBar: 0 } })
+    const engine = songCode(state({ loops: [l] }), 'engine')
+    expect(engine).toContain('s("bd ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~")')
+    expect(engine).toMatch(/filterHaps\(\(h\) => h\.whole\.begin < 12\)/)
+    expect(engine).toMatch(/s\("bd ~ ~ ~ ~ ~ ~ ~ bd[^\n]*filterHaps\(\(h\) => h\.whole\.begin >= 12\)/)
+    const display = songCode(state({ loops: [l] }))
+    expect(display.match(/s\("/g)).toHaveLength(1)
+    expect(display).toContain('s("bd ~ ~ ~ ~ ~ ~ ~ bd ~ ~ ~ ~ ~ ~ ~")')
   })
 
   it('silenciados comentados', () => {

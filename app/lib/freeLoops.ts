@@ -21,6 +21,11 @@ export interface FreeLoop {
   muted: boolean
   bornAt: number
   fromTemplate: boolean
+  /**
+   * Versión anterior a la que sustituye (modo "sustituye", §16.15): sigue sonando hasta
+   * el compás de nacimiento de la nueva (`bornAt`), sin hueco ni solape.
+   */
+  prev?: { hits: LoopHit[]; bars: LoopLength; phaseBar: number }
 }
 
 export interface LoopsState {
@@ -31,6 +36,7 @@ export interface LoopsState {
 export type LoopEvent =
   | { type: 'born'; loop: FreeLoop }
   | { type: 'reinforced'; id: number }
+  | { type: 'replaced'; loop: FreeLoop }
   | { type: 'removed'; id: number; reason: 'limit' | 'user' }
 
 export interface BirthOptions {
@@ -39,6 +45,13 @@ export interface BirthOptions {
   quantizeEvery: 1 | 2
   /** compás global en el que nace (el siguiente al cierre) */
   bornAt: number
+  /** true: un loop nuevo sustituye al más reciente de su instrumento; false: se acumulan */
+  replace?: boolean
+  /**
+   * Enmienda de una frase ya nacida en `bornAt` (golpe tardío): los loops que nacieron de ella
+   * se regeneran en su sitio (mismo id, misma versión previa), en cualquier modo.
+   */
+  amend?: boolean
 }
 
 export const emptyLoops = (): LoopsState => ({ loops: [], nextId: 1 })
@@ -99,10 +112,31 @@ export function addPhrase(state: LoopsState, phrase: ClosedPhrase, o: BirthOptio
   let nextId = state.nextId
   const events: LoopEvent[] = []
   for (const c of candidatesFromPhrase(phrase, o)) {
+    if (o.amend) {
+      const own = loops.find((l) => l.instrument === c.instrument && l.bornAt === o.bornAt)
+      if (own) {
+        const loop: FreeLoop = { ...c, id: own.id, muted: own.muted, ...(own.prev ? { prev: own.prev } : {}) }
+        loops = loops.map((l) => (l.id === own.id ? loop : l))
+        events.push({ type: 'replaced', loop })
+        continue
+      }
+    }
     const twin = loops.find((l) => !l.muted && l.instrument === c.instrument && overlap(l, c) >= DEDUPE_OVERLAP)
     if (twin) {
       events.push({ type: 'reinforced', id: twin.id })
       continue
+    }
+    if (o.replace) {
+      const same = loops
+        .filter((l) => l.instrument === c.instrument)
+        .sort((a, b) => b.bornAt - a.bornAt || b.id - a.id)[0]
+      if (same) {
+        const prev = same.muted ? undefined : { hits: same.hits, bars: same.bars, phaseBar: same.phaseBar }
+        const loop: FreeLoop = { ...c, id: same.id, ...(prev ? { prev } : {}) }
+        loops = loops.map((l) => (l.id === same.id ? loop : l))
+        events.push({ type: 'replaced', loop })
+        continue
+      }
     }
     if (loops.length >= MAX_LOOPS) {
       const byAge = [...loops].sort((a, b) => a.bornAt - b.bornAt || a.id - b.id)
@@ -125,3 +159,16 @@ export const toggleMute = (s: LoopsState, id: number): LoopsState => ({
 export const removeLoop = (s: LoopsState, id: number): LoopsState => ({ ...s, loops: s.loops.filter((l) => l.id !== id) })
 
 export const clearLoops = (s: LoopsState): LoopsState => ({ ...s, loops: [] })
+
+/** Quita las versiones anteriores que ya no suenan (su sustituta nació en o antes de `bar`). */
+export function prunePrev(s: LoopsState, bar: number): LoopsState {
+  if (!s.loops.some((l) => l.prev && l.bornAt <= bar)) return s
+  return {
+    ...s,
+    loops: s.loops.map((l) => {
+      if (!l.prev || l.bornAt > bar) return l
+      const { prev: _prev, ...rest } = l
+      return rest
+    }),
+  }
+}

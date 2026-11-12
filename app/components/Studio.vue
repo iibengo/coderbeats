@@ -5,6 +5,7 @@ import { INSTRUMENT_LABELS, KIT_ORDER, KITS, STYLES } from '~/lib/constants'
 import { dragValue, lockAxis, type Axis } from '~/lib/gestures'
 import type { LoopLength } from '~/lib/phrases'
 import type { Instrument, StyleId } from '~/lib/types'
+import type { PhraseMode, RepeatMode } from '~/composables/useAudioEngine'
 
 const emit = defineEmits<{ recalibrate: ['latency' | 'sounds'] }>()
 const engine = useAudioEngine()
@@ -24,6 +25,9 @@ const {
   diag,
   dropping,
   echo,
+  phrase,
+  phraseMode,
+  repeatMode,
 } = engine
 const calibration = useCalibration()
 
@@ -38,7 +42,7 @@ const flashing = ref(new Set<number>())
 let off: (() => void) | null = null
 onMounted(() => {
   off = engine.onVisual((h) => {
-    if (h.loopId === null) return
+    if (h.kind !== 'hit' || h.loopId === null) return
     const id = h.loopId
     flashing.value = new Set(flashing.value).add(id)
     setTimeout(() => {
@@ -49,6 +53,51 @@ onMounted(() => {
   })
 })
 onBeforeUnmount(() => off?.())
+
+// reloj en vivo para la frase en curso (compás y fase)
+const live = reactive({ bar: 0, phase: 0 })
+let raf = 0
+onMounted(() => {
+  const tick = () => {
+    const c = engine.clockNow()
+    live.bar = c.bar
+    live.phase = c.barPhase
+    raf = requestAnimationFrame(tick)
+  }
+  raf = requestAnimationFrame(tick)
+})
+onBeforeUnmount(() => cancelAnimationFrame(raf))
+
+/** Compases de la frase en curso, con los puntos de cada golpe (al instante). */
+const phraseBars = computed(() => {
+  const p = phrase.value
+  if (!p) return []
+  const lastBar = Math.max(...p.hits.map((h) => Math.floor(Math.round(h.globalStep) / 16)), live.bar)
+  const end = Math.min(lastBar, p.closeBar - 1)
+  return Array.from({ length: end - p.startBar + 1 }, (_, i) => {
+    const bar = p.startBar + i
+    const cells: (Instrument | null)[] = Array(16).fill(null)
+    for (const h of p.hits) {
+      const step = Math.round(h.globalStep)
+      if (Math.floor(step / 16) === bar) cells[((step % 16) + 16) % 16] = h.instrument
+    }
+    return { bar, cells }
+  })
+})
+/** ¿Nacerá el loop en la próxima línea de compás? */
+const bornNext = computed(() => !!phrase.value && phrase.value.closeBar === live.bar + 1)
+const beatsLabel = computed(() =>
+  phraseCloseBeats.value === 4 ? '1 compás' : phraseCloseBeats.value === 1 ? '1 tiempo' : '2 tiempos',
+)
+
+// aviso breve cuando nace o se sustituye un loop
+const toast = ref<string | null>(null)
+watch(diag, (d) => {
+  const e = d[0]
+  if (e?.kind !== 'born') return
+  toast.value = e.text
+  setTimeout(() => toast.value === e.text && (toast.value = null), 1800)
+})
 
 // tocar = silenciar, mantener 600 ms = borrar
 const holding = ref<number | null>(null)
@@ -117,6 +166,14 @@ const bgLabel: Record<BackgroundMode, string> = { progressive: 'progresivo', ful
 const BG_MODES: BackgroundMode[] = ['progressive', 'full', 'off']
 const CLOSE_OPTIONS: (1 | 2 | 4)[] = [1, 2, 4]
 const MAX_OPTIONS: LoopLength[] = [1, 2, 4]
+const PHRASE_MODES: { id: PhraseMode; label: string }[] = [
+  { id: 'silence', label: 'por silencio' },
+  { id: 'bar', label: 'loop de 1 compás' },
+]
+const REPEAT_MODES: { id: RepeatMode; label: string }[] = [
+  { id: 'replace', label: 'sustituye' },
+  { id: 'accumulate', label: 'acumula' },
+]
 const pct = (v: number) => `${Math.round(v * 100)}%`
 const inputValue = (e: Event) => (e.target as HTMLInputElement).value
 const inputChecked = (e: Event) => (e.target as HTMLInputElement).checked
@@ -172,6 +229,40 @@ const inputChecked = (e: Event) => (e.target as HTMLInputElement).checked
       {{ bgParts.bass ? 'bajo' : '' }}{{ bgParts.chords ? ' + acordes' : '' }}{{ !bgParts.bass && !bgParts.chords ? '—' : '' }}
       <template v-if="playing"> · haz una frase con la boca y calla: nace un loop</template>
     </p>
+
+    <!-- frase en curso: cada golpe al instante y cuándo nace el loop (§16.15) -->
+    <div v-if="playing" class="rounded-lg border p-3 text-xs" :class="phrase ? 'border-white/40' : 'border-white/10'">
+      <div class="flex items-center justify-between gap-2">
+        <span v-if="phrase" class="flex items-center gap-1.5 text-white">
+          <span class="h-2 w-2 animate-pulse rounded-full bg-white" /> grabando frase · {{ phrase.hits.length }} golpe{{
+            phrase.hits.length === 1 ? '' : 's'
+          }}
+        </span>
+        <span v-else class="text-neutral-500">escuchando… haz una frase con la boca</span>
+        <span v-if="toast" class="text-white">✦ {{ toast }}</span>
+      </div>
+      <div v-if="phrase" class="mt-2 space-y-1">
+        <div v-for="b in phraseBars" :key="b.bar" class="grid grid-cols-16 gap-1">
+          <span
+            v-for="(c, i) in b.cells"
+            :key="i"
+            class="flex aspect-square items-center justify-center rounded-sm"
+            :class="[i % 4 === 0 ? 'bg-white/10' : 'bg-white/5', b.bar === live.bar && Math.floor(live.phase * 16) === i ? 'ring-1 ring-white/60' : '']"
+          >
+            <span v-if="c" class="h-2.5 w-2.5 rounded-full" :class="fill[c]" />
+          </span>
+        </div>
+        <p class="pt-1 text-neutral-300">
+          <template v-if="bornNext">
+            nace el loop al empezar el compás {{ phrase.closeBar }}
+            <span class="mt-1 block h-1 overflow-hidden rounded bg-white/10">
+              <span class="block h-full bg-white" :style="{ width: `${live.phase * 100}%` }" />
+            </span>
+          </template>
+          <template v-else-if="phraseMode === 'silence'">sigue la frase · calla {{ beatsLabel }} para cerrarla</template>
+        </p>
+      </div>
+    </div>
 
     <!-- loops -->
     <div class="flex min-h-12 flex-wrap gap-2">
@@ -240,6 +331,34 @@ const inputChecked = (e: Event) => (e.target as HTMLInputElement).checked
         </span>
       </div>
       <div class="flex items-center justify-between">
+        Frase
+        <span class="flex gap-1">
+          <button
+            v-for="m in PHRASE_MODES"
+            :key="m.id"
+            class="rounded-full px-2 py-0.5 text-xs"
+            :class="phraseMode === m.id ? 'bg-white text-black' : 'text-neutral-400'"
+            @click="engine.setPhraseOptions({ mode: m.id })"
+          >
+            {{ m.label }}
+          </button>
+        </span>
+      </div>
+      <div class="flex items-center justify-between">
+        Repetir instrumento
+        <span class="flex gap-1">
+          <button
+            v-for="m in REPEAT_MODES"
+            :key="m.id"
+            class="rounded-full px-2 py-0.5 text-xs"
+            :class="repeatMode === m.id ? 'bg-white text-black' : 'text-neutral-400'"
+            @click="engine.setRepeatMode(m.id)"
+          >
+            {{ m.label }}
+          </button>
+        </span>
+      </div>
+      <div v-if="phraseMode === 'silence'" class="flex items-center justify-between">
         Cierre de frase
         <span class="flex gap-1">
           <button
@@ -253,7 +372,7 @@ const inputChecked = (e: Event) => (e.target as HTMLInputElement).checked
           </button>
         </span>
       </div>
-      <div class="flex items-center justify-between">
+      <div v-if="phraseMode === 'silence'" class="flex items-center justify-between">
         Frase máxima
         <span class="flex gap-1">
           <button

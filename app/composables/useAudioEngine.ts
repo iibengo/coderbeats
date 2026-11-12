@@ -6,6 +6,7 @@ import {
   addPhrase,
   clearLoops,
   emptyLoops,
+  prunePrev,
   removeLoop,
   toggleMute,
   type LoopEvent,
@@ -13,7 +14,7 @@ import {
 } from '~/lib/freeLoops'
 import { DJF_MIN, filterDjf, spaceParams, warmthShape } from '~/lib/gestures'
 import { detectOnsets, minGapForCell } from '~/lib/onsets'
-import { PhraseTracker, type ClosedPhrase, type LoopLength } from '~/lib/phrases'
+import { PhraseTracker, type ClosedPhrase, type LoopLength, type PhraseSnapshot } from '~/lib/phrases'
 import { ENGINE_GLOBAL, songCode, type SongFx, type SongState } from '~/lib/song'
 import type { CalibrationSample, Instrument, KitId, Norm, StyleId } from '~/lib/types'
 import type { FromWorker, ToWorker } from '~/lib/workerProtocol'
@@ -45,8 +46,12 @@ export interface DiagEvent {
   uiMs?: number
 }
 
-/** Golpe que suena (para la capa visual). */
+export type PhraseMode = 'silence' | 'bar'
+export type RepeatMode = 'replace' | 'accumulate'
+
+/** Golpe para la capa visual: `hit` = suena; `heard` = se acaba de oír por el micro (§16.15). */
 export interface VisualHit {
+  kind: 'hit' | 'heard'
   loopId: number | null
   instrument: Instrument | 'bass' | 'chords' | null
   /** tiempo de contexto en que suena */
@@ -83,6 +88,8 @@ let timers: ReturnType<typeof setTimeout>[] = []
 let outputBatch: number[] = []
 let evalQueued = false
 let dropActive = false
+/** último nacimiento, para que una enmienda nazca en la misma línea de compás */
+let lastBirth: { startBar: number; bornAt: number } | null = null
 const bgNodes: Partial<Record<Part, { lp: BiquadFilterNode; gain: GainNode }>> = {}
 const visualListeners = new Set<(h: VisualHit) => void>()
 
@@ -105,6 +112,10 @@ const bgMode = ref<BackgroundMode>('progressive')
 const lastBgMode = ref<Exclude<BackgroundMode, 'off'>>('progressive')
 const phraseCloseBeats = ref<1 | 2 | 4>(2)
 const maxPhraseBars = ref<LoopLength>(4)
+const phraseMode = ref<PhraseMode>('silence')
+const repeatMode = ref<RepeatMode>('replace')
+/** frase en curso: golpes oídos (al instante) y compás en el que nacería el loop */
+const phrase = shallowRef<PhraseSnapshot | null>(null)
 const fx = reactive<SongFx>({ filter: 1, space: 0, warmth: 0 })
 const loops = shallowRef<LoopsState>(emptyLoops())
 /** partes del fondo que han entrado o están entrando (para el código mostrado) */
@@ -193,9 +204,19 @@ function onPulse(cycle: number, t: number) {
   if (!tracker) {
     tracker = new PhraseTracker(
       { anchor: t - cycle * barSec, stepSeconds: barSec / 16 },
-      { closeBeats: phraseCloseBeats.value, maxBars: maxPhraseBars.value },
+      {
+        closeBeats: phraseCloseBeats.value,
+        // modo "loop de 1 compás": cada compás con golpes es una frase (§16.15)
+        maxBars: phraseMode.value === 'bar' ? 1 : maxPhraseBars.value,
+      },
     )
     updateBackground()
+  }
+  // las versiones sustituidas ya no hacen falta en el código una vez nacida la nueva
+  const pruned = prunePrev(loops.value, cycle)
+  if (pruned !== loops.value) {
+    loops.value = pruned
+    reevaluate()
   }
   // la frase se decide poco antes de la siguiente línea de compás (§16.12)
   const next = cycle + 1
@@ -216,6 +237,7 @@ function onTrigger(hap: StrudelHap, t: number) {
   const loopId = color.startsWith('l') ? Number(color.slice(1)) : null
   const loop = loopId !== null ? loops.value.loops.find((l) => l.id === loopId) : undefined
   const visual: VisualHit = {
+    kind: 'hit',
     loopId,
     instrument: loop?.instrument ?? (color === 'bass' || color === 'chords' ? color : null),
     time,
@@ -318,6 +340,7 @@ function updateBackground() {
 function decide(bar: number) {
   if (!playing.value || !tracker) return
   const closed = tracker.decide(bar)
+  phrase.value = tracker.snapshot()
   if (closed) birth(closed, bar)
 }
 
@@ -325,16 +348,23 @@ function logLoopEvent(e: LoopEvent) {
   if (e.type === 'born')
     log('born', `nace loop ${e.loop.id} (${e.loop.instrument}, ${e.loop.bars} c.${e.loop.fromTemplate ? ', plantilla' : ''})`)
   else if (e.type === 'reinforced') log('reinforced', `loop ${e.id} reforzado (patrón repetido)`)
+  else if (e.type === 'replaced') log('born', `loop ${e.loop.id} sustituido (${e.loop.instrument}, ${e.loop.bars} c.)`)
   else log('removed', `loop ${e.id} retirado (${e.reason === 'limit' ? 'máximo de 8' : 'usuario'})`)
 }
 
-function birth(phrase: ClosedPhrase, bornAt: number) {
-  log('phrase', `frase ${phrase.startBar}–${phrase.startBar + phrase.spanBars - 1}: ${phrase.hits.length} golpes → ${phrase.bars} compás(es)`)
+function birth(phrase: ClosedPhrase, bornAt: number, amend = false) {
+  lastBirth = { startBar: phrase.startBar, bornAt }
+  log(
+    'phrase',
+    `${amend ? 'enmienda de la frase' : 'frase'} ${phrase.startBar}–${phrase.startBar + phrase.spanBars - 1}: ${phrase.hits.length} golpes → ${phrase.bars} compás(es)`,
+  )
   const r = addPhrase(loops.value, phrase, {
     assist: assist.value,
     style: style.value,
     quantizeEvery: STYLES[style.value].quantizeEvery,
     bornAt,
+    replace: repeatMode.value === 'replace',
+    amend,
   })
   loops.value = r.state
   for (const e of r.events) logLoopEvent(e)
@@ -350,13 +380,18 @@ function onWorkerMessage(m: FromWorker) {
   if (m.instrument === 'unknown') return log('unknown', `golpe desconocido (${m.strength.toFixed(3)})`, uiMs)
   if (!playing.value || !tracker) return log('stopped', `${m.instrument} sin loop en marcha`, uiMs)
   log('hit', `${m.instrument} ${(m.confidence * 100).toFixed(0)}%`, uiMs)
-  const closed = tracker.add({
+  const heard: VisualHit = { kind: 'heard', loopId: null, instrument: m.instrument, time: m.time }
+  visualListeners.forEach((f) => f(heard))
+  const r = tracker.add({
     tCorr: m.time - latencySec,
     instrument: m.instrument,
     strength: m.strength,
     confidence: m.confidence,
   })
-  if (closed) birth(closed, nextBarLine())
+  phrase.value = tracker.snapshot()
+  if (r.closed) birth(r.closed, nextBarLine())
+  // golpe tardío de la frase recién cerrada: sus loops nacen en la misma línea de compás
+  if (r.amended && lastBirth?.startBar === r.amended.startBar) birth(r.amended, lastBirth.bornAt, true)
 }
 
 // ── API ────────────────────────────────────────────────────────────────────────
@@ -396,6 +431,8 @@ export function useAudioEngine() {
               const idx = KITS[k].sampleIndex[inst]
               map[`${KITS[k].strudelBank}_${inst}`] = Array.from({ length: idx + 1 }, () => `${k}/${inst}.wav`)
             }
+          // sonidos por defecto (sin .bank()), como en strudel.cc: el oh del fondo de dnb (§16.15)
+          map.oh = ['default/oh.wav']
           const g = globalThis as unknown as { samples: (m: object, base: string) => Promise<void> }
           await g.samples(map, `${location.origin}${base}samples/`)
         },
@@ -518,6 +555,8 @@ export function useAudioEngine() {
     playing.value = false
     clock = null
     tracker = null
+    phrase.value = null
+    lastBirth = null
     dropActive = false
     dropping.value = false
     plannedParts = { ...NO_PARTS }
@@ -571,10 +610,16 @@ export function useAudioEngine() {
     setBackgroundMode(bgMode.value === 'off' ? lastBgMode.value : 'off')
   }
 
-  function setPhraseOptions(o: { closeBeats?: 1 | 2 | 4; maxBars?: LoopLength }) {
+  function setPhraseOptions(o: { closeBeats?: 1 | 2 | 4; maxBars?: LoopLength; mode?: PhraseMode }) {
     if (o.closeBeats) phraseCloseBeats.value = o.closeBeats
     if (o.maxBars) maxPhraseBars.value = o.maxBars
+    if (o.mode) phraseMode.value = o.mode
     tracker = null // se recrea en el siguiente pulso con las nuevas opciones
+    phrase.value = null
+  }
+
+  function setRepeatMode(m: RepeatMode) {
+    repeatMode.value = m
   }
 
   function setFx(p: Partial<SongFx>) {
@@ -644,6 +689,9 @@ export function useAudioEngine() {
     bgMode,
     phraseCloseBeats,
     maxPhraseBars,
+    phraseMode,
+    repeatMode,
+    phrase,
     fx,
     loops,
     bgParts,
@@ -665,6 +713,7 @@ export function useAudioEngine() {
     setBackgroundMode,
     toggleBackground,
     setPhraseOptions,
+    setRepeatMode,
     setFx,
     drop,
     mute,

@@ -535,7 +535,8 @@ En este orden. **Cada punto tendrá su propia spec** (`specs/00N-…/spec.md`) c
 3. **Varias capas**: grabar más pasadas encima del patrón y combinarlas.
 4. **Tararear el bajo**: detección de tono de la voz y **ajuste a escala tipo autotune** para convertirla en una línea de bajo.
 5. **Loop crudo estilo RC-505**: grabar la voz tal cual, sin convertirla en batería, en capas, con efectos (reverb, delay, filtro, pitch, robot).
-6. **Precisión**: editar pasos tocando el anillo, **aprender de mis correcciones** (que pasen a ser muestras de calibración) y usar el **contexto musical** para desempatar golpes dudosos (por ejemplo, bombo en tiempo fuerte o caja en 2 y 4).
+6. **4.º sonido de boca: platillo abierto** (por ejemplo un "tsss" largo), con su calibración, su clase en el k-NN y su línea `oh` en el código. Hoy el platillo abierto solo existe como parte del fondo de drum and bass (§16.15).
+7. **Precisión**: editar pasos tocando el anillo, **aprender de mis correcciones** (que pasen a ser muestras de calibración) y usar el **contexto musical** para desempatar golpes dudosos (por ejemplo, bombo en tiempo fuerte o caja en 2 y 4).
 
 La lista de "Fuera del MVP" de §2 queda como referencia; el orden lo fija esta hoja de ruta.
 
@@ -1146,3 +1147,41 @@ export interface VisualTheme {
   - `themes/water/`: simulación de §16.3 (WebGL2 de 3 canales, respaldo WebGL1 analítico, respaldo Canvas 2D).
 - **Registro**: `themes/index.ts` exporta la lista de temas. El elegido se guarda en prefs; en la A3.3 solo existe "agua" y no hay selector en la UI.
 - **Rendimiento**: el contrato pide frames ≪ 16 ms porque el planificador de Strudel comparte el hilo principal (§16.12). La capa común mide el tiempo de cada frame. Si el p95 supera 14 ms, avisa al tema con `resize` a menor resolución interna.
+
+### 16.15 Respuesta inmediata, modos de frase, sustituir loops y fondo del reel (añadido el 2026-11-12, tras la prueba con voz de la A3.2)
+
+**Qué salió en la prueba:** detecta bien bum, pff y ts, nacen los loops y el fondo entra bien, y la ayuda suena bien. Pero **el cierre de frase no se siente bien**: pasan 2–4 s desde que haces algo hasta que suena, y no se nota que esté grabando. Además nacen demasiados loops demasiado rápido.
+
+**1. Cada golpe se ve al instante.**
+- Al detectarse (unos 70 ms después), cada golpe aparece como un **punto de su color** en la frase en curso, en su posición dentro del compás, aunque el loop nazca después.
+- La capa visual (§16.14) recibe además un evento `heard` (golpe oído) distinto de `hit` (golpe que suena). En el agua será una gota pequeña y tenue de su color.
+
+**2. La frase en curso se ve.**
+- Un indicador de **"grabando frase"** (compases que lleva y sus puntos).
+- **Cuándo va a nacer el loop**: "nace en el compás N" con una barra de progreso hasta esa línea, o "calla N tiempos para cerrar" si todavía no se cumple la condición.
+- El cálculo es puro: `expectedCloseBar(frase, opciones)` en `lib/phrases.ts`, con tests. Devuelve la primera línea de compás L en la que se cerraría si no tocas nada más: `L = ⌈(último paso + tiempos de cierre × 4) / 16⌉`, como mucho `inicio + máximo`.
+
+**3. Modo "loop de 1 compás"** (ajustes → "Frase").
+- **Por silencio** (el actual): la frase se cierra al callar.
+- **1 compás**: lo que haces en un compás suena en bucle **desde el siguiente**, sin esperar al silencio. Cada compás con golpes es una frase de 1 compás.
+- Es para comparar los dos. Por defecto se queda **por silencio** hasta que decidas cuál prefieres.
+
+**4. Sustituir en vez de acumular** (ajustes → "Repetir instrumento").
+- **Sustituye** (por defecto): un loop nuevo de un instrumento **reemplaza al loop más reciente de ese instrumento**.
+  - Conserva el mismo objeto en pantalla (mismo `id`), así que en el agua es el mismo loop que cambia.
+  - El patrón anterior **sigue sonando hasta el compás de nacimiento** del nuevo, y desde ahí suena el nuevo, sin hueco ni solape. En el código del motor, la versión anterior lleva `filterHaps(begin < nacimiento)` y la nueva `filterHaps(begin ≥ nacimiento)`.
+  - El código mostrado solo enseña la nueva.
+- **Acumula**: el comportamiento anterior (varios loops del mismo instrumento, máximo 8).
+- La deduplicación (≥ 80 %, "reforzado") se aplica antes en los dos modos.
+
+**5. Fondo de drum and bass = el de tu primer reel** (sustituye al de §16.11 para dnb):
+```js
+note("<d1 d1 f1 c1>").s("sawtooth").lpf(400).distort(0.3)          // bajo      · orbit 2
+note("<[d3,f3,a3] [d3,f3,a3] [f3,a3,c4] [c3,e3,g3]>").s("triangle").room(0.6).gain(0.3)   // acordes · orbit 3
+s("[~ oh]*4").gain(0.25)                                            // platillo abierto · orbit 3
+```
+- Son tus líneas literales. El motor solo les añade `.orbit(n)` (y la etiqueta interna), así que pegadas en strudel.cc suenan igual.
+- **El platillo abierto es parte del fondo y entra con los acordes**: va en el orbit 3, comparte su filtro y su ganancia nativos y entra y sale con ellos.
+- `oh` va **sin `.bank()`**, como en tu reel. En strudel.cc es el `oh` por defecto (`uzu-drumkit`, índice 0, licencia Unlicense), y coderbeats registra ese mismo archivo (`public/samples/default/oh.wav`).
+- Se mantienen el fondo progresivo y el sidechain (`duckorbit("2:3")` también empuja el platillo abierto).
+- Tonalidad: re menor (`Dm – Dm – F – C`).

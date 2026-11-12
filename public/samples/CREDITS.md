@@ -17,3 +17,12 @@ https://github.com/ritchse/tidal-drum-machines
 | `acoustic/bd.wav` | `AkaiMPC60/akaimpc60-bd/0 Bassdrum.wav` |
 | `acoustic/sd.wav` | `AkaiMPC60/akaimpc60-sd/Snare 1.wav` |
 | `acoustic/hh.wav` | `AkaiMPC60/akaimpc60-hh/Closed Hat.wav` |
+
+## Sonido por defecto (sin `.bank()`), como en strudel.cc
+
+Del repositorio **uzu-drumkit** de tidalcycles (licencia **Unlicense**, dominio público):
+https://github.com/tidalcycles/uzu-drumkit
+
+| Archivo | Origen |
+|---|---|
+| `default/oh.wav` | `oh/10_oh_switchangel.wav` (índice 0 de `oh` en strudel.cc) |

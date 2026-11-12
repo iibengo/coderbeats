@@ -41,7 +41,10 @@ const IND = '  '
 export const DUCK = '.duckorbit("2:3").duckdepth(0.6).duckattack(0.15)'
 
 /** Tokens de s() y de nudge() (rotados a la fase global) de un loop. */
-export function loopTokens(loop: FreeLoop, stepSeconds: number): { s: string[]; nudge: string[] | null } {
+export function loopTokens(
+  loop: Pick<FreeLoop, 'bars' | 'phaseBar' | 'hits' | 'instrument'>,
+  stepSeconds: number,
+): { s: string[]; nudge: string[] | null } {
   const total = loop.bars * 16
   const slots: (string | null)[] = new Array(total).fill(null)
   const nudges: number[] = new Array(total).fill(0)
@@ -62,16 +65,28 @@ export function loopTokens(loop: FreeLoop, stepSeconds: number): { s: string[]; 
   return { s, nudge: hasNudge ? rot(nudges.map((n) => String(n))) : null }
 }
 
-function loopLine(loop: FreeLoop, st: SongState, gain: number, stepSeconds: number, mode: SongMode, duck: boolean): string {
+function loopLine(
+  loop: FreeLoop,
+  st: SongState,
+  gain: number,
+  stepSeconds: number,
+  mode: SongMode,
+  duck: boolean,
+  version: 'current' | 'prev' = 'current',
+): string {
   const kit = KITS[st.kit]
-  const { s, nudge } = loopTokens(loop, stepSeconds)
+  const src = version === 'prev' && loop.prev ? { ...loop, ...loop.prev } : loop
+  const { s, nudge } = loopTokens(src, stepSeconds)
   let line = `s("${tokensToMini(s)}").bank("${kit.strudelBank}")`
   const n = kit.sampleIndex[loop.instrument]
   if (n !== 0) line += `.n(${n})`
   if (nudge) line += `.nudge("${tokensToMini(nudge)}")`
   if (Math.abs(gain - 1) > 0.005) line += `.gain(${fmtGain(gain)})`
   if (loop.instrument === 'bd' && duck) line += DUCK
-  if (mode === 'engine') line += `.color("l${loop.id}").filterHaps((h) => h.whole.begin >= ${loop.bornAt})`
+  if (mode === 'engine') {
+    const cond = version === 'prev' ? `h.whole.begin < ${loop.bornAt}` : `h.whole.begin >= ${loop.bornAt}`
+    line += `.color("l${loop.id}").filterHaps((h) => ${cond})`
+  }
   return loop.muted ? `// ${line}` : line
 }
 
@@ -90,8 +105,9 @@ export function songCode(st: SongState, mode: SongMode = 'display'): string {
   const showChords = engine ? bgOn : st.background.parts.chords
   if (showBass || showChords) {
     out.push(`${IND}// fondo · ${style.label.toLowerCase()} · ${music.key}`)
-    if (showBass) out.push(`${IND}${music.background.bass}${engine ? '.color("bass")' : ''},`)
-    if (showChords) out.push(`${IND}${music.background.chords}${engine ? '.color("chords")' : ''},`)
+    if (showBass) for (const l of music.background.bass) out.push(`${IND}${l}.orbit(2)${engine ? '.color("bass")' : ''},`)
+    if (showChords)
+      for (const l of music.background.chords) out.push(`${IND}${l}.orbit(3)${engine ? '.color("chords")' : ''},`)
   }
   if (engine) {
     out.push(`${IND}note("c0").s("sine").gain(0).color("pulse"),`)
@@ -110,7 +126,12 @@ export function songCode(st: SongState, mode: SongMode = 'display'): string {
 
   if (st.loops.length) {
     out.push(`${IND}// tus loops`)
-    const lines = st.loops.map((l) => loopLine(l, st, gains.get(l.id) ?? 1, stepSeconds, mode, duck))
+    const lines = st.loops.flatMap((l) => {
+      const g = gains.get(l.id) ?? 1
+      const current = loopLine(l, st, g, stepSeconds, mode, duck)
+      // en el motor, la versión anterior sigue sonando hasta el nacimiento de la nueva
+      return engine && l.prev ? [loopLine(l, st, g, stepSeconds, mode, duck, 'prev'), current] : [current]
+    })
     if (drumFx) {
       out.push(`${IND}stack(`)
       for (const l of lines) out.push(`${IND}${IND}${l},`)
