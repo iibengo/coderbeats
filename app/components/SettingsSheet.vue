@@ -6,7 +6,7 @@ import type { LoopLength } from '~/lib/phrases'
 import type { PhraseMode, RepeatMode } from '~/composables/useAudioEngine'
 
 const open = defineModel<boolean>('open', { required: true })
-const props = defineProps<{ renderer: string }>()
+const props = defineProps<{ renderer: string; layout: () => string }>()
 const emit = defineEmits<{ recalibrate: ['latency' | 'sounds'] }>()
 const engine = useAudioEngine()
 const { kit, assist, metronome, bgMode, phraseCloseBeats, maxPhraseBars, phraseMode, repeatMode, fx, playing, diag, echo, loops } =
@@ -171,7 +171,8 @@ const val = (e: Event) => Number((e.target as HTMLInputElement).value)
         </div>
 
         <div v-else class="text-xs text-neutral-500">
-          <p class="mb-2">visual: {{ props.renderer }}</p>
+          <p class="mb-1">visual: {{ props.renderer }}</p>
+          <p class="mb-2">pantalla: {{ props.layout() }}</p>
           <ul class="space-y-0.5 font-mono tabular-nums">
             <li v-for="(d, i) in diag.slice(0, 60)" :key="i">
               {{ d.at.toFixed(2) }} · {{ d.kind }} · {{ d.text }}<template v-if="d.uiMs !== undefined"> · {{ d.uiMs.toFixed(0) }} ms</template>

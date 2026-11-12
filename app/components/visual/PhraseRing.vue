@@ -14,6 +14,8 @@ const props = defineProps<{
   dots: RingDot[]
   /** golpes de la frase en curso */
   phraseDots: { key: string; step: number; instrument: Instrument }[]
+  /** loop resaltado (al tocar su bola): sus puntos destacan y el resto se apaga */
+  highlight: number | null
   playing: boolean
 }>()
 
@@ -103,13 +105,15 @@ defineExpose({
       :key="d.key"
       :ref="setDot(d.key)"
       class="dot"
+      :class="{ hl: highlight === d.loopId, faded: highlight !== null && highlight !== d.loopId }"
       :cx="at(d.step, laneR(d.instrument)).x"
       :cy="at(d.step, laneR(d.instrument)).y"
-      r="3.5"
+      :r="highlight === d.loopId ? 8 : 5.5"
       :fill="d.muted ? 'transparent' : fill[d.instrument]"
-      :stroke="fill[d.instrument]"
-      :stroke-opacity="d.muted ? 0.35 : 0"
-      :fill-opacity="d.muted ? 0 : 0.35"
+      :stroke="highlight === d.loopId ? 'white' : fill[d.instrument]"
+      :stroke-width="d.muted || highlight === d.loopId ? 1.5 : 0"
+      :stroke-opacity="d.muted ? 0.7 : 1"
+      :fill-opacity="d.muted ? 0 : 0.6"
       :style="{ color: fill[d.instrument] }"
     />
     <!-- frase en curso -->
@@ -119,7 +123,7 @@ defineExpose({
       class="phrase-dot"
       :cx="at(d.step, laneR(d.instrument)).x"
       :cy="at(d.step, laneR(d.instrument)).y"
-      r="6"
+      r="7"
       :fill="fill[d.instrument]"
     />
     <!-- cabezal: cruza los tres aros -->
@@ -131,15 +135,25 @@ defineExpose({
 .dot {
   transform-box: fill-box;
   transform-origin: center;
+  transition:
+    opacity 200ms,
+    r 200ms;
+}
+.dot.faded {
+  opacity: 0.2;
 }
 .dot.lit {
-  animation: lit 420ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation: lit 480ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 @keyframes lit {
   0% {
     fill-opacity: 1;
-    transform: scale(2.1);
-    filter: drop-shadow(0 0 6px currentColor);
+    transform: scale(2.4);
+    filter: drop-shadow(0 0 4px currentColor) drop-shadow(0 0 12px currentColor) brightness(1.6);
+  }
+  35% {
+    fill-opacity: 1;
+    filter: drop-shadow(0 0 3px currentColor) drop-shadow(0 0 8px currentColor) brightness(1.3);
   }
   100% {
     transform: scale(1);

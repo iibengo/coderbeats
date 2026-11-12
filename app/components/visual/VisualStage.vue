@@ -27,7 +27,7 @@ const rendererName = ref('')
 // ── geometría (todo centrado en la ventana, también en escritorio) ───────────────
 const PLAY_FROM_BOTTOM = 56 // centro del botón Play desde abajo (px)
 const ringGeo = computed(() => {
-  const r = Math.max(70, Math.min(view.w * 0.3, view.h * 0.21, 240))
+  const r = Math.max(70, Math.min(view.w * 0.27, view.h * 0.2, 230))
   return { x: view.w / 2, y: Math.min(view.h * 0.43, view.h - PLAY_FROM_BOTTOM - 120 - r), r }
 })
 const bgBalls = computed(() => {
@@ -48,6 +48,8 @@ const bounds = computed<DriftBounds>(() => ({
     { x: view.w / 2, y: 28, r: 40 }, // estilo
     { x: view.w - 28, y: 28, r: 26 }, // ⋯
   ],
+  // los loops flotan alrededor del anillo (§16.18)
+  orbit: { x: ringGeo.value.x, y: ringGeo.value.y, r: ringGeo.value.r + 36, band: Math.max(70, ringGeo.value.r * 0.55) },
 }))
 const loopSize = (hits: number) => 26 + Math.min(14, hits * 1.5)
 
@@ -322,6 +324,17 @@ onBeforeUnmount(() => {
 })
 
 // ── interacción: loops ───────────────────────────────────────────────────────────
+/** loop resaltado en el anillo al tocar su bola (§16.18) */
+const highlight = ref<number | null>(null)
+let highlightTimer: ReturnType<typeof setTimeout> | null = null
+function showHighlight(id: number) {
+  highlight.value = id
+  if (highlightTimer) clearTimeout(highlightTimer)
+}
+function hideHighlightSoon() {
+  if (highlightTimer) clearTimeout(highlightTimer)
+  highlightTimer = setTimeout(() => (highlight.value = null), 1500)
+}
 const holding = ref<number | null>(null)
 let holdTimer: ReturnType<typeof setTimeout> | null = null
 let held = false
@@ -329,6 +342,7 @@ function loopDown(e: PointerEvent, id: number) {
   e.stopPropagation()
   held = false
   holding.value = id
+  showHighlight(id)
   holdTimer = setTimeout(() => {
     held = true
     holding.value = null
@@ -339,10 +353,12 @@ function loopUp(id: number) {
   if (holdTimer) clearTimeout(holdTimer)
   if (holding.value === id && !held) engine.mute(id)
   holding.value = null
+  hideHighlightSoon()
 }
 function loopCancel() {
   if (holdTimer) clearTimeout(holdTimer)
   holding.value = null
+  hideHighlightSoon()
 }
 
 /** estado de cada bola del fondo: apagada, pendiente (entra en el siguiente compás), sonando, saliendo */
@@ -392,7 +408,17 @@ function waterUp(e: PointerEvent) {
 }
 
 const fill: Record<Instrument, string> = { bd: '#F496BC', sd: '#B9A6F2', hh: '#8ECFF2' }
-defineExpose({ rendererName })
+/** medidas reales de la ventana, para el diagnóstico (§16.18) */
+const layoutInfo = () => {
+  const r = root.value?.getBoundingClientRect()
+  return [
+    `ventana ${window.innerWidth}×${window.innerHeight} @${window.devicePixelRatio}`,
+    `escenario ${r ? `${Math.round(r.x)},${Math.round(r.y)} ${Math.round(r.width)}×${Math.round(r.height)}` : '—'}`,
+    `documento ${document.documentElement.scrollWidth}×${document.documentElement.scrollHeight}`,
+    `anillo (${Math.round(ringGeo.value.x)}, ${Math.round(ringGeo.value.y)}) r ${Math.round(ringGeo.value.r)}`,
+  ].join(' · ')
+}
+defineExpose({ rendererName, layoutInfo })
 </script>
 
 <template>
@@ -414,6 +440,7 @@ defineExpose({ rendererName })
       :r="ringGeo.r"
       :dots="ringDots"
       :phrase-dots="phraseDots"
+      :highlight="highlight"
       :playing="playing"
     />
 

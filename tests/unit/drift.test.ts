@@ -52,3 +52,44 @@ describe('spawnPoint', () => {
     expect(p.y).toBeLessThan(bounds.h - bounds.margin)
   })
 })
+
+describe('órbita alrededor del anillo (§16.18)', () => {
+  const desk: DriftBounds = {
+    w: 1440,
+    h: 761,
+    margin: 16,
+    avoid: [
+      { x: 720, y: 327, r: 186 },
+      { x: 720, y: 705, r: 52 },
+    ],
+    orbit: { x: 720, y: 327, r: 200, band: 90 },
+  }
+
+  it('los loops nacen en la banda alrededor del anillo, no en una esquina', () => {
+    const bodies: { x: number; y: number; r: number }[] = []
+    for (let i = 0; i < 8; i++) {
+      const p = spawnPoint(bodies, desk, 18)
+      const d = Math.hypot(p.x - 720, p.y - 327)
+      expect(d).toBeGreaterThanOrEqual(200 - 1)
+      expect(d).toBeLessThanOrEqual(290 + 1)
+      bodies.push({ ...p, r: 18 })
+    }
+  })
+
+  it('y se quedan flotando en ella (y giran)', () => {
+    let b: Body[] = []
+    for (let i = 0; i < 6; i++) {
+      const p = spawnPoint(b, desk, 18)
+      b.push({ id: i + 1, x: p.x, y: p.y, vx: 0, vy: 0, r: 18 })
+    }
+    const start = b.map((p) => Math.atan2(p.y - 327, p.x - 720))
+    for (let t = 0; t < 30; t += 1 / 60) b = stepDrift(b, 1 / 60, t, desk)
+    for (const p of b) {
+      const d = Math.hypot(p.x - 720, p.y - 327)
+      expect(d).toBeGreaterThan(190)
+      expect(d).toBeLessThan(310)
+    }
+    const moved = b.map((p, i) => Math.abs(Math.atan2(p.y - 327, p.x - 720) - start[i]!))
+    expect(Math.max(...moved)).toBeGreaterThan(0.05)
+  })
+})

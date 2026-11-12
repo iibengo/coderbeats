@@ -1262,3 +1262,13 @@ También se corrige que el tema Canvas 2D no ajustaba su resolución interna al 
 - **Latido por instrumento**: bombo +30 %, caja +25 %, platillo +20 %. Las bolas del fondo, más suaves.
 - **Onda clara en el agua desde la bola**, con peso por instrumento (bombo 1, caja 0,75, platillo 0,5) en amplitud y radio. El color de las ondas es más visible. El punto del anillo suelta además una onda pequeña (35 %).
 - La intensidad de la onda tiene un mínimo (`0,6 + 0,4 × ganancia`) para que con muchos loops la mezcla automática no la haga desaparecer.
+
+### 16.18 Ajustes del anillo y de la órbita (añadido el 2026-11-12)
+
+- **Puntos del anillo más visibles**: en reposo, radio 5,5 px y opacidad 0,6 (antes 3,5 px y 0,35). Al sonar se encienden con fuerza: escala ×2,4, doble halo de su color y brillo, durante 480 ms. Los silenciados, huecos con borde visible.
+- **Los loops flotan alrededor del anillo**:
+  - Nacen y se quedan en una **banda orbital** `[r + 36, r + 36 + max(70, 0,55·r)]`, con un muelle hacia la banda y un **giro lento**. Fuera de la banda (p. ej. loops restaurados) vuelven más deprisa.
+  - `spawnPoint` elige el punto de la órbita más alejado de los demás que quepa en pantalla, y solo si no cabe ninguno usa la rejilla general.
+  - Anillo: radio `min(27 % del ancho, 20 % del alto, 230 px)`.
+- **Tocar una bola resalta sus puntos en el anillo**: más grandes y con borde blanco, mientras el resto se atenúa. Dura mientras se pulsa y 1,5 s después.
+- **Centrado**: Play, ⋯ y el estilo se posicionan con estilos en línea (sin clases arbitrarias de Tailwind), como el escenario. En ⋯ → diagnóstico hay una línea "pantalla" con la ventana, el escenario, el tamaño del documento y la posición del anillo, para diagnosticar cualquier descentrado en tu equipo.

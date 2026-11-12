@@ -17,6 +17,7 @@ watchEffect(() => engine.setLatency((calibration.data.value?.latency?.ms ?? 0) /
 const settingsOpen = ref(false)
 const stage = ref<InstanceType<typeof VisualStage> | null>(null)
 const renderer = computed(() => stage.value?.rendererName ?? '')
+const layoutInfo = () => stage.value?.layoutInfo() ?? ''
 
 const STYLE_SHORT: Record<StyleId, string> = { hiphop90: 'hip hop', house: 'house', dnb: 'dnb' }
 
@@ -32,7 +33,8 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
   <VisualStage ref="stage">
     <!-- estilo -->
     <nav
-      class="absolute top-[max(0.75rem,env(safe-area-inset-top))] left-1/2 flex -translate-x-1/2 gap-3 text-xs tracking-wide"
+      class="flex gap-3 text-xs tracking-wide"
+      style="position: absolute; top: max(0.75rem, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%)"
       @pointerdown.stop
     >
       <button
@@ -48,7 +50,8 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
 
     <!-- ajustes -->
     <button
-      class="absolute top-[max(0.5rem,env(safe-area-inset-top))] right-2 flex h-11 w-11 items-center justify-center text-white/50"
+      class="flex items-center justify-center text-white/50"
+      style="position: absolute; top: max(0.5rem, env(safe-area-inset-top)); right: 0.5rem; width: 44px; height: 44px"
       aria-label="ajustes"
       @pointerdown.stop
       @click="settingsOpen = true"
@@ -62,7 +65,8 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
 
     <!-- play / stop -->
     <button
-      class="absolute bottom-[max(1.5rem,env(safe-area-inset-bottom))] left-1/2 flex h-16 w-16 -translate-x-1/2 items-center justify-center rounded-full border border-white/25 text-white transition active:scale-95"
+      class="flex items-center justify-center rounded-full border border-white/25 text-white transition-[background] active:bg-white/10"
+      style="position: absolute; bottom: max(1.5rem, env(safe-area-inset-bottom)); left: 50%; width: 64px; height: 64px; transform: translateX(-50%)"
       :aria-label="playing ? 'parar' : 'tocar'"
       @pointerdown.stop
       @click="playing ? engine.stop() : engine.play()"
@@ -76,5 +80,5 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
     </button>
   </VisualStage>
 
-  <SettingsSheet v-model:open="settingsOpen" :renderer="renderer" @recalibrate="(w) => emit('recalibrate', w)" />
+  <SettingsSheet v-model:open="settingsOpen" :renderer="renderer" :layout="layoutInfo" @recalibrate="(w) => emit('recalibrate', w)" />
 </template>
