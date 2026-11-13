@@ -1,3 +1,4 @@
+import type { BassPattern } from './bass'
 import type { Instrument, StyleId } from './types'
 
 /** 16 pesos (0..1) por paso: cuánto "atrae" cada paso a un golpe de ese instrumento. */
@@ -9,10 +10,11 @@ export interface StyleMusic {
   /** patrón típico (16 tokens) cuando la frase tiene un solo golpe de ese instrumento */
   templates: Record<Instrument, string>
   /**
-   * Fondo musical: líneas Strudel literales (sin coma final ni orbit). El generador añade
-   * `.orbit(2)` al bajo y `.orbit(3)` a los acordes; lo que va en `chords` entra y sale con ellos.
+   * Fondo musical. El bajo, como datos (spec 003, E1.3; `bassCode` genera su línea). Los acordes,
+   * líneas Strudel literales (sin coma final ni orbit). El generador añade `.orbit(2)` al bajo y
+   * `.orbit(3)` a los acordes; lo que va en `chords` entra y sale con ellos.
    */
-  background: { bass: string[]; chords: string[] }
+  background: { bass: BassPattern; chords: string[] }
 }
 
 /** Construye un prior: `base` en todos los pasos y los pesos indicados en algunos. */
@@ -35,7 +37,15 @@ export const STYLE_MUSIC: Record<StyleId, StyleMusic> = {
     },
     templates: { bd: 'bd ~ ~ ~ ~ ~ ~ ~ bd ~ bd ~ ~ ~ ~ ~', sd: BACKBEAT, hh: HH_EIGHTHS },
     background: {
-      bass: ['note("<a1 d2>").s("triangle").lpf(600).gain(0.7)'],
+      // note("<a1 d2>")
+      bass: {
+        bars: 2,
+        notes: [
+          { pos: 0, dur: 16, note: 'a1' },
+          { pos: 16, dur: 16, note: 'd2' },
+        ],
+        sound: '.s("triangle").lpf(600).gain(0.7)',
+      },
       chords: ['note("<[a3,c4,e4,g4] [d3,f3,a3,c4]>").s("triangle").lpf(2000).room(0.4).gain(0.22)'],
     },
   },
@@ -52,7 +62,17 @@ export const STYLE_MUSIC: Record<StyleId, StyleMusic> = {
       hh: '~ ~ hh ~ ~ ~ hh ~ ~ ~ hh ~ ~ ~ hh ~',
     },
     background: {
-      bass: ['note("<[~ f1 ~ f1] [~ bb0 ~ bb0]>").s("sawtooth").lpf(500).lpenv(2).decay(0.15).sustain(0).gain(0.6)'],
+      // note("<[~ f1 ~ f1] [~ bb0 ~ bb0]>")
+      bass: {
+        bars: 2,
+        notes: [
+          { pos: 4, dur: 4, note: 'f1' },
+          { pos: 12, dur: 4, note: 'f1' },
+          { pos: 20, dur: 4, note: 'bb0' },
+          { pos: 28, dur: 4, note: 'bb0' },
+        ],
+        sound: '.s("sawtooth").lpf(500).lpenv(2).decay(0.15).sustain(0).gain(0.6)',
+      },
       chords: [
         'note("<[f3,ab3,c4,eb4] [bb2,db3,f3,ab3]>").struct("~ x ~ x").s("supersaw").decay(0.2).sustain(0).room(0.3).gain(0.22)',
       ],
@@ -68,7 +88,17 @@ export const STYLE_MUSIC: Record<StyleId, StyleMusic> = {
     templates: { bd: 'bd ~ ~ ~ ~ ~ ~ ~ ~ ~ bd ~ ~ ~ ~ ~', sd: BACKBEAT, hh: HH_EIGHTHS },
     background: {
       // el fondo de tu primer reel (§16.15): líneas literales
-      bass: ['note("<d1 d1 f1 c1>").s("sawtooth").lpf(400).distort(0.3)'],
+      // note("<d1 d1 f1 c1>")
+      bass: {
+        bars: 4,
+        notes: [
+          { pos: 0, dur: 16, note: 'd1' },
+          { pos: 16, dur: 16, note: 'd1' },
+          { pos: 32, dur: 16, note: 'f1' },
+          { pos: 48, dur: 16, note: 'c1' },
+        ],
+        sound: '.s("sawtooth").lpf(400).distort(0.3)',
+      },
       chords: [
         'note("<[d3,f3,a3] [d3,f3,a3] [f3,a3,c4] [c3,e3,g3]>").s("triangle").room(0.6).gain(0.3)',
         's("[~ oh]*4").gain(0.25)',

@@ -53,7 +53,8 @@ export function createWaterCanvas2D(): VisualTheme {
     },
     beat(e) {
       glow = { x: e.x, y: e.y, amp: e.downbeat ? 0.16 : 0.07, born: now() }
-      add({ x: e.x, y: e.y, rgb: [1, 1, 1], amp: e.downbeat ? 0.5 : 0.18, speed: 140, life: e.downbeat ? 2.2 : 1.4 })
+      // algo más flojo que antes: el aro lleva el tiempo (spec 003, E1.1)
+      add({ x: e.x, y: e.y, rgb: [1, 1, 1], amp: e.downbeat ? 0.35 : 0.12, speed: 140, life: e.downbeat ? 2.2 : 1.4 })
     },
     hit(e) {
       const rgb = INSTRUMENT_RGB[e.instrument]

@@ -249,7 +249,8 @@ export function createWaterWebGL2(): VisualTheme | null {
       allocate()
     },
     beat(e) {
-      push(e.x, e.y, e.downbeat ? 24 : 14, e.downbeat ? 0.7 : 0.22, maskOf('neutral'))
+      // algo más flojo que antes: el aro lleva el tiempo (spec 003, E1.1)
+      push(e.x, e.y, e.downbeat ? 24 : 14, e.downbeat ? 0.5 : 0.15, maskOf('neutral'))
     },
     hit(e) {
       const m = maskOf(e.instrument)

@@ -5,11 +5,13 @@
 import { allWeights, stepWeights, type Weights } from '~/lib/aro/bands'
 import type { DropGeo } from '~/lib/aro/shape'
 import type { Part } from '~/lib/background'
+import { notesInBar } from '~/lib/bass'
 import { STYLES } from '~/lib/constants'
 import { spawnPoint, stepDrift, type Body, type DriftBounds } from '~/lib/drift'
 import { loopBarAt } from '~/lib/freeLoops'
 import { dragValue, lockAxis, type Axis } from '~/lib/gestures'
 import { VOICE_HEX } from '~/lib/palette'
+import { STYLE_MUSIC } from '~/lib/styles'
 import type { Instrument } from '~/lib/types'
 import { DEFAULT_THEME, themeById } from '~/themes'
 import type { VisualTheme } from '~/themes/types'
@@ -79,6 +81,9 @@ const ringDots = computed<AroDot[]>(() => {
       out.push({ key: `${l.id}-${Math.round(h.pos * 100)}`, loopId: l.id, step, voice: l.instrument, muted: l.muted })
     }
   }
+  // el bajo del fondo: sus notas del compás que suena (rayitas; spec 003 §3)
+  for (const n of notesInBar(STYLE_MUSIC[style.value].background.bass, g))
+    out.push({ key: `bass-${n.pos}`, loopId: -1, step: n.pos, voice: 'bass', muted: false })
   return out
 })
 const phraseDots = computed(() =>
@@ -199,8 +204,9 @@ function onEngineVisual(h: Parameters<Parameters<typeof engine.onVisual>[0]>[0])
     return
   }
   if (h.kind !== 'hit') return
-  // fondo: la bola late
+  // fondo: la bola late; el bajo, además, suena en su franja del aro si se oye
   if (h.instrument === 'bass' || h.instrument === 'chords') {
+    if (h.instrument === 'bass' && bgParts.value.bass) aro?.lightVoice('bass', h.step ?? 0)
     const ball = bgBalls.value.find((b) => b.part === h.instrument)
     pulse(ballEls.get(h.instrument), h.instrument)
     if (ball) theme.hit({ kind: 'hit', time: h.time, loopId: null, instrument: h.instrument, x: ball.x, y: ball.y, strength: 0.3 })

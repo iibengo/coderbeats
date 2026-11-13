@@ -63,9 +63,12 @@ export function wallDistance(th: number, g: Pick<DropGeo, 'cx' | 'cy' | 'free'>)
   return Math.max(0, Math.min(dx, dy) - WALL_GAP)
 }
 
-/** Radio exterior de la gota en `th` en el instante `t` (s). `breath` = 0 la deja quieta. */
-export function outerRadius(th: number, g: DropGeo, t: number, breath = BREATH): number {
-  const r = g.R * (1 + breath * noise(th, 0, t))
+/**
+ * Radio exterior de la gota en `th` en el instante `t` (s). `breath` = 0 la deja quieta.
+ * `extra` (px) empuja el borde hacia fuera (latido del bombo) antes de la pared: nunca la cruza.
+ */
+export function outerRadius(th: number, g: DropGeo, t: number, breath = BREATH, extra = 0): number {
+  const r = g.R * (1 + breath * noise(th, 0, t)) + extra
   const wall = Math.max(g.core + 8, wallDistance(th, g))
   return Math.max(g.core + 8, smin(r, wall, WALL_SOFT))
 }
@@ -102,3 +105,23 @@ export function angleStep(th: number): number {
   const a = (((th + Math.PI / 2) % TAU) + TAU) % TAU
   return (a / TAU) * 16
 }
+
+/** Empujón del borde: un golpe en la superficie del agua en el ángulo `th`. */
+export interface Bump {
+  th: number
+  /** amplitud actual (px) */
+  a: number
+}
+
+/** Cuánto empujan los golpes el borde en `th` (campana estrecha alrededor de cada golpe). */
+export function bumpAt(th: number, bumps: readonly Bump[]): number {
+  let s = 0
+  for (const b of bumps) {
+    const d = ((th - b.th + Math.PI * 3) % TAU) - Math.PI
+    s += b.a * Math.exp(-d * d * 6)
+  }
+  return s
+}
+
+/** Amplitud de un empujón a los `p` (0..1) de su vida: sube y se apaga. */
+export const bumpEnvelope = (p: number): number => (p <= 0 || p >= 1 ? 0 : Math.sin(p * Math.PI) * (1 - p))

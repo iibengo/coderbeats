@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { allWeights, bandAt, bandLayout, bandMid, stepWeights, BAND_ORDER } from '../../app/lib/aro/bands'
 import {
   angleStep,
+  bumpAt,
+  bumpEnvelope,
   locate,
   outerRadius,
   pointAt,
@@ -136,5 +138,22 @@ describe('franjas', () => {
     for (let i = 0; i < 120; i++) c = stepWeights(c, to, 1 / 60)
     expect(c.bass).toBe(1)
     expect(stepWeights(from, to, 1 / 60, true).bass).toBe(1)
+  })
+})
+
+describe('latido del bombo en el borde', () => {
+  it('empuja solo cerca de su ángulo y nunca hace cruzar la pared', () => {
+    const bumps = [{ th: 0, a: 9 }]
+    expect(bumpAt(0, bumps)).toBeCloseTo(9)
+    expect(bumpAt(Math.PI, bumps)).toBeLessThan(0.01)
+    expect(bumpAt(TAU - 0.01, bumps)).toBeGreaterThan(8) // da la vuelta
+    const pressed = { ...phone, R: 400 }
+    expect(outerRadius(0, pressed, 0, 0, 9)).toBeLessThanOrEqual(wallDistance(0, pressed))
+    expect(outerRadius(0, phone, 0, 0, 9)).toBeGreaterThan(outerRadius(0, phone, 0, 0))
+  })
+  it('la envolvente sube, baja y termina en cero', () => {
+    expect(bumpEnvelope(0)).toBe(0)
+    expect(bumpEnvelope(0.3)).toBeGreaterThan(0.4)
+    expect(bumpEnvelope(1)).toBe(0)
   })
 })
