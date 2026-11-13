@@ -36,8 +36,9 @@ export function relativeVolume(rms: number, instrument: Instrument | 'unknown', 
 /**
  * Umbral de volumen (E4.5, activado en la enmienda 5): un golpe por debajo de esta fracción del
  * volumen de tus golpes de calibración se descarta como ruido y sale en el registro como "flojo".
+ * El 15 % sale del registro: platillos reales con vol 0,21–0,31 y ruido de fondo con 0,02–0,12.
  */
-export const MIN_HIT_VOLUME = 0.3
+export const MIN_HIT_VOLUME = 0.15
 
 /** ¿Es un golpe demasiado flojo para contar? Sin calibración (`null`) no se descarta nada. */
 export const isTooQuiet = (vol: number | null | undefined, min = MIN_HIT_VOLUME): boolean => typeof vol === 'number' && vol < min

@@ -306,7 +306,7 @@ Un sonido de un carril apagado **se ignora, no se reasigna**. La primera versió
 - Sustituye a la reserva de E1.1 (pregunta 2), que guardaba ese gesto para silenciar desde el aro. Silenciar sigue en la bola.
 
 ### E4.5 Umbral de volumen (solo si E4.0 dice que es ruido)
-- Un golpe por debajo de una fracción del volumen de tus golpes de calibración (de partida, un 30 %) se descarta y sale en el registro como "flojo".
+- Un golpe por debajo de una fracción del volumen de tus golpes de calibración (de partida, un 30 %; ajustado al 15 % en E5.2) se descarta y sale en el registro como "flojo".
 - Ajustable en ⋯ ("Sensibilidad: alta · media · baja") si hace falta. El valor de partida se decide con tu registro.
 
 ### E4.6 Lógica y tests
@@ -339,9 +339,11 @@ golpes con el dedo) al que se le añade un golpe suelto en medio. Esa combinaci�
 ### E5.2 Umbral de volumen activo (E4.5)
 - El registro confirma ruido de fondo flojo (vol 0,02–0,12) que hoy solo se ignora porque esos
   carriles están apagados.
-- Se activa el umbral con el **30 %** propuesto: un golpe por debajo de 0,30 del volumen de tu
-  calibración se descarta y sale en el registro como "flojo: descartado".
+- Se activa el umbral con el **15 %**: un golpe por debajo de 0,15 del volumen de tu calibración se
+  descarta y sale en el registro como "flojo: descartado". El 30 % propuesto en E4.5 era demasiado alto:
+  en el registro, platillos reales salían con vol 0,21–0,31 y el ruido, con 0,02–0,12; el 15 % queda
+  entre los dos.
 - Sin calibración (sin volumen relativo) no se descarta nada.
-- El ajuste "Sensibilidad" en ⋯ queda para cuando haga falta: con el 30 % no se ha visto que haga falta.
+- El ajuste "Sensibilidad" en ⋯ queda para cuando haga falta: con el 15 % no se ha visto que haga falta.
 - `isTooQuiet` y `MIN_HIT_VOLUME` en `lib/volume.ts`, con tests.
 

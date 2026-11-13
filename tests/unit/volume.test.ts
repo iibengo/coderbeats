@@ -31,13 +31,13 @@ describe('volumen relativo a la calibración (E4.0)', () => {
   })
 })
 
-describe('umbral de volumen (E4.5, 30 %)', () => {
-  it('el umbral de partida es el 30 % del volumen de tus golpes', () => {
-    expect(MIN_HIT_VOLUME).toBe(0.3)
+describe('umbral de volumen (E4.5, 15 %)', () => {
+  it('el umbral de partida es el 15 % del volumen de tus golpes', () => {
+    expect(MIN_HIT_VOLUME).toBe(0.15)
   })
-  it('el ruido del registro (vol 0,02–0,12) se descarta; tus golpes, no', () => {
-    for (const v of [0.02, 0.05, 0.12, 0.29]) expect(isTooQuiet(v)).toBe(true)
-    for (const v of [0.3, 0.45, 1, 1.8]) expect(isTooQuiet(v)).toBe(false)
+  it('el ruido del registro (vol 0,02–0,12) se descarta; los platillos reales (0,21–0,31) y tus golpes, no', () => {
+    for (const v of [0.02, 0.05, 0.12, 0.149]) expect(isTooQuiet(v)).toBe(true)
+    for (const v of [0.15, 0.21, 0.25, 0.31, 0.45, 1, 1.8]) expect(isTooQuiet(v)).toBe(false)
   })
   it('sin calibración (sin volumen) no se descarta nada', () => {
     expect(isTooQuiet(null)).toBe(false)
