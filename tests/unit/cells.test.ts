@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   advance,
+  endBar,
+  stepPlay,
+  type Play,
   demoSong,
   emptySong,
   fitTurns,
@@ -220,3 +223,63 @@ describe('cells: código', () => {
     expect(code).not.toContain('.orbit(2)')
   })
 })
+
+describe('cells: bucle y saltos', () => {
+  const demo = demoSong('dnb')!
+  const ids = demo.order
+  const play = (o: Partial<Play> = {}): Play => ({ cursor: { cellId: ids[0]!, startBar: 0 }, loop: false, jump: null, ...o })
+
+  it('en bucle el cursor no avanza nunca y su tramo no tiene final', () => {
+    const p = stepPlay(demo, play({ loop: true }), 100)
+    expect(p.cursor).toEqual({ cellId: ids[0], startBar: 0 })
+    expect(windowAt(demo, p.cursor, { loop: true })).toEqual([{ cellId: ids[0], from: 0, to: null }])
+    expect(endBar(demo, p)).toBe(Infinity)
+  })
+
+  it('salto a bucle: hasta el compás del salto sigue la célula; desde él, la otra sin final', () => {
+    const jump = { cellId: ids[2]!, startBar: 3, loop: true }
+    const p = play({ jump })
+    expect(windowAt(demo, p.cursor, { jump })).toEqual([
+      { cellId: ids[0], from: 0, to: 3 },
+      { cellId: ids[2], from: 3, to: null },
+    ])
+    expect(endBar(demo, p)).toBe(3)
+    expect(stepPlay(demo, p, 2)).toBe(p)
+    const at = stepPlay(demo, p, 3)
+    expect(at).toEqual({ cursor: { cellId: ids[2], startBar: 3 }, loop: true, jump: null })
+    expect(stepPlay(demo, at, 40).cursor).toEqual({ cellId: ids[2], startBar: 3 })
+  })
+
+  it('el salto gana si cae justo en la línea donde acaba la célula', () => {
+    const jump = { cellId: ids[3]!, startBar: 4, loop: true }
+    expect(stepPlay(demo, play({ jump }), 4).cursor).toEqual({ cellId: ids[3], startBar: 4 })
+  })
+
+  it('seguir: la célula en bucle vuelve a empezar y la canción sigue desde ahí', () => {
+    const looping = play({ cursor: { cellId: ids[1]!, startBar: 4 }, loop: true })
+    const jump = { cellId: ids[1]!, startBar: 15, loop: false }
+    const next = stepPlay(demo, { ...looping, jump }, 15)
+    expect(next).toEqual({ cursor: { cellId: ids[1], startBar: 15 }, loop: false, jump: null })
+    // le toca terminar sus vueltas desde ahí (4), y luego sigue el drop
+    expect(stepPlay(demo, next, 19).cursor).toEqual({ cellId: ids[2], startBar: 19 })
+    expect(windowAt(demo, looping.cursor, { jump })[1]).toEqual({ cellId: ids[1], from: 15, to: 19 })
+  })
+
+  it('una canción de una célula no cambia con bucle ni saltos', () => {
+    const one = emptySong()
+    const p: Play = { cursor: { cellId: 1, startBar: 0 }, loop: false, jump: null }
+    expect(stepPlay(one, p, 50)).toBe(p)
+    expect(windowAt(one, p.cursor, { loop: true })).toEqual(windowAt(one, p.cursor))
+    expect(endBar(one, p)).toBe(Infinity)
+  })
+
+  it('el código del motor en bucle lleva solo esa célula, sin límite final', () => {
+    const code = songCode(withSongLoop(demo, { cellId: ids[2]!, startBar: 8 }), 'engine')
+    expect(code).toContain('h.whole.begin >= 8)')
+    expect(code).not.toContain('&&')
+  })
+})
+
+function withSongLoop(song: Song, cursor: Cursor): SongState {
+  return base({ cells: { list: song.cells, order: song.order, window: windowAt(song, cursor, { loop: true }) } })
+}

@@ -7,6 +7,7 @@ import { allWeights, stepWeights, type Weights } from '~/lib/aro/bands'
 import { stepAngle, type DropGeo } from '~/lib/aro/shape'
 import { dropAction } from '~/lib/aro/drop'
 import { suggestions } from '~/lib/aro/guide'
+import { edgeMarkers } from '~/lib/aro/markers'
 import { transitionAt } from '~/lib/aro/transition'
 import { clampZoom, contourPoints, dropLayout, freeRect, lerpGeo, moveGeo, pinchZoom, stretchOf, wheelZoom, zoomLimits, type Insets } from '~/lib/aro/zoom'
 import type { Part } from '~/lib/background'
@@ -28,7 +29,7 @@ import { AroCanvas, type AroDot, type AroFrame } from './AroCanvas'
 
 const props = withDefaults(defineProps<{ themeId?: string }>(), { themeId: DEFAULT_THEME })
 const engine = useAudioEngine()
-const { loops, playing, phrase, fx, bgParts, bgMode, bgManual, style, currentBar } = engine
+const { loops, playing, phrase, fx, bgParts, bgMode, bgManual, style, currentBar, looping } = engine
 
 const root = ref<HTMLElement | null>(null)
 const canvasHost = ref<HTMLElement | null>(null)
@@ -335,10 +336,13 @@ watch(engine.viewCellId, () => (cutAt = performance.now()))
  * Cámara y transición para este frame: dónde se dibuja la célula que suena y, si toca, la otra
  * gota, el puente y el estiramiento. Las células están en el mapa en radios de gota (§5.1).
  */
-function cellScene(base: DropGeo, pos: number): Pick<AroFrame, 'geo' | 'ghost' | 'bridge' | 'pull' | 'alpha'> {
+function cellScene(base: DropGeo, pos: number): Pick<AroFrame, 'geo' | 'ghost' | 'bridge' | 'pull' | 'alpha'> & { plan: ReturnType<typeof engine.cellPlan>; cam: { x: number; y: number } } {
   const alpha = reduced && playing.value ? Math.min(1, (performance.now() - cutAt) / CUT_FADE_MS) : 1
   const plan = engine.cellPlan()
-  if (!plan) return { geo: base, alpha }
+  if (!plan) {
+    const here = engine.song.value.cells.find((c) => c.id === engine.viewCellId.value)
+    return { geo: base, alpha, plan, cam: { x: here?.at.x ?? 0, y: here?.at.y ?? 0 } }
+  }
   const spot = (c: Cell) => ({ id: c.id, x: c.at.x, y: c.at.y })
   const tr = transitionAt(pos, { cur: spot(plan.cur), start: plan.start, end: plan.end, next: spot(plan.next), prev: plan.prev && spot(plan.prev) }, reduced)
   const place = (c: Cell) => moveGeo(base, (c.at.x - tr.cam.x) * base.R, (c.at.y - tr.cam.y) * base.R)
@@ -360,7 +364,47 @@ function cellScene(base: DropGeo, pos: number): Pick<AroFrame, 'geo' | 'ghost' |
     tr.pull > 0
       ? { th: Math.atan2(plan.next.at.y - plan.cur.at.y, plan.next.at.x - plan.cur.at.x), a: tr.pull * PULL_MAX * base.R }
       : null
-  return { geo: place(plan.cur), ghost, bridge, pull, alpha }
+  return { geo: place(plan.cur), ghost, bridge, pull, alpha, plan, cam: tr.cam }
+}
+
+// ── chapa de vueltas y marcadores del borde (spec 005, §5.3 y §6) ────────────────
+/** chapa: gotita pegada al borde, arriba, donde empieza la aguja */
+const chapaEl = ref<HTMLElement | null>(null)
+const chapa = ref({ show: false, turn: 0, turns: 1, loop: false })
+function updateChapa(plan: ReturnType<typeof engine.cellPlan>, pos: number) {
+  const edge = plan && aro?.edgePoint(-Math.PI / 2)
+  if (!plan || !edge || !chapaEl.value) {
+    if (chapa.value.show) chapa.value = { ...chapa.value, show: false }
+    return
+  }
+  const turns = plan.cur.turns
+  const k = Math.floor(pos - plan.start)
+  const turn = plan.loop ? ((k % turns) + turns) % turns : Math.min(turns - 1, Math.max(0, k))
+  const c = chapa.value
+  if (!c.show || c.turn !== turn || c.turns !== turns || c.loop !== plan.loop) chapa.value = { show: true, turn, turns, loop: plan.loop }
+  // pegada al borde por fuera, sin tapar golpes; nunca bajo la muesca
+  const y = Math.max(edge.y - 17, safe.top + 18)
+  chapaEl.value.style.transform = `translate(${edge.x}px, ${y}px) translate(-50%, -50%)`
+}
+
+/** una célula por marcador; solo las que no se ven (todas menos la que se ve) */
+const markerCells = computed(() => (engine.multi.value ? engine.song.value.cells.filter((c) => c.id !== engine.viewCellId.value) : []))
+const markerEls = new Map<number, HTMLElement>()
+const setMarker = (id: number) => (el: Element | ComponentPublicInstance | null) => {
+  if (el instanceof HTMLElement) markerEls.set(id, el)
+  else markerEls.delete(id)
+}
+function updateMarkers(base: DropGeo, cam: { x: number; y: number }, nextId: number | null) {
+  if (!markerCells.value.length) return
+  const items = markerCells.value.map((c) => ({ id: c.id, dx: (c.at.x - cam.x) * base.R, dy: (c.at.y - cam.y) * base.R }))
+  for (const m of edgeMarkers(base.free, items, nextId)) {
+    const el = markerEls.get(m.id)
+    if (!el) continue
+    const lead = m.leader === m.id
+    el.style.display = lead ? '' : 'none'
+    el.dataset.next = String(m.next)
+    el.style.transform = `translate(${m.x}px, ${m.y}px) translate(-50%, -50%) scale(${m.count > 1 ? 1.3 : 1})`
+  }
 }
 
 // ── bucle rAF ────────────────────────────────────────────────────────────────────
@@ -461,7 +505,8 @@ function tick() {
   }
   if (aro) {
     weights = stepWeights(weights, targetWeights.value, dt, reduced)
-    const scene = cellScene(geo!, clock.bar + clock.barPhase)
+    const { plan, cam, ...scene } = cellScene(geo!, clock.bar + clock.barPhase)
+    updateMarkers(geo!, cam, plan ? plan.next.id : null)
     const f: AroFrame = {
       wall: t,
       ...scene,
@@ -483,6 +528,7 @@ function tick() {
       ...(compact.value ? { contour: contourPoints(stretchOf(scene.geo)) } : {}),
     }
     aro.draw(f)
+    updateChapa(plan, clock.bar + clock.barPhase)
   }
   frameMs.push(performance.now() - t0)
   if (frameMs.length >= 120) {
@@ -696,12 +742,35 @@ function tapCreate(x: number, y: number) {
   aro.spawn(dotKey(r.hit.loopId, r.hit.pos), sug ? stepAngle(sug.step) : w.th)
 }
 
+// ── bucle al tocar el aro (spec 005, §4.1) ───────────────────────────────────────
+// Tocar el aro de la célula que suena la deja en bucle. Un instante después de apoyar el dedo, y
+// solo si sigue siendo uno (con dos dedos es filtro, espacio o zoom); si lo sueltas antes, al soltar.
+const LOOP_DELAY_MS = 120
+let loopTimer: ReturnType<typeof setTimeout> | null = null
+function disarmLoop() {
+  if (loopTimer) clearTimeout(loopTimer)
+  loopTimer = null
+}
+function armLoop() {
+  disarmLoop()
+  loopTimer = setTimeout(() => {
+    loopTimer = null
+    if (pointers.size === 1) engine.loopHere()
+  }, LOOP_DELAY_MS)
+}
+function loopNow() {
+  if (!loopTimer) return
+  disarmLoop()
+  engine.loopHere()
+}
+
 function onDown(e: PointerEvent) {
   ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
   pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY })
   const mouse = e.pointerType === 'mouse'
   if (!mouse && pointers.size === 2) {
     // entra el segundo dedo: lo que hiciera el primero se deshace
+    disarmLoop()
     cancelAroDrag()
     const { c, d } = twoPoints()
     gesture = { kind: 'two', t: performance.now(), c0: c, d0: d, mode: null, axis: null, filter: fx.filter, space: fx.space, z0: zoomNow() }
@@ -713,6 +782,7 @@ function onDown(e: PointerEvent) {
   const dot = aro?.pick(x, y)
   if (dot) {
     editBar.value = shownBar()
+    armLoop()
     gesture = { kind: 'aro-drag', id: e.pointerId, dot }
     aro!.setDrag(dot.key, x, y)
     return
@@ -722,6 +792,7 @@ function onDown(e: PointerEvent) {
   if (inside) {
     const lane = w && isDrum(w.voice) ? w.voice : null
     gesture = { kind: 'aro-tap', id: e.pointerId, x0: x, y0: y, t: performance.now(), moved: false, lane, held: false }
+    armLoop()
   }
   else if (mouse) gesture = { kind: 'fx', id: e.pointerId, x0: x, y0: y, filter: fx.filter, space: fx.space, axis: null }
   else gesture = null
@@ -801,6 +872,10 @@ function applyFx(axis: Axis, filter: number, space: number, dx: number, dy: numb
 function onUp(e: PointerEvent, cancelled = false) {
   const p = pointers.get(e.pointerId)
   const gs = gesture
+  if ((gs?.kind === 'aro-drag' || gs?.kind === 'aro-tap') && gs.id === e.pointerId) {
+    if (cancelled || pointers.size > 1) disarmLoop()
+    else loopNow()
+  }
   if (gs?.kind === 'aro-drag' && gs.id === e.pointerId) {
     if (cancelled || !p) cancelAroDrag()
     else dropDot(gs.dot, p.x, p.y)
@@ -879,6 +954,36 @@ defineExpose({ rendererName, layoutInfo })
       :style="{ top: `${drag.y}px` }"
     />
 
+    <!-- marcadores del borde (spec 005, §5.3): cada célula que no se ve; tocar uno viaja a ella, en bucle -->
+    <button
+      v-for="c in markerCells"
+      :key="c.id"
+      :ref="setMarker(c.id)"
+      class="marker absolute top-0 left-0 rounded-full"
+      :aria-label="`ir a la célula ${c.name ?? c.id}`"
+      @pointerdown.stop
+      @click="engine.travelTo(c.id)"
+    />
+
+    <!-- chapa de vueltas (spec 005, §6): vuelta en la que va; tocarla deja la célula en bucle, y en bucle sigue la canción -->
+    <button
+      v-show="chapa.show"
+      ref="chapaEl"
+      class="chapa absolute top-0 left-0"
+      :data-loop="chapa.loop"
+      :aria-label="chapa.loop ? 'seguir con la canción' : `vuelta ${chapa.turn + 1} de ${chapa.turns}: tocar para dejarla en bucle`"
+      @pointerdown.stop
+      @click="chapa.loop ? engine.resume() : engine.loopHere()"
+    >
+      <template v-if="chapa.loop">
+        <span class="chapa-inf">∞</span>
+        <span>▶ seguir</span>
+      </template>
+      <span v-else class="chapa-dots" :style="{ '--cols': Math.min(4, chapa.turns) }">
+        <i v-for="i in chapa.turns" :key="i" :class="{ on: i - 1 <= chapa.turn }" />
+      </span>
+    </button>
+
     <!-- bolas del fondo (modo manual, §16.17) -->
     <template v-if="bgMode === 'manual'">
       <button
@@ -925,6 +1030,69 @@ defineExpose({ rendererName, layoutInfo })
 </template>
 
 <style scoped>
+/* marcador del borde: puntito de 8 px con zona de toque de 40 */
+.marker {
+  width: 8px;
+  height: 8px;
+  background: rgb(255 255 255 / 0.35);
+  will-change: transform;
+}
+.marker::after {
+  content: '';
+  position: absolute;
+  inset: -16px;
+  border-radius: 9999px;
+}
+.marker[data-next='true'] {
+  background: #f496bc;
+  box-shadow: 0 0 10px rgb(244 150 188 / 0.6);
+}
+/* chapa de vueltas: gotita pegada al borde, arriba */
+.chapa {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 44px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 9999px;
+  border: 1px solid rgb(255 255 255 / 0.3);
+  background: rgb(255 255 255 / 0.07);
+  color: rgb(255 255 255 / 0.8);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  will-change: transform;
+}
+.chapa::after {
+  content: '';
+  position: absolute;
+  inset: -9px;
+  border-radius: 9999px;
+}
+.chapa[data-loop='true'] {
+  border-color: #f496bc;
+  color: #f496bc;
+}
+.chapa-inf {
+  font-size: 13px;
+  line-height: 1;
+}
+.chapa-dots {
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 4), 6px);
+  gap: 4px;
+}
+.chapa-dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  border: 1px solid rgb(255 255 255 / 0.6);
+}
+.chapa-dots i.on {
+  background: rgb(255 255 255 / 0.9);
+}
 /* zona de toque de 40 px aunque la bola mida 22 */
 .loop-ball::after {
   content: '';

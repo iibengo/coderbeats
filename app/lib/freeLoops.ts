@@ -52,6 +52,8 @@ export interface BirthOptions {
   quantizeEvery: 1 | 2
   /** compás global en el que nace (el siguiente al cierre) */
   bornAt: number
+  /** compás global en el que empezó la célula en la que se graba (spec 005); 0 = canción de una célula */
+  cellStart?: number
   /** qué hacer si el instrumento ya tiene loop (por defecto, completar: §16.21) */
   repeat?: RepeatMode
   /**
@@ -93,7 +95,7 @@ export function candidatesFromPhrase(phrase: ClosedPhrase, o: BirthOptions): Can
   for (const h of phrase.hits) byInst.set(h.instrument, [...(byInst.get(h.instrument) ?? []), h])
   const out: Candidate[] = []
   for (const [instrument, hits] of byInst) {
-    const base = { instrument, bars: phrase.bars, phaseBar: phrase.startBar, muted: false, bornAt: o.bornAt }
+    const base = { instrument, bars: phrase.bars, phaseBar: phrase.startBar - (o.cellStart ?? 0), muted: false, bornAt: o.bornAt }
     if (!o.assist) {
       const exact = hits.map((h) => ({ pos: mod(h.globalStep - phrase.startBar * 16, total), strength: h.strength }))
       out.push({ ...base, hits: exact.sort((a, b) => a.pos - b.pos), fromTemplate: false })

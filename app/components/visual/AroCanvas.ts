@@ -322,6 +322,15 @@ export class AroCanvas {
     this.pops.push({ x: px, y: py, voice, born: performance.now() / 1000 })
   }
 
+  /** Punto del borde exterior en el ángulo `th`, en pantalla (donde se pega la chapa de vueltas). */
+  edgePoint(th: number): { x: number; y: number } | null {
+    const L = this.last
+    if (!L || !this.ro.length) return null
+    const r = this.roAt(th)
+    const [sx, sy] = toScreen(L.geo.cx + Math.cos(th) * r, L.geo.cy + Math.sin(th) * r, this.view, L.geo.cx, L.geo.cy)
+    return { x: sx, y: sy }
+  }
+
   /** Posición (px CSS) de un paso en el centro de la franja de una voz. */
   pointOf(voice: Voice, step: number): { x: number; y: number } {
     const L = this.last

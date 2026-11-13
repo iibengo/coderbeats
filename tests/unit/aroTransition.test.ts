@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { edgeMarkers, MARKER_PAD } from '../../app/lib/aro/markers'
 import { bridgeHalfWidth, gapBetween, NEXT_ALPHA, transitionAt, type CellPlan } from '../../app/lib/aro/transition'
 import { DJF_OPEN, SWEEP_DJF, sweepDjf } from '../../app/lib/gestures'
 
@@ -76,5 +77,28 @@ describe('barrido de filtro', () => {
     expect(sweepDjf(0.5, DJF_OPEN)).toBe(0.56)
     expect(sweepDjf(1, DJF_OPEN)).toBe(SWEEP_DJF)
     expect(sweepDjf(1, 0.3)).toBe(0.3)
+  })
+})
+
+describe('marcadores del borde', () => {
+  const free = { x0: 0, y0: 0, x1: 400, y1: 600 }
+  it('cada célula sale por el borde en su dirección, dentro del rectángulo', () => {
+    const [r, d] = edgeMarkers(free, [{ id: 2, dx: 900, dy: 0 }, { id: 3, dx: 0, dy: 900 }], null)
+    expect(r).toMatchObject({ x: 400 - MARKER_PAD, y: 300 })
+    expect(d).toMatchObject({ x: 200, y: 600 - MARKER_PAD })
+  })
+  it('la siguiente en sonar va en rosa y manda sobre las que se le juntan', () => {
+    const ms = edgeMarkers(free, [{ id: 2, dx: 900, dy: 0 }, { id: 3, dx: 900, dy: 20 }, { id: 4, dx: 900, dy: -400 }], 3)
+    const by = (id: number) => ms.find((m) => m.id === id)!
+    expect(by(3)).toMatchObject({ next: true, leader: 3, count: 2 })
+    expect(by(2)).toMatchObject({ leader: 3, count: 0, next: false })
+    expect(by(4).leader).toBe(4)
+  })
+  it('sin la siguiente, manda la más cercana', () => {
+    const ms = edgeMarkers(free, [{ id: 5, dx: 2000, dy: 0 }, { id: 6, dx: 800, dy: 0 }], null)
+    expect(ms.find((m) => m.id === 5)!.leader).toBe(6)
+  })
+  it('una célula justo en el centro sale hacia la derecha', () => {
+    expect(edgeMarkers(free, [{ id: 7, dx: 0, dy: 0 }], null)[0]).toMatchObject({ x: 400 - MARKER_PAD, y: 300 })
   })
 })

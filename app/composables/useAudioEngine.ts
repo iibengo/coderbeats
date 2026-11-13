@@ -4,16 +4,19 @@ import { KIT_ORDER, KITS, STYLES } from '~/lib/constants'
 import { demoState } from '~/lib/demos'
 import { analyzeEchoTest, type EchoTestResult } from '~/lib/echoGate'
 import {
-  advance,
   cellById,
   demoSong,
   emptySong,
+  endBar,
   fitTurns,
   isMulti,
   nextInOrder,
+  stepPlay,
   windowAt,
   type Cell,
   type Cursor,
+  type Jump,
+  type Play,
   type Song,
 } from '~/lib/cells'
 import {
@@ -116,12 +119,22 @@ let dropActive = false
 let lastBirth: { startBar: number; bornAt: number } | null = null
 /** canción de varias células (spec 005): célula que suena y compás global en el que empezó */
 let cursor: Cursor | null = null
+/** estado bucle (§4.1): la célula del cursor se repite entera hasta "seguir" */
+let loop = false
+/** salto pendiente (marcador del borde o "seguir"): entra en su compás global */
+let jump: Jump | null = null
+/** salto ya hecho por el motor cuya célula aún no se ve (el reloj visual va con retraso): la transición lo sigue usando */
+let viewJump: Jump | null = null
 /** compás global en el que empezó la célula que se ve (el compás del aro se cuenta desde ahí) */
 let viewStartBar = 0
 /** célula que se veía antes de la actual (para apagarla en la transición); null al arrancar */
 let prevViewId: number | null = null
 /** barrido de filtro de la transición entre células, 0..1 (§4.3) */
 let sweep = 0
+/** lo que ve la interfaz: la célula está en bucle (o va a estarlo en la siguiente línea de compás) */
+const looping = ref(false)
+const syncLoopUi = () => (looping.value = loop || !!(jump ?? viewJump)?.loop)
+const curPlay = (): Play => ({ cursor: cursor!, loop, jump })
 const bgNodes: Partial<Record<Part, { lp: BiquadFilterNode; gain: GainNode }>> = {}
 const visualListeners = new Set<(h: VisualHit) => void>()
 
@@ -259,20 +272,34 @@ function onPulse(cycle: number, t: number) {
   const first = !tracker
   // canción: ¿empieza otra célula en este compás? (§4.2)
   let entered: Cursor | null = null
+  let consumed: Jump | null = null
   if (cursor && multi()) {
-    const next = advance(liveSong(), cursor, cycle)
-    if (next.cellId !== cursor.cellId || next.startBar !== cursor.startBar) {
-      cursor = next
-      entered = next
-      const cell = cellById(song.value, next.cellId)
-      log('cell', `suena ${cell?.name ?? `la célula ${next.cellId}`} (${cell?.turns ?? 1} vueltas) desde el compás ${next.startBar}`)
-      cutParts(cellParts(next.cellId), t)
+    const was = cursor
+    const next = stepPlay(liveSong(), curPlay(), cycle)
+    if (next.jump !== jump) consumed = jump
+    loop = next.loop
+    jump = next.jump
+    if (next.cursor.cellId !== was.cellId || next.cursor.startBar !== was.startBar) {
+      cursor = next.cursor
+      entered = next.cursor
+      if (consumed) viewJump = consumed
+      const cell = cellById(song.value, next.cursor.cellId)
+      log(
+        'cell',
+        `suena ${cell?.name ?? `la célula ${next.cursor.cellId}`} (${cell?.turns ?? 1} vueltas) desde el compás ${next.cursor.startBar}${loop ? ' · en bucle' : ''}`,
+      )
+      cutParts(cellParts(next.cursor.cellId), t)
       reevaluate()
     }
+    syncLoopUi()
   }
   if (cursor && multi()) scheduleSweep(cycle, t, barSec)
   later(() => {
     if (entered) showCell(entered.cellId, entered.startBar)
+    if (consumed && viewJump === consumed) {
+      viewJump = null
+      syncLoopUi()
+    }
     currentBar.value = cycle - viewStartBar
   }, (t + outputLatency() - c.currentTime) * 1000)
   if (!tracker) {
@@ -370,10 +397,8 @@ function showCell(id: number, startBar: number) {
  */
 function scheduleSweep(cycle: number, t: number, barSec: number) {
   const c = ctx
-  const cell = cursor && cellById(song.value, cursor.cellId)
-  if (!c || !cursor || !cell) return
-  const turns = cursor.cellId === viewCellId.value ? fitTurns(cell.turns, loops.value.loops) : cell.turns
-  if (cycle !== cursor.startBar + turns - 1) return
+  if (!c || !cursor) return
+  if (cycle !== endBar(liveSong(), curPlay()) - 1) return
   const from = t + barSec / 2 - 0.15
   const set = (k: number) => () => {
     sweep = k
@@ -429,7 +454,7 @@ function songState(): SongState {
   if (!multi()) return st
   const s = liveSong()
   const at = cursor ?? { cellId: viewCellId.value, startBar: 0 }
-  return { ...st, cells: { list: s.cells, order: s.order, window: windowAt(s, at) } }
+  return { ...st, cells: { list: s.cells, order: s.order, window: windowAt(s, at, { loop, jump }) } }
 }
 
 /** Reevalúa en la siguiente microtarea (agrupa varios cambios seguidos). */
@@ -549,6 +574,7 @@ function birth(phrase: ClosedPhrase, bornAt: number, amend = false) {
     style: style.value,
     quantizeEvery: STYLES[style.value].quantizeEvery,
     bornAt,
+    cellStart: cursor?.startBar ?? 0,
     repeat: repeatMode.value,
     amend,
   })
@@ -587,8 +613,8 @@ function onWorkerMessage(m: FromWorker) {
       uiMs,
     )
   if (!playing.value || !tracker) return log('stopped', `${m.instrument} sin loop en marcha`, uiMs)
-  // con varias células, en estado canción no se graba (spec 005, §4.4)
-  if (multi()) return log('unknown', `ignorado: canción avanzando (${m.instrument} ${(m.confidence * 100).toFixed(0)}%)`, uiMs)
+  // con varias células, en estado canción no se graba; en bucle, sí (spec 005, §4.4)
+  if (multi() && !loop) return log('unknown', `ignorado: canción avanzando (${m.instrument} ${(m.confidence * 100).toFixed(0)}%)`, uiMs)
   log('hit', `${m.instrument} ${(m.confidence * 100).toFixed(0)}%${fmtVolume(m.vol)}`, uiMs)
   const gs = tracker.globalStep(m.time - latencySec)
   const heard: VisualHit = {
@@ -750,6 +776,10 @@ export function useAudioEngine() {
     viewStartBar = 0
     prevViewId = null
     sweep = 0
+    loop = false
+    jump = null
+    viewJump = null
+    syncLoopUi()
     currentBar.value = 0
     clock = null
     tracker = null
@@ -783,6 +813,10 @@ export function useAudioEngine() {
     lastBirth = null
     cursor = null
     sweep = 0
+    loop = false
+    jump = null
+    viewJump = null
+    syncLoopUi()
     dropActive = false
     dropping.value = false
     plannedParts = { ...NO_PARTS }
@@ -987,18 +1021,78 @@ export function useAudioEngine() {
     return { time: t, bar: Math.floor(pos), barPhase: pos - Math.floor(pos) }
   }
 
+  /** Compás global más cercano al que se puede programar un salto: nunca uno cuyo pulso ya pasó. */
+  const jumpBar = () => Math.max(nextBarLine(), lastPulseCycle + 1)
+
+  /**
+   * Tocar el aro de la célula que suena la deja en bucle (§4.1). Si la transición ya está decidida
+   * (a menos de 0,3 s de la línea donde acaba), el bucle es de la célula que entra.
+   */
+  function loopHere() {
+    if (!playing.value || !cursor || !multi() || !ctx || !clock) return
+    if (jump) {
+      if (!jump.loop) jump = { ...jump, loop: true }
+    } else if (!loop) {
+      const s = liveSong()
+      const end = endBar(s, curPlay())
+      if (barTime(end) - ctx.currentTime < 0.3) jump = { cellId: nextInOrder(s, cursor.cellId), startBar: end, loop: true }
+      else loop = true
+    } else return
+    syncLoopUi()
+    log('cell', jump ? `bucle en la célula que entra, desde el compás ${jump.startBar}` : 'bucle en la célula que suena')
+    reevaluate()
+  }
+
+  /** "▶ seguir": la célula en bucle vuelve a empezar en la siguiente línea de compás y la canción sigue (§4.1). */
+  function resume() {
+    if (!playing.value || !cursor || !multi() || !ctx || !clock) return
+    if (jump) jump = { ...jump, loop: false }
+    else if (loop) jump = { cellId: cursor.cellId, startBar: jumpBar(), loop: false }
+    else return
+    syncLoopUi()
+    log('cell', `la canción sigue desde el compás ${jump.startBar}`)
+    reevaluate()
+  }
+
+  /**
+   * Viajar a una célula (marcador del borde o colonia): sonando, entra en la siguiente línea de
+   * compás y queda en bucle (§4.1); parado, solo pasa a verse.
+   */
+  function travelTo(id: number) {
+    if (!multi() || !cellById(song.value, id)) return
+    if (!playing.value || !cursor || !clock || !ctx) {
+      if (id !== viewCellId.value) showCell(id, 0)
+      return
+    }
+    if (!jump && id === cursor.cellId) return loopHere()
+    const end = endBar(liveSong(), curPlay())
+    jump = { cellId: id, startBar: jump ? jump.startBar : Math.min(jumpBar(), end), loop: true }
+    syncLoopUi()
+    log('cell', `viaja a la célula ${id}: entra en bucle en el compás ${jump.startBar}`)
+    reevaluate()
+  }
+
   /**
    * Para la transición de agua (spec 005, §5.2): la célula que se ve, de qué compás global a cuál
    * suena, la siguiente y la anterior. `null` parado o con una sola célula.
    */
-  function cellPlan(): { cur: Cell; start: number; end: number; next: Cell; prev: Cell | null } | null {
+  function cellPlan(): { cur: Cell; start: number; end: number; next: Cell; prev: Cell | null; loop: boolean } | null {
     if (!playing.value || !multi()) return null
     const s = liveSong()
     const cur = cellById(s, viewCellId.value)
     const next = cur && cellById(s, nextInOrder(s, cur.id))
     if (!cur || !next) return null
     const prev = prevViewId === null ? null : (cellById(s, prevViewId) ?? null)
-    return { cur, start: viewStartBar, end: viewStartBar + cur.turns, next, prev }
+    const j = jump ?? viewJump
+    const target = j && cellById(s, j.cellId)
+    return {
+      cur,
+      start: viewStartBar,
+      end: j ? j.startBar : loop ? Infinity : viewStartBar + cur.turns,
+      next: target || next,
+      prev,
+      loop: looping.value,
+    }
   }
 
   /** Código que se muestra y se copia (§16.6). */
@@ -1062,6 +1156,10 @@ export function useAudioEngine() {
     onVisual,
     clockNow,
     cellPlan,
+    looping,
+    loopHere,
+    resume,
+    travelTo,
     displayCode,
   }
 }

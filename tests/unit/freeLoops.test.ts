@@ -40,6 +40,14 @@ function phrase(hits: [number, Instrument][], startBar = 0, bars: 1 | 2 | 4 = 1)
 }
 
 describe('candidatesFromPhrase', () => {
+  it('grabado en bucle de una célula que empezó en el compás 40: la fase se cuenta desde ella', () => {
+    const [l] = candidatesFromPhrase(phrase([[0, 'bd'], [8, 'bd']], 43, 1), opts({ cellStart: 40, bornAt: 44 }))
+    expect(l!.phaseBar).toBe(3)
+    expect(l!.hits.map((h) => h.pos)).toEqual([0, 8])
+    // sin célula (canción de una sola), la fase es el compás global, como siempre
+    expect(candidatesFromPhrase(phrase([[0, 'bd']], 43, 1), opts())[0]!.phaseBar).toBe(43)
+  })
+
   it('un loop por instrumento', () => {
     const c = candidatesFromPhrase(phrase([[0, 'bd'], [4, 'sd'], [8, 'bd'], [12, 'sd']]), opts())
     expect(c.map((l) => [l.instrument, l.hits.map((h) => h.pos)])).toEqual([

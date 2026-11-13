@@ -102,13 +102,61 @@ export function advance(song: Song, cursor: Cursor, bar: number): Cursor {
   return c
 }
 
+/** Salto programado (§4.1): en el compás global `startBar` entra `cellId`; con `loop`, en bucle. */
+export interface Jump {
+  cellId: number
+  startBar: number
+  loop: boolean
+}
+
+/** Estado de reproducción: dónde va la canción, si está en bucle y si hay un salto pendiente. */
+export interface Play {
+  cursor: Cursor
+  /** estado bucle: la célula se repite entera hasta "seguir" */
+  loop: boolean
+  jump: Jump | null
+}
+
+/**
+ * Lleva el estado de reproducción hasta el compás global `bar` (§4.1). Un salto vencido gana al
+ * avance normal: la célula entra en su compás y, si el salto es de bucle, se queda en bucle. En
+ * bucle el cursor no avanza; si no, pasa a la siguiente célula las veces que haga falta.
+ */
+export function stepPlay(song: Song, play: Play, bar: number): Play {
+  const { jump } = play
+  if (jump && bar >= jump.startBar) {
+    const entered: Play = { cursor: { cellId: jump.cellId, startBar: jump.startBar }, loop: jump.loop, jump: null }
+    return jump.loop ? entered : stepPlay(song, entered, bar)
+  }
+  if (play.loop) return play
+  const cursor = advance(song, play.cursor, bar)
+  return cursor === play.cursor ? play : { ...play, cursor }
+}
+
+/** Compás global en el que acaba lo que suena: el del salto, el final de la célula o nunca (bucle). */
+export function endBar(song: Song, play: Play): number {
+  if (play.jump) return play.jump.startBar
+  if (play.loop || !isMulti(song)) return Infinity
+  return play.cursor.startBar + (cellById(song, play.cursor.cellId)?.turns ?? 1)
+}
+
 /**
  * Lo que tiene que llevar el código del motor (§4.2): la célula que suena y la siguiente, cada una
- * acotada a sus compases. Con una sola célula, un tramo sin final.
+ * acotada a sus compases. Sin final, con una sola célula y en bucle. Con un salto pendiente, la que
+ * suena hasta el salto y la que entra después (sin final si es de bucle).
  */
-export function windowAt(song: Song, cursor: Cursor): Segment[] {
+export function windowAt(song: Song, cursor: Cursor, o: { loop?: boolean; jump?: Jump | null } = {}): Segment[] {
   const cell = cellById(song, cursor.cellId)
   if (!isMulti(song) || !cell) return [{ cellId: cursor.cellId, from: cursor.startBar, to: null }]
+  const { jump } = o
+  if (jump) {
+    const target = cellById(song, jump.cellId)
+    return [
+      { cellId: cursor.cellId, from: cursor.startBar, to: jump.startBar },
+      { cellId: jump.cellId, from: jump.startBar, to: jump.loop || !target ? null : jump.startBar + target.turns },
+    ]
+  }
+  if (o.loop) return [{ cellId: cursor.cellId, from: cursor.startBar, to: null }]
   const end = cursor.startBar + cell.turns
   const nextId = nextInOrder(song, cursor.cellId)
   const next = cellById(song, nextId)!
