@@ -42,7 +42,7 @@ import {
   type RepeatMode,
 } from '~/lib/freeLoops'
 import { DJF_MIN, filterDjf, spaceParams, SWEEP_STEPS, sweepDjf, warmthShape } from '~/lib/gestures'
-import { imageDelayMs, sanitizeFine } from '~/lib/imageDelay'
+import { imageDelayMs, sanitizeFine, SYNC_LOOKAHEAD_S, SYNC_PERIOD_S, takeDue } from '~/lib/imageDelay'
 import { effectiveBpm, TEMPO_TAPS, TEMPO_TIMEOUT_MS, tempoFromTaps } from '~/lib/tempo'
 import { detectOnsets, minGapForCell } from '~/lib/onsets'
 import { PhraseTracker, type ClosedPhrase, type LoopLength, type PhraseSnapshot } from '~/lib/phrases'
@@ -209,6 +209,12 @@ const imageFineMs = ref(0)
 /** lo que se enseña en ⋯ (la salida que informa el navegador y el retraso de imagen total, en ms); se refrescan al cambiar */
 const reportedOutputMs = ref(0)
 const imageDelayShown = ref(0)
+/** prueba de sincronía (spec 003, E6.8): un clic por segundo y un punto que se enciende con el retraso de imagen */
+const syncTest = ref(false)
+/** sube en cada destello (el punto lo usa como clave para reiniciar su animación) */
+const syncFlash = ref(0)
+let syncInterval: ReturnType<typeof setInterval> | null = null
+let syncTimes: number[] = []
 /** el toque del tempo fácil, para el manejador de golpes del micro (que vive fuera del composable) */
 let tapTempoHook: ((at: number) => boolean) | null = null
 const viewCellId = ref(1)
@@ -800,6 +806,39 @@ export function useAudioEngine() {
     refreshImageDelay()
   }
 
+  function stopSyncTest() {
+    if (syncInterval) clearInterval(syncInterval)
+    syncInterval = null
+    syncTimes = []
+    syncTest.value = false
+  }
+
+  /**
+   * Prueba de sincronía (E6.8): un clic por segundo y un punto que se enciende con la latencia de la imagen
+   * que haya en cada momento, así se ve al instante si el deslizador acerca el punto al clic. Para la música.
+   */
+  function startSyncTest() {
+    const c = ctx
+    if (!c || syncTest.value) return
+    if (playing.value) stop()
+    syncTest.value = true
+    syncTimes = []
+    syncFlash.value = 0
+    let next = c.currentTime + 0.4
+    syncInterval = setInterval(() => {
+      const now = c.currentTime
+      while (next < now + SYNC_LOOKAHEAD_S) {
+        click(next, true)
+        syncTimes.push(next)
+        next += SYNC_PERIOD_S
+      }
+      // el destello sale cuando el reloj de la imagen alcanza al clic, con la latencia de ahora
+      const { due, rest } = takeDue(syncTimes, now - outputLatency())
+      syncTimes = rest
+      if (due > 0) syncFlash.value++
+    }, 16)
+  }
+
   /** Ajustes del retraso de imagen (spec 003, E6): automático (según la calibración) y ajuste fino a mano. */
   function setImageDelay(p: { auto?: boolean; fineMs?: number }) {
     if (p.auto !== undefined) imageAuto.value = p.auto
@@ -847,6 +886,7 @@ export function useAudioEngine() {
 
   async function play() {
     if (playing.value || !S) return
+    stopSyncTest()
     // lo que informa el navegador puede cambiar al conectar o quitar unos cascos
     refreshImageDelay()
     // al arrancar, lo que ya existe suena desde el primer compás
@@ -1477,6 +1517,10 @@ export function useAudioEngine() {
     imageDelayShown,
     setImageDelay,
     refreshImageDelay,
+    syncTest,
+    syncFlash,
+    startSyncTest,
+    stopSyncTest,
     start,
     setCalibration,
     setLatency,

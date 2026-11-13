@@ -62,3 +62,20 @@ export function imageDelayMs(o: ImageDelayInput): number {
 export function restoreImageDelay(saved: { imageAuto?: unknown; imageFineMs?: unknown }): { auto: boolean; fineMs: number } {
   return { auto: typeof saved.imageAuto === 'boolean' ? saved.imageAuto : true, fineMs: sanitizeFine(saved.imageFineMs) }
 }
+
+/** segundos entre clics de la prueba de sincronía */
+export const SYNC_PERIOD_S = 1
+/** cuánto se programan los clics por delante (s) */
+export const SYNC_LOOKAHEAD_S = 0.35
+
+/**
+ * Prueba de sincronía (E6.8): de los instantes (s, del reloj del audio) de los clics ya programados,
+ * cuántos deberían verse ya en pantalla. El destello de un clic sale cuando `ahora − latencia de la imagen`
+ * lo alcanza, con la latencia de ese momento (así el deslizador se nota al instante). Devuelve cuántos
+ * vencen y los que quedan. `times` va en orden.
+ */
+export function takeDue(times: readonly number[], upTo: number): { due: number; rest: number[] } {
+  let n = 0
+  while (n < times.length && times[n]! <= upTo) n++
+  return { due: n, rest: times.slice(n) }
+}

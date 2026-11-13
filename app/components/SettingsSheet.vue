@@ -10,7 +10,7 @@ const open = defineModel<boolean>('open', { required: true })
 const props = defineProps<{ renderer: string; layout: () => string }>()
 const emit = defineEmits<{ recalibrate: ['latency' | 'sounds'] }>()
 const engine = useAudioEngine()
-const { kit, assist, metronome, bgMode, phraseCloseBeats, maxPhraseBars, phraseMode, repeatMode, fx, playing, diag, echo, loops, multi, imageAuto, imageFineMs, imageDelayShown } =
+const { kit, assist, metronome, bgMode, phraseCloseBeats, maxPhraseBars, phraseMode, repeatMode, fx, playing, diag, echo, loops, multi, imageAuto, imageFineMs, imageDelayShown, syncTest, syncFlash } =
   engine
 
 const code = computed(() => engine.displayCode())
@@ -102,7 +102,10 @@ const val = (e: Event) => Number((e.target as HTMLInputElement).value)
 /** retraso de imagen automático que sale de tu calibración (spec 003, E6), para enseñarlo */
 const autoMs = computed(() => autoImageDelayMs(engine.roundTripMs.value, engine.reportedOutputMs.value))
 // al abrir ⋯, se vuelve a leer lo que informa el navegador (puede haber cambiado al conectar unos cascos)
-watch(open, (o) => o && engine.refreshImageDelay())
+watch(open, (o) => {
+  if (o) engine.refreshImageDelay()
+  else engine.stopSyncTest()
+})
 </script>
 
 <template>
@@ -205,7 +208,17 @@ watch(open, (o) => o && engine.refreshImageDelay())
             <p class="text-xs text-neutral-500">
               Si la aguja y las bolas van por delante del sonido (cascos Bluetooth), sube el ajuste. Automático:
               {{ autoMs }} ms de tu calibración · ajuste fino {{ imageFineMs > 0 ? '+' : '' }}{{ imageFineMs }} ms. Se guarda en este dispositivo.
+              Con Bluetooth el retraso de los cascos puede variar: si vuelve a descuadrar, ajústalo otra vez.
             </p>
+            <div class="flex items-center gap-3">
+              <button class="shrink-0 rounded-full border border-white/20 px-3 py-1 text-xs" @click="syncTest ? engine.stopSyncTest() : engine.startSyncTest()">
+                {{ syncTest ? 'Parar prueba' : 'Probar sincronía' }}
+              </button>
+              <span :key="syncFlash" class="sync-dot shrink-0" :class="{ on: syncTest && syncFlash > 0 }" aria-hidden="true" />
+              <span class="text-xs text-neutral-500">
+                Un clic por segundo y un punto que se enciende. Si el punto se enciende antes que el clic, sube el ajuste; si después, bájalo.
+              </span>
+            </div>
           </div>
           <label class="flex items-center justify-between gap-3">
             Calor
@@ -265,6 +278,26 @@ watch(open, (o) => o && engine.refreshImageDelay())
 </template>
 
 <style scoped>
+/* punto de la prueba de sincronía: se enciende un instante con cada destello */
+.sync-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 9999px;
+  background: rgb(255 255 255 / 0.1);
+}
+.sync-dot.on {
+  animation: sync-flash 180ms ease-out;
+}
+@keyframes sync-flash {
+  from {
+    background: rgb(255 255 255 / 0.95);
+    box-shadow: 0 0 14px rgb(255 255 255 / 0.6);
+  }
+  to {
+    background: rgb(255 255 255 / 0.1);
+    box-shadow: none;
+  }
+}
 .sheet-enter-active,
 .sheet-leave-active {
   transition: opacity 200ms cubic-bezier(0.2, 0.8, 0.2, 1);

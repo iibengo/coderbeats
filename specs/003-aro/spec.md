@@ -406,3 +406,13 @@ de salir), pero la calibración lo daba por válido: solo miraba que hubiera 3 p
 - **Durante la toma ya no hay pista visual** (ni números ni 👏): solo "Escucha…". El texto dice que se guíe
   solo por el oído y por qué.
 
+### E6.8 Prueba de sincronía
+- El retraso de los cascos Bluetooth no es fijo: se vio que al recargar la página cuadraba y al rato se
+  descuadraba. El ajuste a oído tiene que ser fácil de repetir.
+- En ⋯ → ajustes, bajo el deslizador, **"Probar sincronía"**: un **clic por segundo** y un **punto** que se
+  enciende con cada uno. El punto sale cuando el reloj de la imagen (el del audio menos la latencia de la
+  imagen, con la de ese momento) alcanza al clic, así que **mover el deslizador se nota al instante**:
+  punto antes que el clic → subir el ajuste; después → bajarlo.
+- Para la música al empezar, y se para al cerrar ⋯ o al dar a Play.
+- `takeDue` (puro), con tests: cuándo vence cada destello y que más retraso lo atrasa.
+

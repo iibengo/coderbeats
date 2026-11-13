@@ -8,6 +8,7 @@ import {
   imageDelayMs,
   restoreImageDelay,
   sanitizeFine,
+  takeDue,
 } from '../../app/lib/imageDelay'
 
 describe('retraso automático (de la calibración de palmadas)', () => {
@@ -86,5 +87,31 @@ describe('lo guardado por dispositivo', () => {
     expect(restoreImageDelay({})).toEqual({ auto: true, fineMs: 0 })
     expect(restoreImageDelay({ imageAuto: 'no', imageFineMs: 'mucho' })).toEqual({ auto: true, fineMs: 0 })
     expect(restoreImageDelay({ imageAuto: undefined, imageFineMs: 99999 })).toEqual({ auto: true, fineMs: 300 })
+  })
+})
+
+describe('prueba de sincronía: cuándo se enciende el punto', () => {
+  const clicks = [1, 2, 3, 4]
+
+  it('el punto sale cuando el reloj de la imagen (ahora − latencia) alcanza al clic', () => {
+    expect(takeDue(clicks, 0.99)).toEqual({ due: 0, rest: clicks })
+    expect(takeDue(clicks, 1)).toEqual({ due: 1, rest: [2, 3, 4] })
+    expect(takeDue(clicks, 2.4)).toEqual({ due: 2, rest: [3, 4] })
+    expect(takeDue([], 5)).toEqual({ due: 0, rest: [] })
+  })
+
+  it('con más retraso de imagen el punto llega más tarde; con menos, antes (se nota al mover el deslizador)', () => {
+    const now = 2.1 // el audio va por 2,1 s
+    // latencia de imagen de 50 ms: ya han vencido los clics de 1 s y de 2 s
+    expect(takeDue(clicks, now - 0.05).due).toBe(2)
+    // con 300 ms, el de 2 s todavía no: se enciende 250 ms más tarde
+    expect(takeDue(clicks, now - 0.3).due).toBe(1)
+    expect(takeDue(clicks, now - 0.1).due).toBe(2)
+  })
+
+  it('un destello por clic, aunque el reloj salte varios a la vez no se pierde ninguno', () => {
+    const r = takeDue(clicks, 3.5)
+    expect(r.due).toBe(3)
+    expect(r.rest).toEqual([4])
   })
 })
