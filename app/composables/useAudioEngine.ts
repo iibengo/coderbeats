@@ -10,14 +10,17 @@ import {
   endBar,
   fitTurns,
   isMulti,
+  minTurns,
   nextDepth,
   nextInOrder,
+  nextTurns,
   orderWith,
   stepPlay,
   stressSong,
   windowAt,
   withCopy,
   withNewCell,
+  withValidBpm,
   withOrderAfter,
   withoutCell,
   type Cell,
@@ -39,6 +42,7 @@ import {
   type RepeatMode,
 } from '~/lib/freeLoops'
 import { DJF_MIN, filterDjf, spaceParams, SWEEP_STEPS, sweepDjf, warmthShape } from '~/lib/gestures'
+import { effectiveBpm, TEMPO_TAPS, TEMPO_TIMEOUT_MS, tempoFromTaps } from '~/lib/tempo'
 import { detectOnsets, minGapForCell } from '~/lib/onsets'
 import { PhraseTracker, type ClosedPhrase, type LoopLength, type PhraseSnapshot } from '~/lib/phrases'
 import { ENGINE_GLOBAL, songCode, type SongFx, type SongState } from '~/lib/song'
@@ -187,6 +191,12 @@ const loops = shallowRef<LoopsState>(emptyLoops())
  * acordes), para que todo lo de una célula funcione como antes; `liveSong()` las junta.
  */
 const song = shallowRef<Song>(emptySong())
+/** tempo de la canción: el suyo (tempo fácil) o el del estilo (spec 005, §6) */
+const bpm = computed(() => effectiveBpm(song.value.bpm, STYLES[style.value].bpm))
+/** tempo fácil: esperando cuatro toques (o cuatro bombos) */
+const tempoTap = ref<{ active: boolean; count: number }>({ active: false, count: 0 })
+/** el toque del tempo fácil, para el manejador de golpes del micro (que vive fuera del composable) */
+let tapTempoHook: ((at: number) => boolean) | null = null
 const viewCellId = ref(1)
 /** carriles que graban (spec 003, E4.1); no se guarda: al abrir, todos encendidos */
 const lanes = shallowRef<Lanes>(allLanes())
@@ -272,7 +282,7 @@ async function runEchoTest(): Promise<EchoTestResult> {
 }
 
 // ── Reloj: ciclo de Strudel = compás global ───────────────────────────────────
-const stepSeconds = () => 60 / STYLES[style.value].bpm / 4
+const stepSeconds = () => 60 / bpm.value / 4
 const barTime = (bar: number): number => (clock ? clock.time + (bar - clock.cycle) * clock.barSec : Infinity)
 const nextBarLine = (): number => {
   if (!clock || !ctx) return 0
@@ -462,6 +472,7 @@ function songState(): SongState {
   const st: SongState = {
     loops: loops.value.loops,
     style: style.value,
+    bpm: song.value.bpm,
     kit: kit.value,
     background: { mode: bgMode.value, parts: bgParts.value },
     metronome: metronome.value,
@@ -628,6 +639,11 @@ function onWorkerMessage(m: FromWorker) {
       `golpe desconocido (${m.strength.toFixed(3)})${fmtVolume(m.vol)}${lanes.value.size ? '' : ' · ningún carril graba'}`,
       uiMs,
     )
+  // tempo fácil: cuatro bombos con la boca fijan el tempo (spec 005, §6)
+  if (tempoTap.value.active && m.instrument === 'bd' && !isTooQuiet(m.vol) && tapTempoHook) {
+    tapTempoHook(performance.now() - uiMs)
+    return log('hit', `tempo: bombo ${tempoTap.value.count}/${TEMPO_TAPS}${fmtVolume(m.vol)}`, uiMs)
+  }
   // ruido de fondo: un golpe mucho más flojo que los de tu calibración no cuenta (E4.5)
   if (isTooQuiet(m.vol)) return log('unknown', `flojo: descartado (${m.instrument} ${(m.confidence * 100).toFixed(0)}%)${fmtVolume(m.vol)}`, uiMs)
   if (!playing.value || !tracker) return log('stopped', `${m.instrument} sin loop en marcha`, uiMs)
@@ -851,7 +867,82 @@ export function useAudioEngine() {
 
   async function setStyle(id: StyleId) {
     style.value = id
+    // el tempo propio es del estilo en el que se fijó: al cambiar de estilo vuelve el del nuevo
+    if (song.value.bpm !== null && song.value.bpm !== undefined) song.value = { ...liveSong(), bpm: null }
     await restart()
+  }
+
+  // ── Tempo fácil (spec 005, §6): cuatro toques, o cuatro bombos con la boca ────────
+  let tapTimes: number[] = []
+  let tapTimer: ReturnType<typeof setTimeout> | null = null
+
+  function cancelTempoTap() {
+    if (tapTimer) clearTimeout(tapTimer)
+    tapTimer = null
+    tapTimes = []
+    tempoTap.value = { active: false, count: 0 }
+  }
+
+  /** Enciende el tempo fácil ("toca 4 veces"); si ya estaba encendido, lo cancela. */
+  function armTempoTap() {
+    if (tempoTap.value.active) return cancelTempoTap()
+    tapTimes = []
+    tempoTap.value = { active: true, count: 0 }
+    tapTimer = setTimeout(cancelTempoTap, TEMPO_TIMEOUT_MS)
+  }
+
+  /**
+   * Fija el tempo de la canción (o, con `null`, vuelve al del estilo). Sonando, se aplica en la siguiente
+   * línea de compás y el motor rearranca desde la célula que se ve, como al cambiar de estilo.
+   */
+  function setBpm(value: number | null) {
+    const v = value === null ? null : Math.round(value)
+    const cur = song.value.bpm ?? null
+    if (cur === v) return
+    const apply = () => {
+      song.value = { ...liveSong(), bpm: v }
+      log('cell', v === null ? `tempo del estilo: ${STYLES[style.value].bpm} bpm` : `tempo: ${v} bpm`)
+    }
+    if (!playing.value || !clock || !ctx) {
+      apply()
+      return reevaluate()
+    }
+    later(() => {
+      apply()
+      void restart()
+    }, (barTime(nextBarLine()) - 0.05 - ctx.currentTime) * 1000)
+  }
+
+  /**
+   * Un toque (o un bombo con la boca) del tempo fácil. Devuelve true si lo ha usado (estaba encendido).
+   * `at` en ms de reloj de pared; a los 4 toques fija el tempo.
+   */
+  function tapTempo(at: number = performance.now()): boolean {
+    if (!tempoTap.value.active) return false
+    tapTimes.push(at)
+    if (tapTimer) clearTimeout(tapTimer)
+    tapTimer = setTimeout(cancelTempoTap, TEMPO_TIMEOUT_MS)
+    tempoTap.value = { active: true, count: tapTimes.length }
+    if (tapTimes.length >= TEMPO_TAPS) {
+      const v = tempoFromTaps(tapTimes, STYLES[style.value].bpm)
+      cancelTempoTap()
+      if (v !== null) setBpm(v)
+    }
+    return true
+  }
+
+  tapTempoHook = tapTempo
+
+  /** Tocar el número de una célula: sus vueltas pasan a 1 → 2 → 4 → 8 → 1, sin bajar del loop más largo (§7.1). */
+  function cycleTurns(id: number) {
+    const s = liveSong()
+    const cell = cellById(s, id)
+    if (!cell) return
+    const turns = nextTurns(cell.turns, minTurns(cell.loops))
+    if (turns === cell.turns) return
+    song.value = { ...s, cells: s.cells.map((c) => (c.id === id ? { ...c, turns } : c)) }
+    log('cell', `célula ${id}: ${turns} vuelta${turns === 1 ? '' : 's'}`)
+    reevaluate()
   }
 
   function setKit(id: KitId) {
@@ -931,7 +1022,8 @@ export function useAudioEngine() {
   }
 
   /** Pone una canción entera (guardada o demo) y enseña su primera célula. Parado. */
-  function setSong(next: Song) {
+  function setSong(raw: Song) {
+    const next = withValidBpm(raw)
     const first = cellById(next, next.order[0]!)!
     song.value = next
     viewCellId.value = first.id
@@ -1367,6 +1459,13 @@ export function useAudioEngine() {
     looping,
     loopTarget,
     undoInfo,
+    bpm,
+    tempoTap,
+    armTempoTap,
+    cancelTempoTap,
+    setBpm,
+    tapTempo,
+    cycleTurns,
     addCell,
     copyCell,
     orderAfter,

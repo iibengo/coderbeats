@@ -24,6 +24,7 @@ import {
   depthScale,
   HANDLE_HIT,
   HANDLE_MIN_R,
+  LABEL_HIT,
   handlePoint,
   inColony,
   isDoubleTap,
@@ -480,6 +481,8 @@ let colonyPick: {
   toScreen: (p: Point, depth: number) => Point
   /** el asa de cada célula (de frente), para cogerla */
   handles: { id: number; x: number; y: number }[]
+  /** el número de cada célula (de frente): tocarlo cambia sus vueltas */
+  labels: { id: number; x: number; y: number }[]
 } | null = null
 
 function cellScene(
@@ -563,6 +566,7 @@ function cellScene(
         toMap,
         toScreen,
         handles: [],
+        labels: all.map((c) => ({ id: c.id, x: placed.get(c.id)!.cx, y: placed.get(c.id)!.cy + placed.get(c.id)!.R + 11 })),
       }
     : null
   // asas (§7.1): un puntito en el borde de cada célula de la canción, hacia la siguiente; solo con radio suficiente
@@ -786,7 +790,7 @@ function tick() {
       playing: playing.value,
       bar: clock.bar,
       barPhase: clock.barPhase,
-      bpm: STYLES[style.value].bpm,
+      bpm: engine.bpm.value,
       loops: loops.value.loops.map((l) => {
         const b = bodies.get(l.id)
         return { id: l.id, instrument: l.instrument, muted: l.muted, x: b?.x ?? 0, y: b?.y ?? 0, size: (b?.r ?? 14) * 2 }
@@ -828,7 +832,7 @@ function tick() {
       highlight: highlight.value,
       bars: barsInfo.value,
       reduced,
-      stepSec: 60 / STYLES[style.value].bpm / 4,
+      stepSec: 60 / engine.bpm.value / 4,
       lanes: allArmed(engine.lanes.value) ? null : engine.lanes.value,
       hold: holdProgress(),
       holdRing: colonyHold(),
@@ -974,7 +978,7 @@ const drag = ref<{ axis: Axis; x: number; y: number } | null>(null)
 
 type Gesture =
   | { kind: 'aro-drag'; id: number; dot: AroDot }
-  | { kind: 'colony'; id: number; x0: number; y0: number; t: number; moved: boolean; lx: number; ly: number; cellId: number | null; grab: Point; held: boolean; handleId: number | null }
+  | { kind: 'colony'; id: number; x0: number; y0: number; t: number; moved: boolean; lx: number; ly: number; cellId: number | null; grab: Point; held: boolean; handleId: number | null; labelId: number | null }
   | {
       kind: 'aro-tap'
       id: number
@@ -1083,6 +1087,11 @@ function loopNow() {
 }
 
 function onDown(e: PointerEvent) {
+  // tempo fácil encendido: cualquier toque en el escenario cuenta como uno de los cuatro (spec 005, §6)
+  if (engine.tempoTap.value.active) {
+    engine.tapTempo()
+    return
+  }
   ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
   pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY })
   const mouse = e.pointerType === 'mouse'
@@ -1103,8 +1112,10 @@ function onDown(e: PointerEvent) {
   if (colony.value) {
     // el asa tiene prioridad sobre el cuerpo de la célula
     const handleId = handleUnder(x, y)
-    const cellId = handleId === null ? cellUnder(x, y) : null
-    gesture = { kind: 'colony', id: e.pointerId, x0: x, y0: y, t: performance.now(), moved: false, lx: x, ly: y, cellId, grab: grabOffset(cellId, x, y), held: false, handleId }
+    // y el número (sus vueltas), sobre el cuerpo
+    const labelId = handleId === null ? labelUnder(x, y) : null
+    const cellId = handleId === null && labelId === null ? cellUnder(x, y) : null
+    gesture = { kind: 'colony', id: e.pointerId, x0: x, y0: y, t: performance.now(), moved: false, lx: x, ly: y, cellId, grab: grabOffset(cellId, x, y), held: false, handleId, labelId }
     return
   }
   const dot = aro?.pick(x, y)
@@ -1231,6 +1242,14 @@ function endCellDrag(commit: boolean) {
   }
   engine.moveCell(moved.id, final.x, final.y)
   if (v.x || v.y) drift.glide(moved.id, { x: moved.x - final.x, y: moved.y - final.y }, v)
+}
+
+/** Número de vueltas bajo un punto de la pantalla en la colonia, o null. */
+function labelUnder(x: number, y: number): number | null {
+  const pk = colonyPick
+  if (!pk) return null
+  const [fx, fy] = toFront(x, y, aroView, 0, pk.cy)
+  return spotAt(fx, fy, pk.labels, LABEL_HIT)
 }
 
 /** Asa bajo un punto de la pantalla en la colonia, o null. */
@@ -1388,8 +1407,9 @@ function onUp(e: PointerEvent, cancelled = false) {
     if (dragState) endCellDrag(!cancelled)
     else if (threadState) endThread(!cancelled)
     else if (!cancelled && !gs.moved && !gs.held && performance.now() - gs.t < TAP_MS) {
-      // tocar el asa cuenta como tocar su célula
-      if (gs.handleId !== null) tapCell(gs.handleId)
+      // tocar el asa cuenta como tocar su célula; tocar el número cambia sus vueltas
+      if (gs.labelId !== null) engine.cycleTurns(gs.labelId)
+      else if (gs.handleId !== null) tapCell(gs.handleId)
       else if (gs.cellId !== null) tapCell(gs.cellId)
       else tapWater(gs.x0, gs.y0)
     }

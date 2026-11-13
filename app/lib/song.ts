@@ -19,6 +19,8 @@ export interface SongFx {
 export interface SongState {
   loops: FreeLoop[]
   style: StyleId
+  /** tempo de la canción (spec 005, §6); sin él, el del estilo */
+  bpm?: number | null
   kit: KitId
   /** modo del fondo y partes que han entrado (o están entrando) */
   background: { mode: BackgroundMode; parts: Parts }
@@ -119,7 +121,7 @@ function drumFxOf(st: SongState, mode: SongMode): string {
  */
 function loopsLines(loops: FreeLoop[], st: SongState, mode: SongMode, duck: boolean, ind: string, phaseOffset = 0): string[] {
   if (!loops.length) return []
-  const stepSeconds = 60 / STYLES[st.style].bpm / 4
+  const stepSeconds = 60 / (st.bpm ?? STYLES[st.style].bpm) / 4
   const engine = mode === 'engine'
   const gains = loopGains(loops)
   const lines = loops.flatMap((l) => {
@@ -152,7 +154,7 @@ export function songCode(st: SongState, mode: SongMode = 'display'): string {
   const music = STYLE_MUSIC[st.style]
   const engine = mode === 'engine'
   const g = ENGINE_GLOBAL
-  const out: string[] = [`setcpm(${style.bpm}/4)`, 'stack(']
+  const out: string[] = [`setcpm(${st.bpm ?? style.bpm}/4)`, 'stack(']
 
   const bgOn = st.background.mode !== 'off'
   const showBass = engine ? bgOn : st.background.parts.bass
@@ -201,7 +203,7 @@ function songArrangeCode(st: SongState): string {
   const music = STYLE_MUSIC[st.style]
   const { list, order } = st.cells!
   const bgOn = st.background.mode !== 'off'
-  const out: string[] = [`setcpm(${style.bpm}/4)`, `// ${style.label.toLowerCase()} · ${music.key}`, 'arrange(']
+  const out: string[] = [`setcpm(${st.bpm ?? style.bpm}/4)`, `// ${style.label.toLowerCase()} · ${music.key}`, 'arrange(']
   const ind = IND + IND
   for (const id of order) {
     const cell = list.find((c) => c.id === id)

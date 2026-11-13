@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // Pantalla principal (§16.16): solo el agua, los loops flotando, Play y el estilo.
 import { STYLES } from '~/lib/constants'
+import { TEMPO_RESET_MS, TEMPO_TAPS } from '~/lib/tempo'
 import type { StyleId } from '~/lib/types'
 import VisualStage from './visual/VisualStage.vue'
 
@@ -20,6 +21,30 @@ const renderer = computed(() => stage.value?.rendererName ?? '')
 const layoutInfo = () => stage.value?.layoutInfo() ?? ''
 
 const STYLE_SHORT: Record<StyleId, string> = { hiphop90: 'hip hop', house: 'house', dnb: 'dnb' }
+
+// tempo fácil (spec 005, §6): tocar el BPM lo enciende ("toca 4 veces"); mantenerlo vuelve al tempo del estilo
+const bpmCustom = computed(() => engine.bpm.value !== STYLES[style.value].bpm)
+const tapDots = computed(() => '●'.repeat(engine.tempoTap.value.count) + '○'.repeat(Math.max(0, TEMPO_TAPS - engine.tempoTap.value.count)))
+let bpmTimer: ReturnType<typeof setTimeout> | null = null
+let bpmHeld = false
+function bpmDown() {
+  bpmHeld = false
+  bpmTimer = setTimeout(() => {
+    bpmHeld = true
+    engine.cancelTempoTap()
+    engine.setBpm(null)
+    navigator.vibrate?.(12)
+  }, TEMPO_RESET_MS)
+}
+function bpmUp() {
+  if (bpmTimer) clearTimeout(bpmTimer)
+  bpmTimer = null
+  if (!bpmHeld) engine.armTempoTap()
+}
+function bpmLeave() {
+  if (bpmTimer) clearTimeout(bpmTimer)
+  bpmTimer = null
+}
 
 // móvil en horizontal (spec 003, E2.1): estilo a la izquierda, ⋯ y Play a la derecha.
 // En vertical y en escritorio, los mismos estilos de siempre.
@@ -64,6 +89,19 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
         @click="engine.setStyle(s.id as StyleId)"
       >
         {{ STYLE_SHORT[s.id as StyleId] }}
+      </button>
+      <button
+        class="bpm px-1 py-2 tabular-nums transition-colors"
+        :class="engine.tempoTap.value.active ? 'text-[#F496BC]' : bpmCustom ? 'text-white/70' : 'text-white/35'"
+        :aria-label="engine.tempoTap.value.active ? 'tempo: toca 4 veces' : `tempo ${engine.bpm.value} bpm: tocar para fijarlo con 4 toques, mantener para volver al del estilo`"
+        @pointerdown="bpmDown"
+        @pointerup="bpmUp"
+        @pointerleave="bpmLeave"
+        @pointercancel="bpmLeave"
+        @contextmenu.prevent
+      >
+        <template v-if="engine.tempoTap.value.active">toca 4 veces <span class="tracking-widest">{{ tapDots }}</span></template>
+        <template v-else>{{ engine.bpm.value }}</template>
       </button>
     </nav>
 

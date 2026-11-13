@@ -16,10 +16,12 @@ import {
   stressSong,
   MAX_CELLS,
   nextDepth,
+  nextTurns,
   orderWith,
   withCopy,
   withNewCell,
   withOrderAfter,
+  withValidBpm,
   withoutCell,
   storableSong,
   windowAt,
@@ -426,5 +428,32 @@ describe('cells: copiar y ordenar', () => {
     expect(withOrderAfter(demo, a, a)).toBeNull()
     expect(withOrderAfter(demo, a, 99)).toBeNull()
     expect(demo.order).toEqual([a, b, c, d])
+  })
+})
+
+describe('cells: vueltas con el número', () => {
+  it('1 → 2 → 4 → 8 → 1', () => {
+    expect(nextTurns(1, 1)).toBe(2)
+    expect(nextTurns(2, 1)).toBe(4)
+    expect(nextTurns(4, 1)).toBe(8)
+    expect(nextTurns(8, 1)).toBe(1)
+  })
+  it('nunca por debajo del loop más largo', () => {
+    expect(nextTurns(4, 4)).toBe(8)
+    expect(nextTurns(8, 4)).toBe(4) // da la vuelta, pero no baja de 4
+    expect(nextTurns(2, 2)).toBe(4)
+    expect(nextTurns(8, 8)).toBe(8)
+  })
+})
+
+describe('cells: el tempo guardado', () => {
+  it('un tempo roto no descarta la canción: se limpia y vuelve el del estilo', () => {
+    const s = emptySong()
+    expect(isSong({ ...s, bpm: '130' })).toBe(true)
+    expect(withValidBpm({ ...s, bpm: 130 }).bpm).toBe(130)
+    expect(withValidBpm({ ...s, bpm: null }).bpm).toBeNull()
+    expect(withValidBpm({ ...s, bpm: '130' as unknown as number }).bpm).toBeNull()
+    expect(withValidBpm({ ...s, bpm: 9999 }).bpm).toBeNull()
+    expect(withValidBpm({ ...s, bpm: 9999 }).cells).toBe(s.cells) // el resto de la canción no se toca
   })
 })

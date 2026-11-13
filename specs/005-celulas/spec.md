@@ -461,4 +461,20 @@ qué se decidió y por qué; se cambian sin más si no gustan.
 - **La copia se llama "<nombre> copia"** y mantiene la profundidad de la original.
 - **Con menos radio de 14 px no hay asa:** las células pequeñas no se copian ni se ordenan hasta acercar un poco el mapa.
 
+**3.4 · Vueltas y tempo**
+- **Tocar el número** da la vuelta 1 → 2 → 4 → 8 → 1 y nunca baja del loop más largo de la célula
+  (con uno de 4 compases solo alterna entre 4 y 8). Su zona es de 14 px; el asa tiene prioridad sobre el
+  número y el número sobre el cuerpo de la célula. En la que suena, el número está donde van los
+  puntitos de vueltas.
+- **El BPM se ve siempre**, a la derecha de los estilos: tenue con el del estilo, más claro con uno propio.
+- **El tempo nuevo se aplica en la siguiente línea de compás y el motor rearranca desde la célula que se
+  ve** (como al cambiar de estilo), así que se pierde el sitio en la canción.
+- **Cambiar de estilo quita el tempo propio:** el tempo es del estilo en el que se fijó.
+- **"Cargar demo" y "Borrar todo" también vuelven al tempo del estilo** (cargan una canción nueva).
+- **Un tempo fuera del ±25 % se recorta,** no se rechaza.
+- **Los 3 s de plazo se cuentan desde el último toque,** no desde que se enciende.
+- **Con el tempo fácil encendido, cualquier toque en el escenario cuenta** y no hace otra cosa (editar,
+  mover…). Los botones (Play, ⋯, estilos) no cuentan.
+- **Un tempo guardado roto no descarta la canción:** se limpia y vuelve el del estilo (nunca se pierden células).
+
 (Se añaden con cada parte.)

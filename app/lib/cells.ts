@@ -3,6 +3,7 @@ import { DEMOS } from './demos'
 import type { FreeLoop, LoopsState } from './freeLoops'
 import type { LoopLength } from './phrases'
 import type { Instrument, StyleId } from './types'
+import { isValidBpm } from './tempo'
 
 /**
  * Células (spec 005): cada célula es un aro con sus loops, su bajo y sus acordes. Una canción es
@@ -174,6 +175,19 @@ export const songBars = (song: Song): number =>
   song.order.reduce((s, id) => s + (cellById(song, id)?.turns ?? 0), 0)
 
 /** Valida una canción leída del almacenamiento (forma mínima). */
+/**
+ * Siguiente número de vueltas al tocar el número de una célula (§7.1): 1 → 2 → 4 → 8 → 1, sin bajar nunca
+ * del loop más largo (`minT`): con un loop de 4 compases, solo 4 y 8.
+ */
+export function nextTurns(current: Turns, minT: Turns): Turns {
+  const i = TURNS.indexOf(current)
+  const next = TURNS[(i + 1) % TURNS.length]!
+  return Math.max(next, minT) as Turns
+}
+
+/** La canción con un tempo válido: un tempo guardado roto se quita (vuelve el del estilo) sin descartar la canción. */
+export const withValidBpm = (s: Song): Song => (s.bpm === null || isValidBpm(s.bpm) ? s : { ...s, bpm: null })
+
 export function isSong(x: unknown): x is Song {
   if (!x || typeof x !== 'object') return false
   const s = x as Song

@@ -159,3 +159,21 @@ describe('songCode', () => {
     expect(songCode(st)).toBe(songCode(st))
   })
 })
+
+describe('tempo propio de la canción (spec 005, §6)', () => {
+  const loops = [loop('bd', [0, 8], { phaseBar: 0 })]
+
+  it('el código lleva el tempo de la canción, y el del estilo si no tiene', () => {
+    expect(songCode(state({ loops }))).toContain('setcpm(174/4)')
+    expect(songCode(state({ loops, bpm: null }))).toContain('setcpm(174/4)')
+    expect(songCode(state({ loops, bpm: 160 }))).toContain('setcpm(160/4)')
+    expect(songCode(state({ loops, bpm: 160 }), 'engine')).toContain('setcpm(160/4)')
+  })
+
+  it('el desplazamiento de los golpes (nudge) se calcula con ese tempo', () => {
+    const off = [loop('bd', [3.5])]
+    const at = (bpm?: number) => songCode(state({ loops: off, ...(bpm ? { bpm } : {}), assist: false } as Partial<SongState>))
+    // sin ayuda el golpe decimal lleva su nudge, que depende de la duración del paso: con otro tempo cambia
+    expect(at(120)).not.toBe(at())
+  })
+})
