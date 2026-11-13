@@ -35,6 +35,7 @@ Así ningún gesto de hoy cambia de significado y el centro del aro no carga con
 - Modo reel (cámara 3D) y exportar.
 - Biblioteca, guardar varias canciones y compartir por enlace (§14.1, con la spec 004).
 - Estilo o kit distintos por célula: la canción tiene un estilo, un kit y un tempo.
+- Células libres (satélites), en paralelo a la canción: idea en §13.1.
 
 ## 3. Modelo de datos (`lib/cells.ts`, puro)
 
@@ -311,3 +312,40 @@ Colocadas en el mapa en una curva suave, de izquierda a derecha, a distintas pro
 11. **Qué se oculta al alejar:** la chapa de vueltas, los marcadores del borde y las bolas de loops, de bajo y de acordes (son de la célula que se ve). **Play se sigue viendo.**
 12. **Dos "seguir":** el de la chapa ("▶ seguir") continúa la canción; el del mapa es "◎ seguir" y dice "centrar": devuelve la cámara a la célula que suena.
 13. **El zoom de la colonia no se guarda:** solo se guarda el de cerca (`coderbeats:aro:v1`), para no abrir la app alejada.
+
+## 13. Ideas para revisar
+
+Ideas anotadas el 2026-11-13. **No están decididas ni entran en ninguna fase todavía**: se revisan
+antes de la fase 3 o después.
+
+### 13.1 Células libres (satélites)
+
+- Una **célula libre** es una célula especial que **no está en el orden de la canción**. Suena en
+  paralelo, a la vez que la célula que toque, y **sigue sonando aunque la canción cambie de célula**.
+- **Por dentro es una célula normal**: su aro, sus carriles, y puede llevar cualquier cosa
+  (melodía, bombos, cajas…). Lo más habitual será la melodía.
+- **En el mapa flota aparte, sin hilos**, como un satélite de la colonia.
+- **Se enciende y se apaga cuando yo quiera**; si no, suena sin fin.
+- **Más adelante:**
+  - varias células libres;
+  - elegir en qué células de la canción suenan.
+- **Encaje con la melodía (spec 002):** al cantar, poder mandarla a una célula libre.
+
+**Puntos a revisar antes de decidir** (salen de cómo está hecho hoy):
+- **Motor (§4.2):** el código solo lleva la célula que suena y la siguiente. Una célula libre sería
+  un tramo más, sin final, siempre en el código, con su fase propia (no depende del inicio de la
+  célula de la canción).
+- **Vueltas:** una célula libre sin vueltas de canción repite sus loops sin fin. Su "turns" no pinta
+  nada o solo marca el compás que se ve.
+- **Grabación (§4.4):** hoy el micro graba solo en bucle, en la célula que se ve. Habría que decir
+  qué pasa con la libre: ¿se graba cuando es la que se ve y la canción está en bucle, o siempre que
+  la ves?
+- **Límite de células (§3):** ¿cuenta para las 16?
+- **Mapa (§7):** sin hilos de orden y con su propio sitio (¿fuera de la curva, más arriba?). Los
+  marcadores del borde y el ajuste de zoom de la colonia tendrían que contar con ella.
+- **Chapa de vueltas (§6):** para una célula libre, en vez de la vuelta, un interruptor
+  encendida / apagada.
+- **Código Strudel (§9):** `arrange` no vale para algo en paralelo; haría falta un `stack` con la
+  canción y la libre.
+- **Barrido y transiciones (§4.3, §5.2):** la libre no lo lleva; el barrido de filtro de la
+  canción la afectaría, a menos que se excluya.
