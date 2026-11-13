@@ -244,3 +244,27 @@ export function demoSong(style: StyleId): Song | null {
   }))
   return { version: 1, cells, order: cells.map((c) => c.id), bpm: null, nextCellId: cells.length + 1, nextLoopId: loopId }
 }
+
+/**
+ * Canción de prueba de rendimiento (solo desde el diagnóstico): la demo repetida hasta `count`
+ * células (como mucho `MAX_CELLS`), con ids de célula y de loop nuevos y las células en la misma
+ * curva de la demo. No se usa en ningún otro sitio.
+ */
+export function stressSong(base: Song, count: number): Song {
+  const n = Math.max(1, Math.min(MAX_CELLS, Math.round(count)))
+  const src = base.order.map((id) => cellById(base, id)!).filter(Boolean)
+  let loopId = base.nextLoopId
+  const cells: Cell[] = Array.from({ length: n }, (_, i) => {
+    const from = src[i % src.length]!
+    const round = Math.floor(i / src.length)
+    return {
+      id: i + 1,
+      name: from.name && round > 0 ? `${from.name} ${round + 1}` : from.name,
+      loops: from.loops.map(({ prev: _prev, ...l }) => ({ ...l, id: loopId++, bornAt: 0 })),
+      parts: { ...from.parts },
+      turns: from.turns,
+      at: { x: i * 3, y: Math.sin(i * 1.3) * 1.2, depth: [0, 0.4, 0.1, 0.6][i % 4]! },
+    }
+  })
+  return { version: 1, cells, order: cells.map((c) => c.id), bpm: base.bpm, nextCellId: n + 1, nextLoopId: loopId }
+}

@@ -12,6 +12,7 @@ import {
   isMulti,
   nextInOrder,
   stepPlay,
+  stressSong,
   windowAt,
   type Cell,
   type Cursor,
@@ -1021,6 +1022,26 @@ export function useAudioEngine() {
     return { time: t, bar: Math.floor(pos), barPhase: pos - Math.floor(pos) }
   }
 
+  /**
+   * Solo diagnóstico: la demo-canción repetida hasta `count` células, para probar el rendimiento
+   * de la colonia. Devuelve false si el estilo no tiene demo-canción.
+   */
+  async function loadStressDemo(count: number): Promise<boolean> {
+    const demo = demoSong(style.value)
+    if (!demo) {
+      log('cell', `prueba: ${STYLES[style.value].label} no tiene demo-canción (usa drum and bass)`)
+      return false
+    }
+    if (bgMode.value === 'off') {
+      bgMode.value = 'manual'
+      lastBgMode.value = 'manual'
+    }
+    const song = stressSong(demo, count)
+    log('cell', `prueba de rendimiento: ${song.cells.length} células`)
+    await replaceSong(song)
+    return true
+  }
+
   /** Compás global más cercano al que se puede programar un salto: nunca uno cuyo pulso ya pasó. */
   const jumpBar = () => Math.max(nextBarLine(), lastPulseCycle + 1)
 
@@ -1152,6 +1173,7 @@ export function useAudioEngine() {
     remove,
     clearAll,
     loadDemo,
+    loadStressDemo,
     editLoops,
     onVisual,
     clockNow,

@@ -189,6 +189,15 @@ function dotsOf(ls: readonly FreeLoop[], g: number): AroDot[] {
   }
   return out
 }
+/** golpes del compás 0 de cada célula de fondo: no cambian entre frames, así que se calculan una vez por loops y estilo */
+const crowdDotsCache = new Map<number, { loops: readonly FreeLoop[]; style: string; dots: AroDot[] }>()
+function crowdDots(c: Cell): AroDot[] {
+  const hit = crowdDotsCache.get(c.id)
+  if (hit && hit.loops === c.loops && hit.style === style.value) return hit.dots
+  const dots = dotsOf(c.loops, 0)
+  crowdDotsCache.set(c.id, { loops: c.loops, style: style.value, dots })
+  return dots
+}
 const ringDots = computed<AroDot[]>(() => dotsOf(loops.value.loops, shownBar()))
 const phraseDots = computed(() =>
   (phrase.value?.hits ?? []).map((h, i) => ({
@@ -387,6 +396,12 @@ let panBlend = 0
 /** cámara que se dibujó en el último frame: de ahí parte el arrastre */
 let lastCam: Point = { x: 0, y: 0 }
 
+/** ¿se ve alguna parte de esta gota? (con holgura por el estiramiento y los empujones del borde) */
+const onScreen = (g: DropGeo): boolean => {
+  const m = g.R * 1.3 + 8
+  return g.cx + m > 0 && g.cx - m < view.w && g.cy + m > 0 && g.cy - m < view.h
+}
+
 /** células tocables de la colonia en este frame (centros y radio en px, sin la inclinación) */
 let colonyPick: { discs: Disc[]; cy: number } | null = null
 
@@ -423,10 +438,15 @@ function cellScene(
   const placed = new Map(all.map((c) => [c.id, place(c)]))
   const crowd =
     k > 0.01
-      ? backToFront(all.filter((c) => !skip.has(c.id)).map((c) => ({ c, id: c.id, depth: c.at.depth }))).map(({ c }) => ({
+      ? backToFront(
+          all
+            // las que quedan fuera de la pantalla no se dibujan
+            .filter((c) => !skip.has(c.id) && onScreen(placed.get(c.id)!))
+            .map((c) => ({ c, id: c.id, depth: c.at.depth })),
+        ).map(({ c }) => ({
           geo: placed.get(c.id)!,
           weights: weightsOf(c),
-          dots: dotsOf(c.loops, 0),
+          dots: crowdDots(c),
           alpha: k * 0.85 * depthAlpha(c.at.depth, k),
         }))
       : undefined
@@ -525,6 +545,10 @@ let lastT = 0
 const frameMs: number[] = []
 let quality = 1
 let aroDetail = 1
+/** detalle de las células de fondo en la colonia (0 completo … 2 solo silueta); baja antes que el agua y el aro (§7.2) */
+let crowdLevel: 0 | 1 | 2 = 0
+/** frames de la ventana de medida en los que se dibujó la colonia */
+let crowdFrames = 0
 
 /** 0..1: cuánto late ahora (subida rápida de 40 ms y vuelta suave). */
 function pulseK(el: HTMLElement, nowMs: number): number {
@@ -641,11 +665,13 @@ function tick() {
       lanes: allArmed(engine.lanes.value) ? null : engine.lanes.value,
       hold: holdProgress(),
       view: (aroView = stepView(dt)),
+      crowdDetail: crowdLevel,
       guide: { assist: engine.assist.value, quantizeEvery: STYLES[style.value].quantizeEvery },
       suggestions: guideSuggestions.value,
       // en horizontal, más puntos en el contorno cuanto más se estira (E2.1)
       ...(compact.value ? { contour: contourPoints(stretchOf(scene.geo)) } : {}),
     }
+    if (scene.crowd) crowdFrames++
     aro.draw(f)
     updateChapa(colony.value ? null : plan, clock.bar + clock.barPhase)
   }
@@ -653,9 +679,13 @@ function tick() {
   if (frameMs.length >= 120) {
     const p95 = [...frameMs].sort((a, b) => a - b)[Math.floor(frameMs.length * 0.95)]!
     frameMs.length = 0
+    const inColonyMostly = crowdFrames >= 60
+    crowdFrames = 0
     if (p95 > 14) {
-      // primero baja el agua; si no basta, el detalle del aro
-      if (theme?.setQuality && quality > 0.5) {
+      // primero el detalle de las células de fondo (si es lo que se estaba dibujando); luego el agua; luego el aro
+      if (inColonyMostly && crowdLevel < 2) {
+        crowdLevel = (crowdLevel + 1) as 1 | 2
+      } else if (theme?.setQuality && quality > 0.5) {
         quality -= 0.15
         theme.setQuality(quality)
         rendererName.value = theme.renderer()
@@ -1075,7 +1105,7 @@ const layoutInfo = () => {
     `ventana ${window.innerWidth}×${window.innerHeight} @${window.devicePixelRatio}`,
     `escenario ${r ? `${Math.round(r.x)},${Math.round(r.y)} ${Math.round(r.width)}×${Math.round(r.height)}` : '—'}`,
     `documento ${document.documentElement.scrollWidth}×${document.documentElement.scrollHeight}`,
-    `aro (${Math.round(geo?.cx ?? 0)}, ${Math.round(geo?.cy ?? 0)}) r ${Math.round(geo?.R ?? 0)} zoom ${zoomNow().toFixed(2)} (${limits.value.min}–${limits.value.max.toFixed(2)}) detalle ${aroDetail}`,
+    `aro (${Math.round(geo?.cx ?? 0)}, ${Math.round(geo?.cy ?? 0)}) r ${Math.round(geo?.R ?? 0)} zoom ${zoomNow().toFixed(2)} (${limits.value.min}–${limits.value.max.toFixed(2)}) detalle ${aroDetail} · colonia ${crowdLevel} (${cellPoints.value.length} células)`,
     `zonas seguras ${safe.top}/${safe.right}/${safe.bottom}/${safe.left}`,
     `latencia de salida ${Math.round(engine.outputLatency() * 1000)} ms`,
   ].join(' · ')

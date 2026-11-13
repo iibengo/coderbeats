@@ -12,6 +12,7 @@ import {
   nextInOrder,
   songBars,
   songFromLoops,
+  stressSong,
   storableSong,
   windowAt,
   type Cursor,
@@ -283,3 +284,36 @@ describe('cells: bucle y saltos', () => {
 function withSongLoop(song: Song, cursor: Cursor): SongState {
   return base({ cells: { list: song.cells, order: song.order, window: windowAt(song, cursor, { loop: true }) } })
 }
+
+describe('cells: canción de prueba', () => {
+  const demo = demoSong('dnb')!
+
+  it('duplica la demo hasta 8 y hasta 16 células, con ids únicos', () => {
+    for (const n of [8, 16]) {
+      const s = stressSong(demo, n)
+      expect(s.cells).toHaveLength(n)
+      expect(s.order).toEqual(s.cells.map((c) => c.id))
+      expect(new Set(s.cells.map((c) => c.id)).size).toBe(n)
+      const loopIds = s.cells.flatMap((c) => c.loops.map((l) => l.id))
+      expect(new Set(loopIds).size).toBe(loopIds.length)
+      expect(Math.max(...loopIds)).toBeLessThan(s.nextLoopId)
+      expect(isSong(s)).toBe(true)
+      expect(songBars(s)).toBe((songBars(demo) * n) / demo.cells.length)
+    }
+  })
+
+  it('repite la estructura de la demo y numera las vueltas siguientes', () => {
+    const s = stressSong(demo, 8)
+    expect(s.cells.map((c) => c.turns)).toEqual([4, 4, 8, 2, 4, 4, 8, 2])
+    expect(s.cells.map((c) => c.name)).toEqual(['intro', 'subida', 'drop', 'final', 'intro 2', 'subida 2', 'drop 2', 'final 2'])
+    expect(s.cells[6]!.parts).toEqual(demo.cells[2]!.parts)
+    expect(s.cells[7]!.at.x).toBe(21)
+  })
+
+  it('no pasa de 16 células y no toca la demo original', () => {
+    const before = JSON.stringify(demo)
+    expect(stressSong(demo, 40).cells).toHaveLength(16)
+    expect(stressSong(demo, 0).cells).toHaveLength(1)
+    expect(JSON.stringify(demo)).toBe(before)
+  })
+})

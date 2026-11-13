@@ -133,6 +133,11 @@ export interface AroFrame {
   crowd?: AroGhost[]
   /** colonia: anillo rosa alrededor de la célula que suena (0..1) */
   halo?: number
+  /**
+   * detalle de las células de fondo en la colonia (§7.2, E1.7): 0 = completo; 1 = menos ángulos, sin
+   * bordes de franja y golpes sin ondulación; 2 = solo la silueta. Lo baja el vigilante de frames.
+   */
+  crowdDetail?: 0 | 1 | 2
   /** colonia: hilos de orden y número de vueltas de cada célula */
   threads?: AroThread[]
   labels?: AroLabel[]
@@ -166,6 +171,8 @@ const SPAWN_TAU = 0.12
 const POP_S = 0.7
 /** ángulos del contorno de la otra gota de una transición (menos detalle: dura poco) */
 const GHOST_POINTS = 72
+/** ángulos del contorno de una célula de fondo según su nivel de detalle */
+const CROWD_POINTS = [GHOST_POINTS, 40, 24] as const
 /** anchura angular del estiramiento hacia la otra célula */
 const PULL_SHARP = 5
 
@@ -422,7 +429,7 @@ export class AroCanvas {
     try {
       // las demás células, la otra de una transición y el puente van debajo de la que suena
       for (const th of f.threads ?? []) this.drawThread(th, f)
-      for (const c of f.crowd ?? []) this.drawGhost(c, f)
+      for (const c of f.crowd ?? []) this.drawGhost(c, f, f.crowdDetail ?? 0)
       if (f.ghost && f.ghost.alpha > 0.01) this.drawGhost(f.ghost, f)
       if (f.bridge) this.drawBridge(f.bridge, f)
       x.globalAlpha = f.alpha ?? 1
@@ -435,13 +442,14 @@ export class AroCanvas {
   }
 
   /** La otra gota de una transición: franjas, golpes y centro, sin aguja ni nada que se toque. */
-  private drawGhost(g: AroGhost, f: AroFrame) {
+  private drawGhost(g: AroGhost, f: AroFrame, level: 0 | 1 | 2 = 0) {
     const x = this.ctx
     const { geo } = g
     const t = f.reduced ? 0 : f.wall
     const breath = f.reduced ? 0 : BREATH
+    const n = CROWD_POINTS[level]
+    if (this.roGhost.length !== n) this.roGhost = new Float32Array(n)
     const ro = this.roGhost
-    const n = ro.length
     for (let k = 0; k < n; k++) ro[k] = outerRadius((k / n) * TAU, geo, t, breath)
     const layout = bandLayout(g.weights)
     const contour = (p: Path2D, u: number, reverse: boolean) => {
@@ -456,6 +464,22 @@ export class AroCanvas {
     }
     x.save()
     x.globalAlpha = Math.min(1, g.alpha)
+    if (level >= 2) {
+      // solo la silueta: un trazo y un relleno, sin franjas ni golpes
+      const sil = new Path2D()
+      contour(sil, 1, false)
+      x.fillStyle = 'rgba(255,255,255,0.05)'
+      x.fill(sil)
+      x.strokeStyle = 'rgba(255,255,255,0.22)'
+      x.lineWidth = 1
+      x.stroke(sil)
+      x.fillStyle = `rgba(${VOICE_RGB_CSS.bd},1)`
+      x.beginPath()
+      x.arc(geo.cx, geo.cy, 2.5, 0, TAU)
+      x.fill()
+      x.restore()
+      return
+    }
     for (const v of BAND_ORDER) {
       const wt = g.weights[v]
       if (wt < 0.03) continue
@@ -466,15 +490,22 @@ export class AroCanvas {
       contour(ring, layout[v].a, true)
       x.fillStyle = `rgba(${col},${0.035 * wt})`
       x.fill(ring)
-      x.strokeStyle = `rgba(${col},${0.24 * wt})`
-      x.lineWidth = 1
-      x.stroke(outer)
+      // con detalle reducido, sin el borde fino de cada franja
+      if (level === 0) {
+        x.strokeStyle = `rgba(${col},${0.24 * wt})`
+        x.lineWidth = 1
+        x.stroke(outer)
+      }
     }
     for (const d of g.dots) {
       const wt = g.weights[d.voice]
       if (wt < 0.05) continue
       const th = stepAngle(d.step)
-      const r = radiusAt(th, bandMid(d.voice, layout), outerRadius(th, geo, t, breath), geo.core, t, 0)
+      // con detalle reducido, el radio sale de la muestra del contorno en vez de recalcular el ruido
+      const r =
+        level === 0
+          ? radiusAt(th, bandMid(d.voice, layout), outerRadius(th, geo, t, breath), geo.core, t, 0)
+          : geo.core + (ro[Math.round((((th / TAU) % 1) + 1) % 1 * n) % n]! - geo.core) * bandMid(d.voice, layout)
       const px = geo.cx + Math.cos(th) * r
       const py = geo.cy + Math.sin(th) * r
       x.fillStyle = `rgba(${VOICE_RGB_CSS[d.voice]},${d.muted ? MUTED_ALPHA : 0.55})`

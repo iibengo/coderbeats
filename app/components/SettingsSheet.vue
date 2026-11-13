@@ -57,6 +57,12 @@ function loadDemo() {
   open.value = false
 }
 
+/** Prueba de rendimiento (diagnóstico): la demo repetida hasta 8 o 16 células. */
+async function stressDemo(count: 8 | 16) {
+  if ((loops.value.loops.length || multi.value) && !confirm(`¿Reemplazar tu canción por la demo de prueba de ${count} células?`)) return
+  if (await engine.loadStressDemo(count)) open.value = false
+}
+
 function recalibrate(what: 'latency' | 'sounds') {
   engine.stop()
   open.value = false
@@ -205,6 +211,11 @@ const val = (e: Event) => Number((e.target as HTMLInputElement).value)
           <div class="mb-2 flex items-center justify-between">
             <span>registro ({{ diag.length }})</span>
             <button class="text-white" @click="copyDiag">{{ diagCopied ? 'Copiado' : 'Copiar' }}</button>
+          </div>
+          <div class="mb-3 flex items-center gap-2">
+            <span>prueba de rendimiento</span>
+            <button class="rounded-full border border-white/20 px-3 py-1 text-white" @click="stressDemo(8)">demo ×8 células</button>
+            <button class="rounded-full border border-white/20 px-3 py-1 text-white" @click="stressDemo(16)">demo ×16</button>
           </div>
           <p class="mb-1">visual: {{ props.renderer }}</p>
           <p class="mb-2">pantalla: {{ props.layout() }}</p>
