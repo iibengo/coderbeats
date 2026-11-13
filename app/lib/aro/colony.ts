@@ -30,8 +30,8 @@ const clamp01 = (v: number) => Math.min(1, Math.max(0, v))
 const smooth = (k: number) => k * k * (3 - 2 * k)
 const halfShort = (r: Rect) => Math.min(r.x1 - r.x0, r.y1 - r.y0) / 2
 
-/** ¿Gestos de colonia? Solo con varias células y por debajo del umbral. */
-export const inColony = (zoom: number, cells: number): boolean => cells > 1 && zoom < COLONY_ENTER
+/** ¿Gestos de colonia? Por debajo del umbral y con alguna célula (con una sola también: desde ahí se crea la segunda). */
+export const inColony = (zoom: number, cells: number): boolean => cells >= 1 && zoom < COLONY_ENTER
 
 /** Centro del rectángulo que envuelve las posiciones. */
 export function boundsCenter(points: readonly Point[]): Point {

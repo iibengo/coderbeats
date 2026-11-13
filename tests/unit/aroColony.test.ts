@@ -35,11 +35,12 @@ const free = { x0: 8, y0: 52, x1: 382, y1: 700 } // móvil en vertical: 374 × 6
 const demo = [0, 1, 2, 3].map((i) => ({ x: i * 3, y: Math.sin(i * 1.3) * 1.2 }))
 
 describe('colonia: modo y ajuste', () => {
-  it('colonia solo con varias células y por debajo del umbral', () => {
+  it('colonia por debajo del umbral y con alguna célula (también con una sola, para crear la segunda)', () => {
     expect(inColony(0.39, 4)).toBe(true)
     expect(inColony(0.4, 4)).toBe(false)
     expect(inColony(0.45, 4)).toBe(false)
-    expect(inColony(0.2, 1)).toBe(false)
+    expect(inColony(0.2, 1)).toBe(true)
+    expect(inColony(0.2, 0)).toBe(false)
   })
 
   it('el mínimo ajusta todas las células en el rectángulo libre', () => {

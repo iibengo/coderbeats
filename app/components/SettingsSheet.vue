@@ -63,6 +63,12 @@ async function stressDemo(count: 8 | 16) {
   if (await engine.loadStressDemo(count)) open.value = false
 }
 
+/** "Borrar todo" pide confirmación y se puede deshacer unos segundos (spec 005, §7.1). */
+function clearAll() {
+  if ((loops.value.loops.length || multi.value) && !confirm('¿Borrar toda la canción?')) return
+  engine.clearAll()
+}
+
 function recalibrate(what: 'latency' | 'sounds') {
   engine.stop()
   open.value = false
@@ -181,7 +187,7 @@ const val = (e: Event) => Number((e.target as HTMLInputElement).value)
             <button class="flex-1 rounded-full border border-white/30 py-2 disabled:opacity-40" :disabled="!playing" @click="engine.drop()">
               Drop
             </button>
-            <button class="flex-1 rounded-full border border-white/15 py-2 disabled:opacity-40" :disabled="!loops.loops.length && !multi" @click="engine.clearAll()">
+            <button class="flex-1 rounded-full border border-white/15 py-2 disabled:opacity-40" :disabled="!loops.loops.length && !multi" @click="clearAll">
               Borrar todo
             </button>
             <button class="flex-1 rounded-full border border-white/15 py-2" @click="loadDemo">Cargar demo</button>

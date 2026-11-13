@@ -18,6 +18,7 @@ import {
   colonyCam,
   colonyMinZoom,
   crowdAlpha,
+  DOUBLE_TAP_MS,
   depthAlpha,
   depthParallax,
   depthScale,
@@ -91,10 +92,10 @@ const insets = computed<Insets>(() =>
 )
 const limits = computed(() => zoomLimits(freeRect(view.w, view.h, insets.value), compact.value))
 /** posiciones de las células en el mapa; con varias, el zoom baja hasta la colonia (spec 005, §7) */
-const cellPoints = computed(() => (engine.multi.value ? engine.song.value.cells.map((c) => c.at) : []))
+const cellPoints = computed(() => engine.song.value.cells.map((c) => c.at))
 const fullLimits = computed(() => {
   const l = limits.value
-  if (cellPoints.value.length < 2) return l
+  if (cellPoints.value.length < 1) return l
   return { ...l, min: Math.min(l.min, colonyMinZoom(cellPoints.value, freeRect(view.w, view.h, insets.value))) }
 })
 /** gestos de colonia (zoom alejado); la interfaz de cerca (bolas, chapa, marcadores) se oculta */
@@ -155,9 +156,17 @@ const releaseStyle = computed(() => {
   const y = compact.value ? view.h / 2 + 84 : view.h - PLAY_FROM_BOTTOM
   return { left: `${x}px`, top: `${y}px`, transform: 'translate(-50%, -50%)' }
 })
+/** "↶ deshacer": a la altura de la fila de bolas; en la colonia, a la izquierda de "◎ centrar" si está */
+const undoStyle = computed(() => {
+  const shift = colony.value && panned.value ? 56 : 0
+  const x = compact.value ? sideX.value.left : view.w / 2 - shift
+  // cerca, un poco por encima de las bolas para no taparlas
+  const y = compact.value ? view.h / 2 + 44 : view.h - ROW_FROM_BOTTOM - (colony.value ? 0 : 40)
+  return { left: `${x}px`, top: `${y}px`, transform: 'translate(-50%, -50%)' }
+})
 /** "◎ centrar": donde estaría la fila de bolas (que en la colonia se oculta) */
 const followStyle = computed(() => {
-  const x = compact.value ? sideX.value.left : view.w / 2
+  const x = compact.value ? sideX.value.left : view.w / 2 + (engine.undoInfo.value ? 62 : 0)
   const y = compact.value ? view.h / 2 : view.h - ROW_FROM_BOTTOM
   return { left: `${x}px`, top: `${y}px`, transform: 'translate(-50%, -50%)' }
 })
@@ -433,6 +442,20 @@ const drift = new Drift()
 let camSmooth: Point | null = null
 let camEaseUntil = 0
 const CAM_EASE_MS = 700
+/** células recién creadas (id → cuándo): caen como una gota al aparecer */
+const spawns = new Map<number, number>()
+const SPAWN_MS = 450
+function spawnState(id: number): { s: number; a: number } {
+  const t0 = spawns.get(id)
+  if (t0 === undefined || reduced) return { s: 1, a: 1 }
+  const e = Math.min(1, (performance.now() - t0) / SPAWN_MS)
+  if (e >= 1) spawns.delete(id)
+  return { s: 1 + (1 - e) ** 2 * 0.9, a: e }
+}
+/** último toque en el agua, para que un doble toque no cree dos células */
+let lastWater: { x: number; y: number; t: number } | null = null
+/** mantener una célula este tiempo la borra (ms) */
+const COLONY_HOLD_MS = 600
 /** último toque sobre una célula, para el doble toque */
 let lastTap: { id: number; t: number } | null = null
 
@@ -476,7 +499,7 @@ function cellScene(
   camSmooth = cam
   lastCam = cam
   // profundidad (§7.2): al alejar, las del fondo se ven más pequeñas, más tenues y se mueven menos con el mapa
-  const k = all.length > 1 ? crowdAlpha(zEff) : 0
+  const k = all.length > 0 ? crowdAlpha(zEff) : 0
   const pfOf = (depth: number) => (reduced ? 1 : depthParallax(depth, k)) // con movimiento reducido, sin parallax
   const toMap = (fx: number, fy: number, depth: number): Point => screenToMap({ x: fx, y: fy }, { x: base.cx, y: base.cy }, base.R, cam, pfOf(depth))
   // la célula que se arrastra sigue al dedo (se recalcula cada frame, aunque la cámara se mueva)
@@ -498,7 +521,7 @@ function cellScene(
     const at = atOf(c)
     // la física solo se ve en la colonia
     const o = drift.offset(c.id)
-    return scaleGeo(moveGeo(base, (at.x + o.x * k - cam.x) * base.R * pf, (at.y + o.y * k - cam.y) * base.R * pf), depthScale(c.at.depth, k))
+    return scaleGeo(moveGeo(base, (at.x + o.x * k - cam.x) * base.R * pf, (at.y + o.y * k - cam.y) * base.R * pf), depthScale(c.at.depth, k) * spawnState(c.id).s)
   }
   const toScreen = (p: Point, depth: number): Point => mapToScreen(p, { x: base.cx, y: base.cy }, base.R, cam, pfOf(depth))
   const weightsOf = (c: Cell) => ({ ...allWeights(1), bass: c.parts.bass && bgMode.value !== 'off' ? 1 : 0, mel: 0 })
@@ -520,7 +543,7 @@ function cellScene(
           geo: placed.get(c.id)!,
           weights: weightsOf(c),
           dots: crowdDots(c),
-          alpha: k * 0.85 * depthAlpha(c.at.depth, k),
+          alpha: k * 0.85 * depthAlpha(c.at.depth, k) * spawnState(c.id).a,
         }))
       : undefined
   colonyPick = colony.value
@@ -774,6 +797,7 @@ function tick() {
       stepSec: 60 / STYLES[style.value].bpm / 4,
       lanes: allArmed(engine.lanes.value) ? null : engine.lanes.value,
       hold: holdProgress(),
+      holdRing: colonyHold(),
       view: (aroView = stepView(dt)),
       crowdDetail: crowdLevel,
       guide: { assist: engine.assist.value, quantizeEvery: STYLES[style.value].quantizeEvery },
@@ -916,7 +940,7 @@ const drag = ref<{ axis: Axis; x: number; y: number } | null>(null)
 
 type Gesture =
   | { kind: 'aro-drag'; id: number; dot: AroDot }
-  | { kind: 'colony'; id: number; x0: number; y0: number; t: number; moved: boolean; lx: number; ly: number; cellId: number | null; grab: Point }
+  | { kind: 'colony'; id: number; x0: number; y0: number; t: number; moved: boolean; lx: number; ly: number; cellId: number | null; grab: Point; held: boolean }
   | {
       kind: 'aro-tap'
       id: number
@@ -1043,7 +1067,7 @@ function onDown(e: PointerEvent) {
   // colonia (zoom alejado): un dedo no toca el aro, toca células (spec 005, §7.1)
   if (colony.value) {
     const cellId = cellUnder(x, y)
-    gesture = { kind: 'colony', id: e.pointerId, x0: x, y0: y, t: performance.now(), moved: false, lx: x, ly: y, cellId, grab: grabOffset(cellId, x, y) }
+    gesture = { kind: 'colony', id: e.pointerId, x0: x, y0: y, t: performance.now(), moved: false, lx: x, ly: y, cellId, grab: grabOffset(cellId, x, y), held: false }
     return
   }
   const dot = aro?.pick(x, y)
@@ -1172,6 +1196,48 @@ function endCellDrag(commit: boolean) {
 }
 
 /**
+ * Mantener una célula pulsada (§7.1): el anillo se completa alrededor de ella y, a los 0,6 s, se borra
+ * (con "↶ deshacer"). Se llama en cada frame; moverse antes cancela el borrado.
+ */
+function colonyHold(): { x: number; y: number; r: number; p: number } | null {
+  const gs = gesture
+  if (gs?.kind !== 'colony' || gs.cellId === null || gs.moved || gs.held || !colonyPick) return null
+  const d = colonyPick.discs.find((c) => c.id === gs.cellId)
+  if (!d) return null
+  const p = (performance.now() - gs.t) / COLONY_HOLD_MS
+  if (p >= 1) {
+    gs.held = true
+    navigator.vibrate?.(12)
+    lastTap = null
+    camEaseUntil = performance.now() + CAM_EASE_MS
+    engine.removeCell(gs.cellId)
+    return null
+  }
+  return { x: d.x, y: d.y, r: Math.max(d.r, 12), p }
+}
+
+/** Tocar agua vacía en la colonia: célula nueva, que cae como una gota donde tocas (§7.1). */
+function tapWater(x: number, y: number) {
+  const pk = colonyPick
+  if (!pk) return
+  const now = performance.now()
+  // un doble toque en el agua no crea dos células
+  if (lastWater && now - lastWater.t < DOUBLE_TAP_MS && Math.hypot(x - lastWater.x, y - lastWater.y) < 40) {
+    lastWater = null
+    return
+  }
+  lastWater = { x, y, t: now }
+  const depth = engine.nextCellDepth()
+  const [fx, fy] = toFront(x, y, aroView, 0, pk.cy)
+  const f = clampToRect({ x: fx, y: fy }, pk.free)
+  const m = pk.toMap(f.x, f.y, depth)
+  const id = engine.addCell({ x: m.x, y: m.y, depth })
+  if (id === null) return
+  spawns.set(id, now)
+  camEaseUntil = now + CAM_EASE_MS
+}
+
+/**
  * Tocar una célula en la colonia (§7.1): el primer toque actúa al momento (salta a ella en la siguiente
  * línea de compás y queda en bucle, sin acercar); el segundo, a menos de 300 ms sobre la misma, solo
  * entra: el zoom vuelve a cerca, a la célula.
@@ -1252,7 +1318,10 @@ function onUp(e: PointerEvent, cancelled = false) {
     gesture = null
   } else if (gs?.kind === 'colony' && gs.id === e.pointerId) {
     if (dragState) endCellDrag(!cancelled)
-    else if (!cancelled && !gs.moved && gs.cellId !== null && performance.now() - gs.t < TAP_MS) tapCell(gs.cellId)
+    else if (!cancelled && !gs.moved && !gs.held && performance.now() - gs.t < TAP_MS) {
+      if (gs.cellId !== null) tapCell(gs.cellId)
+      else tapWater(gs.x0, gs.y0)
+    }
     gesture = null
   } else if (gs?.kind === 'fx' && gs.id === e.pointerId) gesture = null
   pointers.delete(e.pointerId)
@@ -1366,6 +1435,18 @@ defineExpose({ rendererName, layoutInfo })
       ◎ centrar
     </button>
 
+    <!-- deshacer lo último que se borró (una célula o "Borrar todo"), unos 8 s (spec 005, §7.1) -->
+    <button
+      v-if="engine.undoInfo.value"
+      class="undo-btn absolute"
+      :style="undoStyle"
+      aria-label="deshacer el último borrado"
+      @pointerdown.stop
+      @click="engine.undo()"
+    >
+      ↶ deshacer
+    </button>
+
     <!-- colonia: mientras hay bucle, soltarlo desde aquí (la chapa de vueltas no se ve alejado) -->
     <button
       v-if="colony && looping"
@@ -1453,6 +1534,23 @@ defineExpose({ rendererName, layoutInfo })
   font-size: 12px;
   letter-spacing: 0.04em;
   white-space: nowrap;
+}
+.undo-btn {
+  height: 30px;
+  padding: 0 14px;
+  border-radius: 9999px;
+  border: 1px solid rgb(255 255 255 / 0.4);
+  background: rgb(255 255 255 / 0.09);
+  color: rgb(255 255 255 / 0.9);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.undo-btn::after {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  border-radius: 9999px;
 }
 .release-btn {
   display: flex;

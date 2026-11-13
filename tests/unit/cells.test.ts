@@ -13,6 +13,11 @@ import {
   songBars,
   songFromLoops,
   stressSong,
+  MAX_CELLS,
+  nextDepth,
+  orderWith,
+  withNewCell,
+  withoutCell,
   storableSong,
   windowAt,
   type Cursor,
@@ -315,5 +320,60 @@ describe('cells: canción de prueba', () => {
     expect(stressSong(demo, 40).cells).toHaveLength(16)
     expect(stressSong(demo, 0).cells).toHaveLength(1)
     expect(JSON.stringify(demo)).toBe(before)
+  })
+})
+
+describe('cells: crear y borrar', () => {
+  const demo = demoSong('dnb')!
+
+  it('una célula nueva es vacía, va al final del orden y con otra profundidad', () => {
+    const r = withNewCell(demo, { x: 12, y: 1 })!
+    expect(r.id).toBe(demo.nextCellId)
+    expect(r.song.order).toEqual([...demo.order, r.id])
+    const c = r.song.cells.at(-1)!
+    expect(c.loops).toEqual([])
+    expect(c.parts).toEqual({ bass: false, chords: false })
+    expect(c.turns).toBe(1)
+    expect(c.at).toEqual({ x: 12, y: 1, depth: nextDepth(4) })
+    expect(r.song.nextCellId).toBe(demo.nextCellId + 1)
+    expect(isSong(r.song)).toBe(true)
+    expect(demo.cells).toHaveLength(4) // la original no cambia
+  })
+
+  it('con 16 células no se crea otra', () => {
+    let s = stressSong(demo, MAX_CELLS)
+    expect(withNewCell(s, { x: 0, y: 0 })).toBeNull()
+    s = withoutCell(s, 3)
+    expect(withNewCell(s, { x: 0, y: 0 })).not.toBeNull()
+  })
+
+  it('borrar cierra el hilo: la anterior pasa a la siguiente', () => {
+    const s = withoutCell(demo, demo.order[1]!)
+    expect(s.cells.map((c) => c.id)).toEqual([demo.order[0], demo.order[2], demo.order[3]])
+    expect(s.order).toEqual([demo.order[0], demo.order[2], demo.order[3]])
+    expect(nextInOrder(s, demo.order[0]!)).toBe(demo.order[2])
+    expect(demo.order).toHaveLength(4)
+  })
+
+  it('al deshacer, vuelve entre sus mismos vecinos; si ya no están, a un lado o al final', () => {
+    expect(orderWith([1, 3, 4], 2, 1, 3)).toEqual([1, 2, 3, 4])
+    expect(orderWith([1, 3, 4], 2, 9, 3)).toEqual([1, 2, 3, 4]) // la anterior ya no está: antes de la siguiente
+    expect(orderWith([1, 3, 4], 2, 9, 8)).toEqual([1, 3, 4, 2]) // ninguna sigue: al final
+    expect(orderWith([3, 4], 1, null, 3)).toEqual([1, 3, 4]) // era la primera
+    expect(orderWith([1, 3], 4, 3, null)).toEqual([1, 3, 4]) // era la última
+  })
+
+  it('un salto pendiente funciona aunque la célula del cursor se haya borrado', () => {
+    const gone = demo.order[1]!
+    const song = withoutCell(demo, gone)
+    const jump = { cellId: demo.order[2]!, startBar: 9, loop: false }
+    const play: Play = { cursor: { cellId: gone, startBar: 4 }, loop: false, jump }
+    // hasta el salto el cursor no se mueve (antes saltaba a la primera)
+    expect(stepPlay(song, play, 6)).toBe(play)
+    expect(windowAt(song, play.cursor, { jump })).toEqual([
+      { cellId: gone, from: 4, to: 9 },
+      { cellId: demo.order[2], from: 9, to: 9 + 8 },
+    ])
+    expect(stepPlay(song, play, 9).cursor).toEqual({ cellId: demo.order[2], startBar: 9 })
   })
 })

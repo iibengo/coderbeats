@@ -137,6 +137,8 @@ export interface AroFrame {
   crowd?: AroGhost[]
   /** colonia: anillo rosa alrededor de la célula que suena (0..1) */
   halo?: number
+  /** colonia: mantener una célula la borra; el anillo se completa alrededor de ella (p = 0..1) */
+  holdRing?: { x: number; y: number; r: number; p: number } | null
   /** colonia: cuánto se ha llenado el anillo de la que suena (0..1); null = en bucle, sin avanzar */
   progress?: number | null
   /**
@@ -442,6 +444,7 @@ export class AroCanvas {
       this.drawFront(f)
       if (f.halo && f.halo > 0.01) this.drawHalo(f.halo, f.progress)
       if (f.labels?.length) this.drawLabels(f.labels)
+      if (f.holdRing && f.holdRing.p > 0.08) this.drawHoldRing(f.holdRing)
     } finally {
       x.restore()
     }
@@ -598,6 +601,18 @@ export class AroCanvas {
       }
       x.stroke()
     }
+    x.lineCap = 'butt'
+  }
+
+  /** Anillo fino que se completa alrededor de la célula que se mantiene pulsada (se borra al llegar a 1). */
+  private drawHoldRing(h: { x: number; y: number; r: number; p: number }) {
+    const x = this.ctx
+    x.strokeStyle = 'rgba(255,255,255,0.85)'
+    x.lineWidth = 2
+    x.lineCap = 'round'
+    x.beginPath()
+    x.arc(h.x, h.y, h.r + 6, -Math.PI / 2, -Math.PI / 2 + Math.min(1, h.p) * TAU)
+    x.stroke()
     x.lineCap = 'butt'
   }
 

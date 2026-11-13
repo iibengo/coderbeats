@@ -129,6 +129,8 @@ export function stepPlay(song: Song, play: Play, bar: number): Play {
     return jump.loop ? entered : stepPlay(song, entered, bar)
   }
   if (play.loop) return play
+  // con un salto pendiente el cursor espera al salto (la célula del cursor puede haberse borrado)
+  if (play.jump) return play
   const cursor = advance(song, play.cursor, bar)
   return cursor === play.cursor ? play : { ...play, cursor }
 }
@@ -147,15 +149,16 @@ export function endBar(song: Song, play: Play): number {
  */
 export function windowAt(song: Song, cursor: Cursor, o: { loop?: boolean; jump?: Jump | null } = {}): Segment[] {
   const cell = cellById(song, cursor.cellId)
-  if (!isMulti(song) || !cell) return [{ cellId: cursor.cellId, from: cursor.startBar, to: null }]
   const { jump } = o
-  if (jump) {
+  // con un salto pendiente vale aunque la célula del cursor se haya borrado: suena hasta el salto y entra la otra
+  if (isMulti(song) && jump) {
     const target = cellById(song, jump.cellId)
     return [
       { cellId: cursor.cellId, from: cursor.startBar, to: jump.startBar },
       { cellId: jump.cellId, from: jump.startBar, to: jump.loop || !target ? null : jump.startBar + target.turns },
     ]
   }
+  if (!isMulti(song) || !cell) return [{ cellId: cursor.cellId, from: cursor.startBar, to: null }]
   if (o.loop) return [{ cellId: cursor.cellId, from: cursor.startBar, to: null }]
   const end = cursor.startBar + cell.turns
   const nextId = nextInOrder(song, cursor.cellId)
@@ -267,4 +270,38 @@ export function stressSong(base: Song, count: number): Song {
     }
   })
   return { version: 1, cells, order: cells.map((c) => c.id), bpm: base.bpm, nextCellId: n + 1, nextLoopId: loopId }
+}
+
+// ── crear y borrar células (spec 005, §7.1, fase 3.2) ─────────────────────────────
+/** profundidad de la célula nueva: la curva de la demo, para que no queden todas a la misma */
+export const nextDepth = (count: number): number => [0, 0.4, 0.1, 0.6][count % 4]!
+
+/**
+ * Añade una célula vacía al final del orden, con su hilo desde la última. Devuelve null si ya hay
+ * `MAX_CELLS`.
+ */
+export function withNewCell(song: Song, at: { x: number; y: number; depth?: number }): { song: Song; id: number } | null {
+  if (song.cells.length >= MAX_CELLS) return null
+  const id = song.nextCellId
+  const cell: Cell = { ...emptyCell(id), at: { x: at.x, y: at.y, depth: at.depth ?? nextDepth(song.cells.length) } }
+  return { song: { ...song, cells: [...song.cells, cell], order: [...song.order, id], nextCellId: id + 1 }, id }
+}
+
+/** La canción sin la célula `id`, en células y en orden (el hilo se cierra: la anterior pasa a la siguiente). */
+export const withoutCell = (song: Song, id: number): Song => ({
+  ...song,
+  cells: song.cells.filter((c) => c.id !== id),
+  order: song.order.filter((x) => x !== id),
+})
+
+/**
+ * Dónde volver a poner `id` en el orden al deshacer un borrado: justo después de la que iba antes si
+ * sigue ahí; si no, justo antes de la que iba después; si tampoco, al final.
+ */
+export function orderWith(order: readonly number[], id: number, prevId: number | null, nextId: number | null): number[] {
+  const out = order.filter((x) => x !== id)
+  const after = prevId !== null ? out.indexOf(prevId) : -1
+  const before = nextId !== null ? out.indexOf(nextId) : -1
+  out.splice(after >= 0 ? after + 1 : before >= 0 ? before : out.length, 0, id)
+  return out
 }

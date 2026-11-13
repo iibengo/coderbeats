@@ -438,4 +438,18 @@ antes de la fase 3 o después.
 Decisiones que se tomaron sin preguntar al hacer la fase 3 de seguido (2026-11-13). Cada una dice
 qué se decidió y por qué; se cambian sin más si no gustan.
 
+**3.2 · Crear, borrar y deshacer**
+- **La colonia también se abre con una sola célula.** Hace falta para crear la segunda (decisión 6: las
+  células se crean solo en la colonia). Antes pellizcar más allá del mínimo rebotaba; ahora, por debajo
+  de 0,4, entra en la colonia con la célula sola.
+- **Pasar de una a varias células con la música sonando** (crear, o deshacer un borrado) deja la que
+  suena **en bucle** hasta "seguir", para que no salte a una célula vacía.
+- **Borrar la que suena la calla al momento**, y la siguiente entra en la siguiente línea de compás.
+  (La spec decía solo lo segundo.)
+- **Un doble toque en el agua no crea dos células:** el segundo, a menos de 300 ms y 40 px del primero, se ignora.
+- **Deshacer "Borrar todo" reinicia la reproducción** si sonaba (vuelve a cargar la canción entera).
+- **Deshacer una célula no cabe con 16:** si ya hay 16 células, no se deshace y el diagnóstico lo dice.
+- **Vaciar la última célula** también apaga su bajo y sus acordes.
+- **El chip "↶ deshacer" cerca** va 40 px por encima de la fila de bolas, para no taparlas.
+
 (Se añaden con cada parte.)

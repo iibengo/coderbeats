@@ -10,10 +10,14 @@ import {
   endBar,
   fitTurns,
   isMulti,
+  nextDepth,
   nextInOrder,
+  orderWith,
   stepPlay,
   stressSong,
   windowAt,
+  withNewCell,
+  withoutCell,
   type Cell,
   type Cursor,
   type Jump,
@@ -27,6 +31,7 @@ import {
   prunePrev,
   removeLoop,
   toggleMute,
+  type FreeLoop,
   type LoopEvent,
   type LoopsState,
   type RepeatMode,
@@ -136,6 +141,8 @@ let sweep = 0
 const looping = ref(false)
 /** la célula que está en bucle (o que va a estarlo en la siguiente línea de compás); null si ninguna */
 const loopTarget = ref<number | null>(null)
+/** qué se puede deshacer (chip "↶ deshacer", spec 005 §7.1): lo último que se borró, o null */
+const undoInfo = ref<'cell' | 'clear' | 'all' | null>(null)
 const syncLoopUi = () => {
   const j = jump ?? viewJump
   looping.value = loop || !!j?.loop
@@ -1006,6 +1013,7 @@ export function useAudioEngine() {
 
   /** Borrar todo: la canción vuelve a ser una célula vacía (spec 005, §11, 3.1). */
   async function clearAll() {
+    setUndo({ kind: 'all', song: liveSong() })
     if (multi()) return replaceSong({ ...emptySong(), nextLoopId: liveSong().nextLoopId })
     loops.value = clearLoops(loops.value)
     reevaluate()
@@ -1053,6 +1061,137 @@ export function useAudioEngine() {
     log('cell', `prueba de rendimiento: ${song.cells.length} células`)
     await replaceSong(song)
     return true
+  }
+
+  // ── Crear, borrar y deshacer células (spec 005, §7.1, fase 3.2) ──────────────────
+  /** Lo último que se borró, para "↶ deshacer" (un solo nivel; no se guarda). */
+  type UndoRec =
+    | { kind: 'cell'; cell: Cell; prevId: number | null; nextId: number | null }
+    | { kind: 'clear'; id: number; loops: FreeLoop[]; parts: Parts }
+    | { kind: 'all'; song: Song }
+  let undoRec: UndoRec | null = null
+  let undoTimer: ReturnType<typeof setTimeout> | null = null
+  const UNDO_MS = 8000
+
+  function setUndo(rec: UndoRec) {
+    if (undoTimer) clearTimeout(undoTimer)
+    undoRec = rec
+    undoInfo.value = rec.kind
+    undoTimer = setTimeout(clearUndo, UNDO_MS)
+  }
+  function clearUndo() {
+    if (undoTimer) clearTimeout(undoTimer)
+    undoTimer = null
+    undoRec = null
+    undoInfo.value = null
+  }
+
+  /**
+   * La canción acaba de pasar de una célula a varias (crear, o deshacer un borrado): si suena, la
+   * célula que suena se queda en bucle en vez de pasar a una célula vacía; "seguir" la suelta.
+   */
+  function becameMulti(wasMulti: boolean) {
+    if (wasMulti || !multi() || !playing.value || !cursor) return
+    loop = true
+    syncLoopUi()
+  }
+
+  /** Profundidad de la próxima célula nueva (para colocarla bajo el dedo en la colonia). */
+  const nextCellDepth = (): number => nextDepth(liveSong().cells.length)
+
+  /** Crea una célula vacía en `at` (mapa), al final del orden. Devuelve su id, o null con 16 células. */
+  function addCell(at: { x: number; y: number; depth?: number }): number | null {
+    const s = liveSong()
+    const r = withNewCell(s, at)
+    if (!r) {
+      log('cell', 'no se crea otra célula: ya hay 16')
+      return null
+    }
+    song.value = r.song
+    log('cell', `célula nueva ${r.id}, al final del orden`)
+    becameMulti(isMulti(s))
+    reevaluate()
+    return r.id
+  }
+
+  /**
+   * Borra la célula `id` (se puede deshacer). La última no se borra: se vacía. Si es la que suena,
+   * deja de sonar ya y entra la siguiente en la próxima línea de compás.
+   */
+  function removeCell(id: number) {
+    const s = liveSong()
+    const cell = cellById(s, id)
+    if (!cell) return
+    if (s.cells.length === 1) {
+      setUndo({ kind: 'clear', id, loops: cell.loops, parts: { ...cell.parts } })
+      loops.value = clearLoops(loops.value)
+      bgManual.value = { ...NO_PARTS }
+      log('cell', 'la última célula se vacía')
+      reevaluate()
+      updateBackground()
+      return
+    }
+    const i = s.order.indexOf(id)
+    setUndo({ kind: 'cell', cell, prevId: s.order[i - 1] ?? null, nextId: s.order[i + 1] ?? null })
+    const nextId = nextInOrder(s, id)
+    song.value = withoutCell(s, id)
+    log('cell', `célula ${id} borrada`)
+    if (!multi()) {
+      // queda una sola: vuelve a ser la app de siempre
+      const only = song.value.cells[0]!
+      if (viewCellId.value !== only.id) showCell(only.id, 0)
+      cursor = cursor && { cellId: only.id, startBar: 0 }
+      viewStartBar = 0
+      loop = false
+      jump = null
+      viewJump = null
+    } else if (playing.value && cursor) {
+      if (jump?.cellId === id) jump = null
+      if (viewJump?.cellId === id) viewJump = null
+      if (cursor.cellId === id) {
+        // suena la siguiente a partir de la próxima línea de compás; la borrada calla ya
+        loop = false
+        jump = jump ?? { cellId: nextId, startBar: jumpBar(), loop: false }
+      }
+    } else if (viewCellId.value === id) showCell(nextId, 0)
+    syncLoopUi()
+    reevaluate()
+    updateBackground()
+  }
+
+  /** Deshace el último borrado (una célula, la última vaciada o "Borrar todo"). */
+  function undo() {
+    const rec = undoRec
+    if (!rec) return
+    clearUndo()
+    if (rec.kind === 'all') {
+      void replaceSong(rec.song)
+      return
+    }
+    const s = liveSong()
+    if (rec.kind === 'clear') {
+      if (!cellById(s, rec.id)) return
+      if (viewCellId.value === rec.id) {
+        loops.value = { loops: rec.loops, nextId: s.nextLoopId }
+        bgManual.value = { ...rec.parts }
+      } else song.value = { ...s, cells: s.cells.map((c) => (c.id === rec.id ? { ...c, loops: rec.loops, parts: rec.parts } : c)) }
+      reevaluate()
+      updateBackground()
+      return
+    }
+    if (cellById(s, rec.cell.id) || s.cells.length >= 16) {
+      log('cell', 'no se puede deshacer: la célula ya no cabe')
+      return
+    }
+    song.value = {
+      ...s,
+      cells: [...s.cells, rec.cell],
+      order: orderWith(s.order, rec.cell.id, rec.prevId, rec.nextId),
+      nextLoopId: Math.max(s.nextLoopId, ...rec.cell.loops.map((l) => l.id + 1)),
+    }
+    log('cell', `célula ${rec.cell.id} recuperada`)
+    becameMulti(isMulti(s))
+    reevaluate()
   }
 
   /** Compás global más cercano al que se puede programar un salto: nunca uno cuyo pulso ya pasó. */
@@ -1194,6 +1333,11 @@ export function useAudioEngine() {
     cellPlan,
     looping,
     loopTarget,
+    undoInfo,
+    addCell,
+    removeCell,
+    undo,
+    nextCellDepth,
     loopHere,
     resume,
     travelTo,
