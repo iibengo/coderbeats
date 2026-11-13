@@ -195,3 +195,10 @@ export const DOUBLE_TAP_MS = 300
 export function isDoubleTap(prev: { id: number; t: number } | null, id: number, now: number, windowMs = DOUBLE_TAP_MS): boolean {
   return !!prev && prev.id === id && now - prev.t >= 0 && now - prev.t < windowMs
 }
+
+// ── pulso del agua en la colonia ─────────────────────────────────────────────────
+/** el pulso más pequeño que se dibuja, como fracción del de una gota de cerca */
+export const PULSE_MIN_SCALE = 0.15
+
+/** Escala del pulso del agua de un tiempo: el radio de la célula que suena respecto al de una gota de cerca (1 = como siempre). */
+export const pulseScale = (r: number, nearR: number): number => Math.min(1, Math.max(PULSE_MIN_SCALE, r / Math.max(1, nearR)))

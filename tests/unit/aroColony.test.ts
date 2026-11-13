@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   approachBlend,
+  pulseScale,
   clampToRect,
   isDoubleTap,
   mapToScreen,
@@ -208,5 +209,15 @@ describe('colonia: mover células y doble toque', () => {
     expect(isDoubleTap({ id: 2, t: 1000 }, 2, 1300)).toBe(false)
     expect(isDoubleTap({ id: 2, t: 1000 }, 3, 1100)).toBe(false)
     expect(isDoubleTap(null, 2, 1100)).toBe(false)
+  })
+})
+
+describe('colonia: pulso del agua', () => {
+  it('el pulso se escala al radio de la célula que suena, sin pasar de 1 ni bajar de 0,15', () => {
+    expect(pulseScale(180, 180)).toBe(1)
+    expect(pulseScale(400, 180)).toBe(1)
+    expect(pulseScale(45, 180)).toBeCloseTo(0.25)
+    expect(pulseScale(3, 180)).toBe(0.15)
+    expect(pulseScale(10, 0)).toBe(1) // sin radio de referencia no se rompe
   })
 })

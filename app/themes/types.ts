@@ -37,6 +37,8 @@ export interface VisualBeatEvent {
   /** centro del anillo de compás (px CSS) */
   x: number
   y: number
+  /** tamaño relativo del pulso, 0..1 (1 = el de siempre); en la colonia, el de la célula que suena */
+  scale?: number
 }
 
 export interface VisualBirthEvent {

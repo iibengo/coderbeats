@@ -25,6 +25,7 @@ import {
   mapToScreen,
   mixCam,
   panBy,
+  pulseScale as beatScale,
   screenToMap,
   settleZoom,
   threadPairs,
@@ -327,7 +328,7 @@ function onEngineVisual(h: Parameters<Parameters<typeof engine.onVisual>[0]>[0])
     setTimeout(() => {
       falls.delete(id)
       const nb = bodies.get(id) ?? b
-      theme?.birth({ time: h.time, loopId: id, instrument: h.instrument as Instrument, x: nb.x, y: nb.y })
+      if (!colony.value) theme?.birth({ time: h.time, loopId: id, instrument: h.instrument as Instrument, x: nb.x, y: nb.y })
     }, fallSec * 1000)
     return
   }
@@ -337,7 +338,8 @@ function onEngineVisual(h: Parameters<Parameters<typeof engine.onVisual>[0]>[0])
     if (h.instrument === 'bass' && bgParts.value.bass) aro?.lightVoice('bass', h.step ?? 0)
     const ball = bgBalls.value.find((b) => b.part === h.instrument)
     pulse(ballEls.get(h.instrument), h.instrument)
-    if (ball) theme.hit({ kind: 'hit', time: h.time, loopId: null, instrument: h.instrument, x: ball.x, y: ball.y, strength: 0.3 })
+    // las bolas se ocultan en la colonia: sin su agua
+    if (ball && !colony.value) theme.hit({ kind: 'hit', time: h.time, loopId: null, instrument: h.instrument, x: ball.x, y: ball.y, strength: 0.3 })
     return
   }
   if (h.loopId === null || falls.has(h.loopId)) return
@@ -345,7 +347,7 @@ function onEngineVisual(h: Parameters<Parameters<typeof engine.onVisual>[0]>[0])
   // (sin onda del agua en el aro: la gota tiene las suyas, spec 003 E1.9)
   const strength = 0.6 + 0.4 * h.strength // la mezcla baja la ganancia con muchos loops: la onda no debe desaparecer
   const b = bodies.get(h.loopId)
-  if (b) theme.hit({ kind: 'hit', time: h.time, loopId: h.loopId, instrument: h.instrument, x: b.x, y: b.y, strength })
+  if (b && !colony.value) theme.hit({ kind: 'hit', time: h.time, loopId: h.loopId, instrument: h.instrument, x: b.x, y: b.y, strength })
   aro?.light(h.loopId, h.step ?? 0)
   pulse(els.get(h.loopId), h.instrument)
 }
@@ -426,6 +428,9 @@ const CAM_EASE_MS = 700
 let lastTap: { id: number; t: number } | null = null
 
 /** células tocables de la colonia en este frame (centros y radio en px, sin la inclinación) */
+/** la célula que suena, tal como se dibujó en el último frame: de ahí sale el pulso del agua en la colonia */
+let curShown: DropGeo | null = null
+
 let colonyPick: {
   discs: Disc[]
   cy: number
@@ -490,6 +495,7 @@ function cellScene(
   const weightsOf = (c: Cell) => ({ ...allWeights(1), bass: c.parts.bass && bgMode.value !== 'off' ? 1 : 0, mel: 0 })
   const curCell = plan?.cur ?? here
   const geo = curCell ? place(curCell) : base
+  curShown = geo
 
   // las demás células, pequeñas y quietas (solo se miran), mientras se aleja el zoom; del fondo al frente
   const skip = new Set([curCell?.id, tr?.ghost?.id])
@@ -642,7 +648,17 @@ function tick() {
     if (beatAbs !== lastBeat) {
       if (lastBeat !== -1) {
         const beat = ((beatAbs % 4) + 4) % 4
-        theme.beat({ time: clock.time, beat, downbeat: beat === 0, x: g.x, y: g.y })
+        // en la colonia, el pulso sale de la célula que suena, a su escala (el aro grande ya no se ve)
+        const cell = colony.value ? curShown : null
+        const nearR = limits.value.initial * (Math.min(geo.free.x1 - geo.free.x0, geo.free.y1 - geo.free.y0) / 2)
+        theme.beat({
+          time: clock.time,
+          beat,
+          downbeat: beat === 0,
+          x: cell ? cell.cx : g.x,
+          y: cell ? cell.cy : g.y,
+          ...(cell ? { scale: beatScale(cell.R, nearR) } : {}),
+        })
       }
       lastBeat = beatAbs
     }
