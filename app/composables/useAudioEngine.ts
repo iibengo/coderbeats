@@ -9,6 +9,8 @@ import {
   emptySong,
   endBar,
   fitTurns,
+  freeOn,
+  isFree,
   isLoose,
   isMulti,
   minTurns,
@@ -21,7 +23,9 @@ import {
   windowAt,
   withCopy,
   withDetached,
+  withFreeOn,
   withNewCell,
+  withNewFree,
   withValidBpm,
   withOrderAfter,
   withoutCell,
@@ -358,8 +362,17 @@ function onPulse(cycle: number, t: number) {
     syncLoopUi()
   }
   if (cursor && multi()) scheduleSweep(cycle, t, barSec)
+  // las libres que se apagaron dejan de estar en el código en cuanto pasa su línea de compás
+  let freePruned = false
+  for (const [id, run] of freeRuns)
+    if (run.to !== null && cycle >= run.to) {
+      freeRuns.delete(id)
+      freePruned = true
+    }
+  if (freePruned) reevaluate()
   later(() => {
-    if (entered) showCell(entered.cellId, entered.startBar)
+    // la vista sigue a la canción, salvo que se esté en una libre (a menos que se haya viajado a propósito)
+    if (entered && (consumed || !isFree(song.value, viewCellId.value))) showCell(entered.cellId, entered.startBar)
     if (consumed && viewJump === consumed) {
       viewJump = null
       syncLoopUi()
@@ -453,6 +466,73 @@ function showCell(id: number, startBar: number) {
   bgManual.value = { ...cell.parts }
 }
 
+// ── Células libres (satélites, spec 005, §13.1) ───────────────────────────────────
+/**
+ * Las libres que suenan en paralelo a la canción: desde qué compás global empezaron (su fase cuenta desde
+ * ahí) y hasta cuál (null = sin fin; con número, se apagó y sigue hasta esa línea de compás).
+ */
+const freeRuns = new Map<number, { from: number; to: number | null }>()
+
+/** Compás global más cercano al que se puede programar un cambio: nunca uno cuyo pulso ya pasó. */
+const jumpBarNow = (): number => Math.max(nextBarLine(), lastPulseCycle + 1)
+
+/** Al dar a Play suenan, desde el compás 0, las libres que estaban encendidas. */
+function startFreeRuns() {
+  freeRuns.clear()
+  for (const c of freeOn(liveSong())) freeRuns.set(c.id, { from: 0, to: null })
+}
+
+/**
+ * Los loops y las partes del fondo de la célula de la canción en el modo de una sola célula: la que se ve,
+ * salvo que se vea una libre (que suena aparte). Con varias células mandan las de cada una (§4.2).
+ */
+function songCellNow(): { loops: FreeLoop[]; parts: Parts } {
+  if (!isFree(song.value, viewCellId.value)) return { loops: loops.value.loops, parts: bgManual.value }
+  const s = liveSong()
+  const c = cellById(s, cursor?.cellId ?? s.order[0]!) ?? cellById(s, s.order[0]!)!
+  return { loops: c.loops, parts: c.parts }
+}
+
+/**
+ * Enciende o apaga una libre. El interruptor cambia al momento; sonando, el sonido entra o sale en la
+ * siguiente línea de compás (al apagarla, sigue hasta esa línea).
+ */
+function setFreeOn(id: number, on: boolean) {
+  const next = withFreeOn(liveSong(), id, on)
+  if (!next) return
+  song.value = next
+  if (playing.value && clock && ctx) {
+    const line = jumpBarNow()
+    if (on) {
+      freeRuns.set(id, { from: line, to: null })
+      if (viewCellId.value === id) viewStartBar = line
+    } else {
+      const run = freeRuns.get(id)
+      if (run && run.to === null) run.to = line
+    }
+  }
+  log('cell', `${on ? 'enciende' : 'apaga'} la libre ${id}`)
+  reevaluate()
+}
+
+/** Tocar una libre: la enciende o la apaga (spec 005, §13.1). */
+function toggleFree(id: number) {
+  const cell = cellById(song.value, id)
+  if (cell?.free) setFreeOn(id, !cell.on)
+}
+
+/** Desde qué compás cuenta la fase de una libre que se llena: el de su encendido (se enciende sola al nacer su primer loop). */
+function birthCellStart(bornAt: number): number {
+  const id = viewCellId.value
+  if (!isFree(song.value, id)) return cursor?.startBar ?? 0
+  let run = freeRuns.get(id)
+  if (!run || run.to !== null) {
+    setFreeOn(id, true)
+    run = freeRuns.get(id)
+  }
+  return run?.from ?? bornAt
+}
+
 /**
  * Barrido de filtro (§4.3): en los 2 últimos tiempos de la última vuelta de la célula que suena,
  * el filtro se abre un poco hacia agudos y vuelve justo en la línea de compás. Como el código se
@@ -506,9 +586,9 @@ function cutParts(target: Parts, t: number) {
 }
 
 // ── Evaluación del código del motor ────────────────────────────────────────────
-function songState(): SongState {
+function songState(display = false): SongState {
   const st: SongState = {
-    loops: loops.value.loops,
+    loops: songCellNow().loops,
     style: style.value,
     bpm: song.value.bpm,
     kit: kit.value,
@@ -516,6 +596,11 @@ function songState(): SongState {
     metronome: metronome.value,
     fx: { ...fx },
   }
+  // las libres que suenan en paralelo: en el motor, sus tramos; en el código que se enseña, las encendidas
+  const free = display
+    ? freeOn(liveSong()).map((c) => ({ cellId: c.id, from: 0, to: null }))
+    : [...freeRuns].map(([cellId, r]) => ({ cellId, from: r.from, to: r.to }))
+  if (free.length) st.free = { list: liveSong().cells, segments: free }
   if (!multi()) return st
   const s = liveSong()
   const at = cursor ?? { cellId: viewCellId.value, startBar: 0 }
@@ -586,10 +671,12 @@ function silenceBackgroundNodes() {
 
 function updateBackground() {
   if (!playing.value || !clock || !ctx) return
-  const active = loops.value.loops.filter((l) => !l.muted).length
+  // el fondo es el de la célula de la canción, aunque se vea una libre (que suena aparte)
+  const sc = songCellNow()
+  const active = sc.loops.filter((l) => !l.muted).length
   // con varias células mandan las partes de cada una (§4.2): el modo es "manual" salvo sin fondo
   const mode = multi() && bgMode.value !== 'off' ? 'manual' : bgMode.value
-  const target = targetParts(active, mode, bgManual.value)
+  const target = targetParts(active, mode, sc.parts)
   const transitions = planTransitions(plannedParts, target, nextBarLine(), style.value, mode !== 'manual')
   plannedParts = target
   const c = ctx
@@ -639,7 +726,7 @@ function birth(phrase: ClosedPhrase, bornAt: number, amend = false) {
     style: style.value,
     quantizeEvery: STYLES[style.value].quantizeEvery,
     bornAt,
-    cellStart: cursor?.startBar ?? 0,
+    cellStart: birthCellStart(bornAt),
     repeat: repeatMode.value,
     amend,
   })
@@ -686,7 +773,7 @@ function onWorkerMessage(m: FromWorker) {
   if (isTooQuiet(m.vol)) return log('unknown', `flojo: descartado (${m.instrument} ${(m.confidence * 100).toFixed(0)}%)${fmtVolume(m.vol)}`, uiMs)
   if (!playing.value || !tracker) return log('stopped', `${m.instrument} sin loop en marcha`, uiMs)
   // con varias células, en estado canción no se graba; en bucle, sí (spec 005, §4.4)
-  if (multi() && !loop) return log('unknown', `ignorado: canción avanzando (${m.instrument} ${(m.confidence * 100).toFixed(0)}%)`, uiMs)
+  if (multi() && !loop && !isFree(song.value, viewCellId.value)) return log('unknown', `ignorado: canción avanzando (${m.instrument} ${(m.confidence * 100).toFixed(0)}%)`, uiMs)
   log('hit', `${m.instrument} ${(m.confidence * 100).toFixed(0)}%${fmtVolume(m.vol)}`, uiMs)
   const gs = tracker.globalStep(m.time - latencySec)
   const heard: VisualHit = {
@@ -895,7 +982,8 @@ export function useAudioEngine() {
     // al arrancar, lo que ya existe suena desde el primer compás
     loops.value = { ...loops.value, loops: loops.value.loops.map((l) => ({ ...l, bornAt: 0 })) }
     // la canción arranca desde la célula que se ve (spec 005, §4.1); el ciclo de Strudel empieza en 0
-    cursor = { cellId: viewCellId.value, startBar: 0 }
+    // con una libre a la vista, la canción suena desde su primera célula y la libre, aparte
+    cursor = { cellId: isFree(song.value, viewCellId.value) ? song.value.order[0]! : viewCellId.value, startBar: 0 }
     viewStartBar = 0
     prevViewId = null
     sweep = 0
@@ -904,6 +992,7 @@ export function useAudioEngine() {
     jump = null
     viewJump = null
     syncLoopUi()
+    startFreeRuns()
     currentBar.value = 0
     clock = null
     tracker = null
@@ -937,6 +1026,7 @@ export function useAudioEngine() {
     lastBirth = null
     cursor = null
     sweep = 0
+    freeRuns.clear()
     loop = false
     jump = null
     viewJump = null
@@ -1170,6 +1260,8 @@ export function useAudioEngine() {
    * de la demo y enciende bajo y acordes del fondo. Sonando, entra en la siguiente línea de compás.
    */
   async function loadDemo() {
+    // la demo es de la canción: si se ve una libre, se vuelve a la primera célula
+    if (isFree(song.value, viewCellId.value)) showCell(song.value.order[0]!, 0)
     // canción completa del estilo (spec 005), si la tiene
     const demo = demoSong(style.value)
     if (demo) {
@@ -1410,6 +1502,7 @@ export function useAudioEngine() {
     setUndo({ kind: 'cell', cell, prevId: i < 0 ? null : (s.order[i - 1] ?? null), nextId: i < 0 ? null : (s.order[i + 1] ?? null), loose: i < 0 })
     const nextId = nextInOrder(s, id)
     song.value = withoutCell(s, id)
+    freeRuns.delete(id)
     log('cell', `célula ${id} borrada`)
     if (!multi()) {
       // queda una sola en el orden: vuelve a ser la app de siempre
@@ -1423,6 +1516,8 @@ export function useAudioEngine() {
         jump = jump ?? { cellId: nextId, startBar: jumpBar(), loop: false }
       }
     } else if (viewCellId.value === id) showCell(nextId, 0)
+    // si se veía la borrada (una libre o una suelta) y suena otra, la vista pasa a la que suena
+    if (!cellById(song.value, viewCellId.value) && !(cursor && cursor.cellId === id)) showCell(cursor?.cellId ?? nextId, cursor?.startBar ?? 0)
     syncLoopUi()
     reevaluate()
     updateBackground()
@@ -1469,8 +1564,35 @@ export function useAudioEngine() {
       nextLoopId: Math.max(s.nextLoopId, ...rec.cell.loops.map((l) => l.id + 1)),
     }
     log('cell', `célula ${rec.cell.id} recuperada`)
+    // una libre que estaba encendida vuelve a sonar en la siguiente línea de compás
+    if (rec.cell.free && rec.cell.on && playing.value && clock) freeRuns.set(rec.cell.id, { from: jumpBarNow(), to: null })
     becameMulti(isMulti(s))
     reevaluate()
+  }
+
+  /**
+   * Entrar en una libre (se ve su aro, sin tocar lo que suena): doble toque en la colonia o el marcador del
+   * borde. La fase que se ve cuenta desde su compás de encendido.
+   */
+  function enterCell(id: number) {
+    const cell = cellById(song.value, id)
+    if (!cell?.free || id === viewCellId.value) return
+    const run = freeRuns.get(id)
+    showCell(id, run && run.to === null ? run.from : 0)
+    reevaluate()
+  }
+
+  /** Crea una célula libre (⋯ → "añadir célula libre"), apagada y vacía, y entra en ella para llenarla. */
+  function addFreeCell(): number | null {
+    const r = withNewFree(liveSong())
+    if (!r) {
+      log('cell', 'no se crea otra célula: ya hay 16')
+      return null
+    }
+    song.value = r.song
+    log('cell', `célula libre ${r.id} creada, apagada`)
+    enterCell(r.id)
+    return r.id
   }
 
   /** Compás global más cercano al que se puede programar un salto: nunca uno cuyo pulso ya pasó. */
@@ -1512,6 +1634,8 @@ export function useAudioEngine() {
    */
   function travelTo(id: number) {
     if (!cellById(song.value, id)) return
+    // una libre no se "viaja": se entra en ella (la canción sigue como está)
+    if (isFree(song.value, id)) return enterCell(id)
     if (!multi()) {
       // una sola célula en el orden (y quizá sueltas): pasar a otra es cambiar la célula que se ve, ya
       if (id === viewCellId.value) return
@@ -1526,6 +1650,8 @@ export function useAudioEngine() {
       if (id !== viewCellId.value) showCell(id, 0)
       return
     }
+    // si se veía una libre y se toca la célula que suena, la vista vuelve a ella
+    if (!jump && id === cursor.cellId && isFree(song.value, viewCellId.value)) showCell(id, cursor.startBar)
     if (!jump && id === cursor.cellId) return loopHere()
     const end = endBar(liveSong(), curPlay())
     jump = { cellId: id, startBar: jump ? jump.startBar : Math.min(jumpBar(), end), loop: true }
@@ -1539,7 +1665,8 @@ export function useAudioEngine() {
    * suena, la siguiente y la anterior. `null` parado o con una sola célula.
    */
   function cellPlan(): { cur: Cell; start: number; end: number; next: Cell; prev: Cell | null; loop: boolean } | null {
-    if (!playing.value || !multi()) return null
+    // con una libre a la vista no hay transiciones ni chapa de vueltas: la libre no pasa de una célula a otra
+    if (!playing.value || !multi() || isFree(song.value, viewCellId.value)) return null
     const s = liveSong()
     const cur = cellById(s, viewCellId.value)
     const next = cur && cellById(s, nextInOrder(s, cur.id))
@@ -1558,7 +1685,7 @@ export function useAudioEngine() {
   }
 
   /** Código que se muestra y se copia (§16.6). */
-  const displayCode = () => songCode(songState(), 'display')
+  const displayCode = () => songCode(songState(true), 'display')
 
   return {
     ready,
@@ -1645,6 +1772,10 @@ export function useAudioEngine() {
     cycleTurns,
     snapshot,
     openSaved,
+    viewIsFree: computed(() => isFree(song.value, viewCellId.value)),
+    toggleFree,
+    addFreeCell,
+    enterCell,
     addCell,
     copyCell,
     detachCell,
