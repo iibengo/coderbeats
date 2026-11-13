@@ -7,6 +7,7 @@ import { allWeights, stepWeights, type Weights } from '~/lib/aro/bands'
 import { stepAngle, type DropGeo } from '~/lib/aro/shape'
 import { dropAction } from '~/lib/aro/drop'
 import { suggestions } from '~/lib/aro/guide'
+import { boundsCenter, cellAtPoint, colonyCam, colonyMinZoom, crowdAlpha, inColony, settleZoom, type Disc } from '~/lib/aro/colony'
 import { edgeMarkers } from '~/lib/aro/markers'
 import { transitionAt } from '~/lib/aro/transition'
 import { clampZoom, contourPoints, dropLayout, freeRect, lerpGeo, moveGeo, pinchZoom, stretchOf, wheelZoom, zoomLimits, type Insets } from '~/lib/aro/zoom'
@@ -17,7 +18,7 @@ import type { Cell } from '~/lib/cells'
 import { loopBarAt, type FreeLoop } from '~/lib/freeLoops'
 import { dragValue, lockAxis, type Axis } from '~/lib/gestures'
 import { allArmed } from '~/lib/lanes'
-import { approachTilt, followBase, parallaxOffset, tiltTarget, type AroView, type Tilt } from '~/lib/aro/view'
+import { approachTilt, followBase, parallaxOffset, tiltTarget, toFront, type AroView, type Tilt } from '~/lib/aro/view'
 import { addHit, moveHit, removeHit, type EditOptions } from '~/lib/loopEdit'
 import { STYLE_MUSIC } from '~/lib/styles'
 import { VOICE_HEX, type Voice } from '~/lib/palette'
@@ -61,6 +62,15 @@ const insets = computed<Insets>(() =>
     : { top: Math.max(TOP_UI, safe.top + 44), right: safe.right + 8, bottom: BOTTOM_UI + safe.bottom, left: safe.left + 8 },
 )
 const limits = computed(() => zoomLimits(freeRect(view.w, view.h, insets.value), compact.value))
+/** posiciones de las células en el mapa; con varias, el zoom baja hasta la colonia (spec 005, §7) */
+const cellPoints = computed(() => (engine.multi.value ? engine.song.value.cells.map((c) => c.at) : []))
+const fullLimits = computed(() => {
+  const l = limits.value
+  if (cellPoints.value.length < 2) return l
+  return { ...l, min: Math.min(l.min, colonyMinZoom(cellPoints.value, freeRect(view.w, view.h, insets.value))) }
+})
+/** gestos de colonia (zoom alejado); la interfaz de cerca (bolas, chapa, marcadores) se oculta */
+const colony = ref(false)
 /** centro de las columnas laterales en horizontal (Play, bajo y acordes a la derecha; estilo y bolas a la izquierda) */
 const sideX = computed(() => ({ left: safe.left + 40, right: view.w - safe.right - 48 }))
 
@@ -69,11 +79,17 @@ const sideX = computed(() => ({ left: safe.left + 40, right: view.w - safe.right
 // sensación (en horizontal sigue pegada arriba y abajo).
 const ZOOM_KEY = 'coderbeats:aro:v1'
 let zoomRel = 1
+/** último zoom de cerca: al tocar una célula en la colonia se vuelve a él, y es el único que se guarda */
+let nearRel = 1
+let settleTimer: ReturnType<typeof setTimeout> | null = null
 /** zoom en vivo durante un pellizco (con resistencia más allá de los límites), o null */
 let pinchLive: number | null = null
-const zoomNow = () => pinchLive ?? clampZoom(limits.value.initial * zoomRel, limits.value)
+const zoomNow = () => pinchLive ?? clampZoom(limits.value.initial * zoomRel, fullLimits.value)
 function setZoom(z: number) {
-  zoomRel = clampZoom(z, limits.value) / limits.value.initial
+  zoomRel = clampZoom(z, fullLimits.value) / limits.value.initial
+  // el zoom de la colonia no se guarda (spec 005, decisión 13): solo el de cerca
+  if (zoomRel * limits.value.initial < limits.value.min - 1e-6) return
+  nearRel = zoomRel
   try {
     localStorage.setItem(ZOOM_KEY, JSON.stringify({ zoomRel }))
   } catch {
@@ -83,7 +99,7 @@ function setZoom(z: number) {
 function loadZoom() {
   try {
     const v = JSON.parse(localStorage.getItem(ZOOM_KEY) ?? 'null') as { zoomRel?: number } | null
-    if (v && typeof v.zoomRel === 'number' && Number.isFinite(v.zoomRel)) zoomRel = v.zoomRel
+    if (v && typeof v.zoomRel === 'number' && Number.isFinite(v.zoomRel)) nearRel = zoomRel = v.zoomRel
   } catch {
     // sin almacenamiento o dato roto: zoom inicial
   }
@@ -336,24 +352,48 @@ watch(engine.viewCellId, () => (cutAt = performance.now()))
  * Cámara y transición para este frame: dónde se dibuja la célula que suena y, si toca, la otra
  * gota, el puente y el estiramiento. Las células están en el mapa en radios de gota (§5.1).
  */
-function cellScene(base: DropGeo, pos: number): Pick<AroFrame, 'geo' | 'ghost' | 'bridge' | 'pull' | 'alpha'> & { plan: ReturnType<typeof engine.cellPlan>; cam: { x: number; y: number } } {
+/** células tocables de la colonia en este frame (centros y radio en px, sin la inclinación) */
+let colonyPick: { discs: Disc[]; cy: number } | null = null
+
+function cellScene(
+  base: DropGeo,
+  pos: number,
+  zEff: number,
+): Pick<AroFrame, 'geo' | 'ghost' | 'bridge' | 'pull' | 'alpha' | 'crowd' | 'halo'> & { plan: ReturnType<typeof engine.cellPlan>; cam: { x: number; y: number } } {
   const alpha = reduced && playing.value ? Math.min(1, (performance.now() - cutAt) / CUT_FADE_MS) : 1
   const plan = engine.cellPlan()
-  if (!plan) {
-    const here = engine.song.value.cells.find((c) => c.id === engine.viewCellId.value)
-    return { geo: base, alpha, plan, cam: { x: here?.at.x ?? 0, y: here?.at.y ?? 0 } }
-  }
+  const all = engine.song.value.cells
+  const here = all.find((c) => c.id === engine.viewCellId.value)
   const spot = (c: Cell) => ({ id: c.id, x: c.at.x, y: c.at.y })
-  const tr = transitionAt(pos, { cur: spot(plan.cur), start: plan.start, end: plan.end, next: spot(plan.next), prev: plan.prev && spot(plan.prev) }, reduced)
-  const place = (c: Cell) => moveGeo(base, (c.at.x - tr.cam.x) * base.R, (c.at.y - tr.cam.y) * base.R)
+  const tr = plan
+    ? transitionAt(pos, { cur: spot(plan.cur), start: plan.start, end: plan.end, next: spot(plan.next), prev: plan.prev && spot(plan.prev) }, reduced)
+    : null
+  // en la colonia la cámara pasa de la célula que suena al centro del conjunto (§7.1)
+  const follow = tr?.cam ?? { x: here?.at.x ?? 0, y: here?.at.y ?? 0 }
+  const cam = cellPoints.value.length > 1 ? colonyCam(follow, boundsCenter(cellPoints.value), zEff, fullLimits.value.min) : follow
+  const place = (c: Cell) => moveGeo(base, (c.at.x - cam.x) * base.R, (c.at.y - cam.y) * base.R)
+  const weightsOf = (c: Cell) => ({ ...allWeights(1), bass: c.parts.bass && bgMode.value !== 'off' ? 1 : 0, mel: 0 })
+  const curCell = plan?.cur ?? here
+  const geo = curCell ? place(curCell) : base
+
+  // las demás células, pequeñas y quietas (solo se miran), mientras se aleja el zoom
+  const k = all.length > 1 ? crowdAlpha(zEff) : 0
+  const skip = new Set([curCell?.id, tr?.ghost?.id])
+  const crowd =
+    k > 0.01
+      ? all.filter((c) => !skip.has(c.id)).map((c) => ({ geo: place(c), weights: weightsOf(c), dots: dotsOf(c.loops, 0), alpha: k * 0.85 }))
+      : undefined
+  colonyPick = colony.value ? { discs: all.map((c) => ({ id: c.id, x: place(c).cx, y: place(c).cy, r: base.R })), cy: geo.cy } : null
+  const halo = plan && playing.value ? k : 0
+
+  if (!plan || !tr) return { geo, alpha, plan, cam, crowd, halo }
   const cellOf = (id: number) => (id === plan.cur.id ? plan.cur : id === plan.next.id ? plan.next : plan.prev!)
   let ghost: AroFrame['ghost'] = null
   if (tr.ghost) {
     const c = cellOf(tr.ghost.id)
-    const bass = c.parts.bass && bgMode.value !== 'off'
     ghost = {
       geo: place(c),
-      weights: { ...allWeights(1), bass: bass ? 1 : 0, mel: 0 },
+      weights: weightsOf(c),
       // la que entra, en su primer compás; la que se apaga, en el último que sonó
       dots: dotsOf(c.loops, c.id === plan.next.id ? 0 : c.turns - 1),
       alpha: tr.ghost.alpha,
@@ -364,7 +404,7 @@ function cellScene(base: DropGeo, pos: number): Pick<AroFrame, 'geo' | 'ghost' |
     tr.pull > 0
       ? { th: Math.atan2(plan.next.at.y - plan.cur.at.y, plan.next.at.x - plan.cur.at.x), a: tr.pull * PULL_MAX * base.R }
       : null
-  return { geo: place(plan.cur), ghost, bridge, pull, alpha, plan, cam: tr.cam }
+  return { geo, ghost, bridge, pull, alpha, plan, cam, crowd, halo }
 }
 
 // ── chapa de vueltas y marcadores del borde (spec 005, §5.3 y §6) ────────────────
@@ -388,7 +428,7 @@ function updateChapa(plan: ReturnType<typeof engine.cellPlan>, pos: number) {
 }
 
 /** una célula por marcador; solo las que no se ven (todas menos la que se ve) */
-const markerCells = computed(() => (engine.multi.value ? engine.song.value.cells.filter((c) => c.id !== engine.viewCellId.value) : []))
+const markerCells = computed(() => (engine.multi.value && !colony.value ? engine.song.value.cells.filter((c) => c.id !== engine.viewCellId.value) : []))
 const markerEls = new Map<number, HTMLElement>()
 const setMarker = (id: number) => (el: Element | ComponentPublicInstance | null) => {
   if (el instanceof HTMLElement) markerEls.set(id, el)
@@ -505,7 +545,10 @@ function tick() {
   }
   if (aro) {
     weights = stepWeights(weights, targetWeights.value, dt, reduced)
-    const { plan, cam, ...scene } = cellScene(geo!, clock.bar + clock.barPhase)
+    const zEff = geo!.R / (Math.min(geo!.free.x1 - geo!.free.x0, geo!.free.y1 - geo!.free.y0) / 2)
+    const isColony = inColony(zoomNow(), cellPoints.value.length)
+    if (isColony !== colony.value) colony.value = isColony
+    const { plan, cam, ...scene } = cellScene(geo!, clock.bar + clock.barPhase, zEff)
     updateMarkers(geo!, cam, plan ? plan.next.id : null)
     const f: AroFrame = {
       wall: t,
@@ -528,7 +571,7 @@ function tick() {
       ...(compact.value ? { contour: contourPoints(stretchOf(scene.geo)) } : {}),
     }
     aro.draw(f)
-    updateChapa(plan, clock.bar + clock.barPhase)
+    updateChapa(colony.value ? null : plan, clock.bar + clock.barPhase)
   }
   frameMs.push(performance.now() - t0)
   if (frameMs.length >= 120) {
@@ -657,6 +700,7 @@ const drag = ref<{ axis: Axis; x: number; y: number } | null>(null)
 
 type Gesture =
   | { kind: 'aro-drag'; id: number; dot: AroDot }
+  | { kind: 'colony'; id: number; x0: number; y0: number; t: number; moved: boolean }
   | {
       kind: 'aro-tap'
       id: number
@@ -779,6 +823,11 @@ function onDown(e: PointerEvent) {
   if (pointers.size !== 1) return
   const x = e.clientX
   const y = e.clientY
+  // colonia (zoom alejado): un dedo no toca el aro, toca células (spec 005, §7.1)
+  if (colony.value) {
+    gesture = { kind: 'colony', id: e.pointerId, x0: x, y0: y, t: performance.now(), moved: false }
+    return
+  }
   const dot = aro?.pick(x, y)
   if (dot) {
     editBar.value = shownBar()
@@ -808,6 +857,8 @@ function onMove(e: PointerEvent) {
   if (gs.kind === 'aro-drag' && gs.id === e.pointerId) aro?.setDrag(gs.dot.key, p.x, p.y)
   else if (gs.kind === 'aro-tap' && gs.id === e.pointerId) {
     if (Math.hypot(p.x - gs.x0, p.y - gs.y0) > MOVE_PX) gs.moved = true
+  } else if (gs.kind === 'colony' && gs.id === e.pointerId) {
+    if (Math.hypot(p.x - gs.x0, p.y - gs.y0) > MOVE_PX) gs.moved = true
   } else if (gs.kind === 'fx' && gs.id === e.pointerId) {
     const dx = p.x - gs.x0
     const dy = p.y - gs.y0
@@ -821,13 +872,25 @@ function onMove(e: PointerEvent) {
     // arrastre o pellizco: se decide tras 12 px, para todo el gesto
     if (!gs.mode && Math.max(Math.hypot(dcx, dcy), Math.abs(dd)) > MOVE_PX)
       gs.mode = Math.abs(dd) > Math.hypot(dcx, dcy) ? 'pinch' : 'pan'
-    if (gs.mode === 'pan') {
+    // los dos dedos no tienen filtro ni espacio en la colonia (se usan de cerca)
+    if (gs.mode === 'pan' && !colony.value) {
       gs.axis ??= lockAxis(dcx, dcy)
       applyFx(gs.axis, gs.filter, gs.space, dcx, dcy, c.x, c.y)
     }
     // pellizco: zoom continuo, con resistencia más allá de los límites (al soltar, vuelve)
-    if (gs.mode === 'pinch') pinchLive = pinchZoom(gs.z0, gs.d0, d, limits.value)
+    if (gs.mode === 'pinch') pinchLive = pinchZoom(gs.z0, gs.d0, d, fullLimits.value)
   }
+}
+
+/** Tocar una célula en la colonia: el zoom vuelve a cerca y la célula entra en bucle (§7.1). */
+function tapColony(x: number, y: number) {
+  const pk = colonyPick
+  if (!pk) return
+  const [fx, fy] = toFront(x, y, aroView, 0, pk.cy)
+  const id = cellAtPoint(fx, fy, pk.discs)
+  if (id === null) return
+  zoomRel = nearRel
+  engine.travelTo(id)
 }
 
 /** Fin de un pellizco: el zoom vuelve a los límites con suavidad y se guarda. */
@@ -835,14 +898,20 @@ function endPinch() {
   if (pinchLive === null) return
   const z = pinchLive
   pinchLive = null
-  setZoom(z)
+  setZoom(settleZoom(z, limits.value.min))
 }
 
 /** Rueda (o pellizco del trackpad): zoom (E1.5). */
 function onWheel(e: WheelEvent) {
   e.preventDefault()
   touched()
-  setZoom(wheelZoom(zoomNow(), e.deltaY, e.ctrlKey, limits.value))
+  setZoom(wheelZoom(zoomNow(), e.deltaY, e.ctrlKey, fullLimits.value))
+  // entre el mínimo de la gota y el umbral de la colonia, al parar la rueda vuelve a cerca
+  if (settleTimer) clearTimeout(settleTimer)
+  settleTimer = setTimeout(() => {
+    settleTimer = null
+    setZoom(settleZoom(zoomNow(), limits.value.min))
+  }, 250)
 }
 
 /**
@@ -883,6 +952,9 @@ function onUp(e: PointerEvent, cancelled = false) {
     gesture = null
   } else if (gs?.kind === 'aro-tap' && gs.id === e.pointerId) {
     if (!cancelled && p && !gs.moved && !gs.held && performance.now() - gs.t < HOLD_MS) tapCreate(p.x, p.y)
+    gesture = null
+  } else if (gs?.kind === 'colony' && gs.id === e.pointerId) {
+    if (!cancelled && p && !gs.moved && performance.now() - gs.t < TAP_MS) tapColony(p.x, p.y)
     gesture = null
   } else if (gs?.kind === 'fx' && gs.id === e.pointerId) gesture = null
   pointers.delete(e.pointerId)
@@ -985,7 +1057,7 @@ defineExpose({ rendererName, layoutInfo })
     </button>
 
     <!-- bolas del fondo (modo manual, §16.17) -->
-    <template v-if="bgMode === 'manual'">
+    <template v-if="bgMode === 'manual' && !colony">
       <button
         v-for="b in bgBalls"
         :key="b.part"
@@ -1005,6 +1077,7 @@ defineExpose({ rendererName, layoutInfo })
     <button
       v-for="l in loops.loops"
       :key="l.id"
+      v-show="!colony"
       :ref="setEl(l.id)"
       class="loop-ball absolute top-0 left-0 rounded-full will-change-transform"
       :style="{

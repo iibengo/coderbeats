@@ -110,6 +110,10 @@ export interface AroFrame {
   ghost?: AroGhost | null
   bridge?: AroBridge | null
   alpha?: number
+  /** colonia (spec 005, §7.2): las demás células, pequeñas y sin ondas ni aguja */
+  crowd?: AroGhost[]
+  /** colonia: anillo rosa alrededor de la célula que suena (0..1) */
+  halo?: number
 }
 
 /** radio del punto en reposo por voz (px) */
@@ -394,11 +398,13 @@ export class AroCanvas {
     x.scale(1, v.sy)
     x.translate(0, -f.geo.cy)
     try {
-      // la otra célula y el puente van debajo de la que suena
+      // las demás células, la otra de una transición y el puente van debajo de la que suena
+      for (const c of f.crowd ?? []) this.drawGhost(c, f)
       if (f.ghost && f.ghost.alpha > 0.01) this.drawGhost(f.ghost, f)
       if (f.bridge) this.drawBridge(f.bridge, f)
       x.globalAlpha = f.alpha ?? 1
       this.drawFront(f)
+      if (f.halo && f.halo > 0.01) this.drawHalo(f.halo)
     } finally {
       x.restore()
     }
@@ -472,6 +478,16 @@ export class AroCanvas {
     x.arc(geo.cx, geo.cy, 3, 0, TAU)
     x.fill()
     x.restore()
+  }
+
+  /** Colonia: un anillo rosa fino alrededor de la célula que suena (usa el contorno del último frame). */
+  private drawHalo(a: number) {
+    if (!this.last || !this.ro.length) return
+    const p = new Path2D()
+    this.loopPath(p, 1.07, false)
+    this.ctx.strokeStyle = `rgba(${VOICE_RGB_CSS.bd},${0.75 * a})`
+    this.ctx.lineWidth = 2
+    this.ctx.stroke(p)
   }
 
   /** El puente de agua: del borde de una gota al de la otra, fino en el centro, con su brillo. */
