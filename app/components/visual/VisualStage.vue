@@ -14,6 +14,7 @@ import { STYLES } from '~/lib/constants'
 import { loopBarAt } from '~/lib/freeLoops'
 import { dragValue, lockAxis, type Axis } from '~/lib/gestures'
 import { allArmed } from '~/lib/lanes'
+import { approachTilt, followBase, parallaxOffset, tiltTarget, type AroView, type Tilt } from '~/lib/aro/view'
 import { addHit, moveHit, removeHit, type EditOptions } from '~/lib/loopEdit'
 import { STYLE_MUSIC } from '~/lib/styles'
 import { VOICE_HEX, type Voice } from '~/lib/palette'
@@ -290,6 +291,35 @@ function onEngineVisual(h: Parameters<Parameters<typeof engine.onVisual>[0]>[0])
   pulse(els.get(h.loopId), h.instrument)
 }
 
+// ── se toca en 2D, se mira en 3D (E3.5, E3.6) ─────────────────────────────────────
+const motion = useAroMotion()
+let lastTouch = performance.now()
+let aroView: AroView = { sy: 1, ox: 0, oy: 0 }
+let tiltBase: Tilt | null = null
+/** cualquier toque (también en bolas y botones) pone el aro de frente */
+function touched() {
+  lastTouch = performance.now()
+}
+/** al soltar el dedo: además, el primer toque tras abrir la app pide el permiso del giroscopio (iOS) */
+function released() {
+  touched()
+  motion.onUserGesture()
+}
+function stepView(dt: number): AroView {
+  const sinceS = (performance.now() - lastTouch) / 1000
+  const sy = approachTilt(aroView.sy, tiltTarget(sinceS, pointers.size > 0, reduced), dt)
+  let ox = 0
+  let oy = 0
+  const r = motion.reading()
+  if (motion.enabled.value && r && !reduced) {
+    tiltBase = followBase(tiltBase, r, dt)
+    ;({ ox, oy } = parallaxOffset(r, tiltBase))
+  } else tiltBase = null
+  // el desplazamiento se suaviza un poco (el sensor tiembla)
+  const k = 1 - Math.exp(-dt / 0.08)
+  return { sy, ox: aroView.ox + (ox - aroView.ox) * k, oy: aroView.oy + (oy - aroView.oy) * k }
+}
+
 // ── bucle rAF ────────────────────────────────────────────────────────────────────
 let raf = 0
 let lastBeat = -1
@@ -402,6 +432,7 @@ function tick() {
       stepSec: 60 / STYLES[style.value].bpm / 4,
       lanes: allArmed(engine.lanes.value) ? null : engine.lanes.value,
       hold: holdProgress(),
+      view: (aroView = stepView(dt)),
       guide: { assist: engine.assist.value, quantizeEvery: STYLES[style.value].quantizeEvery },
       suggestions: guideSuggestions.value,
       // en horizontal, más puntos en el contorno cuanto más se estira (E2.1)
@@ -695,6 +726,7 @@ function endPinch() {
 /** Rueda (o pellizco del trackpad): zoom (E1.5). */
 function onWheel(e: WheelEvent) {
   e.preventDefault()
+  touched()
   setZoom(wheelZoom(zoomNow(), e.deltaY, e.ctrlKey, limits.value))
 }
 
@@ -768,6 +800,8 @@ defineExpose({ rendererName, layoutInfo })
     ref="root"
     class="touch-none bg-ink select-none"
     style="position: fixed; inset: 0; overflow: hidden"
+    @pointerdown.capture="touched"
+    @pointerup.capture="released"
     @pointerdown="onDown"
     @pointermove="onMove"
     @pointerup="onUp($event)"

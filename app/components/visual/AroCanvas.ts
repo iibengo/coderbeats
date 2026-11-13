@@ -22,6 +22,7 @@ import {
   type DropGeo,
 } from '~/lib/aro/shape'
 import { ghostTarget, type GuideOptions, type GuideSpot } from '~/lib/aro/guide'
+import { FRONT, toFront, toScreen, type AroView } from '~/lib/aro/view'
 import { INK, VOICE_RGB_CSS, type Voice } from '~/lib/palette'
 
 export interface AroDot {
@@ -78,6 +79,8 @@ export interface AroFrame {
   lanes: ReadonlySet<Voice> | null
   /** mantener pulsado un hueco de un carril: dónde y cuánto falta (0..1) para cambiarlo (E4.1) */
   hold: { x: number; y: number; p: number } | null
+  /** inclinación y parallax (E3.5, E3.6); sin ella, de frente */
+  view?: AroView
 }
 
 /** radio del punto en reposo por voz (px) */
@@ -141,6 +144,8 @@ export class AroCanvas {
   private spawns = new Map<string, number>()
   private pops: { x: number; y: number; voice: Voice; born: number }[] = []
   private lastNow = 0
+  /** vista del último frame: los toques (pantalla) se traducen a la posición de frente */
+  private view: AroView = FRONT
   private stepSec = 0.17
   /** arcos de nota encendidos: cuándo sonaron y cuánto duran (s) */
   private arcsLit = new Map<string, { t: number; sec: number }>()
@@ -196,6 +201,7 @@ export class AroCanvas {
   where(px: number, py: number): AroPlace {
     const L = this.last
     if (!L || !this.weights) return { th: 0, u: 2, step: 0, voice: null, outPx: Infinity }
+    ;[px, py] = toFront(px, py, this.view, L.geo.cx, L.geo.cy)
     const dx = px - L.geo.cx
     const dy = py - L.geo.cy
     const th = Math.atan2(dy, dx)
@@ -209,6 +215,7 @@ export class AroCanvas {
   pick(px: number, py: number): AroDot | null {
     const L = this.last
     if (!L || !this.weights) return null
+    ;[px, py] = toFront(px, py, this.view, L.geo.cx, L.geo.cy)
     let best: AroDot | null = null
     let bd = PICK_PX
     for (const d of L.dots) {
@@ -227,6 +234,7 @@ export class AroCanvas {
   pickSuggestion(px: number, py: number): GuideSpot | null {
     const L = this.last
     if (!L || !this.weights) return null
+    ;[px, py] = toFront(px, py, this.view, L.geo.cx, L.geo.cy)
     let best: GuideSpot | null = null
     let bd = PICK_PX
     for (const s of L.suggestions) {
@@ -269,6 +277,8 @@ export class AroCanvas {
   /** Golpe borrado en el centro: una pequeña salpicadura. */
   splash(px: number, py: number, voice: Voice) {
     if (this.reduced) return
+    const L = this.last
+    if (L) [px, py] = toFront(px, py, this.view, L.geo.cx, L.geo.cy)
     this.pops.push({ x: px, y: py, voice, born: performance.now() / 1000 })
   }
 
@@ -277,7 +287,8 @@ export class AroCanvas {
     const L = this.last
     if (!L) return { x: this.w / 2, y: this.h / 2 }
     const [x, y] = this.at(stepAngle(step), bandMid(voice, L.layout))
-    return { x, y }
+    const [sx, sy] = toScreen(x, y, this.view, L.geo.cx, L.geo.cy)
+    return { x: sx, y: sy }
   }
 
   /** radio exterior en `th`, interpolado de la muestra del frame */
@@ -325,6 +336,23 @@ export class AroCanvas {
 
   draw(f: AroFrame) {
     const x = this.ctx
+    x.clearRect(0, 0, this.w, this.h)
+    // la vista (inclinación y parallax) se aplica a todo el aro alrededor de su centro
+    const v = f.view ?? FRONT
+    this.view = v
+    x.save()
+    x.translate(v.ox, v.oy + f.geo.cy)
+    x.scale(1, v.sy)
+    x.translate(0, -f.geo.cy)
+    try {
+      this.drawFront(f)
+    } finally {
+      x.restore()
+    }
+  }
+
+  private drawFront(f: AroFrame) {
+    const x = this.ctx
     const { geo } = f
     this.reduced = f.reduced
     const t = f.reduced ? 0 : f.wall
@@ -337,7 +365,6 @@ export class AroCanvas {
     const now = performance.now() / 1000
     const frames = Math.min(3, Math.max(1, Math.round((now - (this.lastNow || now - 1 / 60)) * 60)))
     this.lastNow = now
-    x.clearRect(0, 0, this.w, this.h)
 
     // empujones del borde (latido del bombo)
     this.bumps = this.bumps.filter((b) => now - b.born < KICK_BUMP_S)
@@ -569,11 +596,12 @@ export class AroCanvas {
 
     // mantener un hueco de un carril: un arco fino se completa alrededor del dedo (E4.1)
     if (f.hold && f.hold.p > 0.08) {
+      const [hx, hy] = toFront(f.hold.x, f.hold.y, f.view ?? FRONT, geo.cx, geo.cy)
       x.strokeStyle = 'rgba(255,255,255,0.75)'
       x.lineWidth = 2
       x.lineCap = 'round'
       x.beginPath()
-      x.arc(f.hold.x, f.hold.y, 22, -Math.PI / 2, -Math.PI / 2 + Math.min(1, f.hold.p) * TAU)
+      x.arc(hx, hy, 22, -Math.PI / 2, -Math.PI / 2 + Math.min(1, f.hold.p) * TAU)
       x.stroke()
       x.lineCap = 'butt'
     }

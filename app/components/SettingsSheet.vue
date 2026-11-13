@@ -13,6 +13,10 @@ const { kit, assist, metronome, bgMode, phraseCloseBeats, maxPhraseBars, phraseM
   engine
 
 const code = computed(() => engine.displayCode())
+// giroscopio (spec 003, E3.6): solo en móvil y sin movimiento reducido
+const motion = useAroMotion()
+const reduced = import.meta.client && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+const showMotion = computed(() => motion.available() && !reduced)
 const copied = ref(false)
 const tab = ref<'ajustes' | 'codigo' | 'diagnostico'>('ajustes')
 
@@ -154,6 +158,10 @@ const val = (e: Event) => Number((e.target as HTMLInputElement).value)
           <label class="flex items-center justify-between">
             Ayuda
             <input type="checkbox" :checked="assist" @change="engine.setAssist(($event.target as HTMLInputElement).checked)" />
+          </label>
+          <label v-if="showMotion" class="flex items-center justify-between">
+            Movimiento del móvil
+            <input type="checkbox" :checked="motion.enabled.value" @change="motion.toggle()" />
           </label>
           <label class="flex items-center justify-between">
             Metrónomo
