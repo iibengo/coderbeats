@@ -6,7 +6,7 @@
  * una canción guardada que no vale se ve como "no se puede abrir" pero tampoco se borra sola.
  */
 import type { BackgroundMode } from './background'
-import { isSong, songBars, storableSong, withValidBpm, type Song } from './cells'
+import { isSong, normalizeSong, songBars, storableSong, withValidBpm, type Song } from './cells'
 import { KITS, STYLES } from './constants'
 import type { SongFx } from './song'
 import type { KitId, StyleId } from './types'
@@ -127,7 +127,7 @@ export function parseLibrary(text: string | null | undefined): Library {
       continue
     }
     seen.add(item.id)
-    const saved = isSavedSong(item) ? { ...item, song: withValidBpm(item.song) } : null
+    const saved = isSavedSong(item) ? { ...item, song: normalizeSong(withValidBpm(item.song)) } : null
     lib.entries.push({ id: item.id, name: item.name, savedAt: item.savedAt, saved, raw: saved ?? item })
   }
   return lib

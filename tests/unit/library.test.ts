@@ -239,3 +239,16 @@ describe('¿está guardado lo de ahora?', () => {
     expect(isUnsaved(snap({ fx: { ...fx, filter: 0.4 } }), saved)).toBe(true)
   })
 })
+
+describe('lo guardado antes de los grupos', () => {
+  it('al leer la lista, una libre encendida pasa a grupo encendido y la canción no se toca', () => {
+    const base = demoSong('dnb')!
+    const { groups: _g, nextGroupId: _n, ...rest } = base
+    const old = { ...rest, cells: [...base.cells, { ...base.cells[0]!, id: 9, free: true, on: true }] }
+    const saved = { ...makeSaved(snap(), 'a', 'A', at(1)), song: old }
+    const lib = parseLibrary(JSON.stringify({ version: 1, songs: [saved] }))
+    const s = lib.entries[0]!.saved!.song
+    expect(s.groups).toEqual([{ id: 1, order: [9], on: true }])
+    expect(s.order).toEqual([1, 2, 3, 4])
+  })
+})

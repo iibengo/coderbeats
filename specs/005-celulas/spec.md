@@ -685,3 +685,19 @@ Sobre las dos preguntas abiertas: **"A → B → A" se hace con copias** (la mis
 - **Vueltas por célula: 1, 2, 4, 8, 16 y 32** (para melodías largas). Tocar el número da la vuelta 1 → 2 → 4 → 8 → 16 →
   32 → 1, sin bajar del loop más largo. Con más de 8, los puntitos de vueltas pasan a "vuelta/total" (p. ej. "5/16").
 - **El tempo es el mismo para todos los grupos** (el de la canción).
+
+## 17. Grupos en paralelo: hecho y decisiones a revisar (G1–G4)
+
+Hecho: modelo (`Song.groups`, migración al leer lo guardado y al abrir la biblioteca), motor (un recorrido por grupo en `lib/groups.ts`, siempre en línea de compás), pantalla (hilos, asas y números en todas, anillos por grupo, chapa «grupo · suena/apagado», «apagar extras») y Mis canciones («4 células + 2 grupos»). Se retiran `Cell.free/on` y la API de libres/sueltas.
+
+Decisiones tomadas al programar (a revisar):
+
+1. **Ver una célula de un grupo lo mantiene en ella en bucle** (como el «bucle» de la canción) para poder grabar y editar; al dejar de verla, sigue por su orden.
+2. **Un grupo que se enciende grabando** (primer loop nacido) arranca por la célula que se ve.
+3. **Apagar con el interruptor de la chapa** apaga el grupo entero; tocar la célula que suena también.
+4. **Cortar** deja la parte de delante con su estado (encendida o no) y la de detrás apagada.
+5. **Si la célula que suena en la canción sale de ella** (juntar/cortar), la canción salta a la siguiente que quede, en la próxima línea de compás.
+6. **Parado**, tocar una célula de un grupo solo cambia su interruptor; al dar a Play suenan los encendidos desde su primera célula.
+7. **«Apagar extras»** está a la izquierda de Play, solo mientras haya algún grupo encendido.
+8. **Con más de 8 vueltas** se ve «5/16» en la etiqueta y en la chapa, no puntitos.
+9. **Deshacer un borrado** devuelve la célula a su grupo y su estado; si el grupo ya no existe, vuelve como un grupo nuevo de una célula.

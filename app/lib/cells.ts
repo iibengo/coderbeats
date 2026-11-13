@@ -27,13 +27,6 @@ export interface Cell {
   turns: Turns
   /** posición en el mapa (unidades = radio de una gota) y profundidad 0..1 (0 = delante) */
   at: { x: number; y: number; depth: number }
-  /**
-   * Célula libre (satélite, §13.1): no está en el orden, no lleva hilos y suena **en paralelo** a la
-   * canción, sin fin, mientras esté encendida (`on`). No es una suelta (la suelta no suena).
-   */
-  free?: boolean
-  /** solo en las libres: encendida (suena) o apagada */
-  on?: boolean
 }
 
 /**
