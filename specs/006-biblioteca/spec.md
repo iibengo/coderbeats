@@ -151,3 +151,19 @@ Las he tomado yo al escribir la spec; cámbialas sin más si no gustan.
 5. **Sin límite** de canciones, ni nombres únicos. Si el almacenamiento se llena, avisa.
 6. **Abrir reinicia** lo que suena, igual que "Cargar demo", sin esperar a la línea de compás.
 7. **Fecha del nombre** en español y de la zona del dispositivo.
+
+## 10. Decisiones tomadas al programarlo (a revisar)
+
+Las he tomado yo al hacer las tres partes (2026-11-13); se cambian sin más.
+1. **Renombrar:** Intro guarda, Esc lo deja y **salir del campo también guarda** (en el móvil no hay Esc).
+2. **"Guardar cambios" también renombra:** el campo lleva el nombre de la guardada de la que viene lo de ahora;
+   si lo editas, al guardar cambios se renombra. "Como nueva" guarda una distinta con lo que haya en el campo.
+3. **De qué guardada viene lo de ahora se recuerda al recargar** (`coderbeats:library:current`), para que
+   "Guardar cambios" y el aviso al abrir sigan funcionando. Es solo un id; no guarda ninguna canción.
+4. **"Cargar demo" y "Borrar todo" no desvinculan** la canción de la guardada. Si luego das a "Guardar
+   cambios", sustituye la guardada por lo de ahora; el panel dice "Viene de «X»" para que se vea.
+5. **El "↶ deshacer" del borrado dura 8 s aunque cierres el panel:** si lo reabres a tiempo, sigue ahí.
+6. **Si borras la guardada de la que viene lo de ahora,** el botón vuelve a ser "Guardar" (nueva).
+7. **Guardar cambios sube la entrada arriba** (la lista va por la fecha de la última vez que se guardó).
+8. **Una guardada rota no se puede renombrar,** pero sí borrar (y deshacer).
+9. **El campo de nombre se rehace al abrir el panel** (nombre automático, o el de la guardada de la que viene).

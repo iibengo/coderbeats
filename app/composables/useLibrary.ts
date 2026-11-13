@@ -5,7 +5,12 @@ import {
   LIBRARY_CURRENT_KEY,
   LIBRARY_KEY,
   parseLibrary,
+  removeSong,
+  renameSong,
+  restoreEntry,
   serializeLibrary,
+  UNDO_MS,
+  type Entry,
   type Library,
 } from '~/lib/library'
 
@@ -18,6 +23,9 @@ const lib = shallowRef<Library>(emptyLibrary())
 const error = ref<string | null>(null)
 /** la canción guardada de la que viene lo de ahora (para "guardar cambios" y el aviso al abrir) */
 const currentId = ref<string | null>(null)
+/** lo último que se borró, para "↶ deshacer" (spec 006, §4.4): solo en memoria, unos segundos */
+const removed = ref<{ entry: Entry; index: number } | null>(null)
+let removedTimer: ReturnType<typeof setTimeout> | null = null
 let loaded = false
 /** el texto roto que se leyó: hay que guardarlo aparte antes de escribir encima */
 let brokenText: string | null = null
@@ -71,6 +79,35 @@ function setCurrent(id: string | null) {
   }
 }
 
+/** Renombra una guardada. */
+function rename(id: string, name: string): boolean {
+  const next = renameSong(lib.value, id, name)
+  return next === lib.value ? true : persist(next)
+}
+
+/**
+ * Borra una guardada (el que llama ya ha pedido confirmación). Sale de la lista del disco al momento y se
+ * guarda unos segundos en memoria para deshacer; pasados, es definitivo.
+ */
+function remove(id: string): boolean {
+  const r = removeSong(lib.value, id)
+  if (!r.removed || !persist(r.lib)) return false
+  removed.value = { entry: r.removed, index: r.index }
+  if (removedTimer) clearTimeout(removedTimer)
+  removedTimer = setTimeout(() => (removed.value = null), UNDO_MS)
+  return true
+}
+
+/** Deshace el último borrado: vuelve a su sitio con todo. */
+function undoRemove(): boolean {
+  const r = removed.value
+  if (!r) return false
+  if (!persist(restoreEntry(lib.value, r.entry, r.index))) return false
+  if (removedTimer) clearTimeout(removedTimer)
+  removed.value = null
+  return true
+}
+
 export function useLibrary() {
-  return { lib, error, currentId, load, persist, setCurrent }
+  return { lib, error, currentId, removed, load, persist, setCurrent, rename, remove, undoRemove }
 }

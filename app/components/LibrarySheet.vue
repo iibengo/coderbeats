@@ -1,11 +1,11 @@
 <script setup lang="ts">
 // Mis canciones (spec 006): guardar la de ahora con nombre automático editable, y abrir las guardadas.
-import { addSong, autoName, dateText, isEmptySong, isUnsaved, makeSaved, newId, sortedEntries, summaryText, type Entry } from '~/lib/library'
+import { addSong, autoName, dateText, isEmptySong, isUnsaved, makeSaved, newId, replaceSong, sortedEntries, summaryText, type Entry } from '~/lib/library'
 
 const open = defineModel<boolean>('open', { required: true })
 const engine = useAudioEngine()
 const library = useLibrary()
-const { lib, error, currentId } = library
+const { lib, error, currentId, removed } = library
 
 /** el nombre del campo de guardar: el automático (estilo + fecha), editable */
 const name = ref('')
@@ -16,24 +16,77 @@ const entries = computed(() => sortedEntries(lib.value))
 /** la guardada de la que viene lo de ahora (con lo que comparar si está sin guardar) */
 const reference = computed(() => lib.value.entries.find((e) => e.id === currentId.value)?.saved ?? null)
 const empty = computed(() => isEmptySong(engine.liveSong()))
+/** la entrada de la que viene lo de ahora, si sigue en la lista y se puede abrir: se le pueden "guardar cambios" */
+const current = computed(() => lib.value.entries.find((e) => e.id === currentId.value && e.saved) ?? null)
 
 watch(open, (o) => {
   if (!o) return
   library.load()
-  name.value = autoName(engine.style.value, new Date())
+  // si lo de ahora viene de la lista, el campo lleva su nombre (editarlo la renombra al guardar cambios)
+  name.value = current.value ? current.value.name : autoName(engine.style.value, new Date())
   justSaved.value = false
+  editingId.value = null
 })
 
+function flashSaved() {
+  justSaved.value = true
+  if (savedTimer) clearTimeout(savedTimer)
+  savedTimer = setTimeout(() => (justSaved.value = false), 2500)
+}
+
 /** Guarda la canción de ahora como una entrada nueva (spec 006, §4.2). */
-function save() {
+function saveNew() {
   if (empty.value) return
   const saved = makeSaved(engine.snapshot(), newId(Date.now()), name.value, new Date())
   if (!library.persist(addSong(lib.value, saved))) return
   library.setCurrent(saved.id)
-  name.value = autoName(engine.style.value, new Date())
-  justSaved.value = true
-  if (savedTimer) clearTimeout(savedTimer)
-  savedTimer = setTimeout(() => (justSaved.value = false), 2500)
+  name.value = saved.name
+  flashSaved()
+}
+
+/** "Guardar cambios": sustituye la guardada de la que viene lo de ahora, con el nombre del campo. */
+function saveChanges() {
+  const cur = current.value
+  if (empty.value || !cur) return
+  const saved = makeSaved(engine.snapshot(), cur.id, name.value || cur.name, new Date())
+  if (!library.persist(replaceSong(lib.value, saved))) return
+  name.value = saved.name
+  flashSaved()
+}
+
+/** El botón principal: guardar cambios si viene de la lista; si no, guardar una nueva. */
+const save = () => (current.value ? saveChanges() : saveNew())
+
+// renombrar en la fila (✎): Intro y salir del campo lo guardan; Esc lo deja como estaba
+const editingId = ref<string | null>(null)
+const editName = ref('')
+// dentro de un v-for, la referencia es una lista (y solo hay un campo a la vez)
+const renameEls = ref<HTMLInputElement[]>([])
+
+async function startRename(e: Entry) {
+  if (!e.saved) return
+  editingId.value = e.id
+  editName.value = e.name
+  await nextTick()
+  renameEls.value[0]?.focus()
+  renameEls.value[0]?.select()
+}
+function commitRename() {
+  const id = editingId.value
+  if (!id) return
+  editingId.value = null
+  library.rename(id, editName.value)
+  // si es la de ahora y el campo tenía su nombre, que el campo siga igual
+  if (current.value?.id === id) name.value = lib.value.entries.find((x) => x.id === id)?.name ?? name.value
+}
+function cancelRename() {
+  editingId.value = null
+}
+
+/** Borrar (✓ con confirmación): sale al momento y se puede deshacer unos segundos. */
+function removeEntry(e: Entry) {
+  if (!confirm(`¿Borrar «${e.name}»? Se puede deshacer unos segundos.`)) return
+  library.remove(e.id)
 }
 
 /** Abre una guardada (spec 006, §4.3): avisa si lo de ahora no está guardado. */
@@ -67,28 +120,54 @@ async function openEntry(e: Entry) {
             :disabled="empty"
           />
           <button type="submit" class="shrink-0 rounded-full bg-white px-4 py-2 font-medium text-black disabled:opacity-40" :disabled="empty">
-            {{ justSaved ? 'Guardada' : 'Guardar' }}
+            {{ justSaved ? 'Guardada' : current ? 'Guardar cambios' : 'Guardar' }}
+          </button>
+          <button v-if="current" type="button" class="shrink-0 rounded-full border border-white/25 px-3 py-2 text-white disabled:opacity-40" :disabled="empty" @click="saveNew">
+            Como nueva
           </button>
         </form>
+        <p v-if="current" class="-mt-2 mb-3 text-xs text-neutral-500">Viene de «{{ current.name }}».</p>
         <p v-if="empty" class="-mt-2 mb-3 text-xs text-neutral-500">Aún no hay nada que guardar: graba algo o carga una demo.</p>
         <p v-if="error" class="mb-3 text-xs text-amber-300" role="alert">{{ error }}</p>
+        <!-- tras borrar, "↶ deshacer" unos segundos -->
+        <p v-if="removed" class="mb-3 flex items-center justify-between rounded-lg bg-white/5 px-3 py-2 text-xs text-neutral-300">
+          <span class="truncate">«{{ removed.entry.name }}» borrada</span>
+          <button class="ml-3 shrink-0 text-white underline" @click="library.undoRemove()">↶ deshacer</button>
+        </p>
 
         <!-- la lista, de la más reciente a la más antigua -->
         <p v-if="!entries.length" class="py-6 text-center text-neutral-500">Aún no has guardado ninguna canción.</p>
         <ul v-else class="grid gap-1">
-          <li v-for="e in entries" :key="e.id">
+          <li v-for="e in entries" :key="e.id" class="flex items-center gap-1">
+            <input
+              v-if="editingId === e.id"
+              ref="renameEls"
+              v-model="editName"
+              class="min-w-0 flex-1 rounded-lg border border-white/25 bg-black/30 px-3 py-2 text-white"
+              maxlength="60"
+              aria-label="nuevo nombre"
+              @keydown.enter.prevent="commitRename"
+              @keydown.esc.prevent="cancelRename"
+              @blur="commitRename"
+            />
             <button
-              v-if="e.saved"
-              class="w-full rounded-lg px-3 py-2 text-left transition-colors hover:bg-white/5 active:bg-white/10"
+              v-else-if="e.saved"
+              class="min-w-0 flex-1 rounded-lg px-3 py-2 text-left transition-colors hover:bg-white/5 active:bg-white/10"
               @click="openEntry(e)"
             >
               <span class="block truncate text-white">{{ e.name }}</span>
               <span class="block truncate text-xs text-neutral-500">{{ summaryText(e.saved) }} · {{ dateText(e.savedAt) }}</span>
             </button>
-            <div v-else class="w-full rounded-lg px-3 py-2 text-left opacity-60">
+            <div v-else class="min-w-0 flex-1 rounded-lg px-3 py-2 text-left opacity-60">
               <span class="block truncate text-white">{{ e.name }}</span>
               <span class="block truncate text-xs text-amber-300">no se puede abrir</span>
             </div>
+            <button v-if="e.saved && editingId !== e.id" class="shrink-0 rounded-full p-2 text-neutral-400 hover:text-white" aria-label="renombrar" @pointerdown.prevent @click="startRename(e)">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 14l1-3.5L11 2.5a1.4 1.4 0 0 1 2 2L5 12.5 2 14zM9.5 4l2.5 2.5" /></svg>
+            </button>
+            <button class="shrink-0 rounded-full p-2 text-neutral-400 hover:text-white" aria-label="borrar" @click="removeEntry(e)">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 4h11M6 4V2.5h4V4M4 4l.7 9.5h6.6L12 4M6.5 7v4M9.5 7v4" /></svg>
+            </button>
           </li>
         </ul>
       </section>
