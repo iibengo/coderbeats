@@ -11,7 +11,7 @@ const plan: CellPlan = { cur: A, start: 4, end: 8, next: B, prev: FAR }
 
 describe('transición de agua', () => {
   it('lejos de las líneas de compás: cámara en la célula y nada más', () => {
-    expect(transitionAt(6, plan)).toEqual({ cam: { x: 0, y: 0 }, ghost: null, bridge: null, pull: 0 })
+    expect(transitionAt(6, plan)).toEqual({ cam: { x: 0, y: 0 }, ghost: null, bridge: null, pull: 0, thread: null })
   })
 
   it('en los 2 últimos tiempos crece el puente y lo recorre el brillo; la cámara aún no se mueve', () => {
@@ -61,7 +61,21 @@ describe('transición de agua', () => {
 
   it('al arrancar no hay anterior, y con movimiento reducido la cámara corta en L', () => {
     expect(transitionAt(4.1, { ...plan, prev: null }).ghost).toBeNull()
-    expect(transitionAt(7.9, plan, true)).toEqual({ cam: { x: 0, y: 0 }, ghost: null, bridge: null, pull: 0 })
+    expect(transitionAt(7.9, plan, true)).toEqual({ cam: { x: 0, y: 0 }, ghost: null, bridge: null, pull: 0, thread: null })
+  })
+
+  it('el brillo corre por el hilo hacia la siguiente aunque estén lejos y no haya puente', () => {
+    const t = transitionAt(7.75, plan)
+    expect(t.thread).toMatchObject({ fromId: 1, toId: 2 })
+    expect(t.thread!.glow).toBeCloseTo(0.5)
+    expect(transitionAt(6, plan).thread).toBeNull()
+    const far: CellPlan = { cur: B, start: 8, end: 12, next: FAR, prev: A }
+    const f = transitionAt(11.9, far)
+    expect(f.bridge).toBeNull()
+    expect(f.thread).toMatchObject({ fromId: 2, toId: 3 })
+    expect(f.thread!.glow).toBeCloseTo(0.8)
+    // tras la línea ya no corre
+    expect(transitionAt(8.5, { cur: B, start: 8, end: 12, next: FAR, prev: A }).thread).toBeNull()
   })
 
   it('el puente es más fino en el centro y se cierra en el extremo que avanza', () => {

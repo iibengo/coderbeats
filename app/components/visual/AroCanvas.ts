@@ -14,6 +14,7 @@ import {
   bumpAt,
   bumpEnvelope,
   INNER_WOBBLE,
+  noise,
   outerRadius,
   radiusAt,
   stepAngle,
@@ -22,6 +23,7 @@ import {
   type DropGeo,
 } from '~/lib/aro/shape'
 import { ghostTarget, type GuideOptions, type GuideSpot } from '~/lib/aro/guide'
+import { quadAt, threadControl } from '~/lib/aro/colony'
 import { bridgeHalfWidth } from '~/lib/aro/transition'
 import { FRONT, toFront, toScreen, type AroView } from '~/lib/aro/view'
 import { INK, VOICE_RGB_CSS, type Voice } from '~/lib/palette'
@@ -76,6 +78,23 @@ export interface AroBridge {
   glow: number | null
 }
 
+/** Hilo de orden entre dos células (spec 005, §7.2): tenue, con el brillo de la transición si es el de la que suena. */
+export interface AroThread {
+  from: DropGeo
+  to: DropGeo
+  alpha: number
+  /** dónde va el brillo, 0 (sale) … 1 (llega), o null */
+  glow: number | null
+}
+
+/** Número pequeño junto a una célula (sus vueltas). */
+export interface AroLabel {
+  x: number
+  y: number
+  text: string
+  alpha: number
+}
+
 export interface AroFrame {
   /** segundos de reloj de pared (para la respiración) */
   wall: number
@@ -114,6 +133,9 @@ export interface AroFrame {
   crowd?: AroGhost[]
   /** colonia: anillo rosa alrededor de la célula que suena (0..1) */
   halo?: number
+  /** colonia: hilos de orden y número de vueltas de cada célula */
+  threads?: AroThread[]
+  labels?: AroLabel[]
 }
 
 /** radio del punto en reposo por voz (px) */
@@ -399,12 +421,14 @@ export class AroCanvas {
     x.translate(0, -f.geo.cy)
     try {
       // las demás células, la otra de una transición y el puente van debajo de la que suena
+      for (const th of f.threads ?? []) this.drawThread(th, f)
       for (const c of f.crowd ?? []) this.drawGhost(c, f)
       if (f.ghost && f.ghost.alpha > 0.01) this.drawGhost(f.ghost, f)
       if (f.bridge) this.drawBridge(f.bridge, f)
       x.globalAlpha = f.alpha ?? 1
       this.drawFront(f)
       if (f.halo && f.halo > 0.01) this.drawHalo(f.halo)
+      if (f.labels?.length) this.drawLabels(f.labels)
     } finally {
       x.restore()
     }
@@ -478,6 +502,66 @@ export class AroCanvas {
     x.arc(geo.cx, geo.cy, 3, 0, TAU)
     x.fill()
     x.restore()
+  }
+
+  /** Hilo de agua entre dos gotas: una curva muy tenue de borde a borde, con el brillo corriendo por ella. */
+  private drawThread(th: AroThread, f: AroFrame) {
+    if (th.alpha < 0.01) return
+    const x = this.ctx
+    const t = f.reduced ? 0 : f.wall
+    const breath = f.reduced ? 0 : BREATH
+    const phi = Math.atan2(th.to.cy - th.from.cy, th.to.cx - th.from.cx)
+    const ra = outerRadius(phi, th.from, t, breath)
+    const rb = outerRadius(phi + Math.PI, th.to, t, breath)
+    // si las gotas ya se tocan, no hay hilo que ver
+    if (Math.hypot(th.to.cx - th.from.cx, th.to.cy - th.from.cy) < ra + rb + 4) return
+    const a = { x: th.from.cx + Math.cos(phi) * ra, y: th.from.cy + Math.sin(phi) * ra }
+    const b = { x: th.to.cx - Math.cos(phi) * rb, y: th.to.cy - Math.sin(phi) * rb }
+    const len = Math.hypot(b.x - a.x, b.y - a.y)
+    // se curva un poco y despacio, como agua
+    const c = threadControl(a, b, Math.min(len * 0.1, 16) * noise(phi * 3, 11, t))
+    x.lineCap = 'round'
+    x.strokeStyle = `rgba(255,255,255,${0.11 * th.alpha})`
+    x.lineWidth = 1.2
+    x.beginPath()
+    x.moveTo(a.x, a.y)
+    x.quadraticCurveTo(c.x, c.y, b.x, b.y)
+    x.stroke()
+    if (th.glow !== null) {
+      // el brillo de la transición: una estela corta que avanza hacia la siguiente
+      const head = Math.min(1, Math.max(0, th.glow))
+      const tail = Math.max(0, head - 0.22)
+      x.strokeStyle = `rgba(255,255,255,${0.55 * th.alpha})`
+      x.lineWidth = 2
+      x.beginPath()
+      for (let i = 0; i <= 10; i++) {
+        const p = quadAt(a, c, b, tail + ((head - tail) * i) / 10)
+        if (i === 0) x.moveTo(p.x, p.y)
+        else x.lineTo(p.x, p.y)
+      }
+      x.stroke()
+      const h = quadAt(a, c, b, head)
+      const r = Math.max(6, Math.min(16, th.from.R * 0.5))
+      const g = x.createRadialGradient(h.x, h.y, 0, h.x, h.y, r)
+      g.addColorStop(0, `rgba(255,255,255,${0.45 * th.alpha})`)
+      g.addColorStop(1, 'rgba(255,255,255,0)')
+      x.fillStyle = g
+      x.fillRect(h.x - r, h.y - r, r * 2, r * 2)
+    }
+    x.lineCap = 'butt'
+  }
+
+  /** Números pequeños junto a las células (sus vueltas). */
+  private drawLabels(ls: AroLabel[]) {
+    const x = this.ctx
+    x.font = '500 10px system-ui, sans-serif'
+    x.textAlign = 'center'
+    x.textBaseline = 'middle'
+    for (const l of ls) {
+      if (l.alpha < 0.01) continue
+      x.fillStyle = `rgba(255,255,255,${l.alpha})`
+      x.fillText(l.text, l.x, l.y)
+    }
   }
 
   /** Colonia: un anillo rosa fino alrededor de la célula que suena (usa el contorno del último frame). */

@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   approachBlend,
+  quadAt,
+  threadControl,
+  threadPairs,
   backToFront,
   depthAlpha,
   depthParallax,
@@ -150,5 +153,26 @@ describe('colonia: profundidad', () => {
     expect(cellAtPoint(70, 100, discs)).toBe(1) // solo la de atrás llega hasta ahí
     // a igual profundidad, la más cercana
     expect(cellAtPoint(105, 100, discs.map((d) => ({ ...d, depth: 0 })))).toBe(1)
+  })
+})
+
+describe('colonia: hilos de orden', () => {
+  it('los hilos unen las células consecutivas en el orden en que suenan', () => {
+    expect(threadPairs([4, 1, 3, 2], () => true)).toEqual([[4, 1], [1, 3], [3, 2]])
+    expect(threadPairs([1], () => true)).toEqual([])
+    expect(threadPairs([1, 2, 3], (id) => id !== 2)).toEqual([])
+  })
+
+  it('la curva sale de una punta y llega a la otra, y el control se desplaza en perpendicular', () => {
+    const a = { x: 0, y: 0 }
+    const b = { x: 100, y: 0 }
+    expect(threadControl(a, b, 0)).toEqual({ x: 50, y: 0 })
+    const c = threadControl(a, b, 10)
+    expect(c.x).toBeCloseTo(50)
+    expect(Math.abs(c.y)).toBeCloseTo(10)
+    expect(quadAt(a, c, b, 0)).toEqual(a)
+    expect(quadAt(a, c, b, 1)).toEqual(b)
+    expect(quadAt(a, { x: 50, y: 0 }, b, 0.5)).toEqual({ x: 50, y: 0 })
+    expect(threadControl(a, a, 5)).toEqual({ x: 0, y: 0 }) // sin longitud no hay perpendicular, pero tampoco NaN
   })
 })

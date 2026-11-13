@@ -147,3 +147,25 @@ export function approachBlend(v: number, target: number, dt: number, instant = f
 /** Cámara mostrada: entre la automática y la que lleva el dedo según `blend`. */
 export const mixCam = (auto: Point, manual: Point | null, blend: number): Point =>
   manual && blend > 0 ? { x: auto.x + (manual.x - auto.x) * blend, y: auto.y + (manual.y - auto.y) * blend } : auto
+
+// ── hilos de orden (§7.2) ────────────────────────────────────────────────────────
+/** Punto de control de un hilo curvado: el medio del tramo, desplazado `bend` px en perpendicular. */
+export function threadControl(a: Point, b: Point, bend: number): Point {
+  const dx = b.x - a.x
+  const dy = b.y - a.y
+  const len = Math.hypot(dx, dy) || 1
+  return { x: (a.x + b.x) / 2 - (dy / len) * bend, y: (a.y + b.y) / 2 + (dx / len) * bend }
+}
+
+/** Punto de una curva cuadrática de `a` a `b` con control `c`, en `u` (0..1). */
+export function quadAt(a: Point, c: Point, b: Point, u: number): Point {
+  const v = 1 - u
+  return { x: v * v * a.x + 2 * v * u * c.x + u * u * b.x, y: v * v * a.y + 2 * v * u * c.y + u * u * b.y }
+}
+
+/** Pares de células consecutivas en el orden en que suenan (los hilos). Solo los ids que existen. */
+export function threadPairs(order: readonly number[], exists: (id: number) => boolean): [number, number][] {
+  const out: [number, number][] = []
+  for (let i = 0; i + 1 < order.length; i++) if (exists(order[i]!) && exists(order[i + 1]!)) out.push([order[i]!, order[i + 1]!])
+  return out
+}

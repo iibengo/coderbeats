@@ -47,6 +47,8 @@ export interface Transition {
   bridge: Bridge | null
   /** estiramiento de la gota que suena hacia la otra, 0..1 */
   pull: number
+  /** brillo por el hilo de orden hacia la siguiente (0..1), también cuando están lejos y no hay puente (colonia, §7.2) */
+  thread: { fromId: number; toId: number; glow: number } | null
 }
 
 /** duración del puente antes de L y del deslizamiento a cada lado de L (compases: 2 tiempos y 1 tiempo) */
@@ -70,7 +72,7 @@ export const gapBetween = (a: Spot, b: Spot): number => Math.hypot(b.x - a.x, b.
  * cámara corta en L (el fundido de opacidad lo pone quien dibuja).
  */
 export function transitionAt(pos: number, plan: CellPlan, reduced = false): Transition {
-  const still: Transition = { cam: { x: plan.cur.x, y: plan.cur.y }, ghost: null, bridge: null, pull: 0 }
+  const still: Transition = { cam: { x: plan.cur.x, y: plan.cur.y }, ghost: null, bridge: null, pull: 0, thread: null }
   if (reduced || plan.next.id === plan.cur.id) return still
 
   // hacia la siguiente
@@ -83,6 +85,7 @@ export function transitionAt(pos: number, plan: CellPlan, reduced = false): Tran
       ghost: { id: plan.next.id, alpha: NEXT_ALPHA * easeOut(g) },
       bridge: near ? { fromId: plan.cur.id, toId: plan.next.id, t0: 0, t1: easeOut(g), glow: g } : null,
       pull: near ? easeOut(g) : 0,
+      thread: { fromId: plan.cur.id, toId: plan.next.id, glow: g },
     }
   }
 
@@ -95,6 +98,7 @@ export function transitionAt(pos: number, plan: CellPlan, reduced = false): Tran
       ghost: { id: plan.prev.id, alpha: 1 - h },
       bridge: near && h < 1 ? { fromId: plan.prev.id, toId: plan.cur.id, t0: smooth(h), t1: 1, glow: null } : null,
       pull: 0,
+      thread: null,
     }
   }
   return still

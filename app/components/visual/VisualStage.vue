@@ -23,6 +23,7 @@ import {
   mixCam,
   panBy,
   settleZoom,
+  threadPairs,
   type Disc,
   type Point,
 } from '~/lib/aro/colony'
@@ -32,7 +33,7 @@ import { clampZoom, contourPoints, dropLayout, freeRect, lerpGeo, moveGeo, pinch
 import type { Part } from '~/lib/background'
 import { notesInBar } from '~/lib/bass'
 import { STYLES } from '~/lib/constants'
-import type { Cell } from '~/lib/cells'
+import { fitTurns, type Cell } from '~/lib/cells'
 import { loopBarAt, type FreeLoop } from '~/lib/freeLoops'
 import { dragValue, lockAxis, type Axis } from '~/lib/gestures'
 import { allArmed } from '~/lib/lanes'
@@ -393,7 +394,7 @@ function cellScene(
   base: DropGeo,
   pos: number,
   zEff: number,
-): Pick<AroFrame, 'geo' | 'ghost' | 'bridge' | 'pull' | 'alpha' | 'crowd' | 'halo'> & { plan: ReturnType<typeof engine.cellPlan>; cam: { x: number; y: number } } {
+): Pick<AroFrame, 'geo' | 'ghost' | 'bridge' | 'pull' | 'alpha' | 'crowd' | 'halo' | 'threads' | 'labels'> & { plan: ReturnType<typeof engine.cellPlan>; cam: { x: number; y: number } } {
   const alpha = reduced && playing.value ? Math.min(1, (performance.now() - cutAt) / CUT_FADE_MS) : 1
   const plan = engine.cellPlan()
   const all = engine.song.value.cells
@@ -434,7 +435,29 @@ function cellScene(
     : null
   const halo = plan && playing.value ? k : 0
 
-  if (!plan || !tr) return { geo, alpha, plan, cam, crowd, halo }
+  // hilos de orden (§7.2): entre las consecutivas, tenues; por el de la que suena corre el brillo de la transición
+  const order = engine.song.value.order
+  const byId = new Map(all.map((c) => [c.id, c]))
+  const threads =
+    k > 0.01
+      ? threadPairs(order, (id) => byId.has(id)).map(([a, b]) => ({
+          from: placed.get(a)!,
+          to: placed.get(b)!,
+          alpha: k * Math.min(depthAlpha(byId.get(a)!.at.depth, k), depthAlpha(byId.get(b)!.at.depth, k)),
+          glow: tr?.thread && tr.thread.fromId === a && tr.thread.toId === b ? tr.thread.glow : null,
+        }))
+      : undefined
+  // número de vueltas junto a cada célula, pequeño y tenue; la que se ve cuenta con lo que cabe en sus loops
+  const labels =
+    k > 0.01
+      ? all.map((c) => {
+          const g = placed.get(c.id)!
+          const turns = c.id === engine.viewCellId.value ? fitTurns(c.turns, loops.value.loops) : c.turns
+          return { x: g.cx, y: g.cy + g.R + 11, text: String(turns), alpha: 0.5 * k * depthAlpha(c.at.depth, k) }
+        })
+      : undefined
+
+  if (!plan || !tr) return { geo, alpha, plan, cam, crowd, halo, threads, labels }
   const cellOf = (id: number) => (id === plan.cur.id ? plan.cur : id === plan.next.id ? plan.next : plan.prev!)
   let ghost: AroFrame['ghost'] = null
   if (tr.ghost) {
@@ -452,7 +475,7 @@ function cellScene(
     tr.pull > 0
       ? { th: Math.atan2(plan.next.at.y - plan.cur.at.y, plan.next.at.x - plan.cur.at.x), a: tr.pull * PULL_MAX * base.R }
       : null
-  return { geo, ghost, bridge, pull, alpha, plan, cam, crowd, halo }
+  return { geo, ghost, bridge, pull, alpha, plan, cam, crowd, halo, threads, labels }
 }
 
 // ── chapa de vueltas y marcadores del borde (spec 005, §5.3 y §6) ────────────────
