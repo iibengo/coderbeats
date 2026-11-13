@@ -609,6 +609,26 @@ Ideas para el futuro, no decisiones cerradas. Cada una tendrá su spec.
 - Con la spec de kits y árbol de estilos (004).
 - Con las células: una canción guardada = sus células.
 
+#### Tutorial jugando (2026-11-13, para revisar)
+
+**Primeros pasos: se hacen, no se leen**
+- Al terminar la calibración, 3 pasos:
+  1. "Dale a Play y haz bum". Avanza cuando nace el primer loop.
+  2. Una mano fantasma enseña a arrastrar un golpe.
+  3. "Llévalo al centro para borrarlo".
+
+**Pistas en el momento justo, una sola vez**
+- Con varios loops: "mantén un carril para grabar solo ahí".
+- Con dos células: "aleja para ver tu canción".
+
+**Estilo**
+- Minimalista: una palabra grande y "1/3" en la esquina, sin cajas.
+- Se puede saltar y repetir desde ⋯.
+
+**Encaje**
+- La pista del carril usa los carriles que graban (spec 003, E4.1).
+- La de alejar necesita la colonia (spec 005, fase 2).
+
 #### Orden de trabajo propuesto
 1. Terminar el aro (spec 003, fases 4 y 5). Hecho.
 2. Células (la canción, spec 005). Adelantada el 2026-11-13, antes que la melodía.
