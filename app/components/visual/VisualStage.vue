@@ -499,7 +499,7 @@ function cellScene(
   zEff: number,
   dt: number,
   wall: number,
-): Pick<AroFrame, 'geo' | 'ghost' | 'bridge' | 'pull' | 'alpha' | 'crowd' | 'halo' | 'threads' | 'labels' | 'progress' | 'handles' | 'threadDrag'> & { plan: ReturnType<typeof engine.cellPlan>; cam: { x: number; y: number } } {
+): Pick<AroFrame, 'geo' | 'ghost' | 'bridge' | 'pull' | 'alpha' | 'crowd' | 'halo' | 'threads' | 'labels' | 'progress' | 'handles' | 'threadDrag' | 'freeRing'> & { plan: ReturnType<typeof engine.cellPlan>; cam: { x: number; y: number } } {
   const alphaBase = reduced && playing.value ? Math.min(1, (performance.now() - cutAt) / CUT_FADE_MS) : 1
   const plan = engine.cellPlan()
   const all = engine.song.value.cells
@@ -547,11 +547,17 @@ function cellScene(
     return scaleGeo(moveGeo(base, (at.x + o.x * k - cam.x) * base.R * pf, (at.y + o.y * k - cam.y) * base.R * pf), depthScale(c.at.depth, k) * spawnState(c.id).s)
   }
   const toScreen = (p: Point, depth: number): Point => mapToScreen(p, { x: base.cx, y: base.cy }, base.R, cam, pfOf(depth))
-  const looseMul = (id: number) => (orderIds.includes(id) ? 1 : 1 - 0.55 * k)
+  // una libre (§13.1) se ve entera si suena y algo tenue si está apagada; una suelta, más tenue
+  const looseMul = (id: number) => {
+    const c = all.find((x) => x.id === id)
+    if (c?.free) return c.on ? 1 : 1 - 0.45 * k
+    return orderIds.includes(id) ? 1 : 1 - 0.55 * k
+  }
   const weightsOf = (c: Cell) => ({ ...allWeights(1), bass: c.parts.bass && bgMode.value !== 'off' ? 1 : 0, mel: 0 })
   const curCell = plan?.cur ?? here
   const geo = curCell ? place(curCell) : base
   const alpha = alphaBase * (curCell ? looseMul(curCell.id) : 1)
+  const freeRing = curCell?.free && k > 0.01 ? (curCell.on ? ('on' as const) : ('off' as const)) : null
   curShown = geo
 
   // las demás células, pequeñas y quietas (solo se miran), mientras se aleja el zoom; del fondo al frente
@@ -568,6 +574,7 @@ function cellScene(
           geo: placed.get(c.id)!,
           weights: weightsOf(c),
           dots: crowdDots(c),
+          ring: c.free ? (c.on ? ('on' as const) : ('off' as const)) : undefined,
           alpha: k * 0.85 * depthAlpha(c.at.depth, k) * spawnState(c.id).a * looseMul(c.id),
         }))
       : undefined
@@ -580,7 +587,7 @@ function cellScene(
         toScreen,
         handles: [],
         threads: [],
-        labels: all.map((c) => ({ id: c.id, x: placed.get(c.id)!.cx, y: placed.get(c.id)!.cy + placed.get(c.id)!.R + 11 })),
+        labels: all.filter((c) => !c.free).map((c) => ({ id: c.id, x: placed.get(c.id)!.cx, y: placed.get(c.id)!.cy + placed.get(c.id)!.R + 11 })),
       }
     : null
   // asas (§7.1): un puntito en el borde de cada célula de la canción, hacia la siguiente; solo con radio suficiente
@@ -653,7 +660,7 @@ function cellScene(
   // número de vueltas junto a cada célula, pequeño y tenue; la que se ve cuenta con lo que cabe en sus loops
   const labels =
     k > 0.01
-      ? all.map((c) => {
+      ? all.filter((c) => !c.free).map((c) => {
           const g = placed.get(c.id)!
           const turns = c.id === engine.viewCellId.value ? fitTurns(c.turns, loops.value.loops) : c.turns
           const base = { x: g.cx, y: g.cy + g.R + 11, text: String(turns), alpha: 0.5 * k * depthAlpha(c.at.depth, k) * looseMul(c.id) }
@@ -666,7 +673,7 @@ function cellScene(
         })
       : undefined
 
-  if (!plan || !tr) return { geo, alpha, plan, cam, crowd, halo, threads, labels, progress, handles, threadDrag }
+  if (!plan || !tr) return { geo, alpha, plan, cam, crowd, halo, threads, labels, progress, handles, threadDrag, freeRing }
   const cellOf = (id: number) => (id === plan.cur.id ? plan.cur : id === plan.next.id ? plan.next : plan.prev!)
   let ghost: AroFrame['ghost'] = null
   if (tr.ghost) {
@@ -684,24 +691,31 @@ function cellScene(
     tr.pull > 0
       ? { th: Math.atan2(plan.next.at.y - plan.cur.at.y, plan.next.at.x - plan.cur.at.x), a: tr.pull * PULL_MAX * base.R }
       : null
-  return { geo, ghost, bridge, pull, alpha, plan, cam, crowd, halo, threads, labels, progress, handles, threadDrag }
+  return { geo, ghost, bridge, pull, alpha, plan, cam, crowd, halo, threads, labels, progress, handles, threadDrag, freeRing }
 }
 
 // ── chapa de vueltas y marcadores del borde (spec 005, §5.3 y §6) ────────────────
 /** chapa: gotita pegada al borde, arriba, donde empieza la aguja */
 const chapaEl = ref<HTMLElement | null>(null)
-const chapa = ref({ show: false, turn: 0, turns: 1, loop: false })
-function updateChapa(plan: ReturnType<typeof engine.cellPlan>, pos: number) {
-  const edge = plan && aro?.edgePoint(-Math.PI / 2)
-  if (!plan || !edge || !chapaEl.value) {
+const chapa = ref({ show: false, turn: 0, turns: 1, loop: false, free: false, on: false })
+function updateChapa(plan: ReturnType<typeof engine.cellPlan>, pos: number, near: boolean) {
+  const edge = aro?.edgePoint(-Math.PI / 2)
+  // una libre a la vista (§13.1): en vez de las vueltas, un interruptor encendida / apagada
+  const freeView = near && engine.viewIsFree.value ? engine.song.value.cells.find((c) => c.id === engine.viewCellId.value) : undefined
+  if (!edge || !chapaEl.value || (!plan && !freeView)) {
     if (chapa.value.show) chapa.value = { ...chapa.value, show: false }
     return
   }
-  const turns = plan.cur.turns
-  const k = Math.floor(pos - plan.start)
-  const turn = plan.loop ? ((k % turns) + turns) % turns : Math.min(turns - 1, Math.max(0, k))
   const c = chapa.value
-  if (!c.show || c.turn !== turn || c.turns !== turns || c.loop !== plan.loop) chapa.value = { show: true, turn, turns, loop: plan.loop }
+  if (freeView) {
+    const on = !!freeView.on
+    if (!c.show || !c.free || c.on !== on) chapa.value = { show: true, turn: 0, turns: 1, loop: false, free: true, on }
+  } else if (plan) {
+    const turns = plan.cur.turns
+    const k = Math.floor(pos - plan.start)
+    const turn = plan.loop ? ((k % turns) + turns) % turns : Math.min(turns - 1, Math.max(0, k))
+    if (!c.show || c.free || c.turn !== turn || c.turns !== turns || c.loop !== plan.loop) chapa.value = { show: true, turn, turns, loop: plan.loop, free: false, on: false }
+  }
   // pegada al borde por fuera, sin tapar golpes; nunca bajo la muesca
   const y = Math.max(edge.y - 17, safe.top + 18)
   chapaEl.value.style.transform = `translate(${edge.x}px, ${y}px) translate(-50%, -50%)`
@@ -882,7 +896,7 @@ function tick() {
     }
     if (scene.crowd) crowdFrames++
     aro.draw(f)
-    updateChapa(colony.value ? null : plan, clock.bar + clock.barPhase)
+    updateChapa(colony.value ? null : plan, clock.bar + clock.barPhase, !colony.value)
   }
   frameMs.push(performance.now() - t0)
   if (frameMs.length >= 120) {
@@ -1378,13 +1392,18 @@ function tapWater(x: number, y: number) {
  */
 function tapCell(id: number) {
   const now = performance.now()
+  const free = !!engine.song.value.cells.find((c) => c.id === id)?.free
   if (isDoubleTap(lastTap, id, now)) {
     lastTap = null
+    // el doble toque solo entra; en una libre, entrar es ver su aro
+    if (free) engine.enterCell(id)
     zoomRel = nearRel
     panned.value = false
     return
   }
   lastTap = { id, t: now }
+  // una libre (§13.1): un toque la enciende o la apaga, sin tocar la canción
+  if (free) return engine.toggleFree(id)
   // tocar otra vez la que está en bucle lo suelta: la canción sigue (§4.1)
   if (engine.loopTarget.value === id) engine.resume()
   else engine.travelTo(id)
@@ -1554,12 +1573,20 @@ defineExpose({ rendererName, layoutInfo })
       v-show="chapa.show"
       ref="chapaEl"
       class="chapa absolute top-0 left-0"
-      :data-loop="chapa.loop"
-      :aria-label="chapa.loop ? 'seguir con la canción' : `vuelta ${chapa.turn + 1} de ${chapa.turns}: tocar para dejarla en bucle`"
+      :data-loop="chapa.free ? chapa.on : chapa.loop"
+      :aria-label="
+        chapa.free
+          ? chapa.on ? 'célula libre encendida: tocar para apagarla' : 'célula libre apagada: tocar para encenderla'
+          : chapa.loop ? 'seguir con la canción' : `vuelta ${chapa.turn + 1} de ${chapa.turns}: tocar para dejarla en bucle`
+      "
       @pointerdown.stop
-      @click="chapa.loop ? engine.resume() : engine.loopHere()"
+      @click="chapa.free ? engine.toggleFree(engine.viewCellId.value) : chapa.loop ? engine.resume() : engine.loopHere()"
     >
-      <template v-if="chapa.loop">
+      <template v-if="chapa.free">
+        <span class="chapa-inf">{{ chapa.on ? '●' : '○' }}</span>
+        <span>libre · {{ chapa.on ? 'suena' : 'apagada' }}</span>
+      </template>
+      <template v-else-if="chapa.loop">
         <span class="chapa-inf">∞</span>
         <span>▶ seguir</span>
       </template>
@@ -1605,7 +1632,7 @@ defineExpose({ rendererName, layoutInfo })
     </button>
 
     <!-- bolas del fondo (modo manual, §16.17) -->
-    <template v-if="bgMode === 'manual' && !colony">
+    <template v-if="bgMode === 'manual' && !colony && !engine.viewIsFree.value">
       <button
         v-for="b in bgBalls"
         :key="b.part"

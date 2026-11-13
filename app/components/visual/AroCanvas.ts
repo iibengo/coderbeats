@@ -63,6 +63,8 @@ export interface AroPull {
 
 /** La otra célula que se ve en una transición: la que entra (tenue) o la que se apaga. Solo se ve. */
 export interface AroGhost {
+  /** libre (§13.1): anillo continuo si suena, a trazos si está apagada */
+  ring?: 'on' | 'off'
   geo: DropGeo
   weights: Weights
   dots: AroDot[]
@@ -145,6 +147,8 @@ export interface AroFrame {
   threadDrag?: { from: { x: number; y: number }; to: { x: number; y: number }; target: { x: number; y: number; r: number } | null; ghostR: number | null } | null
   /** colonia: mantener una célula la borra; el anillo se completa alrededor de ella (p = 0..1) */
   holdRing?: { x: number; y: number; r: number; p: number } | null
+  /** la célula que se ve es una libre: su anillo (continuo si suena, a trazos si está apagada) */
+  freeRing?: 'on' | 'off' | null
   /** colonia: cuánto se ha llenado el anillo de la que suena (0..1); null = en bucle, sin avanzar */
   progress?: number | null
   /**
@@ -449,6 +453,7 @@ export class AroCanvas {
       x.globalAlpha = f.alpha ?? 1
       this.drawFront(f)
       if (f.halo && f.halo > 0.01) this.drawHalo(f.halo, f.progress)
+      if (f.freeRing) this.drawFreeRing(f.freeRing)
       if (f.labels?.length) this.drawLabels(f.labels)
       if (f.holdRing && f.holdRing.p > 0.08) this.drawHoldRing(f.holdRing)
       if (f.handles?.length) this.drawHandles(f.handles)
@@ -494,6 +499,7 @@ export class AroCanvas {
       x.beginPath()
       x.arc(geo.cx, geo.cy, 2.5, 0, TAU)
       x.fill()
+      if (g.ring) this.strokeRing(contour, g.ring)
       x.restore()
       return
     }
@@ -549,7 +555,33 @@ export class AroCanvas {
     x.beginPath()
     x.arc(geo.cx, geo.cy, 3, 0, TAU)
     x.fill()
+    if (g.ring) this.strokeRing(contour, g.ring)
     x.restore()
+  }
+
+  /** El anillo de una libre alrededor de su contorno: continuo si suena, a trazos si está apagada. */
+  private strokeRing(contour: (p: Path2D, u: number, reverse: boolean) => void, mode: 'on' | 'off') {
+    const x = this.ctx
+    const p = new Path2D()
+    contour(p, 1.12, false)
+    x.strokeStyle = mode === 'on' ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.45)'
+    x.lineWidth = mode === 'on' ? 1.6 : 1.2
+    x.setLineDash(mode === 'on' ? [] : [4, 4])
+    x.stroke(p)
+    x.setLineDash([])
+  }
+
+  /** Lo mismo para la célula que se ve (usa el contorno del último frame). */
+  private drawFreeRing(mode: 'on' | 'off') {
+    if (!this.last || !this.ro.length) return
+    const p = new Path2D()
+    this.loopPath(p, 1.12, false)
+    const x = this.ctx
+    x.strokeStyle = mode === 'on' ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.45)'
+    x.lineWidth = mode === 'on' ? 1.6 : 1.2
+    x.setLineDash(mode === 'on' ? [] : [4, 4])
+    x.stroke(p)
+    x.setLineDash([])
   }
 
   /** Hilo de agua entre dos gotas: una curva muy tenue de borde a borde, con el brillo corriendo por ella. */

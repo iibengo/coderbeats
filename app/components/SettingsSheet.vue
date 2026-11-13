@@ -70,6 +70,11 @@ async function stressDemo(count: 8 | 16) {
   }
 }
 
+/** Añade una célula libre (spec 005, §13.1): apagada y vacía; se entra en ella para llenarla. */
+function addFree() {
+  if (engine.addFreeCell() !== null) open.value = false
+}
+
 /** "Borrar todo" pide confirmación y se puede deshacer unos segundos (spec 005, §7.1). */
 function clearAll() {
   if ((loops.value.loops.length || multi.value) && !confirm('¿Borrar toda la canción?')) return
@@ -249,6 +254,12 @@ watch(open, (o) => {
               Borrar todo
             </button>
             <button class="flex-1 rounded-full border border-white/15 py-2" @click="loadDemo">Cargar demo</button>
+          </div>
+          <div class="flex items-center gap-3">
+            <button class="shrink-0 rounded-full border border-white/15 px-4 py-2" @click="addFree">Añadir célula libre</button>
+            <span class="text-xs text-neutral-500">
+              Suena en paralelo a la canción, sin fin. En el mapa, un toque la enciende o la apaga.
+            </span>
           </div>
           <p class="text-xs text-neutral-500">
             Arrastra en vertical sobre el agua para el filtro y en horizontal para el espacio. Dos dedos: fondo sí/no.
