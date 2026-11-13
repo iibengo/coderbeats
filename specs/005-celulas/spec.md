@@ -187,7 +187,7 @@ Con los tiempos atados al reloj (`clockNow`, E1.6) y "L" = la línea de compás 
 
   | Gesto | Célula de la canción | Célula libre |
   |---|---|---|
-  | **un toque** | salta a ella en la siguiente línea de compás y queda en bucle (§4.1), **sin acercar** | la enciende o la apaga, en la siguiente línea de compás |
+  | **un toque** | salta a ella en la siguiente línea de compás y queda en bucle (§4.1), **sin acercar**; si ya está en bucle, **lo suelta** (la canción sigue) | la enciende o la apaga, en la siguiente línea de compás |
   | **doble toque** | entrar: la cámara viaja a ella y la acerca | igual |
   | **arrastrar el cuerpo** | moverla en el mapa | igual |
   | **arrastrar el asa** | hilo de agua: en agua vacía = copia; sobre otra célula = orden | no tiene asa |
@@ -196,7 +196,7 @@ Con los tiempos atados al reloj (`clockNow`, E1.6) y "L" = la línea de compás 
 
   | Gesto sobre el agua | Qué hace |
   |---|---|
-  | arrastrar | mover el mapa (la cámara deja de seguir; aparece "◎ seguir") |
+  | arrastrar | mover el mapa (la cámara deja de seguir; aparece "◎ centrar") |
   | tocar agua vacía | célula nueva, que cae como una gota y queda al final del orden |
   | pellizcar | zoom |
 
@@ -206,6 +206,15 @@ Con los tiempos atados al reloj (`clockNow`, E1.6) y "L" = la línea de compás 
 - **Mover:** la célula sigue al dedo y suelta donde la dejes (`at.x`, `at.y`; la profundidad no
   cambia). El orden no cambia y los hilos la siguen. El zoom mínimo ("ajustar todas") se recalcula
   al soltar, no mientras arrastras. Las células pueden solaparse; manda la profundidad (§7.2).
+- **Soltar el bucle:** con el zoom alejado la chapa de vueltas no se ve, así que el bucle se suelta
+  tocando otra vez la célula que está en bucle, o con el botón **"∞ ▶ seguir canción"**, junto a Play
+  (a su derecha), que se ve mientras haya bucle. La célula vuelve a empezar en la siguiente línea
+  de compás y la canción sigue desde ahí (§4.1).
+- **Física sutil al mover:** todo es visual y se pasa con movimiento reducido. Mientras arrastras,
+  las células unidas por hilo se dejan llevar un poco (hilo elástico) y las cercanas se apartan si
+  acercas mucho la tuya. Al soltar, la movida sigue deslizándose con inercia en la dirección del gesto
+  y se frena sola; las demás vuelven a su sitio con un pequeño vaivén. Solo se guarda la posición
+  final de la célula movida.
 - **Asa:** un puntito en el borde de cada célula de la canción, hacia la siguiente en el orden (la
   última, hacia la derecha). Solo se dibuja y se puede coger con un radio de célula de unos 14 px o
   más; con menos zoom, copiar y ordenar quedan desactivados.
@@ -218,7 +227,7 @@ Con los tiempos atados al reloj (`clockNow`, E1.6) y "L" = la línea de compás 
     caes se resalta.
 - **Borrar y deshacer:** al borrar una célula, o al usar "Borrar todo" (⋯, que **pide
   confirmación**), aparece un chip "↶ deshacer" unos 8 s, encima de Play a la altura de la fila de
-  bolas (en la colonia, a la izquierda de "◎ seguir").
+  bolas (en la colonia, a la izquierda de "◎ centrar").
   - Devuelve lo último que se borró: la célula con sus loops, su posición y su sitio en el orden
     (entre sus mismos vecinos si siguen ahí; si no, al final), o la canción entera tal como estaba
     antes de "Borrar todo".
@@ -235,6 +244,11 @@ Con los tiempos atados al reloj (`clockNow`, E1.6) y "L" = la línea de compás 
 - **Hilos de orden:** líneas de agua muy tenues que unen las células en el orden en que suenan. Por el hilo de la que suena ahora corre el brillo de la transición.
 - **Número de vueltas** junto a cada célula, pequeño, en blanco tenue.
 - **Asa:** puntito en el borde de cada célula de la canción, hacia la siguiente; solo con radio ≥ 14 px (§7.1).
+- **Cuánto falta para cambiar:**
+  - alrededor de la célula que suena, un **anillo fino de progreso** que se llena con sus vueltas
+    (desde arriba, en el sentido de la aguja) y se completa justo al cambiar; en bucle no avanza;
+  - debajo de ella, los **puntitos de vueltas** (●●○○) en vez del número, o **∞** en bucle;
+  - en la última vuelta, el **hilo** hacia la siguiente se va llenando.
 - El vigilante de frames (E1.7) baja primero el detalle de las células de fondo.
 
 ## 8. Plantillas y demos (fase 4)
@@ -304,7 +318,7 @@ Cada parte termina en algo que se prueba en el iPhone y en un commit con visto b
   - tocar una célula viaja a ella en bucle (`travelTo`) y el zoom vuelve a cerca;
   - `lib/aro/colony.ts` (puro, con tests): zoom → modo, ajustar a todas, posiciones, qué célula hay bajo el dedo;
   - Hito: con la demo sonando, alejar, ver las 4 células, tocar el drop y ver cómo entra.
-- **2.2 Mover el mapa y "◎ seguir":** un dedo o el ratón arrastran el mapa y la cámara deja de seguir; "◎ seguir" (centrar) la devuelve a la que suena. Los marcadores del borde se ocultan en la colonia.
+- **2.2 Mover el mapa y "◎ centrar":** un dedo o el ratón arrastran el mapa y la cámara deja de seguir; "◎ centrar" la devuelve a la que suena. Los marcadores del borde se ocultan en la colonia.
 - **2.3 Profundidad y parallax:** las del fondo hasta un 70 % y más tenues, con parallax al mover el mapa; al tocar se elige la de delante.
 - **2.4 Hilos y números:** hilos de orden entre células, con el brillo de la transición corriendo por el de la que suena, y número de vueltas junto a cada una.
 - **2.5 Rendimiento:** detalle reducido de las células de fondo en el vigilante de frames; prueba con 8 células sonando.
@@ -355,7 +369,7 @@ Colocadas en el mapa en una curva suave, de izquierda a derecha, a distintas pro
 9. **Entrada en la colonia con histéresis:** entre el zoom mínimo de la gota (0,5) y 0,4 se queda cerca, como hoy; por debajo de 0,4 es colonia. Un pellizco algo pasado no te saca de la célula.
 10. **Gestos en la colonia:** un dedo mueve el mapa o toca una célula; los dos dedos no tienen filtro ni espacio, pero **tocar con dos dedos sin moverlos sigue cambiando el fondo sí / no**. Cerca, nada cambia.
 11. **Qué se oculta al alejar:** la chapa de vueltas, los marcadores del borde y las bolas de loops, de bajo y de acordes (son de la célula que se ve). **Play se sigue viendo.**
-12. **Dos "seguir":** el de la chapa ("▶ seguir") continúa la canción; el del mapa es "◎ seguir" y dice "centrar": devuelve la cámara a la célula que suena.
+12. **Dos botones distintos:** "▶ seguir" (la chapa de vueltas) y "∞ ▶ seguir canción" (la colonia) continúan la canción; el del mapa es **"◎ centrar"** y devuelve la cámara a la célula que suena.
 13. **El zoom de la colonia no se guarda:** solo se guarda el de cerca (`coderbeats:aro:v1`), para no abrir la app alejada.
 
 
@@ -374,6 +388,9 @@ Colocadas en el mapa en una curva suave, de izquierda a derecha, a distintas pro
     b) Borrar la que suena: suena la siguiente a partir de la siguiente línea de compás.
     c) Una célula nueva se añade al final del orden, con hilo desde la última.
     d) El chip de deshacer dura unos 8 s.
+20. **Soltar el bucle desde la colonia:** tocar otra vez la célula en bucle, o "∞ ▶ seguir canción" (§7.1).
+21. **Cuánto falta para cambiar:** anillo de progreso, puntitos de vueltas e hilo que se llena (§7.2).
+22. **Física sutil al mover:** visual, con inercia al soltar y sin física con movimiento reducido (§7.1).
 
 ## 13. Ideas para revisar
 
@@ -415,3 +432,10 @@ antes de la fase 3 o después.
   canción y la libre.
 - **Barrido y transiciones (§4.3, §5.2):** la libre no lo lleva; el barrido de filtro de la
   canción la afectaría, a menos que se excluya.
+
+## 14. Decisiones a revisar
+
+Decisiones que se tomaron sin preguntar al hacer la fase 3 de seguido (2026-11-13). Cada una dice
+qué se decidió y por qué; se cambian sin más si no gustan.
+
+(Se añaden con cada parte.)
