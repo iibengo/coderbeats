@@ -1438,7 +1438,7 @@ const layoutInfo = () => {
     `documento ${document.documentElement.scrollWidth}×${document.documentElement.scrollHeight}`,
     `aro (${Math.round(geo?.cx ?? 0)}, ${Math.round(geo?.cy ?? 0)}) r ${Math.round(geo?.R ?? 0)} zoom ${zoomNow().toFixed(2)} (${limits.value.min}–${limits.value.max.toFixed(2)}) detalle ${aroDetail} · colonia ${crowdLevel} (${cellPoints.value.length} células)`,
     `zonas seguras ${safe.top}/${safe.right}/${safe.bottom}/${safe.left}`,
-    `latencia de salida ${Math.round(engine.reportedOutputLatency() * 1000)} ms (informada) + imagen ${engine.imageDelayShown.value} ms · ida y vuelta calibrada ${Math.round(engine.roundTripMs.value)} ms`,
+    `latencia de salida ${Math.round(engine.reportedOutputLatency() * 1000)} ms (informada) + imagen ${engine.imageDelayShown.value} ms · ida y vuelta calibrada ${Math.round(engine.roundTripMs.value)} ms${engine.savedLatencyMs.value !== null && engine.savedLatencyMs.value <= 0 ? ` (la guardada, ${Math.round(engine.savedLatencyMs.value)} ms, es imposible y no se usa: repite la calibración)` : ''}`,
   ].join(' · ')
 }
 defineExpose({ rendererName, layoutInfo })

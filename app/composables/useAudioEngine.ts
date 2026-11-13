@@ -202,6 +202,8 @@ const tempoTap = ref<{ active: boolean; count: number }>({ active: false, count:
  * informa el navegador es falsa y la imagen va por delante del sonido.
  */
 const roundTripMs = ref(0)
+/** lo guardado de la calibración tal cual (puede ser ≤ 0 en una antigua); null sin calibrar */
+const savedLatencyMs = ref<number | null>(null)
 const imageAuto = ref(true)
 const imageFineMs = ref(0)
 /** lo que se enseña en ⋯ (la salida que informa el navegador y el retraso de imagen total, en ms); se refrescan al cambiar */
@@ -787,9 +789,14 @@ export function useAudioEngine() {
     toWorker({ type: 'calibration', ...plain })
   }
 
-  function setLatency(seconds: number) {
+  /**
+   * Latencia de ida y vuelta de la calibración (s) que se usa; `rawMs` es lo guardado tal cual, para el
+   * diagnóstico (una guardada negativa no se usa: `seconds` llega a 0).
+   */
+  function setLatency(seconds: number, rawMs: number | null | undefined = seconds * 1000) {
     latencySec = seconds
     roundTripMs.value = seconds * 1000
+    savedLatencyMs.value = typeof rawMs === 'number' && Number.isFinite(rawMs) ? rawMs : null
     refreshImageDelay()
   }
 
@@ -1463,6 +1470,7 @@ export function useAudioEngine() {
     outputLatency,
     reportedOutputLatency,
     roundTripMs,
+    savedLatencyMs,
     imageAuto,
     imageFineMs,
     reportedOutputMs,

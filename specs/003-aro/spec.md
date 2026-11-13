@@ -387,3 +387,15 @@ si hace falta un ajuste fino").
   tests: caso Bluetooth, caso PC (sin corrección), margen mínimo, sin calibración, ajuste roto y tope.
 - Lo que se oye no cambia: solo se retrasa la imagen.
 
+### E6.6 La calibración rechaza lo imposible
+Visto en un registro: "ida y vuelta calibrada −38 ms". Un retraso ≤ 0 es imposible (el sonido no llega antes
+de salir), pero la calibración lo daba por válido: solo miraba que hubiera 3 palmadas y que variaran menos de
+60 ms entre sí, y su ventana llega a −50 ms.
+- **Se rechaza** una calibración cuya mediana sea ≤ 0 ms, con el motivo "negativa": "has dado las palmadas
+  antes de oír el clic; guíate solo por el oído, no por la pantalla (con cascos Bluetooth el clic llega más
+  tarde de lo que parece), y repite". No se guarda.
+- **Una calibración guardada de antes que sea ≤ 0 no se usa** (cuenta como sin calibrar: ni corrige los
+  golpes del micro ni calcula el retraso de imagen), pero no se borra: repetirla la sustituye. El
+  diagnóstico lo dice.
+- `measureLatency` (motivo `negative`) y `usableLatencyMs`, con tests.
+

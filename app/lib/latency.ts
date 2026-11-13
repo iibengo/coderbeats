@@ -4,12 +4,19 @@ export interface LatencyResult {
   spreadMs: number
   matched: number
   valid: boolean
-  reason?: 'too-few' | 'too-spread'
+  /** 'negative': salió ≤ 0 ms, imposible (el sonido no llega antes de salir): se dieron las palmadas antes del clic que se oye */
+  reason?: 'too-few' | 'too-spread' | 'negative'
 }
 
 export const LATENCY_WINDOW_MS: readonly [number, number] = [-50, 400]
 export const MIN_MATCHED = 3
 export const MAX_SPREAD_MS = 60
+
+/**
+ * Latencia de ida y vuelta (salida + entrada) que se puede usar: la guardada si es positiva; si no (una
+ * calibración antigua que salió negativa, o rota), 0 = sin calibrar. Nunca se borra lo guardado.
+ */
+export const usableLatencyMs = (ms: number | null | undefined): number => (typeof ms === 'number' && Number.isFinite(ms) && ms > 0 ? ms : 0)
 
 /**
  * Empareja cada clic con el onset más cercano dentro de la ventana [-50, +400] ms
@@ -45,5 +52,7 @@ export function measureLatency(clickTimes: number[], onsetTimes: number[]): Late
   const result: LatencyResult = { latencyMs: median, meanMs: mean, spreadMs: spread, matched: n, valid: true }
   if (n < MIN_MATCHED) return { ...result, valid: false, reason: 'too-few' }
   if (spread > MAX_SPREAD_MS) return { ...result, valid: false, reason: 'too-spread' }
+  // un retraso ≤ 0 es imposible: las palmadas se dieron antes del clic que se oye (p. ej. siguiendo la pantalla con Bluetooth)
+  if (median <= 0) return { ...result, valid: false, reason: 'negative' }
   return result
 }

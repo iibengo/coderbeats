@@ -70,7 +70,9 @@ const label = computed(() => {
         {{
           result.reason === 'too-few'
             ? `Solo he oído ${result.matched} palmada(s). Da 4, una con cada clic, y algo más fuerte.`
-            : `Las palmadas variaron ${result.spreadMs.toFixed(0)} ms entre sí. Intenta ir más a tiempo.`
+            : result.reason === 'negative'
+              ? `Ha salido una latencia negativa (${result.latencyMs.toFixed(0)} ms): has dado las palmadas antes de oír el clic. Guíate solo por el oído, no por la pantalla (con cascos Bluetooth el clic llega más tarde de lo que parece), y repite.`
+              : `Las palmadas variaron ${result.spreadMs.toFixed(0)} ms entre sí. Intenta ir más a tiempo.`
         }}
       </p>
     </div>

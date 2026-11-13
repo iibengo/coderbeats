@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // Pantalla principal (§16.16): solo el agua, los loops flotando, Play y el estilo.
 import { STYLES } from '~/lib/constants'
+import { usableLatencyMs } from '~/lib/latency'
 import { TEMPO_RESET_MS, TEMPO_TAPS } from '~/lib/tempo'
 import type { StyleId } from '~/lib/types'
 import VisualStage from './visual/VisualStage.vue'
@@ -13,7 +14,8 @@ const prefs = usePrefs()
 prefs.load()
 prefs.startSaving()
 
-watchEffect(() => engine.setLatency((calibration.data.value?.latency?.ms ?? 0) / 1000))
+// una calibración guardada que salió ≤ 0 (imposible) no se usa; no se borra, y repetirla la sustituye
+watchEffect(() => engine.setLatency(usableLatencyMs(calibration.data.value?.latency?.ms) / 1000, calibration.data.value?.latency?.ms))
 
 const settingsOpen = ref(false)
 const stage = ref<InstanceType<typeof VisualStage> | null>(null)
