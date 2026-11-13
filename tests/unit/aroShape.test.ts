@@ -4,6 +4,8 @@ import {
   angleStep,
   bumpAt,
   bumpEnvelope,
+  FULL_BAR_GAP,
+  noteArc,
   locate,
   outerRadius,
   pointAt,
@@ -155,5 +157,22 @@ describe('latido del bombo en el borde', () => {
     expect(bumpEnvelope(0)).toBe(0)
     expect(bumpEnvelope(0.3)).toBeGreaterThan(0.4)
     expect(bumpEnvelope(1)).toBe(0)
+  })
+})
+
+describe('noteArc (E3.1)', () => {
+  it('el arco mide lo que dura la nota', () => {
+    const { a0, a1 } = noteArc(4, 4)
+    expect(a0).toBeCloseTo(stepAngle(4))
+    expect(a1 - a0).toBeCloseTo(TAU / 4)
+  })
+  it('una nota de todo el compás deja un hueco antes de su inicio', () => {
+    const { a0, a1 } = noteArc(0, 16)
+    expect(a1 - a0).toBeLessThan(TAU)
+    expect(TAU - (a1 - a0)).toBeCloseTo((FULL_BAR_GAP / 16) * TAU)
+  })
+  it('nunca mide menos de un cuarto de paso', () => {
+    const { a0, a1 } = noteArc(3, 0)
+    expect(a1 - a0).toBeCloseTo((0.25 / 16) * TAU)
   })
 })

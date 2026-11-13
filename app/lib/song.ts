@@ -6,7 +6,7 @@ import { tokensToMini } from './strudel'
 import type { FreeLoop } from './freeLoops'
 import type { KitId, StyleId } from './types'
 import { anyPart, type BackgroundMode, type Parts } from './background'
-import { bassCode, type BassPattern } from './bass'
+import { bassCode } from './bass'
 
 export interface SongFx {
   /** 0..1 (1 = abierto) */
@@ -23,8 +23,6 @@ export interface SongState {
   background: { mode: BackgroundMode; parts: Parts }
   metronome: boolean
   fx: SongFx
-  /** bajo editado de este estilo; sin él, el del estilo (spec 003, E1.4) */
-  bass?: BassPattern
 }
 
 /**
@@ -108,7 +106,7 @@ export function songCode(st: SongState, mode: SongMode = 'display'): string {
   const showChords = engine ? bgOn : st.background.parts.chords
   if (showBass || showChords) {
     out.push(`${IND}// fondo · ${style.label.toLowerCase()} · ${music.key}`)
-    if (showBass) out.push(`${IND}${bassCode(st.bass ?? music.background.bass)}.orbit(2)${engine ? '.color("bass")' : ''},`)
+    if (showBass) out.push(`${IND}${bassCode(music.background.bass)}.orbit(2)${engine ? '.color("bass")' : ''},`)
     if (showChords)
       for (const l of music.background.chords) out.push(`${IND}${l}.orbit(3)${engine ? '.color("chords")' : ''},`)
   }

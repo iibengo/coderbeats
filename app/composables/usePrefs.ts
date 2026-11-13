@@ -1,5 +1,4 @@
 import type { BackgroundMode, Parts } from '~/lib/background'
-import type { BassPattern } from '~/lib/bass'
 import type { LoopsState } from '~/lib/freeLoops'
 import { migrateRepeatMode } from '~/lib/prefsMigration'
 import type { LoopLength } from '~/lib/phrases'
@@ -26,8 +25,6 @@ export interface StudioPrefs {
   theme: string
   /** guardadas con "completa" como valor por defecto (§16.21): un "sustituye" guardado es elegido */
   completeDefault?: boolean
-  /** bajo editado en el aro, por estilo (spec 003, E1.4) */
-  bassEdits?: Partial<Record<StyleId, BassPattern>>
 }
 
 function read<T>(key: string, valid: (x: unknown) => x is T): T | null {
@@ -72,7 +69,11 @@ export function usePrefs() {
       // 'accumulate' (antes de §16.19) y el "sustituye" por defecto de antes de §16.21 pasan a 'complete'
       engine.setRepeatMode(migrateRepeatMode(p.repeatMode, p.completeDefault))
       engine.setFx(p.fx)
-      if (p.bassEdits) engine.bassEdits.value = p.bassEdits
+      // los bajos editados de antes de E3.8 se borran: vuelve el de cada estilo (spec 003, E1.4)
+      if ('bassEdits' in p) {
+        const { bassEdits: _old, ...rest } = p as StudioPrefs & { bassEdits?: unknown }
+        write(PREFS_KEY, rest)
+      }
     }
     const l = read(LOOPS_KEY, isLoops)
     if (l && !engine.loops.value.loops.length) engine.setLoops(l)
@@ -95,7 +96,6 @@ export function usePrefs() {
           maxPhraseBars: engine.maxPhraseBars.value,
           fx: { ...engine.fx },
           theme: 'water',
-          bassEdits: engine.bassEdits.value,
           completeDefault: true,
         }) satisfies StudioPrefs,
       (p) => write(PREFS_KEY, p),

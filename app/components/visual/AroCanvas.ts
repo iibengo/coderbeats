@@ -10,6 +10,7 @@ import { bandAt, bandLayout, bandMid, BAND_ORDER, type Layout, type Weights } fr
 import {
   angleStep,
   BREATH,
+  noteArc,
   bumpAt,
   bumpEnvelope,
   INNER_WOBBLE,
@@ -20,7 +21,6 @@ import {
   type Bump,
   type DropGeo,
 } from '~/lib/aro/shape'
-import { DELETE_OUTSIDE_PX } from '~/lib/aro/drop'
 import { INK, VOICE_RGB_CSS, type Voice } from '~/lib/palette'
 
 export interface AroDot {
@@ -31,6 +31,8 @@ export interface AroDot {
   step: number
   /** posición en su loop (o en el patrón del bajo), en semicorcheas: identifica el golpe */
   pos: number
+  /** duración en pasos (bajo y melodía: se dibuja como arco, E3.1) */
+  dur?: number
   voice: Voice
   muted: boolean
 }
@@ -65,6 +67,8 @@ export interface AroFrame {
   reduced: boolean
   /** ángulos del contorno (móvil en horizontal: más al estirarse, E2.1); sin él, 120 (72 en detalle bajo) */
   contour?: number
+  /** duración de una semicorchea (s), para apagar los arcos a lo largo de su nota */
+  stepSec: number
 }
 
 /** radio del punto en reposo por voz (px) */
@@ -81,6 +85,11 @@ const KICK_BUMP_S = 0.7
 const KICK_BUMP_PX = 9
 const KICK_CORE_S = 0.6
 const MAX_WAVES = 32
+/** estela de la aguja: ángulo que abarca (≈ un tiempo) y su brillo máximo (E3.4) */
+const TRAIL_SPAN = Math.PI / 2
+const TRAIL_ALPHA = 0.015
+/** silenciados: rellenos pero apagados (E3.2) */
+const MUTED_ALPHA = 0.22
 /** distancia máxima del dedo a un golpe para cogerlo (px) */
 const PICK_PX = 26
 /** muelle del imán: tirón y amortiguación por frame de 60 Hz (como el boceto) */
@@ -123,6 +132,9 @@ export class AroCanvas {
   private spawns = new Map<string, number>()
   private pops: { x: number; y: number; voice: Voice; born: number }[] = []
   private lastNow = 0
+  private stepSec = 0.17
+  /** arcos de nota encendidos: cuándo sonaron y cuánto duran (s) */
+  private arcsLit = new Map<string, { t: number; sec: number }>()
 
   constructor(private canvas: HTMLCanvasElement) {
     const ctx = canvas.getContext('2d')
@@ -159,6 +171,8 @@ export class AroCanvas {
   private sound(d: AroDot) {
     const now = performance.now() / 1000
     this.flashes.set(d.key, now)
+    // el arco de una nota se enciende entero y se apaga a lo largo de su duración (E3.1)
+    if (d.dur) this.arcsLit.set(d.key, { t: now, sec: d.dur * this.stepSec })
     if (this.reduced) return // sin ondas ni latido (E1.7): solo se enciende
     const th = stepAngle(d.step)
     if (this.waves.length >= MAX_WAVES) this.waves.shift()
@@ -182,14 +196,14 @@ export class AroCanvas {
     return { th, u, step: angleStep(th), voice: bandAt(u, L.layout, this.weights), outPx: d - ro }
   }
 
-  /** Golpe más cercano a (px, py), a menos de 26 px, de una franja visible. */
+  /** Golpe más cercano a (px, py), a menos de 26 px, de una franja visible. El bajo no se coge (E1.4). */
   pick(px: number, py: number): AroDot | null {
     const L = this.last
     if (!L || !this.weights) return null
     let best: AroDot | null = null
     let bd = PICK_PX
     for (const d of L.dots) {
-      if (this.weights[d.voice] < 0.5) continue
+      if (this.weights[d.voice] < 0.5 || d.voice === 'bass') continue
       const [x, y] = this.at(stepAngle(d.step), bandMid(d.voice, L.layout))
       const dd = Math.hypot(x - px, y - py)
       if (dd < bd) {
@@ -292,6 +306,7 @@ export class AroCanvas {
     const layout = bandLayout(f.weights)
     this.last = { geo, layout, t, dots: f.dots }
     this.weights = f.weights
+    this.stepSec = f.stepSec
     const now = performance.now() / 1000
     const frames = Math.min(3, Math.max(1, Math.round((now - (this.lastNow || now - 1 / 60)) * 60)))
     this.lastNow = now
@@ -383,8 +398,24 @@ export class AroCanvas {
       x.restore()
     }
 
-    // golpes: puntos; el bajo, rayitas
     const head = stepAngle(f.phase * 16)
+
+    // estela de la aguja: un abanico muy tenue detrás de ella (E3.4)
+    if (f.playing && !f.reduced && 'createConicGradient' in x) {
+      const disc = new Path2D()
+      this.loopPath(disc, 1, false)
+      this.loopPath(disc, 0, true)
+      const g = x.createConicGradient(head - TRAIL_SPAN, geo.cx, geo.cy)
+      const k = TRAIL_SPAN / TAU
+      g.addColorStop(0, 'rgba(255,255,255,0)')
+      g.addColorStop(k * 0.999, `rgba(255,255,255,${TRAIL_ALPHA})`)
+      g.addColorStop(k, 'rgba(255,255,255,0)')
+      g.addColorStop(1, 'rgba(255,255,255,0)')
+      x.fillStyle = g
+      x.fill(disc)
+    }
+
+    // golpes: puntos; el bajo, rayita con el arco de su duración
     let dragged: { d: AroDot; px: number; py: number; r: number } | null = null
     for (const d of f.dots) {
       const isDrag = this.drag?.key === d.key
@@ -430,6 +461,21 @@ export class AroCanvas {
       const col = VOICE_RGB_CSS[d.voice]
       const alpha = (0.55 + Math.max(near, fl) * 0.45) * (faded ? 0.25 : 1)
       if (d.voice === 'bass') {
+        // el arco de la duración: tenue en reposo; al sonar se enciende y se apaga a lo largo de la nota
+        if (d.dur) {
+          const lit = this.arcsLit.get(d.key)
+          const p = lit ? (now - lit.t) / Math.max(0.05, lit.sec) : 1
+          if (lit && p >= 1) this.arcsLit.delete(d.key)
+          const glow = p < 1 ? 1 - p : 0
+          const { a0, a1 } = noteArc(angleStep(th), d.dur)
+          x.strokeStyle = `rgba(${col},${(0.28 + 0.6 * glow) * (faded ? 0.25 : 1) * (d.muted ? 0.4 : 1) * wt})`
+          x.lineWidth = 2 + 1.5 * glow
+          x.lineCap = 'round'
+          x.beginPath()
+          this.arcPath(u, a0, a1)
+          x.stroke()
+          x.lineCap = 'butt'
+        }
         x.save()
         x.translate(px, py)
         x.rotate(th) // radial, como en el boceto
@@ -440,14 +486,9 @@ export class AroCanvas {
       }
       x.beginPath()
       x.arc(px, py, r, 0, TAU)
-      if (d.muted) {
-        x.strokeStyle = `rgba(${col},${0.5 * (faded ? 0.25 : 1)})`
-        x.lineWidth = 1.2
-        x.stroke()
-      } else {
-        x.fillStyle = `rgba(${col},${alpha})`
-        x.fill()
-      }
+      // silenciado: relleno pero apagado (E3.2); hueco queda solo para el fantasma y las sugerencias
+      x.fillStyle = `rgba(${col},${d.muted ? MUTED_ALPHA * (faded ? 0.25 : 1) : alpha})`
+      x.fill()
       if (hl) {
         x.strokeStyle = 'rgba(255,255,255,0.9)'
         x.lineWidth = 1.5
@@ -516,8 +557,8 @@ export class AroCanvas {
     }
     x.closePath()
     x.fill()
-    // un golpe arrastrado al centro o fuera de la gota se borrará al soltarlo: el borde se pone rosa
-    const willDelete = !!this.drag && (this.drag.u < 0 || this.drag.outPx > DELETE_OUTSIDE_PX)
+    // un golpe arrastrado al centro se borrará al soltarlo: el borde se pone rosa
+    const willDelete = !!this.drag && this.drag.u < 0
     x.strokeStyle = willDelete ? `rgba(${VOICE_RGB_CSS.bd},0.9)` : 'rgba(255,255,255,0.8)'
     x.lineWidth = 1.2
     x.stroke()

@@ -1,6 +1,4 @@
 import { reactive, ref, shallowRef } from 'vue'
-import type { BassPattern } from '~/lib/bass'
-import { STYLE_MUSIC } from '~/lib/styles'
 import { NO_PARTS, PART_ORBIT, planTransitions, targetParts, type BackgroundMode, type Part, type Parts } from '~/lib/background'
 import { KIT_ORDER, KITS, STYLES } from '~/lib/constants'
 import { demoState } from '~/lib/demos'
@@ -132,8 +130,6 @@ const repeatMode = ref<RepeatMode>('complete')
 const phrase = shallowRef<PhraseSnapshot | null>(null)
 const fx = reactive<SongFx>({ filter: 1, space: 0, warmth: 0 })
 const loops = shallowRef<LoopsState>(emptyLoops())
-/** bajo editado en el aro, por estilo (spec 003, E1.4); sin entrada, el del estilo */
-const bassEdits = shallowRef<Partial<Record<StyleId, BassPattern>>>({})
 /** partes del fondo que han entrado o están entrando (para el código mostrado) */
 const bgParts = shallowRef<Parts>({ ...NO_PARTS })
 const currentBar = ref(0)
@@ -287,7 +283,6 @@ function songState(): SongState {
     background: { mode: bgMode.value, parts: bgParts.value },
     metronome: metronome.value,
     fx: { ...fx },
-    bass: bassEdits.value[style.value],
   }
 }
 
@@ -744,9 +739,6 @@ export function useAudioEngine() {
   function loadDemo() {
     const bornAt = playing.value && clock ? nextBarLine() : 0
     loops.value = demoState(style.value, loops.value.nextId, bornAt)
-    // la demo restaura el bajo del estilo (E1.4)
-    const { [style.value]: _edited, ...rest } = bassEdits.value
-    bassEdits.value = rest
     if (bgMode.value === 'off') {
       bgMode.value = 'manual'
       lastBgMode.value = 'manual'
@@ -771,15 +763,6 @@ export function useAudioEngine() {
     if (next.loops.length !== before) log('born', `edición: ${next.loops.length} loops`)
     reevaluate()
     updateBackground()
-  }
-
-  /** Bajo del estilo actual: el editado o el del estilo. */
-  const bassPattern = (): BassPattern => bassEdits.value[style.value] ?? STYLE_MUSIC[style.value].background.bass
-
-  /** Guarda el bajo editado del estilo actual (se mueve solo en el tiempo). */
-  function setBass(p: BassPattern) {
-    bassEdits.value = { ...bassEdits.value, [style.value]: p }
-    reevaluate()
   }
 
   function clearAll() {
@@ -825,7 +808,6 @@ export function useAudioEngine() {
     phrase,
     fx,
     loops,
-    bassEdits,
     bgParts,
     currentBar,
     diag,
@@ -857,8 +839,6 @@ export function useAudioEngine() {
     clearAll,
     loadDemo,
     editLoops,
-    bassPattern,
-    setBass,
     onVisual,
     clockNow,
     displayCode,

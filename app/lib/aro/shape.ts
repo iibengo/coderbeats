@@ -125,3 +125,15 @@ export function bumpAt(th: number, bumps: readonly Bump[]): number {
 
 /** Amplitud de un empujón a los `p` (0..1) de su vida: sube y se apaga. */
 export const bumpEnvelope = (p: number): number => (p <= 0 || p >= 1 ? 0 : Math.sin(p * Math.PI) * (1 - p))
+
+/** hueco antes del inicio de una nota que dura todo el compás, en pasos (E3.1) */
+export const FULL_BAR_GAP = 0.6
+
+/**
+ * Arco de una nota con duración (E3.1): ángulos de inicio y fin en su franja. Una nota que dura
+ * todo el compás (o más) deja un pequeño hueco antes de su inicio, para que se vea dónde empieza.
+ */
+export function noteArc(step: number, dur: number): { a0: number; a1: number } {
+  const len = Math.max(0.25, Math.min(dur, 16 - FULL_BAR_GAP))
+  return { a0: stepAngle(step), a1: stepAngle(step + len) }
+}

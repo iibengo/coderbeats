@@ -12,7 +12,8 @@ import { notesInBar } from '~/lib/bass'
 import { STYLES } from '~/lib/constants'
 import { loopBarAt } from '~/lib/freeLoops'
 import { dragValue, lockAxis, type Axis } from '~/lib/gestures'
-import { addHit, moveBassNote, moveHit, removeHit, type EditOptions } from '~/lib/loopEdit'
+import { addHit, moveHit, removeHit, type EditOptions } from '~/lib/loopEdit'
+import { STYLE_MUSIC } from '~/lib/styles'
 import { VOICE_HEX, type Voice } from '~/lib/palette'
 import { INSTRUMENTS } from '~/lib/constants'
 import type { Instrument } from '~/lib/types'
@@ -132,12 +133,12 @@ const ringDots = computed<AroDot[]>(() => {
       out.push({ key: dotKey(l.id, h.pos), loopId: l.id, step, pos: h.pos, voice: l.instrument, muted: l.muted })
     }
   }
-  // el bajo del fondo (o el editado): sus notas del compás que se ve (rayitas; spec 003 §3)
-  const bass = engine.bassPattern()
+  // el bajo del fondo: sus notas del compás que se ve (rayita y arco; solo se ve, E1.4)
+  const bass = STYLE_MUSIC[style.value].background.bass
   const bar = ((g % bass.bars) + bass.bars) % bass.bars
   for (const n of notesInBar(bass, g)) {
     const pos = bar * 16 + n.pos
-    out.push({ key: dotKey(-1, pos), loopId: -1, step: n.pos, pos, voice: 'bass', muted: false })
+    out.push({ key: dotKey(-1, pos), loopId: -1, step: n.pos, pos, dur: n.dur, voice: 'bass', muted: false })
   }
   return out
 })
@@ -389,6 +390,7 @@ function tick() {
       highlight: highlight.value,
       bars: barsInfo.value,
       reduced,
+      stepSec: 60 / STYLES[style.value].bpm / 4,
       // en horizontal, más puntos en el contorno cuanto más se estira (E2.1)
       ...(compact.value ? { contour: contourPoints(stretchOf(geo!)) } : {}),
     }
@@ -562,23 +564,17 @@ function dropDot(dot: AroDot, x: number, y: number) {
   if (!aro) return
   const w = aro.where(x, y)
   const o = editOptions()
-  const act = dropAction(dot.voice, w.u, w.outPx, w.voice)
+  const act = dropAction(dot.voice, w.u, w.voice)
   if (act.kind === 'bounce') return bounceBack(dot, x, y)
-  // al centro o fuera de la gota: se borra con una salpicadura (E2.2)
+  // al centro: se borra con una salpicadura
   if (act.kind === 'delete') {
     aro.setDrag(null)
     aro.splash(x, y, dot.voice)
     engine.editLoops(removeHit(loops.value, dot.loopId, dot.pos))
     return
   }
-  // el bajo se mueve solo en el tiempo, dentro de su franja
-  if (dot.loopId < 0) {
-    const r = moveBassNote(engine.bassPattern(), dot.pos, w.step, o)
-    if (!r) return bounceBack(dot, x, y)
-    engine.setBass(r.pattern)
-    aro.settle(dotKey(-1, r.pos), w.th, w.u)
-    return
-  }
+  // el bajo no se edita (E1.4): no se puede coger, pero por si acaso vuelve a su sitio
+  if (dot.loopId < 0) return bounceBack(dot, x, y)
   const r = moveHit(loops.value, dot.loopId, dot.pos, act.to as Instrument, w.step, shownBar(), o)
   if (!r) return bounceBack(dot, x, y)
   engine.editLoops(r.state)

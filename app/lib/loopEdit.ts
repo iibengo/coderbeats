@@ -7,8 +7,8 @@
  * - Cambiar de franja solo entre baterías (bombo, caja, platillo).
  * - Un loop que se queda sin golpes se borra.
  * - Nada de esto es un nacimiento: no cambia `bornAt` ni `prev`.
+ * - El bajo no se edita: solo se ve (E1.4, E3.8).
  */
-import type { BassNote, BassPattern } from './bass'
 import { loopBarAt, MAX_LOOPS, type FreeLoop, type LoopsState } from './freeLoops'
 import type { Instrument } from './types'
 
@@ -125,29 +125,4 @@ export function moveHit(
     return { state: replace(removed, r.loop), hit: { loopId: target.id, pos: r.pos } }
   }
   return addHit(removed, toInst, at, g, { ...o, assist: false }, hit.strength)
-}
-
-/**
- * Mueve una nota del bajo en el tiempo (E1.4: no cambia la nota). Se queda en su compás; si cae
- * sobre otra nota, la sustituye; la duración se recorta a la línea de compás.
- */
-export function moveBassNote(
-  p: BassPattern,
-  fromPos: number,
-  step: number,
-  o: EditOptions,
-): { pattern: BassPattern; pos: number } | null {
-  const note = p.notes.find((n) => Math.abs(n.pos - fromPos) < 1e-6)
-  if (!note) return null
-  const bar = Math.floor(fromPos / 16)
-  // el bajo se escribe en mini-notación sin nudge: siempre a un paso entero
-  const at = Math.round(snapStep(step, o)) % 16
-  const pos = bar * 16 + at
-  const dur = Math.max(1, Math.min(note.dur, 16 - at))
-  const notes: BassNote[] = p.notes.filter((n) => n !== note && !(n.pos >= pos && n.pos < pos + dur))
-  // una nota anterior que ahora se solaparía se acorta
-  const trimmed = notes.map((n) => (n.pos < pos && n.pos + n.dur > pos && Math.floor(n.pos / 16) === bar ? { ...n, dur: pos - n.pos } : n))
-  trimmed.push({ ...note, pos, dur })
-  trimmed.sort((a, b) => a.pos - b.pos)
-  return { pattern: { ...p, notes: trimmed }, pos }
 }

@@ -41,7 +41,7 @@ coderbeats sigue siendo un instrumento para jugar (tipo Incredibox), no una herr
 - En la melodía, subir o bajar el punto dentro de su franja cambia la nota (siempre dentro de la escala del estilo).
 - Cada cambio se refleja en el código Strudel mostrado y en lo que suena (lo que se ve es lo que suena).
 
-### 6. Ideas de las referencias (fase 5 de esta spec)
+### 6. Ideas de las referencias (fase 5 de esta spec; decididas en la enmienda 3)
 - Notas con duración: bajo y melodía como arcos cuyo largo es lo que dura la nota; batería como golpes cortos. Los acordes, con la spec de kits (E1.3).
 - Apagado y encendido: lo silenciado o aún no grabado se ve fantasma; al sonar se enciende.
 - Estela: la aguja deja un rastro que se apaga.
@@ -125,9 +125,8 @@ Hoy están repetidos en `VisualStage.vue`, `PhraseRing.vue`, `themes/types.ts` y
 
 - **Imán = ayuda.** Con ayuda, el golpe suelto se desliza al paso más cercano de la rejilla del estilo (semicorcheas; corcheas en drum and bass). Sin ayuda, se queda donde lo sueltas (posición decimal, con `.nudge()`).
 - **Cambiar de franja solo entre baterías** (bombo, caja, platillo). Soltar un golpe de batería en el bajo o la melodía, o uno de bajo o melodía en otra franja, lo devuelve a su sitio con rebote.
-- **El bajo se edita solo en el tiempo**, no en la nota.
-  - El bajo editado **se guarda por estilo** (persistencia).
-  - **"Cargar demo" lo restaura** al del estilo.
+- **El bajo no se edita: solo se ve** (rayita y arco, E3.1). No se coge, no se mueve ni se borra (cambio de E3.8: moverlo solo cambiaba un compás y acortaba la nota al final del compás, y confundía).
+  - Los bajos editados que hubiera guardados se borran: vuelve el de cada estilo.
 - **Un loop que se queda sin golpes se borra** (y su bola desaparece).
 - **Mover, crear o borrar no es un nacimiento**: sin caída ni salpicón de la bola, solo se reevalúa el código. Suena en el siguiente paso.
 - **Crear** un golpe en una franja de batería sin loop crea el loop (1 compás, con el límite de 8 loops). Hay como mucho una bola por instrumento (§16.19).
@@ -182,7 +181,7 @@ Hoy están repetidos en `VisualStage.vue`, `PhraseRing.vue`, `themes/types.ts` y
 
 ---
 
-## Enmienda 2 · móvil en horizontal y borrar fuera de la gota (2026-11-13)
+## Enmienda 2 · móvil en horizontal (2026-11-13)
 
 Tras probar la fase 4 en el iPhone. En vertical y en escritorio, el aspecto no cambia.
 
@@ -200,32 +199,63 @@ Tras probar la fase 4 en el iPhone. En vertical y en escritorio, el aspecto no c
 - **Estiramiento limitado:** sigue siendo una gota, como mucho algo más ancha que alta. Zoom máximo = 1,25 × la mitad de la altura libre; zoom inicial = la altura libre (pegada arriba y abajo).
 - **Más puntos en el contorno al estirarse:** el número de ángulos crece con el estiramiento (de 120 hasta 240) para que los bordes, las franjas y las ondas no hagan picos.
 
-### E2.2 Borrar fuera de la gota (en todas partes)
+### E2.2 Borrar fuera de la gota: retirado tras probarlo
 
-- Además de llevarlo al centro, **arrastrar un golpe fuera de la gota lo borra**, con la misma salpicadura.
-- Cuenta como fuera a más de 16 px del borde exterior: soltarlo justo en el borde no borra y lo deja en la franja de fuera (platillo), como hasta ahora. Esto sustituye a "fuera de la gota: a la franja de fuera" de E1.4.
-- El bajo no se borra (solo se mueve en el tiempo, E1.4): fuera de la gota vuelve a su sitio.
+- **Solo se borra llevando el golpe al centro.** Arrastrarlo fuera de la gota ya no lo borra.
+- Soltarlo fuera de la gota lo lleva con el imán a la franja más cercana, la de fuera (platillo), como en E1.4.
+- El bajo no se coge ni se borra (solo se ve, E1.4).
 
 ---
 
-## Ideas para revisar (2026-11-13, no decididas)
+## Enmienda 3 · fase 5, "se toca en 2D, se mira en 3D" (2026-11-13)
 
-Ideas para el futuro. No son decisiones: se revisan antes de programar cada fase.
+Las ideas para revisar pasan a decisiones de la fase 5. Sustituye al apartado 6 ("Ideas de las referencias"). La nota del pellizco continuo ya se aplicó en la fase 4; la colonia de células queda para su spec (spec 001, §14.1).
 
-### Guía al tocar (minimalista, sin cargar el aro)
-- Sin rejilla de puntos. Mientras arrastras un golpe, solo aparece un **fantasma** (círculo hueco y tenue) donde caerá al soltar.
-- **Hueco solo para el fantasma y las sugerencias.** Tus golpes, siempre rellenos; los silenciados, rellenos pero apagados (tenues). El bajo del fondo se queda como está (rayitas).
-- **Sugerencias del estilo** solo en **franjas vacías** (p. ej., house: bombo en los 4 tiempos), muy tenues.
-  - Tocar una la pone.
+### E3.1 Notas con duración
+- **El bajo** (y la melodía cuando exista, spec 002) se dibuja como un **arco** en su franja, cuyo largo es lo que dura la nota. Empieza en una rayita que marca el inicio. Solo se ve: no se mueve (E1.4).
+- Una nota que dura todo el compás deja un pequeño hueco antes de su inicio, para que se vea dónde empieza.
+- **La batería sigue como puntos.**
+- Al sonar, el arco se enciende entero y se apaga a lo largo de su duración.
+
+### E3.2 Lo que se ve relleno y lo que se ve hueco
+- **Tus golpes, rellenos.**
+- **Silenciados: rellenos pero apagados** (tenues). Hoy son huecos; dejan de serlo.
+- **Hueco solo para el fantasma y las sugerencias** (E3.3).
+- El bajo del fondo sigue como está (rayitas, ahora con su arco).
+
+### E3.3 Guía al tocar (minimalista, sin cargar el aro)
+- **Sin rejilla de puntos.**
+- **Fantasma**: al arrastrar un golpe, un solo círculo hueco y tenue donde caerá al soltar (con el imán aplicado).
+  - Si al soltarlo se borraría (en el centro), no hay fantasma; avisa el borde rosa del centro.
+  - Si volvería a su sitio (por ejemplo, batería sobre el bajo), tampoco.
+- **Sugerencias del estilo**, solo en **franjas de batería vacías** (sin golpes en el compás que se ve), muy tenues y huecas.
+  - Salen de las plantillas del estilo (p. ej., house: bombo en los 4 tiempos, caja en 2 y 4, platillo a contratiempo).
+  - Tocar una pone ese golpe (solo ese, no la plantilla entera).
   - Desaparecen en cuanto la franja tiene un golpe.
-- Con la ayuda apagada (modo libre): sin fantasma ni sugerencias.
+- **Sin ayuda** (modo libre): ni fantasma ni sugerencias.
 
-### Fase 4 (zoom), nota de diseño
-- Diseñar el pellizco como un **gesto continuo**. Más adelante, al alejar más allá de una célula, se verá la **colonia de células** (spec futura, ver la hoja de ruta en la spec 001, §14.1).
+### E3.4 Estela de la aguja
+- Muy suave, que casi no se note: un abanico tenue detrás de la aguja (aproximadamente un tiempo) que se apaga solo.
+- Sin estela con movimiento reducido (la aguja sí gira).
 
-### Fase 5: "se toca en 2D, se mira en 3D"
-- **Inclinación al soltar**: mientras tocas, el aro está de frente. Si dejas de tocar unos segundos, se inclina suave, como un disco en perspectiva. Al tocar, vuelve de frente.
-- **Giroscopio**: al mover el móvil, la gota se desplaza un poco respecto al agua de fondo (parallax sutil).
-  - Respeta `prefers-reduced-motion`.
+### E3.5 Inclinación al soltar
+- Tras **4 s sin tocar**, el aro se inclina suave, como un disco visto en perspectiva. Al tocar, vuelve de frente en unos 0,3 s.
+- Se dibuja como un disco que se aleja: se aplasta en vertical, sin 3D real (Canvas 2D).
+- El primer toque ya funciona aunque el aro esté inclinado: el toque se traduce a la posición de frente.
+- **Sin inclinación con movimiento reducido.**
 
-> Nota: en iOS, el giroscopio pide permiso (`DeviceOrientationEvent.requestPermission`) dentro de un gesto del usuario.
+### E3.6 Giroscopio (parallax)
+- Al mover el móvil, la gota se desplaza un poco (unos 12 px como mucho) respecto al agua de fondo.
+- **Opcional y apagado por defecto**: se activa en ⋯ ("Movimiento del móvil"). En iOS, el permiso se pide en ese toque.
+  - La elección se guarda. En iOS el permiso no dura entre sesiones: si estaba activado, se vuelve a pedir en el primer toque tras abrir la app.
+- Sin parallax con movimiento reducido (el ajuste no aparece).
+- Tocar sigue funcionando con la gota desplazada.
+
+### E3.7 Partes (un commit con visto bueno por parte)
+1. Silenciados tenues, arcos de duración del bajo y estela de la aguja.
+2. Guía al tocar: fantasma y sugerencias.
+3. Inclinación al soltar y giroscopio.
+
+### E3.8 Cambios tras probar la parte 1
+- **El bajo, solo de ver.** Moverlo solo cambiaba un compás y acortaba la nota al final del compás, y confundía. Ya no se coge (E1.4). Se borran los bajos editados guardados: vuelve el de cada estilo.
+- **Estela mucho más suave**, que casi no se note (E3.4).

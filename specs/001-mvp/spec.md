@@ -600,6 +600,9 @@ Ideas para el futuro, no decisiones cerradas. Cada una tendrá su spec.
 > - Ya cubiertos: editar pasos tocando el anillo (punto 7) está en la spec 003, y grabar encima (punto 3) es "completa" (§16.21).
 > - Por decidir dónde van: swing y más estilos (punto 2, quizá con la spec 004), el loop crudo tipo RC-505 (5), el 4.º sonido de boca (6) y aprender de mis correcciones (7).
 
+#### Pendientes anotados
+- **Mover y cambiar notas del bajo** (2026-11-13): volver a plantearlo con el bajo con la voz (spec 002), moviendo todos los compases a la vez y eligiendo la nota. En la spec 003 el bajo quedó solo de ver (E1.4, E3.8): moverlo cambiaba un solo compás y acortaba la nota al final del compás.
+
 ---
 
 ## 15. Enmienda 1: modo looper

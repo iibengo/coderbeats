@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { bassCode } from '../../app/lib/bass'
 import { emptyLoops, MAX_LOOPS, type FreeLoop, type LoopsState } from '../../app/lib/freeLoops'
-import { addHit, moveBassNote, moveHit, removeHit, snapStep, type EditOptions } from '../../app/lib/loopEdit'
-import { STYLE_MUSIC } from '../../app/lib/styles'
+import { addHit, moveHit, removeHit, snapStep, type EditOptions } from '../../app/lib/loopEdit'
 import type { Instrument } from '../../app/lib/types'
 
 const help: EditOptions = { assist: true, quantizeEvery: 1 }
@@ -105,35 +103,5 @@ describe('removeHit', () => {
     const once = removeHit(s, 1, 8)
     expect(posOf(once, 1)).toEqual([0])
     expect(removeHit(once, 1, 0).loops).toHaveLength(0)
-  })
-})
-
-describe('moveBassNote (solo en el tiempo)', () => {
-  const house = STYLE_MUSIC.house.background.bass
-  it('mueve la nota en su compás, sin cambiarla, y el código cambia igual', () => {
-    const r = moveBassNote(house, 20, 6, help)!
-    expect(r.pos).toBe(22)
-    expect(r.pattern.notes.find((n) => n.pos === 22)?.note).toBe('bb0')
-    expect(bassCode(r.pattern)).toContain('note("<[~ f1 ~ f1] [~ ~ ~ bb0@2 ~ bb0@2]>")')
-  })
-  it('la duración se recorta a la línea de compás', () => {
-    const hip = STYLE_MUSIC.hiphop90.background.bass
-    const r = moveBassNote(hip, 0, 4, help)!
-    expect(r.pattern.notes[0]).toMatchObject({ pos: 4, dur: 12, note: 'a1' })
-    expect(bassCode(r.pattern).startsWith('note("<[~ a1@3] d2>")')).toBe(true)
-  })
-  it('sin ayuda también va a un paso entero (el bajo no lleva nudge)', () => {
-    expect(moveBassNote(house, 4, 6.4, free)!.pos).toBe(6)
-  })
-  it('una nota anterior que se solaparía se acorta', () => {
-    const hip = STYLE_MUSIC.hiphop90.background.bass
-    const two = { ...hip, notes: [...hip.notes, { pos: 8, dur: 4, note: 'e2' }] }
-    // la a1 dura todo el compás; la e2 se mueve al paso 12
-    const r = moveBassNote(two, 8, 12, help)!
-    const bar0 = r.pattern.notes.filter((n) => n.pos < 16)
-    expect(bar0).toEqual([
-      { pos: 0, dur: 12, note: 'a1' },
-      { pos: 12, dur: 4, note: 'e2' },
-    ])
   })
 })
