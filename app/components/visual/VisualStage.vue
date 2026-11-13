@@ -4,8 +4,9 @@
 // mantener = borrar), bolas del fondo manual, gestos de dos dedos (filtro, espacio, fondo) y
 // bucle rAF único.
 import { allWeights, stepWeights, type Weights } from '~/lib/aro/bands'
-import type { DropGeo } from '~/lib/aro/shape'
+import { stepAngle, type DropGeo } from '~/lib/aro/shape'
 import { dropAction } from '~/lib/aro/drop'
+import { suggestions } from '~/lib/aro/guide'
 import { clampZoom, contourPoints, dropLayout, freeRect, lerpGeo, pinchZoom, stretchOf, wheelZoom, zoomLimits, type Insets } from '~/lib/aro/zoom'
 import type { Part } from '~/lib/background'
 import { notesInBar } from '~/lib/bass'
@@ -155,6 +156,13 @@ const barsInfo = computed(() => {
   if (longest < 2) return null
   return { current: loopBarAt({ bars: longest as 1 | 2 | 4, phaseBar: 0 }, playing.value ? currentBar.value : 0), total: longest }
 })
+/** sugerencias del estilo en las franjas de batería sin golpes en el compás que se ve (E3.3) */
+const guideSuggestions = computed(() =>
+  suggestions(style.value, new Set(ringDots.value.map((d) => d.voice)), {
+    assist: engine.assist.value,
+    quantizeEvery: STYLES[style.value].quantizeEvery,
+  }),
+)
 /** franjas que deberían verse: el bajo si suena o está pedido; la melodía, cuando exista (E1.3) */
 const targetWeights = computed<Weights>(() => {
   const bass = bgParts.value.bass || (bgMode.value === 'manual' && bgManual.value.bass)
@@ -391,6 +399,8 @@ function tick() {
       bars: barsInfo.value,
       reduced,
       stepSec: 60 / STYLES[style.value].bpm / 4,
+      guide: { assist: engine.assist.value, quantizeEvery: STYLES[style.value].quantizeEvery },
+      suggestions: guideSuggestions.value,
       // en horizontal, más puntos en el contorno cuanto más se estira (E2.1)
       ...(compact.value ? { contour: contourPoints(stretchOf(geo!)) } : {}),
     }
@@ -584,12 +594,15 @@ function dropDot(dot: AroDot, x: number, y: number) {
 /** Tocar una franja vacía de batería: crea un golpe ahí, ya imantado. */
 function tapCreate(x: number, y: number) {
   if (!aro) return
+  // tocar una sugerencia del estilo pone ese golpe, en su paso exacto (E3.3)
+  const sug = aro.pickSuggestion(x, y)
   const w = aro.where(x, y)
-  if (!isDrum(w.voice)) return
-  const r = addHit(loops.value, w.voice, w.step, shownBar(), editOptions())
+  const voice = sug?.voice ?? w.voice
+  if (!isDrum(voice)) return
+  const r = addHit(loops.value, voice, sug?.step ?? w.step, shownBar(), editOptions())
   if (!r) return
   engine.editLoops(r.state)
-  aro.spawn(dotKey(r.hit.loopId, r.hit.pos), w.th)
+  aro.spawn(dotKey(r.hit.loopId, r.hit.pos), sug ? stepAngle(sug.step) : w.th)
 }
 
 function onDown(e: PointerEvent) {

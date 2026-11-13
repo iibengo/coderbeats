@@ -21,6 +21,7 @@ import {
   type Bump,
   type DropGeo,
 } from '~/lib/aro/shape'
+import { ghostTarget, type GuideOptions, type GuideSpot } from '~/lib/aro/guide'
 import { INK, VOICE_RGB_CSS, type Voice } from '~/lib/palette'
 
 export interface AroDot {
@@ -69,6 +70,10 @@ export interface AroFrame {
   contour?: number
   /** duración de una semicorchea (s), para apagar los arcos a lo largo de su nota */
   stepSec: number
+  /** guía al tocar (E3.3): ayuda y rejilla del estilo; sin ayuda, ni fantasma ni sugerencias */
+  guide: GuideOptions
+  /** sugerencias del estilo en las franjas de batería vacías */
+  suggestions: GuideSpot[]
 }
 
 /** radio del punto en reposo por voz (px) */
@@ -122,7 +127,7 @@ export class AroCanvas {
   private bumps: (Bump & { a0: number; born: number })[] = []
   private kick = -1e9
   private reduced = false
-  private last: { geo: DropGeo; layout: Layout; t: number; dots: AroDot[] } | null = null
+  private last: { geo: DropGeo; layout: Layout; t: number; dots: AroDot[]; suggestions: GuideSpot[] } | null = null
   /** radio exterior muestreado en cada frame (con los empujones); lo usan franjas, golpes y ondas */
   private ro = new Float32Array(0)
   private wob = INNER_WOBBLE
@@ -209,6 +214,24 @@ export class AroCanvas {
       if (dd < bd) {
         bd = dd
         best = d
+      }
+    }
+    return best
+  }
+
+  /** Sugerencia del estilo más cercana a (px, py), a menos de 26 px (E3.3). */
+  pickSuggestion(px: number, py: number): GuideSpot | null {
+    const L = this.last
+    if (!L || !this.weights) return null
+    let best: GuideSpot | null = null
+    let bd = PICK_PX
+    for (const s of L.suggestions) {
+      if (this.weights[s.voice] < 0.5) continue
+      const [x, y] = this.at(stepAngle(s.step), bandMid(s.voice, L.layout))
+      const dd = Math.hypot(x - px, y - py)
+      if (dd < bd) {
+        bd = dd
+        best = s
       }
     }
     return best
@@ -304,7 +327,7 @@ export class AroCanvas {
     const breath = f.reduced ? 0 : BREATH
     this.wob = f.reduced ? INNER_WOBBLE * 0.6 : this.detail < 0.75 ? 0 : INNER_WOBBLE // quieta, pero imperfecta
     const layout = bandLayout(f.weights)
-    this.last = { geo, layout, t, dots: f.dots }
+    this.last = { geo, layout, t, dots: f.dots, suggestions: f.suggestions }
     this.weights = f.weights
     this.stepSec = f.stepSec
     const now = performance.now() / 1000
@@ -413,6 +436,33 @@ export class AroCanvas {
       g.addColorStop(1, 'rgba(255,255,255,0)')
       x.fillStyle = g
       x.fill(disc)
+    }
+
+    // sugerencias del estilo en las franjas vacías: huecas y muy tenues (E3.3)
+    for (const s of f.suggestions) {
+      const wt = f.weights[s.voice]
+      if (wt < 0.05) continue
+      const [px, py] = this.at(stepAngle(s.step), bandMid(s.voice, layout))
+      x.strokeStyle = `rgba(${VOICE_RGB_CSS[s.voice]},${0.2 * wt})`
+      x.lineWidth = 1
+      x.beginPath()
+      x.arc(px, py, DOT_R[s.voice] * 0.9, 0, TAU)
+      x.stroke()
+    }
+
+    // fantasma: un solo círculo hueco donde caerá el golpe que arrastras (E3.3)
+    if (this.drag) {
+      const d = f.dots.find((p) => p.key === this.drag!.key)
+      const band = bandAt(this.drag.u, layout, f.weights)
+      const g = d ? ghostTarget(d.voice, this.drag.u, angleStep(this.drag.th), band, f.guide) : null
+      if (g) {
+        const [px, py] = this.at(stepAngle(g.step), bandMid(g.voice, layout))
+        x.strokeStyle = `rgba(${VOICE_RGB_CSS[g.voice]},0.45)`
+        x.lineWidth = 1.2
+        x.beginPath()
+        x.arc(px, py, DOT_R[g.voice] + 1, 0, TAU)
+        x.stroke()
+      }
     }
 
     // golpes: puntos; el bajo, rayita con el arco de su duración
