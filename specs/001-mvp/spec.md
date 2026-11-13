@@ -589,6 +589,26 @@ Ideas para el futuro, no decisiones cerradas. Cada una tendrá su spec.
 #### Modo reel
 - Cámara 3D que gira alrededor de la canción. Solo para grabar, sin interacción.
 
+#### Biblioteca de estilos y canciones (2026-11-13, para revisar)
+
+**Arriba, igual de discreto**
+- Se ve el estilo actual y sus vecinos, como ahora.
+- Al tocar (o al pasar el ratón) se despliega el menú; al elegir, se recoge.
+
+**Menú con dos partes**
+- **Estilos**: árbol de géneros y subgéneros con sus sonidos y demos, que se abre por ramas (p. ej. Techno › Minimal, Hard techno; Reggae; Reguetón).
+- **Mis canciones**: las guardadas por mí.
+- **Buscador** arriba, que busca en las dos partes.
+
+**Guardar y compartir**
+- **Guardar** en ⋯: nombre automático (estilo + fecha), editable. Se guarda en el dispositivo, sin backend.
+- **Compartir como enlace**: la canción va codificada en la URL; quien lo abre la oye.
+  > Nota: el enlace debería llevar los **datos** de la canción (estilo, kit, loops y golpes), no el código Strudel. El código se evalúa como JavaScript: abrir un enlace con código ajeno ejecutaría lo que traiga. Con los datos, la app genera el código ella misma (como ahora) y el enlace es además más corto. El código se sigue viendo y copiando en ⋯.
+
+**Encaje**
+- Con la spec de kits y árbol de estilos (004).
+- Con las células: una canción guardada = sus células.
+
 #### Orden de trabajo propuesto
 1. Terminar el aro (spec 003, fases 4 y 5).
 2. Melodía con la voz (spec 002).
