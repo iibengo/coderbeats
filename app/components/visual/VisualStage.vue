@@ -5,7 +5,8 @@
 // bucle rAF único.
 import { allWeights, stepWeights, type Weights } from '~/lib/aro/bands'
 import type { DropGeo } from '~/lib/aro/shape'
-import { clampZoom, dropLayout, freeRect, lerpGeo, pinchZoom, wheelZoom, zoomLimits, type Insets } from '~/lib/aro/zoom'
+import { dropAction } from '~/lib/aro/drop'
+import { clampZoom, contourPoints, dropLayout, freeRect, lerpGeo, pinchZoom, stretchOf, wheelZoom, zoomLimits, type Insets } from '~/lib/aro/zoom'
 import type { Part } from '~/lib/background'
 import { notesInBar } from '~/lib/bass'
 import { STYLES } from '~/lib/constants'
@@ -43,13 +44,18 @@ const BOTTOM_UI = ROW_FROM_BOTTOM + 20
 /** zonas seguras del sistema (muesca, barra de inicio), medidas con env(safe-area-inset-*) */
 const safe = reactive({ top: 0, right: 0, bottom: 0, left: 0 })
 const safeProbe = ref<HTMLElement | null>(null)
-const insets = computed<Insets>(() => ({
-  top: Math.max(TOP_UI, safe.top + 44),
-  right: safe.right + 8,
-  bottom: BOTTOM_UI + safe.bottom,
-  left: safe.left + 8,
-}))
-const limits = computed(() => zoomLimits(freeRect(view.w, view.h, insets.value)))
+/** móvil en horizontal (E2.1): controles a los lados y la gota de arriba abajo */
+const { compact } = useLayoutMode()
+/** ancho de cada columna lateral en horizontal (px) */
+const SIDE = 88
+const insets = computed<Insets>(() =>
+  compact.value
+    ? { top: safe.top + 8, right: safe.right + SIDE, bottom: safe.bottom + 8, left: safe.left + SIDE }
+    : { top: Math.max(TOP_UI, safe.top + 44), right: safe.right + 8, bottom: BOTTOM_UI + safe.bottom, left: safe.left + 8 },
+)
+const limits = computed(() => zoomLimits(freeRect(view.w, view.h, insets.value), compact.value))
+/** centro de las columnas laterales en horizontal (Play, bajo y acordes a la derecha; estilo y bolas a la izquierda) */
+const sideX = computed(() => ({ left: safe.left + 40, right: view.w - safe.right - 48 }))
 
 // ── zoom (fase 4) ────────────────────────────────────────────────────────────────
 // Se guarda relativo al zoom inicial de la forma de ventana: al girar el móvil se conserva la
@@ -79,6 +85,13 @@ function loadZoom() {
 let geo: DropGeo | null = null
 const targetGeo = () => dropLayout(view.w, view.h, insets.value, zoomNow())
 const bgBalls = computed(() => {
+  if (compact.value) {
+    const x = sideX.value.right
+    return [
+      { part: 'bass' as Part, label: 'bajo', x, y: view.h / 2 - 84 },
+      { part: 'chords' as Part, label: 'acordes', x, y: view.h / 2 + 84 },
+    ]
+  }
   const y = view.h - PLAY_FROM_BOTTOM
   return [
     { part: 'bass' as Part, label: 'bajo', x: view.w / 2 - 96, y },
@@ -90,6 +103,14 @@ const rowSlots = computed(() => {
   const order = [...loops.value.loops].sort(
     (a, b) => INSTRUMENTS.indexOf(a.instrument) - INSTRUMENTS.indexOf(b.instrument) || a.id - b.id,
   )
+  if (compact.value) {
+    // en horizontal, en columna a la izquierda, debajo del estilo
+    const top = safe.top + 120
+    const bottom = view.h - safe.bottom - 12
+    const gap = order.length > 1 ? Math.min(BALL_GAP, (bottom - top) / (order.length - 1)) : 0
+    const y0 = (top + bottom) / 2 - ((order.length - 1) * gap) / 2
+    return new Map(order.map((l, i) => [l.id, { x: sideX.value.left, y: y0 + i * gap }]))
+  }
   const y = view.h - ROW_FROM_BOTTOM
   const x0 = view.w / 2 - ((order.length - 1) * BALL_GAP) / 2
   return new Map(order.map((l, i) => [l.id, { x: x0 + i * BALL_GAP, y }]))
@@ -368,6 +389,8 @@ function tick() {
       highlight: highlight.value,
       bars: barsInfo.value,
       reduced,
+      // en horizontal, más puntos en el contorno cuanto más se estira (E2.1)
+      ...(compact.value ? { contour: contourPoints(stretchOf(geo!)) } : {}),
     }
     aro.draw(f)
   }
@@ -539,27 +562,24 @@ function dropDot(dot: AroDot, x: number, y: number) {
   if (!aro) return
   const w = aro.where(x, y)
   const o = editOptions()
-  const g = shownBar()
-  // el bajo se mueve solo en el tiempo y no sale de su franja
+  const act = dropAction(dot.voice, w.u, w.outPx, w.voice)
+  if (act.kind === 'bounce') return bounceBack(dot, x, y)
+  // al centro o fuera de la gota: se borra con una salpicadura (E2.2)
+  if (act.kind === 'delete') {
+    aro.setDrag(null)
+    aro.splash(x, y, dot.voice)
+    engine.editLoops(removeHit(loops.value, dot.loopId, dot.pos))
+    return
+  }
+  // el bajo se mueve solo en el tiempo, dentro de su franja
   if (dot.loopId < 0) {
-    if (w.voice !== 'bass') return bounceBack(dot, x, y)
     const r = moveBassNote(engine.bassPattern(), dot.pos, w.step, o)
     if (!r) return bounceBack(dot, x, y)
     engine.setBass(r.pattern)
     aro.settle(dotKey(-1, r.pos), w.th, w.u)
     return
   }
-  // al centro: se borra con una salpicadura
-  if (w.u < 0) {
-    aro.setDrag(null)
-    aro.splash(x, y, dot.voice)
-    engine.editLoops(removeHit(loops.value, dot.loopId, dot.pos))
-    return
-  }
-  // fuera de la gota: a la franja de fuera (platillo); solo entre baterías
-  const target = w.u >= 1 ? 'hh' : w.voice
-  if (!isDrum(target) || !isDrum(dot.voice)) return bounceBack(dot, x, y)
-  const r = moveHit(loops.value, dot.loopId, dot.pos, target, w.step, g, o)
+  const r = moveHit(loops.value, dot.loopId, dot.pos, act.to as Instrument, w.step, shownBar(), o)
   if (!r) return bounceBack(dot, x, y)
   engine.editLoops(r.state)
   aro.settle(dotKey(r.hit.loopId, r.hit.pos), w.th, Math.min(1, w.u))

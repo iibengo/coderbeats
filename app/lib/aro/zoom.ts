@@ -41,12 +41,33 @@ const halfLong = (r: Rect) => Math.max(r.x1 - r.x0, r.y1 - r.y0) / 2
  *   y abajo hasta tocarlos);
  * - inicial: en vertical, casi tocando los lados; en horizontal o escritorio, pegada arriba y abajo.
  */
-export function zoomLimits(free: Rect): ZoomLimits {
+export function zoomLimits(free: Rect, compact = false): ZoomLimits {
   const ratio = halfLong(free) / halfShort(free)
+  // móvil en horizontal (E2.1): sigue siendo una gota, como mucho algo más ancha que alta
+  if (compact) return { min: 0.5, max: Math.min(Math.max(1.05, ratio), COMPACT_MAX), initial: 1 }
   const max = Math.max(1.2, ratio)
   const portrait = free.y1 - free.y0 > free.x1 - free.x0
   return { min: 0.5, max, initial: portrait ? 0.95 : Math.min(max, 1.12) }
 }
+
+/** zoom máximo en el móvil en horizontal (E2.1) */
+export const COMPACT_MAX = 1.25
+
+/**
+ * Móvil en horizontal (E2.1): pantalla táctil, más ancha que alta y de menos de 500 px de alto.
+ * El escritorio (aunque su ventana sea baja) y el vertical no cuentan.
+ */
+export const isCompact = (w: number, h: number, coarse: boolean): boolean => coarse && w > h && h < 500
+
+/**
+ * Ángulos del contorno según cuánto se estira la gota (E2.1): 120 sin estirar, hasta 240.
+ * `stretch` = radio / mitad del lado corto del rectángulo libre.
+ */
+export const contourPoints = (stretch: number, base = 120): number =>
+  Math.round(Math.min(base * 2, base * Math.max(1, stretch)))
+
+/** Cuánto se estira una gota: radio / mitad del lado corto de su rectángulo libre. */
+export const stretchOf = (g: DropGeo): number => g.R / halfShort(g.free)
 
 /** Resistencia más allá de los límites: sigue al dedo cada vez menos, sin tope duro. */
 export function rubber(z: number, l: Pick<ZoomLimits, 'min' | 'max'>): number {

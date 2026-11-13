@@ -20,6 +20,7 @@ import {
   type Bump,
   type DropGeo,
 } from '~/lib/aro/shape'
+import { DELETE_OUTSIDE_PX } from '~/lib/aro/drop'
 import { INK, VOICE_RGB_CSS, type Voice } from '~/lib/palette'
 
 export interface AroDot {
@@ -43,6 +44,8 @@ export interface AroPlace {
   step: number
   /** franja visible bajo el punto, o null */
   voice: Voice | null
+  /** distancia al borde exterior (px; > 0 = fuera de la gota) */
+  outPx: number
 }
 
 export interface AroFrame {
@@ -60,6 +63,8 @@ export interface AroFrame {
   /** compás que suena del loop más largo, si hay loops de más de un compás */
   bars: { current: number; total: number } | null
   reduced: boolean
+  /** ángulos del contorno (móvil en horizontal: más al estirarse, E2.1); sin él, 120 (72 en detalle bajo) */
+  contour?: number
 }
 
 /** radio del punto en reposo por voz (px) */
@@ -113,7 +118,7 @@ export class AroCanvas {
   private ro = new Float32Array(0)
   private wob = INNER_WOBBLE
   private weights: Weights | null = null
-  private drag: { key: string; th: number; u: number } | null = null
+  private drag: { key: string; th: number; u: number; outPx: number } | null = null
   private springs = new Map<string, Spring>()
   private spawns = new Map<string, number>()
   private pops: { x: number; y: number; voice: Voice; born: number }[] = []
@@ -167,12 +172,14 @@ export class AroCanvas {
   /** Dónde cae (px, py) en el aro. */
   where(px: number, py: number): AroPlace {
     const L = this.last
-    if (!L || !this.weights) return { th: 0, u: 2, step: 0, voice: null }
+    if (!L || !this.weights) return { th: 0, u: 2, step: 0, voice: null, outPx: Infinity }
     const dx = px - L.geo.cx
     const dy = py - L.geo.cy
     const th = Math.atan2(dy, dx)
-    const u = (Math.hypot(dx, dy) - L.geo.core) / Math.max(1, this.roAt(th) - L.geo.core)
-    return { th, u, step: angleStep(th), voice: bandAt(u, L.layout, this.weights) }
+    const d = Math.hypot(dx, dy)
+    const ro = this.roAt(th)
+    const u = (d - L.geo.core) / Math.max(1, ro - L.geo.core)
+    return { th, u, step: angleStep(th), voice: bandAt(u, L.layout, this.weights), outPx: d - ro }
   }
 
   /** Golpe más cercano a (px, py), a menos de 26 px, de una franja visible. */
@@ -200,7 +207,7 @@ export class AroCanvas {
       return
     }
     const w = this.where(px, py)
-    this.drag = { key, th: w.th, u: w.u }
+    this.drag = { key, th: w.th, u: w.u, outPx: w.outPx }
   }
 
   /** Al soltar: el golpe `key` sale de (th, u) y se desliza a su sitio con un pequeño rebote. */
@@ -295,7 +302,7 @@ export class AroCanvas {
     for (const b of this.bumps) b.a = b.a0 * bumpEnvelope((now - b.born) / KICK_BUMP_S)
 
     // radio exterior en N ángulos, una vez por frame
-    const n = this.detail < 0.75 ? 72 : 120
+    const n = f.contour ? Math.round(f.contour * (this.detail < 0.75 ? 0.6 : 1)) : this.detail < 0.75 ? 72 : 120
     if (this.ro.length !== n) this.ro = new Float32Array(n)
     for (let k = 0; k < n; k++) {
       const th = (k / n) * TAU
@@ -509,8 +516,9 @@ export class AroCanvas {
     }
     x.closePath()
     x.fill()
-    // un golpe arrastrado sobre el centro se borrará al soltarlo: el borde se pone rosa
-    x.strokeStyle = this.drag && this.drag.u < 0 ? `rgba(${VOICE_RGB_CSS.bd},0.9)` : 'rgba(255,255,255,0.8)'
+    // un golpe arrastrado al centro o fuera de la gota se borrará al soltarlo: el borde se pone rosa
+    const willDelete = !!this.drag && (this.drag.u < 0 || this.drag.outPx > DELETE_OUTSIDE_PX)
+    x.strokeStyle = willDelete ? `rgba(${VOICE_RGB_CSS.bd},0.9)` : 'rgba(255,255,255,0.8)'
     x.lineWidth = 1.2
     x.stroke()
     x.fillStyle = `rgba(${VOICE_RGB_CSS.bd},1)`

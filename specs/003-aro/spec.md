@@ -182,6 +182,32 @@ Hoy están repetidos en `VisualStage.vue`, `PhraseRing.vue`, `themes/types.ts` y
 
 ---
 
+## Enmienda 2 · móvil en horizontal y borrar fuera de la gota (2026-11-13)
+
+Tras probar la fase 4 en el iPhone. En vertical y en escritorio, el aspecto no cambia.
+
+### E2.1 Móvil en horizontal (pantallas de poca altura)
+
+**Problema:** sin zoom la gota era diminuta (unos 100 px de radio), porque la fila de bolas, Play y el fondo ocupaban unos 140 px de los 390 de alto. Con zoom se estiraba demasiado, con líneas en pico y alguna onda mal dibujada.
+
+**Cuándo aplica:** pantalla táctil (`pointer: coarse`), más ancha que alta y de menos de 500 px de alto. El escritorio (aunque su ventana sea baja) y el vertical no cambian.
+
+**Cambio:**
+- **Controles a los lados**, para que la gota tenga casi toda la altura:
+  - izquierda: el estilo (en columna, arriba) y la fila de bolas de los loops (en columna, centrada);
+  - derecha: "⋯" (arriba) y, en columna centrada, bajo, Play y acordes.
+  - La gota usa el centro, de arriba abajo, respetando la muesca y la barra de inicio.
+- **Estiramiento limitado:** sigue siendo una gota, como mucho algo más ancha que alta. Zoom máximo = 1,25 × la mitad de la altura libre; zoom inicial = la altura libre (pegada arriba y abajo).
+- **Más puntos en el contorno al estirarse:** el número de ángulos crece con el estiramiento (de 120 hasta 240) para que los bordes, las franjas y las ondas no hagan picos.
+
+### E2.2 Borrar fuera de la gota (en todas partes)
+
+- Además de llevarlo al centro, **arrastrar un golpe fuera de la gota lo borra**, con la misma salpicadura.
+- Cuenta como fuera a más de 16 px del borde exterior: soltarlo justo en el borde no borra y lo deja en la franja de fuera (platillo), como hasta ahora. Esto sustituye a "fuera de la gota: a la franja de fuera" de E1.4.
+- El bajo no se borra (solo se mueve en el tiempo, E1.4): fuera de la gota vuelve a su sitio.
+
+---
+
 ## Ideas para revisar (2026-11-13, no decididas)
 
 Ideas para el futuro. No son decisiones: se revisan antes de programar cada fase.

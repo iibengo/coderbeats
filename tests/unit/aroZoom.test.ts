@@ -1,6 +1,20 @@
 import { describe, expect, it } from 'vitest'
 import { outerRadius, pointAt, TAU, wallDistance } from '../../app/lib/aro/shape'
-import { clampZoom, dropLayout, freeRect, lerpGeo, pinchZoom, rubber, wheelZoom, zoomLimits, type Insets } from '../../app/lib/aro/zoom'
+import {
+  clampZoom,
+  COMPACT_MAX,
+  contourPoints,
+  dropLayout,
+  freeRect,
+  isCompact,
+  lerpGeo,
+  pinchZoom,
+  rubber,
+  stretchOf,
+  wheelZoom,
+  zoomLimits,
+  type Insets,
+} from '../../app/lib/aro/zoom'
 
 const phoneInsets: Insets = { top: 52, right: 0, bottom: 138, left: 0 }
 const portrait = { w: 390, h: 844 }
@@ -101,5 +115,47 @@ describe('lerpGeo (girar sin saltos)', () => {
     const m = lerpGeo(a, b, 0.5)
     expect(m.cx).toBeCloseTo((a.cx + b.cx) / 2)
     expect(m.free.x1).toBeCloseTo((a.free.x1 + b.free.x1) / 2)
+  })
+})
+
+describe('móvil en horizontal (E2.1)', () => {
+  const compactInsets: Insets = { top: 8, right: 47 + 88, bottom: 8, left: 47 + 88 }
+  it('solo con pantalla táctil, en horizontal y con poca altura', () => {
+    expect(isCompact(844, 390, true)).toBe(true)
+    expect(isCompact(390, 844, true)).toBe(false)
+    expect(isCompact(1440, 450, false)).toBe(false) // escritorio con ventana baja: igual que antes
+    expect(isCompact(1180, 820, true)).toBe(false) // tableta en horizontal
+  })
+  it('la gota usa casi toda la altura y como mucho es algo más ancha que alta', () => {
+    const free = freeRect(844, 390, compactInsets)
+    const l = zoomLimits(free, true)
+    expect(l.initial).toBe(1)
+    expect(l.max).toBe(COMPACT_MAX)
+    const g = dropLayout(844, 390, compactInsets, l.initial)
+    expect(g.R).toBeCloseTo((390 - 16) / 2)
+    const big = dropLayout(844, 390, compactInsets, l.max)
+    let wMax = 0
+    let hMax = 0
+    for (let k = 0; k < 360; k++) {
+      const [x, y] = pointAt((k / 360) * TAU, 1, big, 0, 0)
+      wMax = Math.max(wMax, Math.abs(x - big.cx))
+      hMax = Math.max(hMax, Math.abs(y - big.cy))
+    }
+    expect(wMax / hMax).toBeLessThan(1.4)
+    expect(wMax / hMax).toBeGreaterThan(1)
+  })
+  it('el escritorio y el vertical no cambian', () => {
+    const free = freeRect(1440, 900, phoneInsets)
+    expect(zoomLimits(free)).toEqual(zoomLimits(free, false))
+    expect(zoomLimits(freeRect(390, 844, phoneInsets)).initial).toBe(0.95)
+  })
+  it('más puntos en el contorno cuanto más se estira (120 a 240)', () => {
+    expect(contourPoints(1)).toBe(120)
+    expect(contourPoints(0.6)).toBe(120)
+    expect(contourPoints(1.25)).toBe(150)
+    expect(contourPoints(5)).toBe(240)
+    expect(contourPoints(1.5, 72)).toBe(108)
+    const g = dropLayout(844, 390, compactInsets, 1.25)
+    expect(stretchOf(g)).toBeCloseTo(1.25)
   })
 })

@@ -21,6 +21,25 @@ const layoutInfo = () => stage.value?.layoutInfo() ?? ''
 
 const STYLE_SHORT: Record<StyleId, string> = { hiphop90: 'hip hop', house: 'house', dnb: 'dnb' }
 
+// móvil en horizontal (spec 003, E2.1): estilo a la izquierda, ⋯ y Play a la derecha.
+// En vertical y en escritorio, los mismos estilos de siempre.
+const { compact } = useLayoutMode()
+const navStyle = computed(() =>
+  compact.value
+    ? 'position: absolute; top: max(0.5rem, env(safe-area-inset-top)); left: max(0.5rem, env(safe-area-inset-left)); flex-direction: column; align-items: flex-start; gap: 0'
+    : 'position: absolute; top: max(0.75rem, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%)',
+)
+const moreStyle = computed(() =>
+  compact.value
+    ? 'position: absolute; top: max(0.5rem, env(safe-area-inset-top)); right: calc(env(safe-area-inset-right, 0px) + 26px); width: 44px; height: 44px'
+    : 'position: absolute; top: max(0.5rem, env(safe-area-inset-top)); right: 0.5rem; width: 44px; height: 44px',
+)
+const playStyle = computed(() =>
+  compact.value
+    ? 'position: absolute; top: 50%; right: calc(env(safe-area-inset-right, 0px) + 16px); width: 64px; height: 64px; transform: translateY(-50%)'
+    : 'position: absolute; bottom: max(1.5rem, env(safe-area-inset-bottom)); left: 50%; width: 64px; height: 64px; transform: translateX(-50%)',
+)
+
 // en segundo plano el navegador frena los temporizadores del planificador: se para (§16.12)
 function onVisibility() {
   if (document.hidden && playing.value) engine.stop()
@@ -34,7 +53,7 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
     <!-- estilo -->
     <nav
       class="flex gap-3 text-xs tracking-wide"
-      style="position: absolute; top: max(0.75rem, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%)"
+      :style="navStyle"
       @pointerdown.stop
     >
       <button
@@ -51,7 +70,7 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
     <!-- ajustes -->
     <button
       class="flex items-center justify-center text-white/50"
-      style="position: absolute; top: max(0.5rem, env(safe-area-inset-top)); right: 0.5rem; width: 44px; height: 44px"
+      :style="moreStyle"
       aria-label="ajustes"
       @pointerdown.stop
       @click="settingsOpen = true"
@@ -66,7 +85,7 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
     <!-- play / stop -->
     <button
       class="flex items-center justify-center rounded-full border border-white/25 text-white transition-[background] active:bg-white/10"
-      style="position: absolute; bottom: max(1.5rem, env(safe-area-inset-bottom)); left: 50%; width: 64px; height: 64px; transform: translateX(-50%)"
+      :style="playStyle"
       :aria-label="playing ? 'parar' : 'tocar'"
       @pointerdown.stop
       @click="playing ? engine.stop() : engine.play()"
