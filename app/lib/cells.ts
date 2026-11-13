@@ -10,8 +10,8 @@ import { isValidBpm } from './tempo'
  * varias células que suenan una tras otra, cada una sus vueltas (1 vuelta = 1 compás).
  */
 
-export type Turns = 1 | 2 | 4 | 8
-export const TURNS: readonly Turns[] = [1, 2, 4, 8]
+export type Turns = 1 | 2 | 4 | 8 | 16 | 32
+export const TURNS: readonly Turns[] = [1, 2, 4, 8, 16, 32]
 /** como mucho 16 células por canción (§3) */
 export const MAX_CELLS = 16
 
@@ -36,11 +36,26 @@ export interface Cell {
   on?: boolean
 }
 
+/**
+ * Un grupo de células que suena a la vez que la canción (spec 005, enmienda 2, §16): una cadena de células
+ * unidas por hilo, en un orden, que vuelve a la primera tras la última. Una libre es un grupo de una célula;
+ * una suelta, el mismo apagado.
+ */
+export interface Group {
+  id: number
+  order: number[]
+  /** suena (encendido) o aparcado (apagado) */
+  on: boolean
+}
+
 export interface Song {
   version: 1
   cells: Cell[]
-  /** orden de reproducción (ids) */
+  /** orden del grupo principal: la canción (ids) */
   order: number[]
+  /** los demás grupos, que suenan a la vez (§16); cada célula está en un solo grupo (la canción o uno de estos) */
+  groups: Group[]
+  nextGroupId: number
   /** tempo propio; null = el del estilo */
   bpm: number | null
   nextCellId: number
@@ -75,7 +90,7 @@ export const fitTurns = (turns: Turns, loops: Pick<FreeLoop, 'bars'>[]): Turns =
 
 export const emptyCell = (id: number): Cell => ({ id, loops: [], parts: { ...NO_PARTS }, turns: 1, at: { x: 0, y: 0, depth: 0 } })
 
-export const emptySong = (): Song => ({ version: 1, cells: [emptyCell(1)], order: [1], bpm: null, nextCellId: 2, nextLoopId: 1 })
+export const emptySong = (): Song => ({ version: 1, cells: [emptyCell(1)], order: [1], groups: [], nextGroupId: 1, bpm: null, nextCellId: 2, nextLoopId: 1 })
 
 /** Canción de una sola célula con unos loops (migración de `coderbeats:loops:v1`, §3). */
 export function songFromLoops(state: LoopsState, parts: Parts = NO_PARTS): Song {
@@ -205,6 +220,7 @@ export function isSong(x: unknown): x is Song {
     Array.isArray(s.order) &&
     s.order.length > 0 &&
     s.order.every((id) => s.cells.some((c) => c.id === id)) &&
+    (s.groups === undefined || Array.isArray(s.groups)) &&
     s.cells.every((c) => Array.isArray(c.loops) && TURNS.includes(c.turns)) &&
     typeof s.nextCellId === 'number' &&
     typeof s.nextLoopId === 'number'
@@ -266,7 +282,7 @@ export function demoSong(style: StyleId): Song | null {
     // en una curva suave de izquierda a derecha, a distintas profundidades
     at: { x: i * 3, y: Math.sin(i * 1.3) * 1.2, depth: [0, 0.4, 0.1, 0.6][i % 4]! },
   }))
-  return { version: 1, cells, order: cells.map((c) => c.id), bpm: null, nextCellId: cells.length + 1, nextLoopId: loopId }
+  return { version: 1, cells, order: cells.map((c) => c.id), groups: [], nextGroupId: 1, bpm: null, nextCellId: cells.length + 1, nextLoopId: loopId }
 }
 
 /**
@@ -290,7 +306,7 @@ export function stressSong(base: Song, count: number): Song {
       at: { x: i * 3, y: Math.sin(i * 1.3) * 1.2, depth: [0, 0.4, 0.1, 0.6][i % 4]! },
     }
   })
-  return { version: 1, cells, order: cells.map((c) => c.id), bpm: base.bpm, nextCellId: n + 1, nextLoopId: loopId }
+  return { version: 1, cells, order: cells.map((c) => c.id), groups: [], nextGroupId: 1, bpm: base.bpm, nextCellId: n + 1, nextLoopId: loopId }
 }
 
 // ── crear y borrar células (spec 005, §7.1, fase 3.2) ─────────────────────────────
@@ -416,4 +432,230 @@ export function withFreeOn(song: Song, id: number, on: boolean): Song | null {
   const c = cellById(song, id)
   if (!c?.free) return null
   return { ...song, cells: song.cells.map((x) => (x.id === id ? { ...x, on } : x)) }
+}
+
+// ── grupos de células (spec 005, enmienda 2, §16) ─────────────────────────────────
+/** el id del grupo principal (la canción) */
+export const MAIN = 0
+
+/**
+ * El grupo de una célula: `MAIN` (0) si está en la canción, el id de su grupo en paralelo, o null si no existe.
+ * Toda célula está en un grupo.
+ */
+export function groupIdOf(song: Pick<Song, 'cells' | 'order' | 'groups'>, id: number): number | null {
+  if (song.order.includes(id)) return MAIN
+  return song.groups.find((g) => g.order.includes(id))?.id ?? null
+}
+
+/** El orden de un grupo (el de la canción para `MAIN`); vacío si no existe. */
+export const orderOf = (song: Pick<Song, 'order' | 'groups'>, gid: number): number[] =>
+  gid === MAIN ? song.order : (song.groups.find((g) => g.id === gid)?.order ?? [])
+
+/** ¿Suena el grupo? El principal siempre; los demás, si están encendidos. */
+export const groupOn = (song: Pick<Song, 'groups'>, gid: number): boolean => gid === MAIN || !!song.groups.find((g) => g.id === gid)?.on
+
+/** La canción vista desde un grupo: con su orden como el orden (así `stepPlay`, `windowAt` y `endBar` sirven para cualquiera). */
+export const groupSong = (song: Song, gid: number): Song => (gid === MAIN ? song : { ...song, order: orderOf(song, gid) })
+
+/** ¿Está la célula en un grupo en paralelo (no en la canción)? */
+export const inParallel = (song: Pick<Song, 'cells' | 'order' | 'groups'>, id: number): boolean => {
+  const g = groupIdOf(song, id)
+  return g !== null && g !== MAIN
+}
+
+/** Dónde flota la próxima célula de un grupo nuevo: encima de la curva de la canción, una al lado de otra. */
+export function nextGroupSpot(song: Song): { x: number; y: number; depth: number } {
+  const main = song.order.map((id) => cellById(song, id)).filter((c): c is Cell => !!c)
+  const base = main.length ? main : song.cells
+  return { x: Math.min(...base.map((c) => c.at.x)) + 3 * song.groups.length, y: Math.min(...base.map((c) => c.at.y)) - 3.5, depth: 0.25 }
+}
+
+/** Un grupo nuevo de una célula vacía (apagado, encima de la curva). Devuelve null si ya hay `MAX_CELLS`. */
+export function withNewGroup(song: Song, at: { x: number; y: number; depth?: number } = nextGroupSpot(song)): { song: Song; id: number; groupId: number } | null {
+  if (song.cells.length >= MAX_CELLS) return null
+  const id = song.nextCellId
+  const groupId = song.nextGroupId
+  const cell: Cell = { ...emptyCell(id), at: { x: at.x, y: at.y, depth: at.depth ?? 0.25 } }
+  return {
+    song: { ...song, cells: [...song.cells, cell], groups: [...song.groups, { id: groupId, order: [id], on: false }], nextCellId: id + 1, nextGroupId: groupId + 1 },
+    id,
+    groupId,
+  }
+}
+
+/** Enciende o apaga un grupo en paralelo. Devuelve null si no existe (o es el principal). */
+export function withGroupOn(song: Song, gid: number, on: boolean): Song | null {
+  if (!song.groups.some((g) => g.id === gid)) return null
+  return { ...song, groups: song.groups.map((g) => (g.id === gid ? { ...g, on } : g)) }
+}
+
+/** Cambia el orden de un grupo (el principal o uno en paralelo). */
+const withOrder = (song: Song, gid: number, order: number[]): Song =>
+  gid === MAIN ? { ...song, order } : { ...song, groups: song.groups.map((g) => (g.id === gid ? { ...g, order } : g)) }
+
+/** Quita los grupos en paralelo que se han quedado sin células. */
+const dropEmpty = (song: Song): Song => ({ ...song, groups: song.groups.filter((g) => g.order.length > 0) })
+
+/**
+ * La canción sin la célula `id`: sale de su grupo y, si este se queda sin células, desaparece (el hilo se
+ * cierra: la anterior pasa a la siguiente). El principal nunca se vacía aquí: lo evita quien llama.
+ */
+export const cellRemoved = (song: Song, id: number): Song =>
+  dropEmpty({
+    ...song,
+    cells: song.cells.filter((c) => c.id !== id),
+    order: song.order.filter((x) => x !== id),
+    groups: song.groups.map((g) => ({ ...g, order: g.order.filter((x) => x !== id) })),
+  })
+
+/**
+ * Deshacer un borrado: la célula vuelve a su grupo, entre sus mismos vecinos; si el grupo ya no existe,
+ * como un grupo nuevo de una célula, apagado.
+ */
+export function withRestoredCell(song: Song, cell: Cell, gid: number, prevId: number | null, nextId: number | null, on: boolean): Song {
+  const cells = [...song.cells, cell]
+  const exists = gid === MAIN || song.groups.some((g) => g.id === gid)
+  if (exists) return withOrder({ ...song, cells }, gid, orderWith(orderOf(song, gid), cell.id, prevId, nextId))
+  const id = gid > 0 ? gid : song.nextGroupId
+  return { ...song, cells, groups: [...song.groups, { id, order: [cell.id], on }], nextGroupId: Math.max(song.nextGroupId, id + 1) }
+}
+
+// ── copiar, juntar y separar con el asa y el hilo (§16.3) ─────────────────────────
+/**
+ * Copia la célula `srcId` en `at` (mapa): mismos loops (con ids nuevos), partes, vueltas y profundidad. La
+ * copia es un **grupo nuevo de una célula, apagado** (§16.3). Devuelve null si ya hay `MAX_CELLS` o la
+ * original no existe.
+ */
+export function withGroupCopy(song: Song, srcId: number, at: { x: number; y: number }): { song: Song; id: number; groupId: number } | null {
+  const src = cellById(song, srcId)
+  if (!src || song.cells.length >= MAX_CELLS) return null
+  const id = song.nextCellId
+  const groupId = song.nextGroupId
+  let loopId = song.nextLoopId
+  const { name, ...rest } = src
+  const cell: Cell = {
+    ...rest,
+    id,
+    ...(name ? { name: `${name} copia` } : {}),
+    loops: src.loops.map(({ prev: _prev, ...l }) => ({ ...l, id: loopId++, bornAt: 0 })),
+    parts: { ...src.parts },
+    at: { x: at.x, y: at.y, depth: src.at.depth },
+  }
+  return {
+    song: {
+      ...song,
+      cells: [...song.cells, cell],
+      groups: [...song.groups, { id: groupId, order: [id], on: false }],
+      nextCellId: id + 1,
+      nextGroupId: groupId + 1,
+      nextLoopId: loopId,
+    },
+    id,
+    groupId,
+  }
+}
+
+/**
+ * Juntar y ordenar (§16.3): soltar el hilo de A sobre B pone a B **justo detrás de A, en el grupo de A**.
+ * Si A es la cola de su grupo y B la cabeza del suyo, se juntan **los dos grupos enteros** (el resultado es
+ * el principal si alguno lo era). Devuelve null si no hay nada que cambiar (la misma célula, una que no
+ * existe, B ya iba detrás de A) o si dejaría la canción sin células.
+ */
+export function withGroupAfter(song: Song, aId: number, bId: number): Song | null {
+  if (aId === bId) return null
+  const ga = groupIdOf(song, aId)
+  const gb = groupIdOf(song, bId)
+  if (ga === null || gb === null) return null
+  const orderA = orderOf(song, ga)
+  const orderB = orderOf(song, gb)
+  // dentro del mismo grupo: B pasa detrás de A (la regla de ordenar de siempre)
+  if (ga === gb) {
+    const order = orderA.filter((x) => x !== bId)
+    order.splice(order.indexOf(aId) + 1, 0, bId)
+    return order.every((v, k) => v === orderA[k]) ? null : withOrder(song, ga, order)
+  }
+  // la cola de un grupo sobre la cabeza de otro: se juntan enteros
+  if (orderA[orderA.length - 1] === aId && orderB[0] === bId) {
+    const merged = [...orderA, ...orderB]
+    if (gb === MAIN) {
+      // el resultado es el principal: la canción pasa a ser A… + la canción de antes
+      return dropEmpty({ ...song, order: merged, groups: song.groups.filter((g) => g.id !== ga) })
+    }
+    return dropEmpty(withOrder({ ...song, groups: song.groups.filter((g) => g.id !== gb) }, ga, merged))
+  }
+  // en cualquier otro caso, solo B cambia de grupo (la canción no se queda sin células)
+  if (gb === MAIN && orderB.length === 1) return null
+  const without = withOrder(song, gb, orderB.filter((x) => x !== bId))
+  const target = orderOf(without, ga)
+  const order = [...target]
+  order.splice(order.indexOf(aId) + 1, 0, bId)
+  return dropEmpty(withOrder(without, ga, order))
+}
+
+/**
+ * Separar (§16.3): cortar el hilo que lleva a `toId` parte el grupo en dos. La parte de detrás (desde
+ * `toId`) es un **grupo nuevo, apagado**; la de delante conserva el grupo (el principal sigue siendo el que
+ * lleva la primera célula de la canción). Devuelve null si `toId` es la cabeza de su grupo (no hay hilo).
+ */
+export function withCut(song: Song, toId: number): Song | null {
+  const gid = groupIdOf(song, toId)
+  if (gid === null) return null
+  const order = orderOf(song, gid)
+  const i = order.indexOf(toId)
+  if (i <= 0) return null
+  const head = order.slice(0, i)
+  const tail = order.slice(i)
+  const cut = withOrder(song, gid, head)
+  return { ...cut, groups: [...cut.groups, { id: song.nextGroupId, order: tail, on: false }], nextGroupId: song.nextGroupId + 1 }
+}
+
+// ── lo guardado: una canción siempre con sus grupos (migra lo de antes) ───────────
+/** Una célula como se guardaba antes de los grupos (con `free` y `on`), solo para migrar. */
+interface LegacyCell extends Cell {
+  free?: boolean
+  on?: boolean
+}
+
+/**
+ * La canción con sus grupos en regla (§16.6): toda célula en un solo grupo, sin grupos vacíos ni ids de
+ * células que no existen. **Migra lo guardado antes**: una célula `free` (de las libres de §13.1) pasa a
+ * ser un grupo de una, con su `on`; una suelta (fuera del orden), un grupo de una apagado. No pierde células.
+ */
+export function normalizeSong(raw: Song): Song {
+  const legacy = new Map((raw.cells as LegacyCell[]).map((c) => [c.id, c]))
+  const cells = (raw.cells as LegacyCell[]).map(({ free: _free, on: _on, ...c }) => c as Cell)
+  const ids = new Set(cells.map((c) => c.id))
+  const seen = new Set<number>()
+  const take = (list: unknown): number[] => {
+    const out: number[] = []
+    if (Array.isArray(list)) for (const id of list) if (typeof id === 'number' && ids.has(id) && !seen.has(id)) (seen.add(id), out.push(id))
+    return out
+  }
+  let order = take(raw.order)
+  if (!order.length) order = take([cells[0]!.id])
+  const usedIds = new Set<number>()
+  let nextId = Math.max(1, typeof raw.nextGroupId === 'number' ? raw.nextGroupId : 1)
+  const groups: Group[] = []
+  const fresh = () => {
+    while (usedIds.has(nextId)) nextId++
+    return nextId++
+  }
+  for (const g of Array.isArray(raw.groups) ? raw.groups : []) {
+    const o = take((g as Group).order)
+    if (!o.length) continue
+    const gid = typeof g.id === 'number' && g.id > 0 && !usedIds.has(g.id) ? g.id : fresh()
+    usedIds.add(gid)
+    groups.push({ id: gid, order: o, on: g.on === true })
+  }
+  // lo que queda fuera de todo: las libres de antes (con su `on`) y las sueltas, cada una en un grupo de una célula
+  for (const c of cells) {
+    if (seen.has(c.id)) continue
+    seen.add(c.id)
+    const l = legacy.get(c.id)
+    const gid = fresh()
+    usedIds.add(gid)
+    groups.push({ id: gid, order: [c.id], on: l?.free === true && l.on === true })
+  }
+  const maxId = Math.max(0, ...groups.map((g) => g.id))
+  return { ...raw, cells, order, groups, nextGroupId: Math.max(nextId, maxId + 1) }
 }

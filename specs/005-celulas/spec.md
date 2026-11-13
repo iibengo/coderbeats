@@ -675,3 +675,13 @@ de la idea de las libres: en vez de células sueltas independientes, **grupos de
 Sobre las dos preguntas abiertas: **"A → B → A" se hace con copias** (la misma célula repetida, más adelante) y
 **cortar un hilo parte el grupo en dos** (la parte de detrás, apagada). El resto, de acuerdo.
 
+
+### 16.10 Añadidos (2026-11-14, aprobados)
+- **Por defecto solo suena la canción.** Todo grupo nuevo (al **cortar** un hilo, al **copiar** o al **crear** una célula
+  libre desde ⋯) **nace apagado** y solo suena si se enciende tocándolo.
+- **Una célula creada tocando el agua** va al **final de la canción** (nace vacía, así que no suena hasta grabar en ella).
+- **"Apagar extras"** (en la colonia): un botón que **apaga todos los grupos menos la canción**. Se ve mientras haya
+  algún grupo en paralelo encendido.
+- **Vueltas por célula: 1, 2, 4, 8, 16 y 32** (para melodías largas). Tocar el número da la vuelta 1 → 2 → 4 → 8 → 16 →
+  32 → 1, sin bajar del loop más largo. Con más de 8, los puntitos de vueltas pasan a "vuelta/total" (p. ej. "5/16").
+- **El tempo es el mismo para todos los grupos** (el de la canción).
