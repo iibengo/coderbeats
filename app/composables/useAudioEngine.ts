@@ -42,7 +42,7 @@ import { PhraseTracker, type ClosedPhrase, type LoopLength, type PhraseSnapshot 
 import { ENGINE_GLOBAL, songCode, type SongFx, type SongState } from '~/lib/song'
 import type { CalibrationSample, Instrument, KitId, Norm, StyleId } from '~/lib/types'
 import { allLanes, toggleLane as toggleLaneSet, type Lanes } from '~/lib/lanes'
-import { fmtVolume } from '~/lib/volume'
+import { fmtVolume, isTooQuiet } from '~/lib/volume'
 import type { FromWorker, ToWorker } from '~/lib/workerProtocol'
 
 type StrudelModule = typeof import('@strudel/web')
@@ -626,6 +626,8 @@ function onWorkerMessage(m: FromWorker) {
       `golpe desconocido (${m.strength.toFixed(3)})${fmtVolume(m.vol)}${lanes.value.size ? '' : ' · ningún carril graba'}`,
       uiMs,
     )
+  // ruido de fondo: un golpe mucho más flojo que los de tu calibración no cuenta (E4.5)
+  if (isTooQuiet(m.vol)) return log('unknown', `flojo: descartado (${m.instrument} ${(m.confidence * 100).toFixed(0)}%)${fmtVolume(m.vol)}`, uiMs)
   if (!playing.value || !tracker) return log('stopped', `${m.instrument} sin loop en marcha`, uiMs)
   // con varias células, en estado canción no se graba; en bucle, sí (spec 005, §4.4)
   if (multi() && !loop) return log('unknown', `ignorado: canción avanzando (${m.instrument} ${(m.confidence * 100).toFixed(0)}%)`, uiMs)

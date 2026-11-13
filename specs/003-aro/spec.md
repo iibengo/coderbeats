@@ -336,3 +336,12 @@ golpes con el dedo) al que se le añade un golpe suelto en medio. Esa combinaci�
 - Con semicorcheas en el estilo (hip hop, house), no cambia nada.
 - Lógica en `lib/assist.ts` (`laneGrid`, puro) y tests en `assist`, `loopEdit` y `freeLoops`.
 
+### E5.2 Umbral de volumen activo (E4.5)
+- El registro confirma ruido de fondo flojo (vol 0,02–0,12) que hoy solo se ignora porque esos
+  carriles están apagados.
+- Se activa el umbral con el **30 %** propuesto: un golpe por debajo de 0,30 del volumen de tu
+  calibración se descarta y sale en el registro como "flojo: descartado".
+- Sin calibración (sin volumen relativo) no se descarta nada.
+- El ajuste "Sensibilidad" en ⋯ queda para cuando haga falta: con el 30 % no se ha visto que haga falta.
+- `isTooQuiet` y `MIN_HIT_VOLUME` en `lib/volume.ts`, con tests.
+
