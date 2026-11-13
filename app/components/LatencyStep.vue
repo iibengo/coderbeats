@@ -8,7 +8,6 @@ const { recordTake, sampleRate } = useAudioEngine()
 const { saveLatency, data } = useCalibration()
 
 const running = ref(false)
-const beat = ref<number | null>(null)
 const result = ref<LatencyResult | null>(null)
 
 async function run() {
@@ -19,7 +18,8 @@ async function run() {
       bpm: RECORD_BPM,
       countInBeats: 4,
       recordBeats: 4,
-      onBeat: (b) => (beat.value = b),
+      // sin pista visual (spec 003, E6.7): con Bluetooth la pantalla va por delante del sonido, y si se
+      // sigue la pantalla la latencia sale ≈ 0 o negativa
     })
     const onsets = detectOnsets(take.buffer, take.sampleRate).map((o) => o.time)
     result.value = measureLatency(take.clickTimes, onsets)
@@ -30,14 +30,8 @@ async function run() {
       )
   } finally {
     running.value = false
-    beat.value = null
   }
 }
-
-const label = computed(() => {
-  if (beat.value === null) return ''
-  return beat.value < 0 ? `${-beat.value}` : '👏'
-})
 </script>
 
 <template>
@@ -49,9 +43,15 @@ const label = computed(() => {
         Con los cascos puestos: escucharás 4 clics de cuenta atrás. Después da
         <strong class="text-white">4 palmadas</strong>, una con cada clic.
       </p>
+      <p class="mt-2 text-sm text-amber-200/80">
+        Guíate solo por el oído: la pantalla no marca el ritmo (con cascos Bluetooth iría por delante del sonido).
+      </p>
     </div>
 
-    <div class="flex h-24 items-center justify-center text-6xl font-light tabular-nums">{{ label }}</div>
+    <div class="flex h-24 items-center justify-center text-6xl font-light" aria-live="polite">
+      <span v-if="running" class="text-3xl text-neutral-400">Escucha…</span>
+      <span v-else aria-hidden="true">🎧</span>
+    </div>
     <LevelMeter />
 
     <div v-if="result" class="rounded-lg border border-white/10 p-4 text-sm">

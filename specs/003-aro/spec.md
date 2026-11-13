@@ -399,3 +399,10 @@ de salir), pero la calibración lo daba por válido: solo miraba que hubiera 3 p
   diagnóstico lo dice.
 - `measureLatency` (motivo `negative`) y `usableLatencyMs`, con tests.
 
+### E6.7 La calibración no enseña el ritmo en pantalla
+- Causa de fondo del −38 ms: la pantalla de calibración enseñaba la cuenta ("3 2 1 👏") en el instante
+  programado del clic, y con Bluetooth el clic se oye unos 200 ms más tarde. Quien daba la palmada al ver la
+  pantalla, y no al oír el clic, medía ≈ 0 menos lo que uno se adelanta al compás (20–50 ms): negativo.
+- **Durante la toma ya no hay pista visual** (ni números ni 👏): solo "Escucha…". El texto dice que se guíe
+  solo por el oído y por qué.
+
