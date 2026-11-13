@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
   approachBlend,
+  backToFront,
+  depthAlpha,
+  depthParallax,
+  depthScale,
   boundsCenter,
   clampCam,
   mixCam,
@@ -117,5 +121,34 @@ describe('colonia: mover el mapa', () => {
     expect(approachBlend(0, 1, 0.15)).toBeLessThan(0.7)
     expect(approachBlend(0, 1, 1, true)).toBe(1)
     expect(approachBlend(0.9995, 1, 0.016)).toBe(1)
+  })
+})
+
+describe('colonia: profundidad', () => {
+  it('cerca no cambia nada; en la colonia el fondo llega al 70 %, más tenue y con menos parallax', () => {
+    expect([depthScale(1, 0), depthAlpha(1, 0), depthParallax(1, 0)]).toEqual([1, 1, 1])
+    expect(depthScale(0, 1)).toBe(1)
+    expect(depthScale(1, 1)).toBeCloseTo(0.7)
+    expect(depthAlpha(1, 1)).toBeCloseTo(0.65)
+    expect(depthParallax(1, 1)).toBeCloseTo(0.65)
+    expect(depthScale(0.5, 1)).toBeCloseTo(0.85)
+    expect(depthScale(0.5, 0.5)).toBeCloseTo(0.925)
+    expect(depthScale(3, 1)).toBeCloseTo(0.7) // la profundidad no pasa de 1
+  })
+
+  it('se dibuja del fondo al frente', () => {
+    const order = backToFront([{ id: 1, depth: 0 }, { id: 2, depth: 0.6 }, { id: 3, depth: 0.1 }, { id: 4, depth: 0.6 }])
+    expect(order.map((c) => c.id)).toEqual([2, 4, 3, 1])
+  })
+
+  it('al tocar dos células solapadas se elige la de delante, aunque la de atrás esté más cerca del dedo', () => {
+    const discs = [
+      { id: 1, x: 100, y: 100, r: 40, depth: 0.6 },
+      { id: 2, x: 130, y: 100, r: 40, depth: 0.1 },
+    ]
+    expect(cellAtPoint(105, 100, discs)).toBe(2)
+    expect(cellAtPoint(70, 100, discs)).toBe(1) // solo la de atrás llega hasta ahí
+    // a igual profundidad, la más cercana
+    expect(cellAtPoint(105, 100, discs.map((d) => ({ ...d, depth: 0 })))).toBe(1)
   })
 })

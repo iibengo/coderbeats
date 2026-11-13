@@ -76,21 +76,48 @@ export interface Disc {
   x: number
   y: number
   r: number
+  /** profundidad 0..1 (0 = delante); sin ella, 0 */
+  depth?: number
 }
 
-/** Célula bajo un toque: la más cercana cuyo radio (al menos `minR`) lo contiene. */
+/**
+ * Célula bajo un toque: entre las que lo contienen (radio de al menos `minR`), la de más delante
+ * y, a igual profundidad, la más cercana al dedo (§7.2: solo se mira, al tocar se elige la de delante).
+ */
 export function cellAtPoint(px: number, py: number, discs: readonly Disc[], minR = MIN_TAP_R): number | null {
   let best: number | null = null
   let bd = Infinity
+  let bz = Infinity
   for (const d of discs) {
     const dist = Math.hypot(px - d.x, py - d.y)
-    if (dist <= Math.max(d.r, minR) && dist < bd) {
+    if (dist > Math.max(d.r, minR)) continue
+    const z = d.depth ?? 0
+    if (z < bz || (z === bz && dist < bd)) {
+      bz = z
       bd = dist
       best = d.id
     }
   }
   return best
 }
+
+// ── profundidad (§7.2) ───────────────────────────────────────────────────────────
+/** las del fondo llegan al 70 % de tamaño, se ven un 35 % más tenues y se mueven un 35 % menos al mover el mapa */
+export const DEPTH_SCALE = 0.3
+export const DEPTH_FADE = 0.35
+export const DEPTH_PARALLAX = 0.35
+
+/**
+ * Tamaño, opacidad y desplazamiento relativos de una célula a profundidad `depth` (0 = delante,
+ * 1 = fondo). `k` (0..1) es cuánto se ve la colonia: cerca, todo vale 1 y nada cambia.
+ */
+export const depthScale = (depth: number, k: number): number => 1 - DEPTH_SCALE * clamp01(depth) * k
+export const depthAlpha = (depth: number, k: number): number => 1 - DEPTH_FADE * clamp01(depth) * k
+export const depthParallax = (depth: number, k: number): number => 1 - DEPTH_PARALLAX * clamp01(depth) * k
+
+/** Orden de dibujo: del fondo al frente (las de delante tapan a las de atrás). */
+export const backToFront = <T extends { id: number; depth: number }>(cells: readonly T[]): T[] =>
+  [...cells].sort((a, b) => b.depth - a.depth || a.id - b.id)
 
 /** hasta dónde se puede llevar el mapa fuera del conjunto de células (radios de gota) */
 export const PAN_MARGIN = 3

@@ -120,3 +120,8 @@ export function moveGeo(g: DropGeo, dx: number, dy: number): DropGeo {
   const f = g.free
   return { ...g, cx: g.cx + dx, cy: g.cy + dy, free: { x0: f.x0 + dx, y0: f.y0 + dy, x1: f.x1 + dx, y1: f.y1 + dy } }
 }
+
+/** La misma gota con otro tamaño (profundidad, spec 005 §7.2): mismo centro, radio y hueco escalados. */
+export function scaleGeo(g: DropGeo, k: number): DropGeo {
+  return k === 1 ? g : { ...g, R: g.R * k, core: g.core * k }
+}

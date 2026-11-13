@@ -10,6 +10,7 @@ import {
   lerpGeo,
   pinchZoom,
   rubber,
+  scaleGeo,
   stretchOf,
   wheelZoom,
   zoomLimits,
@@ -157,5 +158,16 @@ describe('móvil en horizontal (E2.1)', () => {
     expect(contourPoints(1.5, 72)).toBe(108)
     const g = dropLayout(844, 390, compactInsets, 1.25)
     expect(stretchOf(g)).toBeCloseTo(1.25)
+  })
+})
+
+describe('scaleGeo', () => {
+  it('escala el radio y el hueco y conserva el centro; con 1 devuelve la misma gota', () => {
+    const g = dropLayout(portrait.w, portrait.h, phoneInsets, 1)
+    expect(scaleGeo(g, 1)).toBe(g)
+    const s = scaleGeo(g, 0.7)
+    expect(s.R).toBeCloseTo(g.R * 0.7)
+    expect(s.core).toBeCloseTo(g.core * 0.7)
+    expect([s.cx, s.cy]).toEqual([g.cx, g.cy])
   })
 })

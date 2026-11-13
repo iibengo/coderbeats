@@ -9,12 +9,16 @@ import { dropAction } from '~/lib/aro/drop'
 import { suggestions } from '~/lib/aro/guide'
 import {
   approachBlend,
+  backToFront,
   boundsCenter,
   cellAtPoint,
   clampCam,
   colonyCam,
   colonyMinZoom,
   crowdAlpha,
+  depthAlpha,
+  depthParallax,
+  depthScale,
   inColony,
   mixCam,
   panBy,
@@ -24,7 +28,7 @@ import {
 } from '~/lib/aro/colony'
 import { edgeMarkers } from '~/lib/aro/markers'
 import { transitionAt } from '~/lib/aro/transition'
-import { clampZoom, contourPoints, dropLayout, freeRect, lerpGeo, moveGeo, pinchZoom, stretchOf, wheelZoom, zoomLimits, type Insets } from '~/lib/aro/zoom'
+import { clampZoom, contourPoints, dropLayout, freeRect, lerpGeo, moveGeo, pinchZoom, scaleGeo, stretchOf, wheelZoom, zoomLimits, type Insets } from '~/lib/aro/zoom'
 import type { Part } from '~/lib/background'
 import { notesInBar } from '~/lib/bass'
 import { STYLES } from '~/lib/constants'
@@ -403,19 +407,31 @@ function cellScene(
   const auto = cellPoints.value.length > 1 ? colonyCam(follow, boundsCenter(cellPoints.value), zEff, fullLimits.value.min) : follow
   const cam = mixCam(auto, manualCam, panBlend)
   lastCam = cam
-  const place = (c: Cell) => moveGeo(base, (c.at.x - cam.x) * base.R, (c.at.y - cam.y) * base.R)
+  // profundidad (§7.2): al alejar, las del fondo se ven más pequeñas, más tenues y se mueven menos con el mapa
+  const k = all.length > 1 ? crowdAlpha(zEff) : 0
+  const place = (c: Cell) => {
+    const pf = reduced ? 1 : depthParallax(c.at.depth, k) // con movimiento reducido, sin parallax
+    return scaleGeo(moveGeo(base, (c.at.x - cam.x) * base.R * pf, (c.at.y - cam.y) * base.R * pf), depthScale(c.at.depth, k))
+  }
   const weightsOf = (c: Cell) => ({ ...allWeights(1), bass: c.parts.bass && bgMode.value !== 'off' ? 1 : 0, mel: 0 })
   const curCell = plan?.cur ?? here
   const geo = curCell ? place(curCell) : base
 
-  // las demás células, pequeñas y quietas (solo se miran), mientras se aleja el zoom
-  const k = all.length > 1 ? crowdAlpha(zEff) : 0
+  // las demás células, pequeñas y quietas (solo se miran), mientras se aleja el zoom; del fondo al frente
   const skip = new Set([curCell?.id, tr?.ghost?.id])
+  const placed = new Map(all.map((c) => [c.id, place(c)]))
   const crowd =
     k > 0.01
-      ? all.filter((c) => !skip.has(c.id)).map((c) => ({ geo: place(c), weights: weightsOf(c), dots: dotsOf(c.loops, 0), alpha: k * 0.85 }))
+      ? backToFront(all.filter((c) => !skip.has(c.id)).map((c) => ({ c, id: c.id, depth: c.at.depth }))).map(({ c }) => ({
+          geo: placed.get(c.id)!,
+          weights: weightsOf(c),
+          dots: dotsOf(c.loops, 0),
+          alpha: k * 0.85 * depthAlpha(c.at.depth, k),
+        }))
       : undefined
-  colonyPick = colony.value ? { discs: all.map((c) => ({ id: c.id, x: place(c).cx, y: place(c).cy, r: base.R })), cy: geo.cy } : null
+  colonyPick = colony.value
+    ? { discs: all.map((c) => ({ id: c.id, x: placed.get(c.id)!.cx, y: placed.get(c.id)!.cy, r: placed.get(c.id)!.R, depth: c.at.depth })), cy: geo.cy }
+    : null
   const halo = plan && playing.value ? k : 0
 
   if (!plan || !tr) return { geo, alpha, plan, cam, crowd, halo }
