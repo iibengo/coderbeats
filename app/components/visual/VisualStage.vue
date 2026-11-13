@@ -12,6 +12,7 @@ import {
   backToFront,
   boundsCenter,
   cellAtPoint,
+  curvePoints,
   cellProgress,
   clampCam,
   clampToRect,
@@ -37,6 +38,8 @@ import {
   settleZoom,
   spotAt,
   threadAt,
+  threadBend,
+  threadControl,
   threadPairs,
   turnIndex,
   type Disc,
@@ -495,6 +498,7 @@ function cellScene(
   pos: number,
   zEff: number,
   dt: number,
+  wall: number,
 ): Pick<AroFrame, 'geo' | 'ghost' | 'bridge' | 'pull' | 'alpha' | 'crowd' | 'halo' | 'threads' | 'labels' | 'progress' | 'handles' | 'threadDrag'> & { plan: ReturnType<typeof engine.cellPlan>; cam: { x: number; y: number } } {
   const alphaBase = reduced && playing.value ? Math.min(1, (performance.now() - cutAt) / CUT_FADE_MS) : 1
   const plan = engine.cellPlan()
@@ -611,6 +615,8 @@ function cellScene(
   const progress = live && plan ? cellProgress(pos, plan.start, plan.end) : undefined
 
   // hilos de orden (§7.2): entre las consecutivas, tenues; por el de la que suena corre el brillo de la transición
+  // el hilo pulsado ahora mismo (sin soltar ni mover): se ve cuál se va a cortar
+  const hotTo = gesture?.kind === 'colony' && !gesture.moved ? gesture.threadTo : null
   const byId = new Map(all.map((c) => [c.id, c]))
   const threads =
     k > 0.01
@@ -619,12 +625,14 @@ function cellScene(
           to: placed.get(b)!,
           alpha: k * Math.min(depthAlpha(byId.get(a)!.at.depth, k), depthAlpha(byId.get(b)!.at.depth, k)),
           glow: tr?.thread && tr.thread.fromId === a && tr.thread.toId === b ? tr.thread.glow : null,
+          hot: hotTo !== null && b === hotTo,
           // en la última vuelta, el hilo hacia la siguiente se va llenando
           fill: live && plan && plan.cur.id === a && plan.next.id === b ? lastTurnFill(pos, plan.end) : undefined,
         }))
       : undefined
-  // los hilos se pueden tocar para cortarlos: segmentos de borde a borde (se ignoran las células que se tocan)
-  if (colonyPick)
+  // los hilos se pueden tocar para cortarlos: la misma curva que se dibuja (se mece), en tramos cortos
+  if (colonyPick) {
+    const tw = reduced ? 0 : wall
     colonyPick.threads = threadPairs(order, (id) => byId.has(id)).flatMap(([a, b]) => {
       const ga = placed.get(a)!
       const gb = placed.get(b)!
@@ -634,8 +642,14 @@ function cellScene(
       if (d < ga.R + gb.R + 4) return []
       const ux = dx / d
       const uy = dy / d
-      return [{ fromId: a, toId: b, a: { x: ga.cx + ux * ga.R, y: ga.cy + uy * ga.R }, b: { x: gb.cx - ux * gb.R, y: gb.cy - uy * gb.R } }]
+      const pa = { x: ga.cx + ux * ga.R, y: ga.cy + uy * ga.R }
+      const pb = { x: gb.cx - ux * gb.R, y: gb.cy - uy * gb.R }
+      const ctrl = threadControl(pa, pb, threadBend(Math.hypot(pb.x - pa.x, pb.y - pa.y), Math.atan2(dy, dx), tw))
+      const pts = curvePoints(pa, ctrl, pb, 12)
+      return pts.slice(1).map((p, i) => ({ fromId: a, toId: b, a: pts[i]!, b: p }))
     })
+  }
+
   // número de vueltas junto a cada célula, pequeño y tenue; la que se ve cuenta con lo que cabe en sus loops
   const labels =
     k > 0.01
@@ -842,7 +856,7 @@ function tick() {
       dc ? linkedIds(song.order, dc.id) : [],
       reduced,
     )
-    const { plan, cam, ...scene } = cellScene(geo!, clock.bar + clock.barPhase, zEff, dt)
+    const { plan, cam, ...scene } = cellScene(geo!, clock.bar + clock.barPhase, zEff, dt, t)
     updateMarkers(geo!, cam, plan ? plan.next.id : null)
     const f: AroFrame = {
       wall: t,

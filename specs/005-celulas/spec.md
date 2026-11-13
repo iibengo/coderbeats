@@ -490,6 +490,10 @@ qué se decidió y por qué; se cambian sin más si no gustan.
 - **Tocar una suelta en la colonia la toca en bucle** como a cualquier otra, también si la canción es de una
   sola célula (entonces cambia al momento, sin esperar a la línea de compás).
 - **Cortar un hilo no se puede deshacer:** se vuelve a enganchar con el asa.
+- **El hilo se toca por la curva que se dibuja, con 18 px de margen** (antes, por la recta y con 12 px: se
+  fallaba al tocar justo encima), y se ilumina al pulsarlo.
+- **Crear una célula con un toque en el agua se puede deshacer** (decisión 18 ampliada): para cuando un toque
+  que quería cortar un hilo cae al lado. Solo si la célula sigue vacía.
 - **La última célula de la canción (la única del orden) se vacía en vez de borrarse,** aunque haya sueltas.
 - **Una suelta borrada se recupera suelta** con "↶ deshacer".
 - **Las sueltas se ven al 45 %** de opacidad en la colonia, y sus números también; cerca no cambia nada.
@@ -524,6 +528,11 @@ costaba moverla. Esta enmienda **manda sobre §7.1** (copiar y ordenar) y sobre 
   (la que iba antes pasa a la que iba después).
 - Solo con un toque (menos de 400 ms y sin moverse): arrastrar sobre el hilo sigue moviendo el mapa.
   Prioridad al tocar: asa › número › célula › hilo › agua (el agua crea una célula).
+- **Se toca lo que se ve:** el hilo es una curva que se mece, y el toque la sigue (no la recta entre las dos
+  células), con **18 px** de margen. Mientras se pulsa justo encima, el hilo se **ilumina** para ver cuál se va
+  a cortar.
+- **Un toque que falla** y cae en agua crea una célula vacía (3.2): se puede **deshacer** con "↶ deshacer"
+  unos 8 s (solo si sigue vacía).
 - Si la cortada es la que suena, sigue hasta el final de sus vueltas y entonces salta.
 - No hay deshacer del corte: se vuelve a enganchar con el asa.
 

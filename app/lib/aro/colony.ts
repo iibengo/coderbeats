@@ -6,7 +6,7 @@
  * colonia son dos tramos del mismo gesto. Cada célula se coloca en su `at` (radios de gota), así que
  * al bajar el zoom se acercan solas.
  */
-import type { Rect } from './shape'
+import { noise, type Rect } from './shape'
 
 /** por debajo de este zoom, los gestos son los de la colonia (el tramo entre 0,5 y 0,4 sigue siendo "cerca") */
 export const COLONY_ENTER = 0.4
@@ -261,7 +261,18 @@ export function spotAt(px: number, py: number, spots: readonly Spot[], hit: numb
 
 // ── tocar un hilo para cortarlo (enmienda 1, §15.4) ──────────────────────────────
 /** a cuántos px del hilo cuenta como tocarlo */
-export const THREAD_HIT = 12
+export const THREAD_HIT = 18
+
+/**
+ * Cuánto se curva un hilo (px, en perpendicular): un poco y despacio, como agua. Lo usan el dibujo y el
+ * toque, para que se toque lo que se ve (el hilo es una curva, no una recta).
+ */
+export const threadBend = (len: number, phi: number, t: number): number => Math.min(len * 0.1, 16) * noise(phi * 3, 11, t)
+
+/** Puntos (n + 1) de una curva cuadrática de `a` a `b` con control `c`. */
+export function curvePoints(a: Point, c: Point, b: Point, n: number): Point[] {
+  return Array.from({ length: n + 1 }, (_, i) => quadAt(a, c, b, i / n))
+}
 
 /** Distancia de un punto al segmento a–b (px). */
 export function segmentDistance(p: Point, a: Point, b: Point): number {

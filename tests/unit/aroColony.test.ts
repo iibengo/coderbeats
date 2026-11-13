@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   approachBlend,
+  curvePoints,
+  threadBend,
+  THREAD_HIT,
   segmentDistance,
   threadAt,
   HANDLE_DIST,
@@ -289,11 +292,12 @@ describe('colonia: tocar un hilo', () => {
     expect(segmentDistance({ x: 3, y: 4 }, t1.a, t1.a)).toBe(5) // segmento sin longitud
   })
 
-  it('el hilo bajo el dedo, a menos de 12 px; si no, ninguno', () => {
+  it('el hilo bajo el dedo, a menos de 18 px; si no, ninguno', () => {
     expect(threadAt(50, 8, [t1, t2])).toBe(t1)
+    expect(threadAt(50, 17, [t1, t2])).toBe(t1)
     expect(threadAt(150, 44, [t1, t2])).toBe(t2)
-    expect(threadAt(50, 13, [t1, t2])).toBeNull()
-    expect(threadAt(50, 25, [t1, t2])).toBeNull()
+    expect(threadAt(50, 19, [t1, t2])).toBeNull()
+    expect(threadAt(50, 30, [t1, t2])).toBeNull()
     expect(threadAt(5, 5, [])).toBeNull()
   })
 
@@ -301,5 +305,50 @@ describe('colonia: tocar un hilo', () => {
     const near = { fromId: 5, toId: 6, a: { x: 0, y: 10 }, b: { x: 100, y: 10 } }
     expect(threadAt(50, 8, [t1, near])).toBe(near)
     expect(threadAt(50, 2, [t1, near])).toBe(t1)
+  })
+})
+
+describe('colonia: el hilo se toca por la curva que se dibuja', () => {
+  const a = { x: 0, y: 0 }
+  const b = { x: 200, y: 0 }
+
+  it('el margen para tocar es de 18 px', () => {
+    expect(THREAD_HIT).toBe(18)
+  })
+
+  it('la curvatura es la misma para dibujar y para tocar, y pequeña', () => {
+    expect(threadBend(200, 0.7, 3.1)).toBe(threadBend(200, 0.7, 3.1))
+    for (let t = 0; t < 40; t += 1.7) expect(Math.abs(threadBend(300, 1.1, t))).toBeLessThanOrEqual(16 * 1.5)
+    expect(threadBend(0, 0, 0)).toBeCloseTo(0)
+  })
+
+  it('un toque justo encima de la curva falla contra la recta pero acierta contra la curva', () => {
+    // un hilo muy curvado: el centro de la curva se separa 11 px de la recta
+    const ctrl = threadControl(a, b, 22)
+    const mid = quadAt(a, ctrl, b, 0.5)
+    expect(Math.abs(mid.y)).toBeCloseTo(11)
+    const tap = { x: mid.x, y: mid.y }
+    const straight = { fromId: 1, toId: 2, a, b }
+    // contra la recta (como antes) con un margen corto no se encuentra
+    expect(threadAt(tap.x, tap.y, [straight], 8)).toBeNull()
+    // contra la curva en tramos, sí
+    const segs = curvePoints(a, ctrl, b, 12).slice(1).map((p, i, all) => ({ fromId: 1, toId: 2, a: i === 0 ? a : all[i - 1]!, b: p }))
+    expect(threadAt(tap.x, tap.y, segs, 8)).not.toBeNull()
+    expect(threadAt(tap.x, tap.y, segs, 8)!.toId).toBe(2)
+  })
+
+  it('con el margen de 18 px se acierta al lado de la curva y no a 30 px', () => {
+    const ctrl = threadControl(a, b, 22)
+    const segs = curvePoints(a, ctrl, b, 12).slice(1).map((p, i, all) => ({ fromId: 1, toId: 2, a: i === 0 ? a : all[i - 1]!, b: p }))
+    expect(threadAt(100, 11 + 14, segs)).not.toBeNull()
+    expect(threadAt(100, 11 + 30, segs)).toBeNull()
+  })
+
+  it('los puntos de la curva empiezan y acaban en los extremos', () => {
+    const pts = curvePoints(a, threadControl(a, b, 10), b, 12)
+    expect(pts).toHaveLength(13)
+    expect(pts[0]).toEqual(a)
+    expect(pts[12]!.x).toBeCloseTo(200)
+    expect(pts[12]!.y).toBeCloseTo(0)
   })
 })

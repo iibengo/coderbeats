@@ -151,7 +151,7 @@ const looping = ref(false)
 /** la célula que está en bucle (o que va a estarlo en la siguiente línea de compás); null si ninguna */
 const loopTarget = ref<number | null>(null)
 /** qué se puede deshacer (chip "↶ deshacer", spec 005 §7.1): lo último que se borró, o null */
-const undoInfo = ref<'cell' | 'clear' | 'all' | null>(null)
+const undoInfo = ref<'cell' | 'clear' | 'all' | 'made' | null>(null)
 const syncLoopUi = () => {
   const j = jump ?? viewJump
   looping.value = loop || !!j?.loop
@@ -1254,6 +1254,7 @@ export function useAudioEngine() {
     | { kind: 'cell'; cell: Cell; prevId: number | null; nextId: number | null; loose: boolean }
     | { kind: 'clear'; id: number; loops: FreeLoop[]; parts: Parts }
     | { kind: 'all'; song: Song }
+    | { kind: 'made'; id: number }
   let undoRec: UndoRec | null = null
   let undoTimer: ReturnType<typeof setTimeout> | null = null
   const UNDO_MS = 8000
@@ -1294,6 +1295,8 @@ export function useAudioEngine() {
     }
     song.value = r.song
     log('cell', `célula nueva ${r.id}, al final del orden`)
+    // una célula creada sin querer (un toque en el agua que falló al cortar un hilo) se puede deshacer
+    setUndo({ kind: 'made', id: r.id })
     becameMulti(isMulti(s))
     reevaluate()
     return r.id
@@ -1411,6 +1414,15 @@ export function useAudioEngine() {
     clearUndo()
     if (rec.kind === 'all') {
       void replaceSong(rec.song)
+      return
+    }
+    if (rec.kind === 'made') {
+      // quita la célula creada, pero solo si sigue vacía (si ya la has llenado, no se pierde nada)
+      const made = cellById(liveSong(), rec.id)
+      if (made && !made.loops.length) {
+        removeCell(rec.id)
+        clearUndo()
+      }
       return
     }
     const s = liveSong()

@@ -23,7 +23,7 @@ import {
   type DropGeo,
 } from '~/lib/aro/shape'
 import { ghostTarget, type GuideOptions, type GuideSpot } from '~/lib/aro/guide'
-import { quadAt, threadControl } from '~/lib/aro/colony'
+import { quadAt, threadBend, threadControl } from '~/lib/aro/colony'
 import { bridgeHalfWidth } from '~/lib/aro/transition'
 import { FRONT, toFront, toScreen, type AroView } from '~/lib/aro/view'
 import { INK, VOICE_RGB_CSS, type Voice } from '~/lib/palette'
@@ -87,6 +87,8 @@ export interface AroThread {
   glow: number | null
   /** en la última vuelta de la que suena, cuánto se ha llenado hacia la siguiente (0..1) */
   fill?: number
+  /** el hilo que se va a cortar: se está pulsando justo encima (enmienda 1, §15.4) */
+  hot?: boolean
 }
 
 /** Número pequeño junto a una célula (sus vueltas). */
@@ -565,10 +567,11 @@ export class AroCanvas {
     const b = { x: th.to.cx - Math.cos(phi) * rb, y: th.to.cy - Math.sin(phi) * rb }
     const len = Math.hypot(b.x - a.x, b.y - a.y)
     // se curva un poco y despacio, como agua
-    const c = threadControl(a, b, Math.min(len * 0.1, 16) * noise(phi * 3, 11, t))
+    const c = threadControl(a, b, threadBend(len, phi, t))
     x.lineCap = 'round'
-    x.strokeStyle = `rgba(255,255,255,${0.11 * th.alpha})`
-    x.lineWidth = 1.2
+    // pulsado justo encima: se ve cuál se va a cortar
+    x.strokeStyle = th.hot ? 'rgba(255,255,255,0.85)' : `rgba(255,255,255,${0.11 * th.alpha})`
+    x.lineWidth = th.hot ? 2.6 : 1.2
     x.beginPath()
     x.moveTo(a.x, a.y)
     x.quadraticCurveTo(c.x, c.y, b.x, b.y)
