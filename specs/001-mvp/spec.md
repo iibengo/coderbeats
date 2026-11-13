@@ -609,6 +609,24 @@ Ideas para el futuro, no decisiones cerradas. Cada una tendrá su spec.
 - Con la spec de kits y árbol de estilos (004).
 - Con las células: una canción guardada = sus células.
 
+#### Kits y más instrumentos (spec 004, 2026-11-13, para revisar)
+
+**Más instrumentos**
+- Cada kit puede traer instrumentos extra (palmas, toms, platillo abierto, shaker, sintes…).
+- Son carriles nuevos del aro que solo aparecen cuando los activas, como el bajo.
+- Se llenan con el dedo o con la boca: si solo ese carril está encendido, cualquier sonido de boca va a él
+  (usando los carriles que graban), sin calibración nueva.
+
+**Puntos a revisar** (salen de cómo está hecho hoy):
+- **Carriles que graban (spec 003, E4.2):** hoy un golpe "desconocido" se descarta. La idea es una excepción:
+  con **un solo carril encendido**, y siendo uno de los extra, todo sonido de boca va a él.
+- **Franjas del aro (E1.3):** hoy son bombo, bajo, caja, melodía y platillo; las extra aparecerían y
+  desaparecerían como el bajo, y habría que decidir cuántas caben a la vez.
+- **Mezcla y código:** cada instrumento nuevo necesita su ganancia (`lib/mix.ts`) y su sonido en el código
+  Strudel (§9 de la spec 005); un kit sin ese instrumento no lo ofrece.
+- **Canciones guardadas (spec 006):** el kit va con la canción, y un instrumento que no esté en el kit al
+  abrirla tendría que ocultarse sin perder sus golpes.
+
 #### Tutorial jugando (2026-11-13, para revisar)
 
 **Primeros pasos: se hacen, no se leen**
