@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
   approachBlend,
+  clampToRect,
+  isDoubleTap,
+  mapToScreen,
+  screenToMap,
   quadAt,
   threadControl,
   threadPairs,
@@ -174,5 +178,35 @@ describe('colonia: hilos de orden', () => {
     expect(quadAt(a, c, b, 1)).toEqual(b)
     expect(quadAt(a, { x: 50, y: 0 }, b, 0.5)).toEqual({ x: 50, y: 0 })
     expect(threadControl(a, a, 5)).toEqual({ x: 0, y: 0 }) // sin longitud no hay perpendicular, pero tampoco NaN
+  })
+})
+
+describe('colonia: mover células y doble toque', () => {
+  const center = { x: 195, y: 376 }
+  const cam = { x: 4.5, y: 0.5 }
+
+  it('del mapa a la pantalla y de vuelta dan el mismo punto, con y sin parallax', () => {
+    for (const pf of [1, 0.8, 0.65]) {
+      const p = { x: 7.25, y: -1.5 }
+      const s = mapToScreen(p, center, 30, cam, pf)
+      const back = screenToMap(s, center, 30, cam, pf)
+      expect(back.x).toBeCloseTo(p.x)
+      expect(back.y).toBeCloseTo(p.y)
+    }
+    expect(mapToScreen(cam, center, 30, cam)).toEqual(center) // la cámara está en el centro
+    expect(mapToScreen({ x: 5.5, y: 0.5 }, center, 30, cam, 0.5)).toEqual({ x: 210, y: 376 }) // el fondo se mueve menos
+  })
+
+  it('la célula arrastrada no sale de la zona libre', () => {
+    const free = { x0: 8, y0: 52, x1: 382, y1: 700 }
+    expect(clampToRect({ x: -50, y: 900 }, free)).toEqual({ x: 8, y: 700 })
+    expect(clampToRect({ x: 100, y: 100 }, free)).toEqual({ x: 100, y: 100 })
+  })
+
+  it('doble toque: misma célula y a menos de 300 ms', () => {
+    expect(isDoubleTap({ id: 2, t: 1000 }, 2, 1200)).toBe(true)
+    expect(isDoubleTap({ id: 2, t: 1000 }, 2, 1300)).toBe(false)
+    expect(isDoubleTap({ id: 2, t: 1000 }, 3, 1100)).toBe(false)
+    expect(isDoubleTap(null, 2, 1100)).toBe(false)
   })
 })

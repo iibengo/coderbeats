@@ -169,3 +169,29 @@ export function threadPairs(order: readonly number[], exists: (id: number) => bo
   for (let i = 0; i + 1 < order.length; i++) if (exists(order[i]!) && exists(order[i + 1]!)) out.push([order[i]!, order[i + 1]!])
   return out
 }
+
+// ── mover células y doble toque (§7.1) ───────────────────────────────────────────
+/** Dónde cae en pantalla un punto del mapa: `center` = centro de la gota sin mover, `r` = su radio, `pf` = parallax de su profundidad. */
+export const mapToScreen = (p: Point, center: Point, r: number, cam: Point, pf = 1): Point => ({
+  x: center.x + (p.x - cam.x) * r * pf,
+  y: center.y + (p.y - cam.y) * r * pf,
+})
+
+/** Lo contrario: qué punto del mapa hay bajo un punto de la pantalla. */
+export const screenToMap = (s: Point, center: Point, r: number, cam: Point, pf = 1): Point => ({
+  x: cam.x + (s.x - center.x) / Math.max(1e-6, r * pf),
+  y: cam.y + (s.y - center.y) / Math.max(1e-6, r * pf),
+})
+
+/** Mantiene un punto de la pantalla dentro de un rectángulo: la célula arrastrada no sale de la zona libre. */
+export const clampToRect = (p: Point, r: Rect): Point => ({
+  x: Math.min(r.x1, Math.max(r.x0, p.x)),
+  y: Math.min(r.y1, Math.max(r.y0, p.y)),
+})
+
+/** el segundo toque de un doble toque: sobre la misma célula y a menos de este tiempo del anterior (ms) */
+export const DOUBLE_TAP_MS = 300
+
+export function isDoubleTap(prev: { id: number; t: number } | null, id: number, now: number, windowMs = DOUBLE_TAP_MS): boolean {
+  return !!prev && prev.id === id && now - prev.t >= 0 && now - prev.t < windowMs
+}

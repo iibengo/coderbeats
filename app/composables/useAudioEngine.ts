@@ -1022,6 +1022,13 @@ export function useAudioEngine() {
     return { time: t, bar: Math.floor(pos), barPhase: pos - Math.floor(pos) }
   }
 
+  /** Mueve una célula en el mapa (spec 005, §7.1); el orden y lo que suena no cambian. */
+  function moveCell(id: number, x: number, y: number) {
+    const s = liveSong()
+    if (!cellById(s, id)) return
+    song.value = { ...s, cells: s.cells.map((c) => (c.id === id ? { ...c, at: { ...c.at, x, y } } : c)) }
+  }
+
   /**
    * Solo diagnóstico: la demo-canción repetida hasta `count` células, para probar el rendimiento
    * de la colonia. Devuelve false si el estilo no tiene demo-canción.
@@ -1174,6 +1181,7 @@ export function useAudioEngine() {
     clearAll,
     loadDemo,
     loadStressDemo,
+    moveCell,
     editLoops,
     onVisual,
     clockNow,
