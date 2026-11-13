@@ -399,7 +399,9 @@ Colocadas en el mapa en una curva suave, de izquierda a derecha, a distintas pro
 Ideas anotadas el 2026-11-13. **No están decididas ni entran en ninguna fase todavía**: se revisan
 antes de la fase 3 o después.
 
-### 13.1 Células libres (satélites)
+### 13.1 Células libres (satélites) · hecho el 2026-11-14
+
+> Implementado en tres partes. Lo que se decidió sin preguntar, en §14 ("Células libres").
 
 - Una **célula libre** es una célula especial que **no está en el orden de la canción**. Suena en
   paralelo, a la vez que la célula que toque, y **sigue sonando aunque la canción cambie de célula**.
@@ -497,6 +499,31 @@ qué se decidió y por qué; se cambian sin más si no gustan.
 - **La última célula de la canción (la única del orden) se vacía en vez de borrarse,** aunque haya sueltas.
 - **Una suelta borrada se recupera suelta** con "↶ deshacer".
 - **Las sueltas se ven al 45 %** de opacidad en la colonia, y sus números también; cerca no cambia nada.
+
+**Células libres (§13.1), 2026-11-14**
+- **Modelo:** una libre es una célula con `free: true` y un interruptor `on`. Está en las células y **no en el
+  orden**; no es una suelta (la suelta no suena). Lo guardado de antes sigue valiendo.
+- **Nueva:** ⋯ → "Añadir célula libre": apagada y vacía, encima de la curva (una al lado de otra), y **se entra
+  en ella** al crearla para llenarla.
+- **Se enciende sola** al nacer el primer loop que se graba en ella.
+- **Fase propia:** su compás 0 es la línea de compás en que se enciende. Al apagarla sigue hasta la siguiente
+  línea. Al dar a Play suenan desde el compás 0 las que estaban encendidas (lo encendido se guarda con la canción).
+- **Sin fondo propio:** el bajo y los acordes de una libre no suenan (el fondo es de la canción); sus bolas no se
+  ven mientras se ve una libre.
+- **Los efectos son de todo:** el filtro, el espacio, el calor y el barrido de la transición afectan también a las
+  libres (el filtro es del conjunto); no se excluyen.
+- **Con una libre a la vista** no hay transiciones ni chapa de vueltas: la chapa es un interruptor "libre · suena /
+  apagada". **La vista no sigue a la canción** hasta que se vuelve a una célula de la canción.
+- **Limitación:** con una libre a la vista y la colonia abierta, la célula de la canción que suena no lleva anillo
+  de progreso ni números de vueltas animados (el plan de transiciones se pausa mientras se ve una libre).
+- **Sin asa ni número,** y no se pueden enganchar a la canción (§13.1: "más adelante"). Copiar una libre da otra
+  libre apagada en el modelo, pero no hay gesto para hacerlo (no tiene asa).
+- **Un toque** la enciende o la apaga (sin esperar nada si está parado; sonando, en la siguiente línea de compás).
+  **El doble toque entra** y, como el primer toque ya actuó, entrar la enciende o apaga (decisión 14).
+- **Grabar en una libre** se permite con la canción avanzando (en la canción, no).
+- **Cuentan para las 16** células. "Cargar demo" estando en una libre vuelve a la primera célula de la canción.
+- **Deshacer** una libre borrada encendida la hace sonar de nuevo en la siguiente línea de compás.
+- **Los `prev` de los loops de una libre** (versiones anteriores) no se limpian mientras no se ve: es inofensivo.
 
 ## 15. Enmienda 1 · células sueltas: copiar, enganchar y cortar (2026-11-13)
 
