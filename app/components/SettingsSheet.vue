@@ -70,9 +70,9 @@ async function stressDemo(count: 8 | 16) {
   }
 }
 
-/** Añade una célula libre (spec 005, §13.1): apagada y vacía; se entra en ella para llenarla. */
+/** Añade una célula libre (spec 005, §16): un grupo de una célula, apagado y vacío; se entra en ella para llenarla. */
 function addFree() {
-  if (engine.addFreeCell() !== null) open.value = false
+  if (engine.addGroupCell() !== null) open.value = false
 }
 
 /** "Borrar todo" pide confirmación y se puede deshacer unos segundos (spec 005, §7.1). */
@@ -258,7 +258,7 @@ watch(open, (o) => {
           <div class="flex items-center gap-3">
             <button class="shrink-0 rounded-full border border-white/15 px-4 py-2" @click="addFree">Añadir célula libre</button>
             <span class="text-xs text-neutral-500">
-              Suena en paralelo a la canción, sin fin. En el mapa, un toque la enciende o la apaga.
+              Un grupo de una célula que suena en paralelo a la canción. En el mapa, un toque lo enciende o lo apaga.
             </span>
           </div>
           <p class="text-xs text-neutral-500">

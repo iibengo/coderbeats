@@ -53,7 +53,7 @@ import { clampZoom, contourPoints, dropLayout, freeRect, lerpGeo, moveGeo, pinch
 import type { Part } from '~/lib/background'
 import { notesInBar } from '~/lib/bass'
 import { STYLES } from '~/lib/constants'
-import { fitTurns, type Cell } from '~/lib/cells'
+import { fitTurns, groupIdOf, MAIN, orderOf, type Cell } from '~/lib/cells'
 import { loopBarAt, type FreeLoop } from '~/lib/freeLoops'
 import { describeImageDelay } from '~/lib/imageDelay'
 import { dragValue, lockAxis, type Axis } from '~/lib/gestures'
@@ -165,6 +165,12 @@ const bgBalls = computed(() => {
 const releaseStyle = computed(() => {
   const x = compact.value ? sideX.value.right - 40 : view.w / 2 + 112
   const y = compact.value ? view.h / 2 + 84 : view.h - PLAY_FROM_BOTTOM
+  return { left: `${x}px`, top: `${y}px`, transform: 'translate(-50%, -50%)' }
+})
+/** "apagar extras": a la izquierda de Play, donde estaría la bola de bajo (que en la colonia se oculta) */
+const extrasStyle = computed(() => {
+  const x = compact.value ? sideX.value.right - 40 : view.w / 2 - 112
+  const y = compact.value ? view.h / 2 - 84 : view.h - PLAY_FROM_BOTTOM
   return { left: `${x}px`, top: `${y}px`, transform: 'translate(-50%, -50%)' }
 })
 /** "↶ deshacer": a la altura de la fila de bolas; en la colonia, a la izquierda de "◎ centrar" si está */
@@ -499,12 +505,20 @@ function cellScene(
   zEff: number,
   dt: number,
   wall: number,
-): Pick<AroFrame, 'geo' | 'ghost' | 'bridge' | 'pull' | 'alpha' | 'crowd' | 'halo' | 'threads' | 'labels' | 'progress' | 'handles' | 'threadDrag' | 'freeRing'> & { plan: ReturnType<typeof engine.cellPlan>; cam: { x: number; y: number } } {
+): Pick<AroFrame, 'geo' | 'ghost' | 'bridge' | 'pull' | 'alpha' | 'crowd' | 'halo' | 'threads' | 'labels' | 'progress' | 'handles' | 'threadDrag' | 'groupRing'> & { plan: ReturnType<typeof engine.cellPlan>; cam: { x: number; y: number } } {
   const alphaBase = reduced && playing.value ? Math.min(1, (performance.now() - cutAt) / CUT_FADE_MS) : 1
   const plan = engine.cellPlan()
   const all = engine.song.value.cells
   // las sueltas (fuera del orden: sin hilos y sin sonar) se ven tenues en la colonia (enmienda 1, §15.1)
   const orderIds = engine.song.value.order
+  // los grupos (§16): la canción y los que suenan a la vez; de cada célula, el suyo
+  const groupList = [{ gid: MAIN, order: orderIds, on: true }, ...engine.song.value.groups.map((g) => ({ gid: g.id, order: g.order, on: g.on }))]
+  const groupOfId = new Map<number, (typeof groupList)[number]>()
+  for (const g of groupList) for (const cid of g.order) groupOfId.set(cid, g)
+  // dónde va cada grupo en paralelo que suena: su célula actual, para su anillo y sus puntitos
+  const headBy = new Map((playing.value ? engine.groupHeads() : []).map((h) => [h.cellId, h]))
+  const headProgress = (h: { start: number; end: number }, turns: number): number =>
+    Number.isFinite(h.end) ? (cellProgress(pos, h.start, h.end) ?? 0) : ((((pos - h.start) % turns) + turns) % turns) / turns
   const here = all.find((c) => c.id === engine.viewCellId.value)
   const spot = (c: Cell) => ({ id: c.id, x: c.at.x, y: c.at.y })
   const tr = plan
@@ -547,17 +561,23 @@ function cellScene(
     return scaleGeo(moveGeo(base, (at.x + o.x * k - cam.x) * base.R * pf, (at.y + o.y * k - cam.y) * base.R * pf), depthScale(c.at.depth, k) * spawnState(c.id).s)
   }
   const toScreen = (p: Point, depth: number): Point => mapToScreen(p, { x: base.cx, y: base.cy }, base.R, cam, pfOf(depth))
-  // una libre (§13.1) se ve entera si suena y algo tenue si está apagada; una suelta, más tenue
+  // las células de un grupo apagado se ven tenues (aparcadas); las de la canción y las de los grupos que suenan, enteras
   const looseMul = (id: number) => {
-    const c = all.find((x) => x.id === id)
-    if (c?.free) return c.on ? 1 : 1 - 0.45 * k
-    return orderIds.includes(id) ? 1 : 1 - 0.55 * k
+    const g = groupOfId.get(id)
+    return !g || g.gid === MAIN || g.on ? 1 : 1 - 0.5 * k
   }
   const weightsOf = (c: Cell) => ({ ...allWeights(1), bass: c.parts.bass && bgMode.value !== 'off' ? 1 : 0, mel: 0 })
   const curCell = plan?.cur ?? here
   const geo = curCell ? place(curCell) : base
   const alpha = alphaBase * (curCell ? looseMul(curCell.id) : 1)
-  const freeRing = curCell?.free && k > 0.01 ? (curCell.on ? ('on' as const) : ('off' as const)) : null
+  const curGroup = curCell ? groupOfId.get(curCell.id) : undefined
+  const curHead = curCell ? headBy.get(curCell.id) : undefined
+  const groupRing =
+    curCell && curGroup && curGroup.gid !== MAIN && k > 0.01
+      ? curGroup.on && curHead
+        ? { mode: 'on' as const, progress: headProgress(curHead, curCell.turns) }
+        : { mode: curGroup.on ? ('on' as const) : ('off' as const), progress: null }
+      : null
   curShown = geo
 
   // las demás células, pequeñas y quietas (solo se miran), mientras se aleja el zoom; del fondo al frente
@@ -574,7 +594,13 @@ function cellScene(
           geo: placed.get(c.id)!,
           weights: weightsOf(c),
           dots: crowdDots(c),
-          ring: c.free ? (c.on ? ('on' as const) : ('off' as const)) : undefined,
+          ...(groupOfId.get(c.id)?.gid !== MAIN && groupOfId.get(c.id)
+            ? groupOfId.get(c.id)!.on
+              ? headBy.get(c.id)
+                ? { ring: 'on' as const, ringProgress: headProgress(headBy.get(c.id)!, c.turns) }
+                : {}
+              : { ring: 'off' as const }
+            : {}),
           alpha: k * 0.85 * depthAlpha(c.at.depth, k) * spawnState(c.id).a * looseMul(c.id),
         }))
       : undefined
@@ -587,17 +613,17 @@ function cellScene(
         toScreen,
         handles: [],
         threads: [],
-        labels: all.filter((c) => !c.free).map((c) => ({ id: c.id, x: placed.get(c.id)!.cx, y: placed.get(c.id)!.cy + placed.get(c.id)!.R + 11 })),
+        labels: all.map((c) => ({ id: c.id, x: placed.get(c.id)!.cx, y: placed.get(c.id)!.cy + placed.get(c.id)!.R + 11 })),
       }
     : null
-  // asas (§7.1): un puntito en el borde de cada célula de la canción, hacia la siguiente; solo con radio suficiente
-  const order = engine.song.value.order
+  // asas (§7.1): un puntito en el borde de cada célula, hacia la siguiente de su grupo; solo con radio suficiente
   const handles: { id: number; x: number; y: number; alpha: number }[] = []
   if (k > 0.01)
     for (const c of all) {
       const g = placed.get(c.id)!
-      if (g.R < HANDLE_MIN_R || !orderIds.includes(c.id)) continue
-      const nextId = order[order.indexOf(c.id) + 1]
+      if (g.R < HANDLE_MIN_R) continue
+      const ord = groupOfId.get(c.id)?.order ?? []
+      const nextId = ord[ord.indexOf(c.id) + 1]
       const ng = nextId !== undefined ? placed.get(nextId) : undefined
       const p = handlePoint({ x: g.cx, y: g.cy }, g.R, ng ? { x: ng.cx, y: ng.cy } : null)
       handles.push({ id: c.id, x: p.x, y: p.y, alpha: k * depthAlpha(c.at.depth, k) })
@@ -627,20 +653,23 @@ function cellScene(
   const byId = new Map(all.map((c) => [c.id, c]))
   const threads =
     k > 0.01
-      ? threadPairs(order, (id) => byId.has(id)).map(([a, b]) => ({
-          from: placed.get(a)!,
-          to: placed.get(b)!,
-          alpha: k * Math.min(depthAlpha(byId.get(a)!.at.depth, k), depthAlpha(byId.get(b)!.at.depth, k)),
-          glow: tr?.thread && tr.thread.fromId === a && tr.thread.toId === b ? tr.thread.glow : null,
-          hot: hotTo !== null && b === hotTo,
-          // en la última vuelta, el hilo hacia la siguiente se va llenando
-          fill: live && plan && plan.cur.id === a && plan.next.id === b ? lastTurnFill(pos, plan.end) : undefined,
-        }))
+      ? groupList.flatMap((g) =>
+          threadPairs(g.order, (id) => byId.has(id)).map(([a, b]) => ({
+            from: placed.get(a)!,
+            to: placed.get(b)!,
+            alpha: k * Math.min(depthAlpha(byId.get(a)!.at.depth, k), depthAlpha(byId.get(b)!.at.depth, k)) * (g.on ? 1 : 0.5),
+            glow: g.gid === MAIN && tr?.thread && tr.thread.fromId === a && tr.thread.toId === b ? tr.thread.glow : null,
+            hot: hotTo !== null && b === hotTo,
+            cool: g.gid !== MAIN,
+            // en la última vuelta, el hilo hacia la siguiente se va llenando (el de la canción)
+            fill: g.gid === MAIN && live && plan && plan.cur.id === a && plan.next.id === b ? lastTurnFill(pos, plan.end) : undefined,
+          })),
+        )
       : undefined
   // los hilos se pueden tocar para cortarlos: la misma curva que se dibuja (se mece), en tramos cortos
   if (colonyPick) {
     const tw = reduced ? 0 : wall
-    colonyPick.threads = threadPairs(order, (id) => byId.has(id)).flatMap(([a, b]) => {
+    colonyPick.threads = groupList.flatMap((g) => threadPairs(g.order, (id) => byId.has(id))).flatMap(([a, b]) => {
       const ga = placed.get(a)!
       const gb = placed.get(b)!
       const dx = gb.cx - ga.cx
@@ -660,20 +689,23 @@ function cellScene(
   // número de vueltas junto a cada célula, pequeño y tenue; la que se ve cuenta con lo que cabe en sus loops
   const labels =
     k > 0.01
-      ? all.filter((c) => !c.free).map((c) => {
+      ? all.map((c) => {
           const g = placed.get(c.id)!
           const turns = c.id === engine.viewCellId.value ? fitTurns(c.turns, loops.value.loops) : c.turns
           const base = { x: g.cx, y: g.cy + g.R + 11, text: String(turns), alpha: 0.5 * k * depthAlpha(c.at.depth, k) * looseMul(c.id) }
-          // en la que suena, puntitos de vueltas (●●○○) en vez del número; en bucle, ∞
-          if (live && plan && c.id === plan.cur.id)
-            return looped
-              ? { ...base, text: '∞', alpha: 0.8 * k }
-              : { ...base, alpha: 0.7 * k, dots: { turns: plan.cur.turns, turn: turnIndex(pos, plan.start, plan.cur.turns) } }
+          // la que suena (en la canción o en un grupo), puntitos de vueltas (●●○○) en vez del número; con más de 8, "5/16"
+          const sounding = (start: number, n: number) => {
+            const turn = turnIndex(pos, start, n)
+            return n > 8 ? { ...base, alpha: 0.7 * k, text: `${turn + 1}/${n}` } : { ...base, alpha: 0.7 * k, dots: { turns: n, turn } }
+          }
+          if (live && plan && c.id === plan.cur.id) return looped ? { ...base, text: '∞', alpha: 0.8 * k } : sounding(plan.start, plan.cur.turns)
+          const head = headBy.get(c.id)
+          if (head && groupOfId.get(c.id)?.gid !== MAIN) return sounding(head.start, c.turns)
           return base
         })
       : undefined
 
-  if (!plan || !tr) return { geo, alpha, plan, cam, crowd, halo, threads, labels, progress, handles, threadDrag, freeRing }
+  if (!plan || !tr) return { geo, alpha, plan, cam, crowd, halo, threads, labels, progress, handles, threadDrag, groupRing }
   const cellOf = (id: number) => (id === plan.cur.id ? plan.cur : id === plan.next.id ? plan.next : plan.prev!)
   let ghost: AroFrame['ghost'] = null
   if (tr.ghost) {
@@ -691,7 +723,7 @@ function cellScene(
     tr.pull > 0
       ? { th: Math.atan2(plan.next.at.y - plan.cur.at.y, plan.next.at.x - plan.cur.at.x), a: tr.pull * PULL_MAX * base.R }
       : null
-  return { geo, ghost, bridge, pull, alpha, plan, cam, crowd, halo, threads, labels, progress, handles, threadDrag, freeRing }
+  return { geo, ghost, bridge, pull, alpha, plan, cam, crowd, halo, threads, labels, progress, handles, threadDrag, groupRing }
 }
 
 // ── chapa de vueltas y marcadores del borde (spec 005, §5.3 y §6) ────────────────
@@ -700,7 +732,7 @@ const chapaEl = ref<HTMLElement | null>(null)
 const chapa = ref({ show: false, turn: 0, turns: 1, loop: false, free: false, on: false })
 function updateChapa(plan: ReturnType<typeof engine.cellPlan>, pos: number, near: boolean) {
   const edge = aro?.edgePoint(-Math.PI / 2)
-  // una libre a la vista (§13.1): en vez de las vueltas, un interruptor encendida / apagada
+  // una célula de un grupo a la vista (§16.4): en vez de las vueltas, el interruptor del grupo
   const freeView = near && engine.viewIsFree.value ? engine.song.value.cells.find((c) => c.id === engine.viewCellId.value) : undefined
   if (!edge || !chapaEl.value || (!plan && !freeView)) {
     if (chapa.value.show) chapa.value = { ...chapa.value, show: false }
@@ -708,7 +740,7 @@ function updateChapa(plan: ReturnType<typeof engine.cellPlan>, pos: number, near
   }
   const c = chapa.value
   if (freeView) {
-    const on = !!freeView.on
+    const on = engine.viewGroupOn.value
     if (!c.show || !c.free || c.on !== on) chapa.value = { show: true, turn: 0, turns: 1, loop: false, free: true, on }
   } else if (plan) {
     const turns = plan.cur.turns
@@ -867,7 +899,7 @@ function tick() {
       dt,
       song.cells,
       dc ? { id: dc.id, x: dc.x, y: dc.y, from: song.cells.find((c) => c.id === dc.id)?.at ?? dc } : null,
-      dc ? linkedIds(song.order, dc.id) : [],
+      dc ? linkedIds(orderOf(song, groupIdOf(song, dc.id) ?? MAIN), dc.id) : [],
       reduced,
     )
     const { plan, cam, ...scene } = cellScene(geo!, clock.bar + clock.barPhase, zEff, dt, t)
@@ -1392,18 +1424,18 @@ function tapWater(x: number, y: number) {
  */
 function tapCell(id: number) {
   const now = performance.now()
-  const free = !!engine.song.value.cells.find((c) => c.id === id)?.free
+  const inGroup = engine.groupOf(id) !== MAIN
   if (isDoubleTap(lastTap, id, now)) {
     lastTap = null
-    // el doble toque solo entra; en una libre, entrar es ver su aro
-    if (free) engine.enterCell(id)
+    // el doble toque solo entra; en una célula de un grupo, entrar es ver su aro
+    if (inGroup) engine.enterCell(id)
     zoomRel = nearRel
     panned.value = false
     return
   }
   lastTap = { id, t: now }
-  // una libre (§13.1): un toque la enciende o la apaga, sin tocar la canción
-  if (free) return engine.toggleFree(id)
+  // una célula de un grupo en paralelo (§16.4): apagado, lo enciende por ella; encendido, en la que suena lo apaga y en otra salta
+  if (inGroup) return engine.tapGroupCell(id)
   // tocar otra vez la que está en bucle lo suelta: la canción sigue (§4.1)
   if (engine.loopTarget.value === id) engine.resume()
   else engine.travelTo(id)
@@ -1576,20 +1608,21 @@ defineExpose({ rendererName, layoutInfo })
       :data-loop="chapa.free ? chapa.on : chapa.loop"
       :aria-label="
         chapa.free
-          ? chapa.on ? 'célula libre encendida: tocar para apagarla' : 'célula libre apagada: tocar para encenderla'
+          ? chapa.on ? 'grupo encendido: tocar para apagarlo' : 'grupo apagado: tocar para encenderlo'
           : chapa.loop ? 'seguir con la canción' : `vuelta ${chapa.turn + 1} de ${chapa.turns}: tocar para dejarla en bucle`
       "
       @pointerdown.stop
-      @click="chapa.free ? engine.toggleFree(engine.viewCellId.value) : chapa.loop ? engine.resume() : engine.loopHere()"
+      @click="chapa.free ? engine.toggleGroup(engine.viewGroup.value) : chapa.loop ? engine.resume() : engine.loopHere()"
     >
       <template v-if="chapa.free">
         <span class="chapa-inf">{{ chapa.on ? '●' : '○' }}</span>
-        <span>libre · {{ chapa.on ? 'suena' : 'apagada' }}</span>
+        <span>grupo · {{ chapa.on ? 'suena' : 'apagado' }}</span>
       </template>
       <template v-else-if="chapa.loop">
         <span class="chapa-inf">∞</span>
         <span>▶ seguir</span>
       </template>
+      <span v-else-if="chapa.turns > 8" class="chapa-num">{{ chapa.turn + 1 }}/{{ chapa.turns }}</span>
       <span v-else class="chapa-dots" :style="{ '--cols': Math.min(4, chapa.turns) }">
         <i v-for="i in chapa.turns" :key="i" :class="{ on: i - 1 <= chapa.turn }" />
       </span>
@@ -1617,6 +1650,18 @@ defineExpose({ rendererName, layoutInfo })
       @click="engine.undo()"
     >
       ↶ deshacer
+    </button>
+
+    <!-- colonia: apagar todos los grupos en paralelo, menos la canción (spec 005, §16.10) -->
+    <button
+      v-if="colony && engine.extrasOn.value"
+      class="release-btn absolute"
+      :style="extrasStyle"
+      aria-label="apagar los grupos que suenan a la vez que la canción"
+      @pointerdown.stop
+      @click="engine.stopExtras()"
+    >
+      apagar extras
     </button>
 
     <!-- colonia: mientras hay bucle, soltarlo desde aquí (la chapa de vueltas no se ve alejado) -->
@@ -1781,6 +1826,9 @@ defineExpose({ rendererName, layoutInfo })
 .chapa-inf {
   font-size: 13px;
   line-height: 1;
+}
+.chapa-num {
+  font-variant-numeric: tabular-nums;
 }
 .chapa-dots {
   display: grid;

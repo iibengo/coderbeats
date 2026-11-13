@@ -63,8 +63,12 @@ export interface AroPull {
 
 /** La otra célula que se ve en una transición: la que entra (tenue) o la que se apaga. Solo se ve. */
 export interface AroGhost {
-  /** libre (§13.1): anillo continuo si suena, a trazos si está apagada */
+  /**
+   * Grupo en paralelo (§16): anillo a trazos si su grupo está apagado; si es la célula que suena de un grupo
+   * encendido, un anillo con su progreso (0..1; sin él, entero y quieto)
+   */
   ring?: 'on' | 'off'
+  ringProgress?: number | null
   geo: DropGeo
   weights: Weights
   dots: AroDot[]
@@ -91,6 +95,8 @@ export interface AroThread {
   fill?: number
   /** el hilo que se va a cortar: se está pulsando justo encima (enmienda 1, §15.4) */
   hot?: boolean
+  /** hilo de un grupo en paralelo (§16.5): con un tinte frío muy suave */
+  cool?: boolean
 }
 
 /** Número pequeño junto a una célula (sus vueltas). */
@@ -147,8 +153,8 @@ export interface AroFrame {
   threadDrag?: { from: { x: number; y: number }; to: { x: number; y: number }; target: { x: number; y: number; r: number } | null; ghostR: number | null } | null
   /** colonia: mantener una célula la borra; el anillo se completa alrededor de ella (p = 0..1) */
   holdRing?: { x: number; y: number; r: number; p: number } | null
-  /** la célula que se ve es una libre: su anillo (continuo si suena, a trazos si está apagada) */
-  freeRing?: 'on' | 'off' | null
+  /** la célula que se ve es de un grupo en paralelo: su anillo (a trazos si está apagado; con su progreso si suena) */
+  groupRing?: { mode: 'on' | 'off'; progress: number | null } | null
   /** colonia: cuánto se ha llenado el anillo de la que suena (0..1); null = en bucle, sin avanzar */
   progress?: number | null
   /**
@@ -453,7 +459,7 @@ export class AroCanvas {
       x.globalAlpha = f.alpha ?? 1
       this.drawFront(f)
       if (f.halo && f.halo > 0.01) this.drawHalo(f.halo, f.progress)
-      if (f.freeRing) this.drawFreeRing(f.freeRing)
+      if (f.groupRing) this.drawGroupRing(f.groupRing)
       if (f.labels?.length) this.drawLabels(f.labels)
       if (f.holdRing && f.holdRing.p > 0.08) this.drawHoldRing(f.holdRing)
       if (f.handles?.length) this.drawHandles(f.handles)
@@ -499,7 +505,7 @@ export class AroCanvas {
       x.beginPath()
       x.arc(geo.cx, geo.cy, 2.5, 0, TAU)
       x.fill()
-      if (g.ring) this.strokeRing(contour, g.ring)
+      if (g.ring) this.strokeRing(contour, g.ring, g.ringProgress, geo)
       x.restore()
       return
     }
@@ -555,33 +561,64 @@ export class AroCanvas {
     x.beginPath()
     x.arc(geo.cx, geo.cy, 3, 0, TAU)
     x.fill()
-    if (g.ring) this.strokeRing(contour, g.ring)
+    if (g.ring) this.strokeRing(contour, g.ring, g.ringProgress, geo)
     x.restore()
   }
 
   /** El anillo de una libre alrededor de su contorno: continuo si suena, a trazos si está apagada. */
-  private strokeRing(contour: (p: Path2D, u: number, reverse: boolean) => void, mode: 'on' | 'off') {
+  private strokeRing(contour: (p: Path2D, u: number, reverse: boolean) => void, mode: 'on' | 'off', progress: number | null | undefined, geo: DropGeo) {
     const x = this.ctx
     const p = new Path2D()
     contour(p, 1.12, false)
-    x.strokeStyle = mode === 'on' ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.45)'
-    x.lineWidth = mode === 'on' ? 1.6 : 1.2
-    x.setLineDash(mode === 'on' ? [] : [4, 4])
+    if (mode === 'off') {
+      x.strokeStyle = 'rgba(255,255,255,0.45)'
+      x.lineWidth = 1.2
+      x.setLineDash([4, 4])
+      x.stroke(p)
+      x.setLineDash([])
+      return
+    }
+    // la que suena en su grupo: la pista tenue y, encima, lo que se ha llenado (blanco, como el de la canción es rosa)
+    x.strokeStyle = progress === null || progress === undefined ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.22)'
+    x.lineWidth = 1.6
     x.stroke(p)
-    x.setLineDash([])
+    if (progress && progress > 0.002) {
+      x.strokeStyle = 'rgba(255,255,255,0.95)'
+      x.lineWidth = 2.2
+      x.lineCap = 'round'
+      x.beginPath()
+      x.arc(geo.cx, geo.cy, geo.R * 1.12, -Math.PI / 2, -Math.PI / 2 + Math.min(1, progress) * TAU)
+      x.stroke()
+      x.lineCap = 'butt'
+    }
   }
 
   /** Lo mismo para la célula que se ve (usa el contorno del último frame). */
-  private drawFreeRing(mode: 'on' | 'off') {
+  private drawGroupRing(r: { mode: 'on' | 'off'; progress: number | null }) {
     if (!this.last || !this.ro.length) return
     const p = new Path2D()
     this.loopPath(p, 1.12, false)
     const x = this.ctx
-    x.strokeStyle = mode === 'on' ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.45)'
-    x.lineWidth = mode === 'on' ? 1.6 : 1.2
-    x.setLineDash(mode === 'on' ? [] : [4, 4])
+    if (r.mode === 'off') {
+      x.strokeStyle = 'rgba(255,255,255,0.45)'
+      x.lineWidth = 1.2
+      x.setLineDash([4, 4])
+      x.stroke(p)
+      x.setLineDash([])
+      return
+    }
+    x.strokeStyle = r.progress === null ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.22)'
+    x.lineWidth = 1.6
     x.stroke(p)
-    x.setLineDash([])
+    if (r.progress !== null && r.progress > 0.002) {
+      x.strokeStyle = 'rgba(255,255,255,0.95)'
+      x.lineWidth = 2.2
+      x.lineCap = 'round'
+      x.beginPath()
+      this.arcPath(1.12, -Math.PI / 2, -Math.PI / 2 + Math.min(1, r.progress) * TAU)
+      x.stroke()
+      x.lineCap = 'butt'
+    }
   }
 
   /** Hilo de agua entre dos gotas: una curva muy tenue de borde a borde, con el brillo corriendo por ella. */
@@ -602,7 +639,7 @@ export class AroCanvas {
     const c = threadControl(a, b, threadBend(len, phi, t))
     x.lineCap = 'round'
     // pulsado justo encima: se ve cuál se va a cortar
-    x.strokeStyle = th.hot ? 'rgba(255,255,255,0.85)' : `rgba(255,255,255,${0.11 * th.alpha})`
+    x.strokeStyle = th.hot ? 'rgba(255,255,255,0.85)' : th.cool ? `rgba(170,205,255,${0.14 * th.alpha})` : `rgba(255,255,255,${0.11 * th.alpha})`
     x.lineWidth = th.hot ? 2.6 : 1.2
     x.beginPath()
     x.moveTo(a.x, a.y)

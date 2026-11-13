@@ -40,6 +40,7 @@ import {
   type Song,
 } from '~/lib/cells'
 import {
+  groupEnd,
   groupWindow,
   holdGroup,
   isRunning,
@@ -1790,6 +1791,22 @@ export function useAudioEngine() {
     }
   }
 
+  /**
+   * Dónde va cada grupo en paralelo que suena (para su anillo de progreso y sus puntitos): la célula que suena, desde
+   * qué compás y hasta cuál (Infinity si se repite sin fin o se queda en una célula mientras se ve).
+   */
+  function groupHeads(): { gid: number; cellId: number; start: number; end: number }[] {
+    const s = liveSong()
+    return [...groupPlays]
+      .filter(([, gp]) => isRunning(gp))
+      .map(([gid, gp]) => ({
+        gid,
+        cellId: gp.play.cursor.cellId,
+        start: gp.play.cursor.startBar,
+        end: gp.play.loop ? Infinity : groupEnd(groupSong(s, gid), gp),
+      }))
+  }
+
   /** Código que se muestra y se copia (§16.6). */
   const displayCode = () => songCode(songState(true), 'display')
 
@@ -1884,6 +1901,7 @@ export function useAudioEngine() {
     viewGroupOn: computed(() => groupOn(song.value, groupIdOf(song.value, viewCellId.value) ?? MAIN)),
     extrasOn: computed(() => song.value.groups.some((g) => g.on)),
     groupOf: (id: number): number => groupIdOf(song.value, id) ?? MAIN,
+    groupHeads,
     tapGroupCell,
     toggleGroup,
     stopExtras,
