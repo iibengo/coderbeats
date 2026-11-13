@@ -7,6 +7,7 @@ import type { FreeLoop } from './freeLoops'
 import type { KitId, StyleId } from './types'
 import { anyPart, type BackgroundMode, type Parts } from './background'
 import { bassCode } from './bass'
+import type { Cell, Segment } from './cells'
 
 export interface SongFx {
   /** 0..1 (1 = abierto) */
@@ -23,7 +24,17 @@ export interface SongState {
   background: { mode: BackgroundMode; parts: Parts }
   metronome: boolean
   fx: SongFx
+  /**
+   * Canción de varias células (spec 005). Sin ella, o con una sola célula, el código es el de
+   * siempre con `loops`. Con ella, `loops` no se usa:
+   * - display: la canción entera con `arrange`, en el orden de `order`;
+   * - engine: solo los tramos de `window` (la célula que suena y la siguiente), acotados a sus compases.
+   */
+  cells?: { list: CellCode[]; order: number[]; window: Segment[] }
 }
+
+/** Lo que necesita el generador de cada célula. */
+export type CellCode = Pick<Cell, 'id' | 'name' | 'loops' | 'parts' | 'turns'>
 
 /**
  * - display: el código que se enseña y se copia (valores fijos, sin metrónomo ni ganchos).
@@ -74,9 +85,11 @@ function loopLine(
   mode: SongMode,
   duck: boolean,
   version: 'current' | 'prev' = 'current',
+  phaseOffset = 0,
 ): string {
   const kit = KITS[st.kit]
-  const src = version === 'prev' && loop.prev ? { ...loop, ...loop.prev } : loop
+  const base = version === 'prev' && loop.prev ? { ...loop, ...loop.prev } : loop
+  const src = phaseOffset ? { ...base, phaseBar: base.phaseBar + phaseOffset } : base
   const { s, nudge } = loopTokens(src, stepSeconds)
   let line = `s("${tokensToMini(s)}").bank("${kit.strudelBank}")`
   const n = kit.sampleIndex[loop.instrument]
@@ -91,14 +104,54 @@ function loopLine(
   return loop.muted ? `// ${line}` : line
 }
 
+/** Efectos sobre tus loops (sub-stack): espacio y calor. Vacío si son neutros en el mostrado. */
+function drumFxOf(st: SongState, mode: SongMode): string {
+  const g = ENGINE_GLOBAL
+  if (mode === 'engine') return `.room(ref(() => ${g}.fx.room)).delay(ref(() => ${g}.fx.delay)).shape(ref(() => ${g}.fx.shape))`
+  const space = spaceParams(st.fx.space)
+  const shape = warmthShape(st.fx.warmth)
+  return (space.room > 0 ? `.room(${space.room})` : '') + (space.delay > 0 ? `.delay(${space.delay})` : '') + (shape > 0 ? `.shape(${shape})` : '')
+}
+
+/**
+ * Líneas de unos loops con la sangría `ind` (cada una acabada en coma), dentro de un sub-stack con
+ * los efectos si los hay. `phaseOffset`: compás global en el que empieza su célula (motor, spec 005).
+ */
+function loopsLines(loops: FreeLoop[], st: SongState, mode: SongMode, duck: boolean, ind: string, phaseOffset = 0): string[] {
+  if (!loops.length) return []
+  const stepSeconds = 60 / STYLES[st.style].bpm / 4
+  const engine = mode === 'engine'
+  const gains = loopGains(loops)
+  const lines = loops.flatMap((l) => {
+    const g = gains.get(l.id) ?? 1
+    const current = loopLine(l, st, g, stepSeconds, mode, duck, 'current', phaseOffset)
+    // en el motor, la versión anterior sigue sonando hasta el nacimiento de la nueva
+    return engine && l.prev ? [loopLine(l, st, g, stepSeconds, mode, duck, 'prev', phaseOffset), current] : [current]
+  })
+  const drumFx = drumFxOf(st, mode)
+  if (!drumFx) return lines.map((l) => `${ind}${l},`)
+  return [`${ind}stack(`, ...lines.map((l) => `${ind}${IND}${l},`), `${ind})${drumFx},`]
+}
+
+/** Líneas del fondo (bajo y acordes) que se muestran, con la sangría `ind`. */
+function backgroundLines(st: SongState, bass: boolean, chords: boolean, engine: boolean, ind: string): string[] {
+  const music = STYLE_MUSIC[st.style]
+  const out: string[] = []
+  if (bass) out.push(`${ind}${bassCode(music.background.bass)}.orbit(2)${engine ? '.color("bass")' : ''},`)
+  if (chords) for (const l of music.background.chords) out.push(`${ind}${l}.orbit(3)${engine ? '.color("chords")' : ''},`)
+  return out
+}
+
+const cellLabel = (c: Pick<Cell, 'id' | 'name'>) => c.name ?? `célula ${c.id}`
+
 /** Código Strudel completo del estado. Determinista. */
 export function songCode(st: SongState, mode: SongMode = 'display'): string {
+  const multi = !!st.cells && st.cells.order.length > 1
+  if (multi && mode === 'display') return songArrangeCode(st)
   const style = STYLES[st.style]
   const music = STYLE_MUSIC[st.style]
-  const stepSeconds = 60 / style.bpm / 4
   const engine = mode === 'engine'
   const g = ENGINE_GLOBAL
-  const gains = loopGains(st.loops)
   const out: string[] = [`setcpm(${style.bpm}/4)`, 'stack(']
 
   const bgOn = st.background.mode !== 'off'
@@ -106,9 +159,7 @@ export function songCode(st: SongState, mode: SongMode = 'display'): string {
   const showChords = engine ? bgOn : st.background.parts.chords
   if (showBass || showChords) {
     out.push(`${IND}// fondo · ${style.label.toLowerCase()} · ${music.key}`)
-    if (showBass) out.push(`${IND}${bassCode(music.background.bass)}.orbit(2)${engine ? '.color("bass")' : ''},`)
-    if (showChords)
-      for (const l of music.background.chords) out.push(`${IND}${l}.orbit(3)${engine ? '.color("chords")' : ''},`)
+    out.push(...backgroundLines(st, showBass, showChords, engine, IND))
   }
   if (engine) {
     out.push(`${IND}note("c0").s("sine").gain(0).color("pulse"),`)
@@ -116,28 +167,20 @@ export function songCode(st: SongState, mode: SongMode = 'display'): string {
   }
   const duck = engine ? bgOn : anyPart(st.background.parts)
 
-  // efectos sobre tus loops (sub-stack): espacio y calor
-  const space = spaceParams(st.fx.space)
-  const shape = warmthShape(st.fx.warmth)
-  const drumFx = engine
-    ? `.room(ref(() => ${g}.fx.room)).delay(ref(() => ${g}.fx.delay)).shape(ref(() => ${g}.fx.shape))`
-    : (space.room > 0 ? `.room(${space.room})` : '') +
-      (space.delay > 0 ? `.delay(${space.delay})` : '') +
-      (shape > 0 ? `.shape(${shape})` : '')
-
-  if (st.loops.length) {
+  if (multi) {
+    // motor con varias células: la que suena y la siguiente, cada una acotada a sus compases (§4.2)
+    for (const seg of st.cells!.window) {
+      const cell = st.cells!.list.find((c) => c.id === seg.cellId)
+      if (!cell) continue
+      const inner = loopsLines(cell.loops, st, mode, duck, IND + IND, seg.from)
+      if (!inner.length) continue
+      const range = seg.to === null ? `h.whole.begin >= ${seg.from}` : `h.whole.begin >= ${seg.from} && h.whole.begin < ${seg.to}`
+      out.push(`${IND}// ${cellLabel(cell)} · compases ${seg.from}–${seg.to === null ? '…' : seg.to - 1}`)
+      out.push(`${IND}stack(`, ...inner, `${IND}).filterHaps((h) => ${range}),`)
+    }
+  } else if (st.loops.length) {
     out.push(`${IND}// tus loops`)
-    const lines = st.loops.flatMap((l) => {
-      const g = gains.get(l.id) ?? 1
-      const current = loopLine(l, st, g, stepSeconds, mode, duck)
-      // en el motor, la versión anterior sigue sonando hasta el nacimiento de la nueva
-      return engine && l.prev ? [loopLine(l, st, g, stepSeconds, mode, duck, 'prev'), current] : [current]
-    })
-    if (drumFx) {
-      out.push(`${IND}stack(`)
-      for (const l of lines) out.push(`${IND}${IND}${l},`)
-      out.push(`${IND})${drumFx},`)
-    } else for (const l of lines) out.push(`${IND}${l},`)
+    out.push(...loopsLines(st.loops, st, mode, duck, IND))
   }
   if (!showBass && !showChords && !st.loops.length && !engine) out.push(`${IND}silence,`)
 
@@ -146,5 +189,31 @@ export function songCode(st: SongState, mode: SongMode = 'display'): string {
   if (engine) tail += `.djf(ref(() => ${g}.fx.djf)).onTrigger((hap, ct, cps, t) => ${g}.trig(hap, t), false)`
   else if (djf < 0.5) tail += `.djf(${djf})`
   out.push(tail)
+  return out.join('\n')
+}
+
+/**
+ * Código mostrado de una canción de varias células (spec 005, §9): `arrange` con una sección por
+ * célula, en orden, cada una con su fondo y sus loops. Suena igual en strudel.cc (sin el barrido).
+ */
+function songArrangeCode(st: SongState): string {
+  const style = STYLES[st.style]
+  const music = STYLE_MUSIC[st.style]
+  const { list, order } = st.cells!
+  const bgOn = st.background.mode !== 'off'
+  const out: string[] = [`setcpm(${style.bpm}/4)`, `// ${style.label.toLowerCase()} · ${music.key}`, 'arrange(']
+  const ind = IND + IND
+  for (const id of order) {
+    const cell = list.find((c) => c.id === id)
+    if (!cell) continue
+    const bass = bgOn && cell.parts.bass
+    const chords = bgOn && cell.parts.chords
+    const lines = [...backgroundLines(st, bass, chords, false, ind), ...loopsLines(cell.loops, st, 'display', bass || chords, ind)]
+    out.push(`${IND}// ${cellLabel(cell)} · ${cell.turns} vuelta${cell.turns === 1 ? '' : 's'}`)
+    if (!lines.length) out.push(`${IND}[${cell.turns}, silence],`)
+    else out.push(`${IND}[${cell.turns}, stack(`, ...lines, `${IND})],`)
+  }
+  const djf = filterDjf(st.fx.filter)
+  out.push(djf < 0.5 ? `).djf(${djf})` : ')')
   return out.join('\n')
 }

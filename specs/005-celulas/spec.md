@@ -90,7 +90,9 @@ export interface Song {
 
 ### 4.2 Motor (`useAudioEngine.ts` y `lib/song.ts`)
 
-- **Un plan puro** (`lib/cells.ts`): `planAt(song, playhead)` da la célula que suena en cada compás global y su compás de inicio. Tiene en cuenta el orden, las vueltas y el bucle. Se testea sin audio.
+- **Un plan puro** (`lib/cells.ts`), que se testea sin audio:
+  - `advance(song, cursor, bar)` da la célula que suena en el compás global `bar` y su compás de inicio, a partir de la que sonaba (`cursor`). Tiene en cuenta el orden, las vueltas y el bucle, y se pone al día aunque el cursor se haya quedado atrás varios compases.
+  - `windowAt(song, cursor)` da los tramos que van en el código del motor: la célula que suena y la siguiente, con sus compases de inicio y final.
 - **El código del motor solo lleva la célula que suena y la siguiente**, cada una acotada a sus compases con números fijos:
   ```js
   stack(/* célula 3 */ …).filterHaps((h) => h.whole.begin >= 120 && h.whole.begin < 128),
@@ -248,7 +250,7 @@ Cada parte termina en algo que se prueba en el iPhone y en un commit con visto b
 
 **Fase 1 · Ver y oír una canción**
 - **1.1 Dos células que suenan una tras otra** (lo mínimo):
-  - `lib/cells.ts` (modelo, `planAt`, migración) y `songCode` con células (motor y `arrange`), con tests;
+  - `lib/cells.ts` (modelo, `advance` + `windowAt`, migración) y `songCode` con células (motor y `arrange`), con tests;
   - el motor reevalúa al entrar en cada célula y cambia bajo y acordes en seco;
   - "Cargar demo" en drum and bass carga la canción (§8, con los loops del reel). Los otros estilos siguen con su demo de una célula.
   - Visual mínimo: la cámara salta en la línea de compás a la célula que suena, sin puente.

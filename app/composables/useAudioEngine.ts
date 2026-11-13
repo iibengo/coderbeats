@@ -1,8 +1,19 @@
-import { reactive, ref, shallowRef } from 'vue'
+import { computed, reactive, ref, shallowRef } from 'vue'
 import { NO_PARTS, PART_ORBIT, planTransitions, targetParts, type BackgroundMode, type Part, type Parts } from '~/lib/background'
 import { KIT_ORDER, KITS, STYLES } from '~/lib/constants'
 import { demoState } from '~/lib/demos'
 import { analyzeEchoTest, type EchoTestResult } from '~/lib/echoGate'
+import {
+  advance,
+  cellById,
+  demoSong,
+  emptySong,
+  fitTurns,
+  isMulti,
+  windowAt,
+  type Cursor,
+  type Song,
+} from '~/lib/cells'
 import {
   addPhrase,
   clearLoops,
@@ -44,7 +55,7 @@ export interface TakeOptions {
 /** Evento de diagnóstico. */
 export interface DiagEvent {
   at: number
-  kind: 'hit' | 'echo' | 'unknown' | 'stopped' | 'born' | 'removed' | 'phrase' | 'error' | 'background'
+  kind: 'hit' | 'echo' | 'unknown' | 'stopped' | 'born' | 'removed' | 'phrase' | 'error' | 'background' | 'cell'
   text: string
   /** ms desde el golpe hasta que llegó al hilo principal */
   uiMs?: number
@@ -101,6 +112,10 @@ let evalQueued = false
 let dropActive = false
 /** último nacimiento, para que una enmienda nazca en la misma línea de compás */
 let lastBirth: { startBar: number; bornAt: number } | null = null
+/** canción de varias células (spec 005): célula que suena y compás global en el que empezó */
+let cursor: Cursor | null = null
+/** compás global en el que empezó la célula que se ve (el compás del aro se cuenta desde ahí) */
+let viewStartBar = 0
 const bgNodes: Partial<Record<Part, { lp: BiquadFilterNode; gain: GainNode }>> = {}
 const visualListeners = new Set<(h: VisualHit) => void>()
 
@@ -132,6 +147,12 @@ const repeatMode = ref<RepeatMode>('complete')
 const phrase = shallowRef<PhraseSnapshot | null>(null)
 const fx = reactive<SongFx>({ filter: 1, space: 0, warmth: 0 })
 const loops = shallowRef<LoopsState>(emptyLoops())
+/**
+ * Canción (spec 005). La célula que se ve vive en `loops` (sus loops) y `bgManual` (su bajo y sus
+ * acordes), para que todo lo de una célula funcione como antes; `liveSong()` las junta.
+ */
+const song = shallowRef<Song>(emptySong())
+const viewCellId = ref(1)
 /** carriles que graban (spec 003, E4.1); no se guarda: al abrir, todos encendidos */
 const lanes = shallowRef<Lanes>(allLanes())
 /** partes del fondo que han entrado o están entrando (para el código mostrado) */
@@ -226,7 +247,24 @@ function onPulse(cycle: number, t: number) {
   const barSec = stepSeconds() * 16
   clock = { cycle, time: t, barSec }
   const c = requireCtx()
-  later(() => (currentBar.value = cycle), (t + outputLatency() - c.currentTime) * 1000)
+  const first = !tracker
+  // canción: ¿empieza otra célula en este compás? (§4.2)
+  let entered: Cursor | null = null
+  if (cursor && multi()) {
+    const next = advance(liveSong(), cursor, cycle)
+    if (next.cellId !== cursor.cellId || next.startBar !== cursor.startBar) {
+      cursor = next
+      entered = next
+      const cell = cellById(song.value, next.cellId)
+      log('cell', `suena ${cell?.name ?? `la célula ${next.cellId}`} (${cell?.turns ?? 1} vueltas) desde el compás ${next.startBar}`)
+      cutParts(cellParts(next.cellId), t)
+      reevaluate()
+    }
+  }
+  later(() => {
+    if (entered) showCell(entered.cellId, entered.startBar)
+    currentBar.value = cycle - viewStartBar
+  }, (t + outputLatency() - c.currentTime) * 1000)
   if (!tracker) {
     tracker = new PhraseTracker(
       { anchor: t - cycle * barSec, stepSeconds: barSec / 16 },
@@ -236,7 +274,9 @@ function onPulse(cycle: number, t: number) {
         maxBars: phraseMode.value === 'bar' ? 1 : maxPhraseBars.value,
       },
     )
-    updateBackground()
+    // canción: la primera célula entra con su fondo ya en el primer compás
+    if (first && cursor && multi()) cutParts(cellParts(cursor.cellId), t)
+    else updateBackground()
   }
   // las versiones sustituidas ya no hacen falta en el código una vez nacida la nueva
   const pruned = prunePrev(loops.value, cycle)
@@ -278,9 +318,74 @@ function onTrigger(hap: StrudelHap, t: number) {
   )
 }
 
+// ── Canción: células (spec 005) ────────────────────────────────────────────────
+/** La canción con la célula que se ve al día (sus loops y su fondo están en `loops` y `bgManual`). */
+function liveSong(): Song {
+  const s = song.value
+  return {
+    ...s,
+    nextLoopId: Math.max(s.nextLoopId, loops.value.nextId),
+    cells: s.cells.map((c) =>
+      c.id === viewCellId.value
+        ? { ...c, loops: loops.value.loops, parts: { ...bgManual.value }, turns: fitTurns(c.turns, loops.value.loops) }
+        : c,
+    ),
+  }
+}
+
+const multi = () => isMulti(song.value)
+
+/** Pasa a ver la célula `id` (que empezó en el compás global `startBar`). */
+function showCell(id: number, startBar: number) {
+  if (id === viewCellId.value) {
+    viewStartBar = startBar
+    return
+  }
+  const s = liveSong()
+  const cell = cellById(s, id)
+  if (!cell) return
+  song.value = s
+  viewCellId.value = id
+  viewStartBar = startBar
+  loops.value = { loops: cell.loops, nextId: s.nextLoopId }
+  bgManual.value = { ...cell.parts }
+}
+
+/** Fondo que pide una célula: sus partes, salvo con el fondo apagado. */
+const cellParts = (id: number): Parts => {
+  if (bgMode.value === 'off') return { ...NO_PARTS }
+  const cell = cellById(liveSong(), id)
+  return cell ? { ...cell.parts } : { ...NO_PARTS }
+}
+
+/**
+ * Entre células, el bajo y los acordes cambian en seco en la línea de compás (§4.2), con un fundido
+ * de 10 ms para que no haya chasquidos. `t` = tiempo de contexto de la línea.
+ */
+function cutParts(target: Parts, t: number) {
+  const c = ctx
+  if (!c) return
+  const at = Math.max(t, c.currentTime + 0.005)
+  for (const part of ['bass', 'chords'] as const) {
+    if (plannedParts[part] === target[part]) continue
+    const n = bgNodes[part]
+    if (n) {
+      for (const p of [n.lp.frequency, n.gain.gain]) {
+        p.cancelScheduledValues(at)
+        p.setValueAtTime(p.value, at)
+      }
+      n.lp.frequency.setValueAtTime(target[part] ? 20000 : 150, at + 0.01)
+      n.gain.gain.linearRampToValueAtTime(target[part] ? 1 : 0, at + 0.01)
+    }
+    log('background', `${part === 'bass' ? 'bajo' : 'acordes'} ${target[part] ? 'entra' : 'sale'} en seco`)
+  }
+  plannedParts = { ...target }
+  later(() => (bgParts.value = { ...target }), (at + outputLatency() - c.currentTime) * 1000)
+}
+
 // ── Evaluación del código del motor ────────────────────────────────────────────
 function songState(): SongState {
-  return {
+  const st: SongState = {
     loops: loops.value.loops,
     style: style.value,
     kit: kit.value,
@@ -288,6 +393,10 @@ function songState(): SongState {
     metronome: metronome.value,
     fx: { ...fx },
   }
+  if (!multi()) return st
+  const s = liveSong()
+  const at = cursor ?? { cellId: viewCellId.value, startBar: 0 }
+  return { ...st, cells: { list: s.cells, order: s.order, window: windowAt(s, at) } }
 }
 
 /** Reevalúa en la siguiente microtarea (agrupa varios cambios seguidos). */
@@ -355,8 +464,10 @@ function silenceBackgroundNodes() {
 function updateBackground() {
   if (!playing.value || !clock || !ctx) return
   const active = loops.value.loops.filter((l) => !l.muted).length
-  const target = targetParts(active, bgMode.value, bgManual.value)
-  const transitions = planTransitions(plannedParts, target, nextBarLine(), style.value, bgMode.value !== 'manual')
+  // con varias células mandan las partes de cada una (§4.2): el modo es "manual" salvo sin fondo
+  const mode = multi() && bgMode.value !== 'off' ? 'manual' : bgMode.value
+  const target = targetParts(active, mode, bgManual.value)
+  const transitions = planTransitions(plannedParts, target, nextBarLine(), style.value, mode !== 'manual')
   plannedParts = target
   const c = ctx
   for (const tr of transitions) {
@@ -443,6 +554,8 @@ function onWorkerMessage(m: FromWorker) {
       uiMs,
     )
   if (!playing.value || !tracker) return log('stopped', `${m.instrument} sin loop en marcha`, uiMs)
+  // con varias células, en estado canción no se graba (spec 005, §4.4)
+  if (multi()) return log('unknown', `ignorado: canción avanzando (${m.instrument} ${(m.confidence * 100).toFixed(0)}%)`, uiMs)
   log('hit', `${m.instrument} ${(m.confidence * 100).toFixed(0)}%${fmtVolume(m.vol)}`, uiMs)
   const gs = tracker.globalStep(m.time - latencySec)
   const heard: VisualHit = {
@@ -599,6 +712,10 @@ export function useAudioEngine() {
     if (playing.value || !S) return
     // al arrancar, lo que ya existe suena desde el primer compás
     loops.value = { ...loops.value, loops: loops.value.loops.map((l) => ({ ...l, bornAt: 0 })) }
+    // la canción arranca desde la célula que se ve (spec 005, §4.1); el ciclo de Strudel empieza en 0
+    cursor = { cellId: viewCellId.value, startBar: 0 }
+    viewStartBar = 0
+    currentBar.value = 0
     clock = null
     tracker = null
     lastPulseCycle = -1
@@ -629,6 +746,7 @@ export function useAudioEngine() {
     tracker = null
     phrase.value = null
     lastBirth = null
+    cursor = null
     dropActive = false
     dropping.value = false
     plannedParts = { ...NO_PARTS }
@@ -724,10 +842,23 @@ export function useAudioEngine() {
     }, (release - ctx.currentTime) * 1000)
   }
 
-  /** Restaura loops guardados (persistencia, §16.16). */
-  function setLoops(state: LoopsState) {
-    loops.value = { ...state, loops: state.loops.map(({ prev: _prev, ...l }) => ({ ...l, bornAt: 0 })) }
+  /** Pone una canción entera (guardada o demo) y enseña su primera célula. Parado. */
+  function setSong(next: Song) {
+    const first = cellById(next, next.order[0]!)!
+    song.value = next
+    viewCellId.value = first.id
+    viewStartBar = 0
+    loops.value = { loops: first.loops.map(({ prev: _prev, ...l }) => ({ ...l, bornAt: 0 })), nextId: next.nextLoopId }
+    bgManual.value = { ...first.parts }
     reevaluate()
+  }
+
+  /** Cambia de canción: si estaba sonando, para y vuelve a arrancar (el reloj de células empieza de cero). */
+  async function replaceSong(next: Song) {
+    const was = playing.value
+    if (was) stop()
+    setSong(next)
+    if (was) await play()
   }
 
   function mute(id: number) {
@@ -747,7 +878,19 @@ export function useAudioEngine() {
    * Carga la demo del estilo actual (§16.20): sustituye los loops por bombo, caja y platillo
    * de la demo y enciende bajo y acordes del fondo. Sonando, entra en la siguiente línea de compás.
    */
-  function loadDemo() {
+  async function loadDemo() {
+    // canción completa del estilo (spec 005), si la tiene
+    const demo = demoSong(style.value)
+    if (demo) {
+      if (bgMode.value === 'off') {
+        bgMode.value = 'manual'
+        lastBgMode.value = 'manual'
+      }
+      log('cell', `demo-canción de ${STYLES[style.value].label} cargada: ${demo.cells.map((c) => `${c.name} ${c.turns}`).join(' · ')}`)
+      return replaceSong(demo)
+    }
+    // demo de una célula: si había una canción de varias, vuelve a ser de una
+    if (multi()) await replaceSong({ ...emptySong(), nextLoopId: liveSong().nextLoopId })
     const bornAt = playing.value && clock ? nextBarLine() : 0
     loops.value = demoState(style.value, loops.value.nextId, bornAt)
     if (bgMode.value === 'off') {
@@ -783,7 +926,9 @@ export function useAudioEngine() {
     log('hit', `carriles que graban: ${[...lanes.value].join(', ') || 'ninguno'}`)
   }
 
-  function clearAll() {
+  /** Borrar todo: la canción vuelve a ser una célula vacía (spec 005, §11, 3.1). */
+  async function clearAll() {
+    if (multi()) return replaceSong({ ...emptySong(), nextLoopId: liveSong().nextLoopId })
     loops.value = clearLoops(loops.value)
     reevaluate()
     updateBackground()
@@ -853,7 +998,11 @@ export function useAudioEngine() {
     setRepeatMode,
     setFx,
     drop,
-    setLoops,
+    setSong,
+    liveSong,
+    song,
+    viewCellId,
+    multi: computed(() => isMulti(song.value)),
     mute,
     remove,
     clearAll,

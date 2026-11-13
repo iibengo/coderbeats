@@ -9,7 +9,7 @@ const open = defineModel<boolean>('open', { required: true })
 const props = defineProps<{ renderer: string; layout: () => string }>()
 const emit = defineEmits<{ recalibrate: ['latency' | 'sounds'] }>()
 const engine = useAudioEngine()
-const { kit, assist, metronome, bgMode, phraseCloseBeats, maxPhraseBars, phraseMode, repeatMode, fx, playing, diag, echo, loops } =
+const { kit, assist, metronome, bgMode, phraseCloseBeats, maxPhraseBars, phraseMode, repeatMode, fx, playing, diag, echo, loops, multi } =
   engine
 
 const code = computed(() => engine.displayCode())
@@ -52,7 +52,7 @@ async function copyDiag() {
 
 /** Demo del estilo actual; si ya hay loops, se pide confirmación antes de reemplazarlos (§16.20). */
 function loadDemo() {
-  if (loops.value.loops.length && !confirm('¿Reemplazar tus loops por la demo de este estilo?')) return
+  if ((loops.value.loops.length || multi.value) && !confirm('¿Reemplazar tu canción por la demo de este estilo?')) return
   engine.loadDemo()
   open.value = false
 }
@@ -175,7 +175,7 @@ const val = (e: Event) => Number((e.target as HTMLInputElement).value)
             <button class="flex-1 rounded-full border border-white/30 py-2 disabled:opacity-40" :disabled="!playing" @click="engine.drop()">
               Drop
             </button>
-            <button class="flex-1 rounded-full border border-white/15 py-2 disabled:opacity-40" :disabled="!loops.loops.length" @click="engine.clearAll()">
+            <button class="flex-1 rounded-full border border-white/15 py-2 disabled:opacity-40" :disabled="!loops.loops.length && !multi" @click="engine.clearAll()">
               Borrar todo
             </button>
             <button class="flex-1 rounded-full border border-white/15 py-2" @click="loadDemo">Cargar demo</button>

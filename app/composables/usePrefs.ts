@@ -1,4 +1,5 @@
 import type { BackgroundMode, Parts } from '~/lib/background'
+import { isSong, songFromLoops, storableSong } from '~/lib/cells'
 import type { LoopsState } from '~/lib/freeLoops'
 import { migrateRepeatMode } from '~/lib/prefsMigration'
 import type { LoopLength } from '~/lib/phrases'
@@ -7,7 +8,9 @@ import type { KitId, StyleId } from '~/lib/types'
 import type { PhraseMode, RepeatMode } from './useAudioEngine'
 
 const PREFS_KEY = 'coderbeats:prefs:v1'
+/** antes de la spec 005: solo loops; se migra a una canción de una célula y se deja de escribir */
 const LOOPS_KEY = 'coderbeats:loops:v1'
+const SONG_KEY = 'coderbeats:song:v1'
 
 export interface StudioPrefs {
   version: 1
@@ -75,8 +78,11 @@ export function usePrefs() {
         write(PREFS_KEY, rest)
       }
     }
+    if (engine.loops.value.loops.length) return
+    const song = read(SONG_KEY, isSong)
+    if (song) return engine.setSong(song)
     const l = read(LOOPS_KEY, isLoops)
-    if (l && !engine.loops.value.loops.length) engine.setLoops(l)
+    if (l) engine.setSong(songFromLoops(l, p?.bgManual))
   }
 
   function startSaving() {
@@ -101,7 +107,7 @@ export function usePrefs() {
       (p) => write(PREFS_KEY, p),
       { deep: true },
     )
-    watch(engine.loops, (l) => write(LOOPS_KEY, { ...l, loops: l.loops.map(({ prev: _prev, ...rest }) => rest) }))
+    watch([engine.song, engine.loops, engine.bgManual], () => write(SONG_KEY, storableSong(engine.liveSong())))
   }
 
   return { load, startSaving }
