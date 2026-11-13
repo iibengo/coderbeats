@@ -45,6 +45,7 @@ import {
 } from '~/lib/freeLoops'
 import { DJF_MIN, filterDjf, spaceParams, SWEEP_STEPS, sweepDjf, warmthShape } from '~/lib/gestures'
 import { imageDelayMs, sanitizeFine, SYNC_LOOKAHEAD_S, SYNC_PERIOD_S, takeDue } from '~/lib/imageDelay'
+import type { SavedSong, SongSnapshot } from '~/lib/library'
 import { effectiveBpm, TEMPO_TAPS, TEMPO_TIMEOUT_MS, tempoFromTaps } from '~/lib/tempo'
 import { detectOnsets, minGapForCell } from '~/lib/onsets'
 import { PhraseTracker, type ClosedPhrase, type LoopLength, type PhraseSnapshot } from '~/lib/phrases'
@@ -1110,6 +1111,26 @@ export function useAudioEngine() {
     }, (release - ctx.currentTime) * 1000)
   }
 
+  /** Lo que es de la canción de ahora (spec 006, §3): estilo, kit, fondo, efectos y la canción con sus células. */
+  function snapshot(): SongSnapshot {
+    return { style: style.value, kit: kit.value, bgMode: bgMode.value, fx: { ...fx }, song: liveSong() }
+  }
+
+  /**
+   * Abre una canción guardada (spec 006, §4.3): reemplaza la de ahora (estilo, kit, fondo, efectos y
+   * canción). Si sonaba, arranca de nuevo desde su primera célula, como "Cargar demo". El tempo propio va
+   * dentro de la canción, así que no se pasa por `setStyle` (que lo quitaría).
+   */
+  async function openSaved(saved: SavedSong) {
+    style.value = saved.style
+    kit.value = saved.kit
+    bgMode.value = saved.bgMode
+    if (saved.bgMode !== 'off') lastBgMode.value = saved.bgMode
+    setFx(saved.fx)
+    log('cell', `abierta «${saved.name}»`)
+    await replaceSong(saved.song)
+  }
+
   /** Pone una canción entera (guardada o demo) y enseña su primera célula. Parado. */
   function setSong(raw: Song) {
     const next = withValidBpm(raw)
@@ -1622,6 +1643,8 @@ export function useAudioEngine() {
     setBpm,
     tapTempo,
     cycleTurns,
+    snapshot,
+    openSaved,
     addCell,
     copyCell,
     detachCell,

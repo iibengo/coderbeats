@@ -18,6 +18,7 @@ prefs.startSaving()
 watchEffect(() => engine.setLatency(usableLatencyMs(calibration.data.value?.latency?.ms) / 1000, calibration.data.value?.latency?.ms))
 
 const settingsOpen = ref(false)
+const libraryOpen = ref(false)
 const stage = ref<InstanceType<typeof VisualStage> | null>(null)
 const renderer = computed(() => stage.value?.rendererName ?? '')
 const layoutInfo = () => stage.value?.layoutInfo() ?? ''
@@ -60,6 +61,12 @@ const moreStyle = computed(() =>
   compact.value
     ? 'position: absolute; top: max(0.5rem, env(safe-area-inset-top)); right: calc(env(safe-area-inset-right, 0px) + 26px); width: 44px; height: 44px'
     : 'position: absolute; top: max(0.5rem, env(safe-area-inset-top)); right: 0.5rem; width: 44px; height: 44px',
+)
+// Mis canciones (spec 006): arriba a la izquierda, frente a ⋯; en horizontal, donde están los estilos, a la izquierda de ⋯
+const libraryStyle = computed(() =>
+  compact.value
+    ? 'position: absolute; top: max(0.5rem, env(safe-area-inset-top)); right: calc(env(safe-area-inset-right, 0px) + 74px); width: 44px; height: 44px'
+    : 'position: absolute; top: max(0.5rem, env(safe-area-inset-top)); left: 0.5rem; width: 44px; height: 44px',
 )
 const playStyle = computed(() =>
   compact.value
@@ -107,6 +114,22 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
       </button>
     </nav>
 
+    <!-- mis canciones (spec 006) -->
+    <button
+      class="flex items-center justify-center text-white/50"
+      :style="libraryStyle"
+      aria-label="mis canciones"
+      @pointerdown.stop
+      @click="libraryOpen = true"
+    >
+      <svg width="20" height="16" viewBox="0 0 20 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+        <path d="M7 2h12M7 8h12M7 14h12" />
+        <circle cx="2" cy="2" r="1" fill="currentColor" stroke="none" />
+        <circle cx="2" cy="8" r="1" fill="currentColor" stroke="none" />
+        <circle cx="2" cy="14" r="1" fill="currentColor" stroke="none" />
+      </svg>
+    </button>
+
     <!-- ajustes -->
     <button
       class="flex items-center justify-center text-white/50"
@@ -139,5 +162,6 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
     </button>
   </VisualStage>
 
+  <LibrarySheet v-model:open="libraryOpen" />
   <SettingsSheet v-model:open="settingsOpen" :renderer="renderer" :layout="layoutInfo" @recalibrate="(w) => emit('recalibrate', w)" />
 </template>
