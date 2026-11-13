@@ -347,3 +347,43 @@ golpes con el dedo) al que se le añade un golpe suelto en medio. Esa combinaci�
 - El ajuste "Sensibilidad" en ⋯ queda para cuando haga falta: con el 15 % no se ha visto que haga falta.
 - `isTooQuiet` y `MIN_HIT_VOLUME` en `lib/volume.ts`, con tests.
 
+---
+
+## Enmienda 6 · retraso de imagen con cascos Bluetooth (2026-11-13)
+
+Con el iPhone y cascos Bluetooth, la aguja y las bolas van por delante del sonido (unos 200 ms); en el
+PC va bien. El diagnóstico decía "latencia de salida 18 ms", que no es real: iOS no informa bien de la
+latencia de salida con Bluetooth. E1.6 ya lo preveía ("si en iOS la latencia de salida sale 0, se decide
+si hace falta un ajuste fino").
+
+### E6.1 La imagen se retrasa con la latencia real
+- La imagen sigue yendo con lo que se oye (E1.6): `clockNow` y los eventos visuales se retrasan la latencia
+  de salida. Ahora esa latencia es **la que informa el navegador + un retraso de imagen**.
+- El retraso de imagen es **la suma de dos cosas**: un cálculo automático y un ajuste fino.
+
+### E6.2 Automático, con la calibración de palmadas
+- La calibración mide la **ida y vuelta** (clic → palmada detectada) = salida + entrada.
+- Retraso automático = ida y vuelta − 30 ms (lo que suele tardar la entrada) − la salida que ya informa el
+  navegador. Con Bluetooth (ida y vuelta de ~230 ms y salida informada de 18 ms) sale ~180 ms.
+- **Si lo que falta es menos de 40 ms, no se corrige nada:** en el PC o con altavoces no cambia (es la
+  imprecisión de la medida, no un Bluetooth). Sin calibración, 0.
+- Como la calibración refleja la salida con la que se hizo, **al cambiar de cascos hay que repetirla**
+  (⋯ → recalibrar latencia); si no, el ajuste fino cubre la diferencia.
+
+### E6.3 Ajuste fino en ⋯
+- En ajustes, **"Retraso de imagen"**: muestra el total (ms), una casilla **"automático"** (encendida por
+  defecto) y un deslizador de **ajuste fino de −150 a +300 ms** (de 5 en 5), que se suma al automático.
+  Con el automático apagado, vale solo lo que pongas.
+- El total va de 0 a 500 ms, nunca negativo.
+- Debajo, en una línea, lo que sale de tu calibración y el ajuste fino.
+
+### E6.4 Se guarda por dispositivo
+- Automático y ajuste fino se guardan con los ajustes (`coderbeats:prefs:v1`, que es del dispositivo y del
+  navegador). Lo que falte o esté roto vale automático y sin ajuste (como antes de E6).
+- El diagnóstico dice ahora: "latencia de salida X ms (informada) + imagen Y ms · ida y vuelta calibrada Z ms".
+
+### E6.5 Lógica y tests
+- `lib/imageDelay.ts` (puro): `autoImageDelayMs`, `imageDelayMs`, `sanitizeFine` y `restoreImageDelay`, con
+  tests: caso Bluetooth, caso PC (sin corrección), margen mínimo, sin calibración, ajuste roto y tope.
+- Lo que se oye no cambia: solo se retrasa la imagen.
+

@@ -1,6 +1,7 @@
 import type { BackgroundMode, Parts } from '~/lib/background'
 import { isSong, songFromLoops, storableSong } from '~/lib/cells'
 import type { LoopsState } from '~/lib/freeLoops'
+import { restoreImageDelay } from '~/lib/imageDelay'
 import { migrateRepeatMode } from '~/lib/prefsMigration'
 import type { LoopLength } from '~/lib/phrases'
 import type { SongFx } from '~/lib/song'
@@ -28,6 +29,9 @@ export interface StudioPrefs {
   theme: string
   /** guardadas con "completa" como valor por defecto (§16.21): un "sustituye" guardado es elegido */
   completeDefault?: boolean
+  /** retraso de imagen (spec 003, E6): automático según la calibración y ajuste fino (ms); por dispositivo */
+  imageAuto?: boolean
+  imageFineMs?: number
 }
 
 function read<T>(key: string, valid: (x: unknown) => x is T): T | null {
@@ -72,6 +76,8 @@ export function usePrefs() {
       // 'accumulate' (antes de §16.19) y el "sustituye" por defecto de antes de §16.21 pasan a 'complete'
       engine.setRepeatMode(migrateRepeatMode(p.repeatMode, p.completeDefault))
       engine.setFx(p.fx)
+      // sin lo guardado (antes de E6): automático y sin ajuste fino
+      engine.setImageDelay(restoreImageDelay(p))
       // los bajos editados de antes de E3.8 se borran: vuelve el de cada estilo (spec 003, E1.4)
       if ('bassEdits' in p) {
         const { bassEdits: _old, ...rest } = p as StudioPrefs & { bassEdits?: unknown }
@@ -103,6 +109,8 @@ export function usePrefs() {
           fx: { ...engine.fx },
           theme: 'water',
           completeDefault: true,
+          imageAuto: engine.imageAuto.value,
+          imageFineMs: engine.imageFineMs.value,
         }) satisfies StudioPrefs,
       (p) => write(PREFS_KEY, p),
       { deep: true },

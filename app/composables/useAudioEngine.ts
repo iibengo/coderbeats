@@ -42,6 +42,7 @@ import {
   type RepeatMode,
 } from '~/lib/freeLoops'
 import { DJF_MIN, filterDjf, spaceParams, SWEEP_STEPS, sweepDjf, warmthShape } from '~/lib/gestures'
+import { imageDelayMs, sanitizeFine } from '~/lib/imageDelay'
 import { effectiveBpm, TEMPO_TAPS, TEMPO_TIMEOUT_MS, tempoFromTaps } from '~/lib/tempo'
 import { detectOnsets, minGapForCell } from '~/lib/onsets'
 import { PhraseTracker, type ClosedPhrase, type LoopLength, type PhraseSnapshot } from '~/lib/phrases'
@@ -195,6 +196,17 @@ const song = shallowRef<Song>(emptySong())
 const bpm = computed(() => effectiveBpm(song.value.bpm, STYLES[style.value].bpm))
 /** tempo fácil: esperando cuatro toques (o cuatro bombos) */
 const tempoTap = ref<{ active: boolean; count: number }>({ active: false, count: 0 })
+/**
+ * Retraso de imagen (spec 003, E6): la ida y vuelta de la calibración de palmadas (ms), y los dos ajustes
+ * (automático y fino), que se guardan por dispositivo. Con cascos Bluetooth la latencia de salida que
+ * informa el navegador es falsa y la imagen va por delante del sonido.
+ */
+const roundTripMs = ref(0)
+const imageAuto = ref(true)
+const imageFineMs = ref(0)
+/** lo que se enseña en ⋯ (la salida que informa el navegador y el retraso de imagen total, en ms); se refrescan al cambiar */
+const reportedOutputMs = ref(0)
+const imageDelayShown = ref(0)
 /** el toque del tempo fácil, para el manejador de golpes del micro (que vive fuera del composable) */
 let tapTempoHook: ((at: number) => boolean) | null = null
 const viewCellId = ref(1)
@@ -219,14 +231,29 @@ function requireCtx(): AudioContext {
 
 const toWorker = (m: ToWorker) => worker?.postMessage(m)
 
-/**
- * Latencia de salida (s): lo que tarda en oírse lo que el contexto reproduce ahora. La imagen va
- * con lo que se oye (spec 003, E1.6). La latencia calibrada es otra cosa: solo corrige la entrada.
- */
-function outputLatency(): number {
+/** Latencia de salida que informa el navegador (s). Con Bluetooth, en iOS, no es real (E6). */
+function reportedOutputLatency(): number {
   const c = ctx as (AudioContext & { outputLatency?: number }) | null
   if (!c) return 0
   return (c.baseLatency || 0) + (c.outputLatency || 0)
+}
+
+/** Retraso de imagen (s) que se suma a la latencia que informa el navegador (spec 003, E6). */
+const imageDelaySec = (): number =>
+  imageDelayMs({ auto: imageAuto.value, fineMs: imageFineMs.value, roundTripMs: roundTripMs.value, reportedOutputMs: reportedOutputLatency() * 1000 }) / 1000
+
+function refreshImageDelay() {
+  reportedOutputMs.value = Math.round(reportedOutputLatency() * 1000)
+  imageDelayShown.value = Math.round(imageDelaySec() * 1000)
+}
+
+/**
+ * Latencia de salida (s) con la que va la imagen: lo que tarda en oírse lo que el contexto reproduce
+ * ahora (spec 003, E1.6) = la que informa el navegador + el retraso de imagen (E6). La latencia
+ * calibrada solo corrige la entrada; de ella sale, además, el retraso de imagen automático.
+ */
+function outputLatency(): number {
+  return reportedOutputLatency() + imageDelaySec()
 }
 
 function log(kind: DiagEvent['kind'], text: string, uiMs?: number) {
@@ -752,6 +779,7 @@ export function useAudioEngine() {
     echo.value = echoResult
     metronome.value = !echoResult.bleed
     ready.value = true
+    refreshImageDelay()
   }
 
   function setCalibration(c: { samples: CalibrationSample[]; norm: Norm }) {
@@ -761,6 +789,15 @@ export function useAudioEngine() {
 
   function setLatency(seconds: number) {
     latencySec = seconds
+    roundTripMs.value = seconds * 1000
+    refreshImageDelay()
+  }
+
+  /** Ajustes del retraso de imagen (spec 003, E6): automático (según la calibración) y ajuste fino a mano. */
+  function setImageDelay(p: { auto?: boolean; fineMs?: number }) {
+    if (p.auto !== undefined) imageAuto.value = p.auto
+    if (p.fineMs !== undefined) imageFineMs.value = sanitizeFine(p.fineMs)
+    refreshImageDelay()
   }
 
   /** Metrónomo + grabación (calibración de latencia). */
@@ -803,6 +840,8 @@ export function useAudioEngine() {
 
   async function play() {
     if (playing.value || !S) return
+    // lo que informa el navegador puede cambiar al conectar o quitar unos cascos
+    refreshImageDelay()
     // al arrancar, lo que ya existe suena desde el primer compás
     loops.value = { ...loops.value, loops: loops.value.loops.map((l) => ({ ...l, bornAt: 0 })) }
     // la canción arranca desde la célula que se ve (spec 005, §4.1); el ciclo de Strudel empieza en 0
@@ -1422,6 +1461,14 @@ export function useAudioEngine() {
     dropping,
     sampleRate: () => ctx?.sampleRate ?? 0,
     outputLatency,
+    reportedOutputLatency,
+    roundTripMs,
+    imageAuto,
+    imageFineMs,
+    reportedOutputMs,
+    imageDelayShown,
+    setImageDelay,
+    refreshImageDelay,
     start,
     setCalibration,
     setLatency,

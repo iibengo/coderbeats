@@ -2,6 +2,7 @@
 // Hoja de ajustes (§16.16): todo lo que no es tocar está aquí, escondido tras "⋯".
 import type { BackgroundMode } from '~/lib/background'
 import { KIT_ORDER, KITS } from '~/lib/constants'
+import { autoImageDelayMs, FINE_MAX_MS, FINE_MIN_MS, FINE_STEP_MS } from '~/lib/imageDelay'
 import type { LoopLength } from '~/lib/phrases'
 import type { PhraseMode, RepeatMode } from '~/composables/useAudioEngine'
 
@@ -9,7 +10,7 @@ const open = defineModel<boolean>('open', { required: true })
 const props = defineProps<{ renderer: string; layout: () => string }>()
 const emit = defineEmits<{ recalibrate: ['latency' | 'sounds'] }>()
 const engine = useAudioEngine()
-const { kit, assist, metronome, bgMode, phraseCloseBeats, maxPhraseBars, phraseMode, repeatMode, fx, playing, diag, echo, loops, multi } =
+const { kit, assist, metronome, bgMode, phraseCloseBeats, maxPhraseBars, phraseMode, repeatMode, fx, playing, diag, echo, loops, multi, imageAuto, imageFineMs, imageDelayShown } =
   engine
 
 const code = computed(() => engine.displayCode())
@@ -97,6 +98,11 @@ const CLOSE: { id: 1 | 2 | 4; label: string }[] = [
 const MAX: LoopLength[] = [1, 2, 4]
 const chip = (on: boolean) => (on ? 'bg-white text-black' : 'text-neutral-400')
 const val = (e: Event) => Number((e.target as HTMLInputElement).value)
+
+/** retraso de imagen automático que sale de tu calibración (spec 003, E6), para enseñarlo */
+const autoMs = computed(() => autoImageDelayMs(engine.roundTripMs.value, engine.reportedOutputMs.value))
+// al abrir ⋯, se vuelve a leer lo que informa el navegador (puede haber cambiado al conectar unos cascos)
+watch(open, (o) => o && engine.refreshImageDelay())
 </script>
 
 <template>
@@ -179,6 +185,28 @@ const val = (e: Event) => Number((e.target as HTMLInputElement).value)
             Metrónomo
             <input type="checkbox" :checked="metronome" @change="engine.setMetronome(($event.target as HTMLInputElement).checked)" />
           </label>
+          <div class="grid gap-1">
+            <div class="flex items-center justify-between">
+              <span>Retraso de imagen <span class="text-xs text-neutral-500 tabular-nums">{{ imageDelayShown }} ms</span></span>
+              <label class="flex items-center gap-2 text-xs text-neutral-400">
+                automático
+                <input type="checkbox" :checked="imageAuto" @change="engine.setImageDelay({ auto: ($event.target as HTMLInputElement).checked })" />
+              </label>
+            </div>
+            <input
+              type="range"
+              :min="FINE_MIN_MS"
+              :max="FINE_MAX_MS"
+              :step="FINE_STEP_MS"
+              :value="imageFineMs"
+              aria-label="ajuste fino del retraso de imagen"
+              @input="engine.setImageDelay({ fineMs: val($event) })"
+            />
+            <p class="text-xs text-neutral-500">
+              Si la aguja y las bolas van por delante del sonido (cascos Bluetooth), sube el ajuste. Automático:
+              {{ autoMs }} ms de tu calibración · ajuste fino {{ imageFineMs > 0 ? '+' : '' }}{{ imageFineMs }} ms. Se guarda en este dispositivo.
+            </p>
+          </div>
           <label class="flex items-center justify-between gap-3">
             Calor
             <input class="flex-1" type="range" min="0" max="1" step="0.01" :value="fx.warmth" @input="engine.setFx({ warmth: val($event) })" />
