@@ -12,6 +12,7 @@ import {
   backToFront,
   boundsCenter,
   cellAtPoint,
+  cellProgress,
   clampCam,
   clampToRect,
   colonyCam,
@@ -22,6 +23,7 @@ import {
   depthScale,
   inColony,
   isDoubleTap,
+  lastTurnFill,
   mapToScreen,
   mixCam,
   panBy,
@@ -29,6 +31,7 @@ import {
   screenToMap,
   settleZoom,
   threadPairs,
+  turnIndex,
   type Disc,
   type Point,
 } from '~/lib/aro/colony'
@@ -146,7 +149,13 @@ const bgBalls = computed(() => {
     { part: 'chords' as Part, label: 'acordes', x: view.w / 2 + 96, y },
   ]
 })
-/** "◎ seguir": donde estaría la fila de bolas (que en la colonia se oculta) */
+/** "∞ ▶ seguir canción": junto a Play, donde estaría la bola de acordes (que en la colonia se oculta) */
+const releaseStyle = computed(() => {
+  const x = compact.value ? sideX.value.right - 40 : view.w / 2 + 112
+  const y = compact.value ? view.h / 2 + 84 : view.h - PLAY_FROM_BOTTOM
+  return { left: `${x}px`, top: `${y}px`, transform: 'translate(-50%, -50%)' }
+})
+/** "◎ centrar": donde estaría la fila de bolas (que en la colonia se oculta) */
 const followStyle = computed(() => {
   const x = compact.value ? sideX.value.left : view.w / 2
   const y = compact.value ? view.h / 2 : view.h - ROW_FROM_BOTTOM
@@ -394,7 +403,7 @@ watch(engine.viewCellId, () => (cutAt = performance.now()))
  * gota, el puente y el estiramiento. Las células están en el mapa en radios de gota (§5.1).
  */
 /**
- * Cámara del dedo (spec 005, §7.1): al arrastrar el mapa la cámara deja de seguir y aparece "◎ seguir".
+ * Cámara del dedo (spec 005, §7.1): al arrastrar el mapa la cámara deja de seguir y aparece "◎ centrar".
  * `panBlend` mezcla la cámara automática (0) con la del dedo (1) para que no haya saltos.
  */
 const panned = ref(false)
@@ -446,7 +455,7 @@ function cellScene(
   pos: number,
   zEff: number,
   dt: number,
-): Pick<AroFrame, 'geo' | 'ghost' | 'bridge' | 'pull' | 'alpha' | 'crowd' | 'halo' | 'threads' | 'labels'> & { plan: ReturnType<typeof engine.cellPlan>; cam: { x: number; y: number } } {
+): Pick<AroFrame, 'geo' | 'ghost' | 'bridge' | 'pull' | 'alpha' | 'crowd' | 'halo' | 'threads' | 'labels' | 'progress'> & { plan: ReturnType<typeof engine.cellPlan>; cam: { x: number; y: number } } {
   const alpha = reduced && playing.value ? Math.min(1, (performance.now() - cutAt) / CUT_FADE_MS) : 1
   const plan = engine.cellPlan()
   const all = engine.song.value.cells
@@ -523,7 +532,11 @@ function cellScene(
         toScreen,
       }
     : null
-  const halo = plan && playing.value ? k : 0
+  const live = !!plan && playing.value
+  const halo = live ? k : 0
+  // cuánto falta para cambiar (§7.2): el anillo de la que suena se llena con sus vueltas; en bucle no avanza
+  const looped = !!plan && !Number.isFinite(plan.end)
+  const progress = live && plan ? cellProgress(pos, plan.start, plan.end) : undefined
 
   // hilos de orden (§7.2): entre las consecutivas, tenues; por el de la que suena corre el brillo de la transición
   const order = engine.song.value.order
@@ -535,6 +548,8 @@ function cellScene(
           to: placed.get(b)!,
           alpha: k * Math.min(depthAlpha(byId.get(a)!.at.depth, k), depthAlpha(byId.get(b)!.at.depth, k)),
           glow: tr?.thread && tr.thread.fromId === a && tr.thread.toId === b ? tr.thread.glow : null,
+          // en la última vuelta, el hilo hacia la siguiente se va llenando
+          fill: live && plan && plan.cur.id === a && plan.next.id === b ? lastTurnFill(pos, plan.end) : undefined,
         }))
       : undefined
   // número de vueltas junto a cada célula, pequeño y tenue; la que se ve cuenta con lo que cabe en sus loops
@@ -543,11 +558,17 @@ function cellScene(
       ? all.map((c) => {
           const g = placed.get(c.id)!
           const turns = c.id === engine.viewCellId.value ? fitTurns(c.turns, loops.value.loops) : c.turns
-          return { x: g.cx, y: g.cy + g.R + 11, text: String(turns), alpha: 0.5 * k * depthAlpha(c.at.depth, k) }
+          const base = { x: g.cx, y: g.cy + g.R + 11, text: String(turns), alpha: 0.5 * k * depthAlpha(c.at.depth, k) }
+          // en la que suena, puntitos de vueltas (●●○○) en vez del número; en bucle, ∞
+          if (live && plan && c.id === plan.cur.id)
+            return looped
+              ? { ...base, text: '∞', alpha: 0.8 * k }
+              : { ...base, alpha: 0.7 * k, dots: { turns: plan.cur.turns, turn: turnIndex(pos, plan.start, plan.cur.turns) } }
+          return base
         })
       : undefined
 
-  if (!plan || !tr) return { geo, alpha, plan, cam, crowd, halo, threads, labels }
+  if (!plan || !tr) return { geo, alpha, plan, cam, crowd, halo, threads, labels, progress }
   const cellOf = (id: number) => (id === plan.cur.id ? plan.cur : id === plan.next.id ? plan.next : plan.prev!)
   let ghost: AroFrame['ghost'] = null
   if (tr.ghost) {
@@ -565,7 +586,7 @@ function cellScene(
     tr.pull > 0
       ? { th: Math.atan2(plan.next.at.y - plan.cur.at.y, plan.next.at.x - plan.cur.at.x), a: tr.pull * PULL_MAX * base.R }
       : null
-  return { geo, ghost, bridge, pull, alpha, plan, cam, crowd, halo, threads, labels }
+  return { geo, ghost, bridge, pull, alpha, plan, cam, crowd, halo, threads, labels, progress }
 }
 
 // ── chapa de vueltas y marcadores del borde (spec 005, §5.3 y §6) ────────────────
@@ -1164,7 +1185,9 @@ function tapCell(id: number) {
     return
   }
   lastTap = { id, t: now }
-  engine.travelTo(id)
+  // tocar otra vez la que está en bucle lo suelta: la canción sigue (§4.1)
+  if (engine.loopTarget.value === id) engine.resume()
+  else engine.travelTo(id)
 }
 
 /** Fin de un pellizco: el zoom vuelve a los límites con suavidad y se guarda. */
@@ -1331,7 +1354,7 @@ defineExpose({ rendererName, layoutInfo })
       </span>
     </button>
 
-    <!-- colonia: tras mover el mapa, "◎ seguir" devuelve la cámara a la célula que suena (spec 005, §7.1) -->
+    <!-- colonia: tras mover el mapa, "◎ centrar" devuelve la cámara a la célula que suena (spec 005, §7.1) -->
     <button
       v-if="colony && panned"
       class="follow-btn absolute"
@@ -1340,7 +1363,19 @@ defineExpose({ rendererName, layoutInfo })
       @pointerdown.stop
       @click="panned = false"
     >
-      ◎ seguir
+      ◎ centrar
+    </button>
+
+    <!-- colonia: mientras hay bucle, soltarlo desde aquí (la chapa de vueltas no se ve alejado) -->
+    <button
+      v-if="colony && looping"
+      class="release-btn absolute"
+      :style="releaseStyle"
+      aria-label="seguir con la canción: soltar el bucle"
+      @pointerdown.stop
+      @click="engine.resume()"
+    >
+      <span class="chapa-inf">∞</span> ▶ seguir canción
     </button>
 
     <!-- bolas del fondo (modo manual, §16.17) -->
@@ -1407,7 +1442,7 @@ defineExpose({ rendererName, layoutInfo })
   background: #f496bc;
   box-shadow: 0 0 10px rgb(244 150 188 / 0.6);
 }
-/* "◎ seguir" de la colonia */
+/* "◎ centrar" de la colonia */
 .follow-btn {
   height: 30px;
   padding: 0 14px;
@@ -1418,6 +1453,26 @@ defineExpose({ rendererName, layoutInfo })
   font-size: 12px;
   letter-spacing: 0.04em;
   white-space: nowrap;
+}
+.release-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 9999px;
+  border: 1px solid #f496bc;
+  background: rgb(255 255 255 / 0.07);
+  color: #f496bc;
+  font-size: 12px;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+.release-btn::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: 9999px;
 }
 .follow-btn::after {
   content: '';

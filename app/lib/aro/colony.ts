@@ -202,3 +202,22 @@ export const PULSE_MIN_SCALE = 0.15
 
 /** Escala del pulso del agua de un tiempo: el radio de la célula que suena respecto al de una gota de cerca (1 = como siempre). */
 export const pulseScale = (r: number, nearR: number): number => Math.min(1, Math.max(PULSE_MIN_SCALE, r / Math.max(1, nearR)))
+
+// ── cuánto falta para cambiar de célula (§7.2) ───────────────────────────────────
+/** Progreso de la célula que suena, 0..1, de su compás de inicio a su final; null en bucle (sin final). */
+export function cellProgress(pos: number, start: number, end: number): number | null {
+  if (!Number.isFinite(end)) return null
+  return clamp01((pos - start) / Math.max(1, end - start))
+}
+
+/** Vuelta en la que va (0..turns−1), para los puntitos; en bucle sigue girando por sus vueltas. */
+export function turnIndex(pos: number, start: number, turns: number): number {
+  const k = Math.floor(pos - start)
+  return ((k % turns) + turns) % turns
+}
+
+/** Cuánto se ha llenado el hilo hacia la siguiente: 0 hasta la última vuelta y de 0 a 1 a lo largo de ella; undefined en bucle. */
+export function lastTurnFill(pos: number, end: number): number | undefined {
+  if (!Number.isFinite(end) || pos < end - 1) return undefined
+  return clamp01(pos - (end - 1))
+}

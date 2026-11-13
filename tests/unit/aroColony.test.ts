@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   approachBlend,
+  cellProgress,
+  lastTurnFill,
+  turnIndex,
   pulseScale,
   clampToRect,
   isDoubleTap,
@@ -219,5 +222,32 @@ describe('colonia: pulso del agua', () => {
     expect(pulseScale(45, 180)).toBeCloseTo(0.25)
     expect(pulseScale(3, 180)).toBe(0.15)
     expect(pulseScale(10, 0)).toBe(1) // sin radio de referencia no se rompe
+  })
+})
+
+describe('colonia: cuánto falta para cambiar', () => {
+  it('el anillo se llena de 0 a 1 a lo largo de las vueltas y en bucle no avanza', () => {
+    expect(cellProgress(8, 8, 16)).toBe(0)
+    expect(cellProgress(12, 8, 16)).toBe(0.5)
+    expect(cellProgress(16, 8, 16)).toBe(1)
+    expect(cellProgress(20, 8, 16)).toBe(1)
+    expect(cellProgress(6, 8, 16)).toBe(0)
+    expect(cellProgress(12, 8, Infinity)).toBeNull()
+  })
+
+  it('los puntitos marcan la vuelta (●●○○ = vuelta 2 de 4)', () => {
+    expect(turnIndex(8, 8, 4)).toBe(0)
+    expect(turnIndex(9.9, 8, 4)).toBe(1)
+    expect(turnIndex(11.2, 8, 4)).toBe(3)
+    // en bucle la cuenta da la vuelta
+    expect(turnIndex(13, 8, 4)).toBe(1)
+  })
+
+  it('el hilo hacia la siguiente se llena solo en la última vuelta', () => {
+    expect(lastTurnFill(10, 12)).toBeUndefined() // aún quedan 2 vueltas
+    expect(lastTurnFill(11, 12)).toBe(0)
+    expect(lastTurnFill(11.5, 12)).toBe(0.5)
+    expect(lastTurnFill(12, 12)).toBe(1)
+    expect(lastTurnFill(11.5, Infinity)).toBeUndefined() // en bucle no se llena
   })
 })

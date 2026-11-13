@@ -134,7 +134,13 @@ let prevViewId: number | null = null
 let sweep = 0
 /** lo que ve la interfaz: la célula está en bucle (o va a estarlo en la siguiente línea de compás) */
 const looping = ref(false)
-const syncLoopUi = () => (looping.value = loop || !!(jump ?? viewJump)?.loop)
+/** la célula que está en bucle (o que va a estarlo en la siguiente línea de compás); null si ninguna */
+const loopTarget = ref<number | null>(null)
+const syncLoopUi = () => {
+  const j = jump ?? viewJump
+  looping.value = loop || !!j?.loop
+  loopTarget.value = j ? (j.loop ? j.cellId : null) : loop && cursor ? cursor.cellId : null
+}
 const curPlay = (): Play => ({ cursor: cursor!, loop, jump })
 const bgNodes: Partial<Record<Part, { lp: BiquadFilterNode; gain: GainNode }>> = {}
 const visualListeners = new Set<(h: VisualHit) => void>()
@@ -1187,6 +1193,7 @@ export function useAudioEngine() {
     clockNow,
     cellPlan,
     looping,
+    loopTarget,
     loopHere,
     resume,
     travelTo,

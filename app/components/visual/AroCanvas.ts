@@ -85,6 +85,8 @@ export interface AroThread {
   alpha: number
   /** dónde va el brillo, 0 (sale) … 1 (llega), o null */
   glow: number | null
+  /** en la última vuelta de la que suena, cuánto se ha llenado hacia la siguiente (0..1) */
+  fill?: number
 }
 
 /** Número pequeño junto a una célula (sus vueltas). */
@@ -93,6 +95,8 @@ export interface AroLabel {
   y: number
   text: string
   alpha: number
+  /** en la que suena: puntitos de vueltas (●●○○) en vez del número */
+  dots?: { turns: number; turn: number }
 }
 
 export interface AroFrame {
@@ -133,6 +137,8 @@ export interface AroFrame {
   crowd?: AroGhost[]
   /** colonia: anillo rosa alrededor de la célula que suena (0..1) */
   halo?: number
+  /** colonia: cuánto se ha llenado el anillo de la que suena (0..1); null = en bucle, sin avanzar */
+  progress?: number | null
   /**
    * detalle de las células de fondo en la colonia (§7.2, E1.7): 0 = completo; 1 = menos ángulos, sin
    * bordes de franja y golpes sin ondulación; 2 = solo la silueta. Lo baja el vigilante de frames.
@@ -434,7 +440,7 @@ export class AroCanvas {
       if (f.bridge) this.drawBridge(f.bridge, f)
       x.globalAlpha = f.alpha ?? 1
       this.drawFront(f)
-      if (f.halo && f.halo > 0.01) this.drawHalo(f.halo)
+      if (f.halo && f.halo > 0.01) this.drawHalo(f.halo, f.progress)
       if (f.labels?.length) this.drawLabels(f.labels)
     } finally {
       x.restore()
@@ -579,6 +585,19 @@ export class AroCanvas {
       x.fillStyle = g
       x.fillRect(h.x - r, h.y - r, r * 2, r * 2)
     }
+    // en la última vuelta, el hilo se va llenando hacia la siguiente
+    if (th.fill !== undefined && th.fill > 0.002) {
+      x.strokeStyle = `rgba(${VOICE_RGB_CSS.bd},${0.7 * th.alpha})`
+      x.lineWidth = 1.8
+      x.beginPath()
+      const end = Math.min(1, th.fill)
+      for (let i = 0; i <= 14; i++) {
+        const p = quadAt(a, c, b, (end * i) / 14)
+        if (i === 0) x.moveTo(p.x, p.y)
+        else x.lineTo(p.x, p.y)
+      }
+      x.stroke()
+    }
     x.lineCap = 'butt'
   }
 
@@ -590,19 +609,54 @@ export class AroCanvas {
     x.textBaseline = 'middle'
     for (const l of ls) {
       if (l.alpha < 0.01) continue
+      if (l.dots) {
+        // puntitos de vueltas (●●○○): hasta 4 por fila, la vuelta en la que va y las anteriores, llenas
+        const { turns, turn } = l.dots
+        const cols = Math.min(4, turns)
+        for (let i = 0; i < turns; i++) {
+          const row = Math.floor(i / cols)
+          const inRow = Math.min(cols, turns - row * cols)
+          const px = l.x + ((i % cols) - (inRow - 1) / 2) * 5
+          const py = l.y + row * 5 - 1
+          x.fillStyle = `rgba(255,255,255,${i <= turn ? Math.min(1, l.alpha * 1.7) : l.alpha * 0.4})`
+          x.beginPath()
+          x.arc(px, py, 1.6, 0, TAU)
+          x.fill()
+        }
+        continue
+      }
       x.fillStyle = `rgba(255,255,255,${l.alpha})`
       x.fillText(l.text, l.x, l.y)
     }
   }
 
-  /** Colonia: un anillo rosa fino alrededor de la célula que suena (usa el contorno del último frame). */
-  private drawHalo(a: number) {
+  /**
+   * Colonia: un anillo rosa fino alrededor de la célula que suena (usa el contorno del último frame).
+   * Con `progress` es un anillo de progreso: la pista tenue y encima lo que se ha llenado, desde arriba
+   * y en el sentido de la aguja. En bucle (`null`), el anillo entero, quieto.
+   */
+  private drawHalo(a: number, progress: number | null | undefined) {
     if (!this.last || !this.ro.length) return
-    const p = new Path2D()
-    this.loopPath(p, 1.07, false)
-    this.ctx.strokeStyle = `rgba(${VOICE_RGB_CSS.bd},${0.75 * a})`
-    this.ctx.lineWidth = 2
-    this.ctx.stroke(p)
+    const x = this.ctx
+    const track = new Path2D()
+    this.loopPath(track, 1.07, false)
+    const rgb = VOICE_RGB_CSS.bd
+    x.lineWidth = 2
+    if (progress === undefined || progress === null) {
+      x.strokeStyle = `rgba(${rgb},${0.5 * a})`
+      x.stroke(track)
+      return
+    }
+    x.strokeStyle = `rgba(${rgb},${0.22 * a})`
+    x.stroke(track)
+    if (progress < 0.002) return
+    x.strokeStyle = `rgba(${rgb},${0.95 * a})`
+    x.lineWidth = 2.5
+    x.lineCap = 'round'
+    x.beginPath()
+    this.arcPath(1.07, -Math.PI / 2, -Math.PI / 2 + Math.min(1, progress) * TAU)
+    x.stroke()
+    x.lineCap = 'butt'
   }
 
   /** El puente de agua: del borde de una gota al de la otra, fino en el centro, con su brillo. */
