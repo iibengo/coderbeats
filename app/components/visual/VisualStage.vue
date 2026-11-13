@@ -7,11 +7,13 @@ import { allWeights, stepWeights, type Weights } from '~/lib/aro/bands'
 import { stepAngle, type DropGeo } from '~/lib/aro/shape'
 import { dropAction } from '~/lib/aro/drop'
 import { suggestions } from '~/lib/aro/guide'
-import { clampZoom, contourPoints, dropLayout, freeRect, lerpGeo, pinchZoom, stretchOf, wheelZoom, zoomLimits, type Insets } from '~/lib/aro/zoom'
+import { transitionAt } from '~/lib/aro/transition'
+import { clampZoom, contourPoints, dropLayout, freeRect, lerpGeo, moveGeo, pinchZoom, stretchOf, wheelZoom, zoomLimits, type Insets } from '~/lib/aro/zoom'
 import type { Part } from '~/lib/background'
 import { notesInBar } from '~/lib/bass'
 import { STYLES } from '~/lib/constants'
-import { loopBarAt } from '~/lib/freeLoops'
+import type { Cell } from '~/lib/cells'
+import { loopBarAt, type FreeLoop } from '~/lib/freeLoops'
 import { dragValue, lockAxis, type Axis } from '~/lib/gestures'
 import { allArmed } from '~/lib/lanes'
 import { approachTilt, followBase, parallaxOffset, tiltTarget, type AroView, type Tilt } from '~/lib/aro/view'
@@ -125,10 +127,10 @@ const rowSlots = computed(() => {
 const editBar = ref<number | null>(null)
 const shownBar = () => editBar.value ?? (playing.value ? currentBar.value : 0)
 const dotKey = (loopId: number, pos: number) => (loopId < 0 ? `bass-${pos}` : `${loopId}-${Math.round(pos * 100)}`)
-const ringDots = computed<AroDot[]>(() => {
-  const g = shownBar()
+/** Golpes de unos loops (y las notas del bajo) en el compás `g` de su célula. */
+function dotsOf(ls: readonly FreeLoop[], g: number): AroDot[] {
   const out: AroDot[] = []
-  for (const l of loops.value.loops) {
+  for (const l of ls) {
     const bar = loopBarAt(l, g)
     for (const h of l.hits) {
       if (h.pos < bar * 16 - 0.5 || h.pos >= bar * 16 + 15.5) continue
@@ -144,7 +146,8 @@ const ringDots = computed<AroDot[]>(() => {
     out.push({ key: dotKey(-1, pos), loopId: -1, step: n.pos, pos, dur: n.dur, voice: 'bass', muted: false })
   }
   return out
-})
+}
+const ringDots = computed<AroDot[]>(() => dotsOf(loops.value.loops, shownBar()))
 const phraseDots = computed(() =>
   (phrase.value?.hits ?? []).map((h, i) => ({
     key: `${Math.round(h.globalStep)}-${h.instrument}-${i}`,
@@ -320,6 +323,46 @@ function stepView(dt: number): AroView {
   return { sy, ox: aroView.ox + (ox - aroView.ox) * k, oy: aroView.oy + (oy - aroView.oy) * k }
 }
 
+// ── transición de agua entre células (spec 005, §5.2) ────────────────────────────
+/** estiramiento máximo de la gota hacia la siguiente (fracción del radio) */
+const PULL_MAX = 0.06
+/** con movimiento reducido: la cámara corta y la célula nueva aparece con un fundido de 0,2 s */
+const CUT_FADE_MS = 200
+let cutAt = -1e9
+watch(engine.viewCellId, () => (cutAt = performance.now()))
+
+/**
+ * Cámara y transición para este frame: dónde se dibuja la célula que suena y, si toca, la otra
+ * gota, el puente y el estiramiento. Las células están en el mapa en radios de gota (§5.1).
+ */
+function cellScene(base: DropGeo, pos: number): Pick<AroFrame, 'geo' | 'ghost' | 'bridge' | 'pull' | 'alpha'> {
+  const alpha = reduced && playing.value ? Math.min(1, (performance.now() - cutAt) / CUT_FADE_MS) : 1
+  const plan = engine.cellPlan()
+  if (!plan) return { geo: base, alpha }
+  const spot = (c: Cell) => ({ id: c.id, x: c.at.x, y: c.at.y })
+  const tr = transitionAt(pos, { cur: spot(plan.cur), start: plan.start, end: plan.end, next: spot(plan.next), prev: plan.prev && spot(plan.prev) }, reduced)
+  const place = (c: Cell) => moveGeo(base, (c.at.x - tr.cam.x) * base.R, (c.at.y - tr.cam.y) * base.R)
+  const cellOf = (id: number) => (id === plan.cur.id ? plan.cur : id === plan.next.id ? plan.next : plan.prev!)
+  let ghost: AroFrame['ghost'] = null
+  if (tr.ghost) {
+    const c = cellOf(tr.ghost.id)
+    const bass = c.parts.bass && bgMode.value !== 'off'
+    ghost = {
+      geo: place(c),
+      weights: { ...allWeights(1), bass: bass ? 1 : 0, mel: 0 },
+      // la que entra, en su primer compás; la que se apaga, en el último que sonó
+      dots: dotsOf(c.loops, c.id === plan.next.id ? 0 : c.turns - 1),
+      alpha: tr.ghost.alpha,
+    }
+  }
+  const bridge = tr.bridge && { from: place(cellOf(tr.bridge.fromId)), to: place(cellOf(tr.bridge.toId)), t0: tr.bridge.t0, t1: tr.bridge.t1, glow: tr.bridge.glow }
+  const pull =
+    tr.pull > 0
+      ? { th: Math.atan2(plan.next.at.y - plan.cur.at.y, plan.next.at.x - plan.cur.at.x), a: tr.pull * PULL_MAX * base.R }
+      : null
+  return { geo: place(plan.cur), ghost, bridge, pull, alpha }
+}
+
 // ── bucle rAF ────────────────────────────────────────────────────────────────────
 let raf = 0
 let lastBeat = -1
@@ -418,9 +461,10 @@ function tick() {
   }
   if (aro) {
     weights = stepWeights(weights, targetWeights.value, dt, reduced)
+    const scene = cellScene(geo!, clock.bar + clock.barPhase)
     const f: AroFrame = {
       wall: t,
-      geo: geo!,
+      ...scene,
       weights,
       playing: playing.value,
       phase: clock.barPhase,
@@ -436,7 +480,7 @@ function tick() {
       guide: { assist: engine.assist.value, quantizeEvery: STYLES[style.value].quantizeEvery },
       suggestions: guideSuggestions.value,
       // en horizontal, más puntos en el contorno cuanto más se estira (E2.1)
-      ...(compact.value ? { contour: contourPoints(stretchOf(geo!)) } : {}),
+      ...(compact.value ? { contour: contourPoints(stretchOf(scene.geo)) } : {}),
     }
     aro.draw(f)
   }

@@ -25,6 +25,18 @@ export function dragValue(start: number, axis: 'x' | 'y', delta: number, size: n
 /** Filtro: 0..1 → djf (1 = abierto = 0,5). Filtro DJ por bus: no pisa los lpf de cada línea. */
 export const filterDjf = (v: number): number => Math.round((DJF_MIN + (DJF_OPEN - DJF_MIN) * clamp01(v)) * 1000) / 1000
 
+/** barrido de la transición entre células (spec 005, §4.3): hasta dónde se abre hacia agudos */
+export const SWEEP_DJF = 0.62
+/** pasos en los que sube el barrido (el filtro se consulta por golpe: no hace falta más fino) */
+export const SWEEP_STEPS = 8
+
+/**
+ * djf del barrido a los `k` (0..1) de los 2 últimos tiempos de una célula. Solo con tu filtro
+ * abierto del todo: si lo has movido, no hay barrido.
+ */
+export const sweepDjf = (k: number, base: number): number =>
+  base !== DJF_OPEN ? base : Math.round((DJF_OPEN + (SWEEP_DJF - DJF_OPEN) * clamp01(k)) * 1000) / 1000
+
 /** Espacio: 0..1 → reverb y delay. */
 export const spaceParams = (v: number): { room: number; delay: number } => ({
   room: Math.round(clamp01(v) * 0.6 * 100) / 100,

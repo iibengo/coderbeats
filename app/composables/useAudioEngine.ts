@@ -10,7 +10,9 @@ import {
   emptySong,
   fitTurns,
   isMulti,
+  nextInOrder,
   windowAt,
+  type Cell,
   type Cursor,
   type Song,
 } from '~/lib/cells'
@@ -25,7 +27,7 @@ import {
   type LoopsState,
   type RepeatMode,
 } from '~/lib/freeLoops'
-import { DJF_MIN, filterDjf, spaceParams, warmthShape } from '~/lib/gestures'
+import { DJF_MIN, filterDjf, spaceParams, SWEEP_STEPS, sweepDjf, warmthShape } from '~/lib/gestures'
 import { detectOnsets, minGapForCell } from '~/lib/onsets'
 import { PhraseTracker, type ClosedPhrase, type LoopLength, type PhraseSnapshot } from '~/lib/phrases'
 import { ENGINE_GLOBAL, songCode, type SongFx, type SongState } from '~/lib/song'
@@ -116,6 +118,10 @@ let lastBirth: { startBar: number; bornAt: number } | null = null
 let cursor: Cursor | null = null
 /** compás global en el que empezó la célula que se ve (el compás del aro se cuenta desde ahí) */
 let viewStartBar = 0
+/** célula que se veía antes de la actual (para apagarla en la transición); null al arrancar */
+let prevViewId: number | null = null
+/** barrido de filtro de la transición entre células, 0..1 (§4.3) */
+let sweep = 0
 const bgNodes: Partial<Record<Part, { lp: BiquadFilterNode; gain: GainNode }>> = {}
 const visualListeners = new Set<(h: VisualHit) => void>()
 
@@ -163,6 +169,9 @@ const dropping = ref(false)
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
 const later = (fn: () => void, ms: number) => timers.push(setTimeout(fn, Math.max(0, ms)))
+
+/** djf que oye el motor: el drop manda; si no, tu filtro, con el barrido de la transición encima. */
+const djfNow = (): number => (dropActive ? DJF_MIN : sweepDjf(sweep, filterDjf(fx.filter)))
 
 function requireCtx(): AudioContext {
   if (!ctx) throw new Error('AudioContext no iniciado')
@@ -261,6 +270,7 @@ function onPulse(cycle: number, t: number) {
       reevaluate()
     }
   }
+  if (cursor && multi()) scheduleSweep(cycle, t, barSec)
   later(() => {
     if (entered) showCell(entered.cellId, entered.startBar)
     currentBar.value = cycle - viewStartBar
@@ -345,10 +355,33 @@ function showCell(id: number, startBar: number) {
   const cell = cellById(s, id)
   if (!cell) return
   song.value = s
+  prevViewId = viewCellId.value
   viewCellId.value = id
   viewStartBar = startBar
   loops.value = { loops: cell.loops, nextId: s.nextLoopId }
   bgManual.value = { ...cell.parts }
+}
+
+/**
+ * Barrido de filtro (§4.3): en los 2 últimos tiempos de la última vuelta de la célula que suena,
+ * el filtro se abre un poco hacia agudos y vuelve justo en la línea de compás. Como el código se
+ * consulta ~0,15 s por delante, todo va con ese adelanto (igual que `drop()`).
+ * `t` = tiempo de contexto del inicio del compás `cycle`.
+ */
+function scheduleSweep(cycle: number, t: number, barSec: number) {
+  const c = ctx
+  const cell = cursor && cellById(song.value, cursor.cellId)
+  if (!c || !cursor || !cell) return
+  const turns = cursor.cellId === viewCellId.value ? fitTurns(cell.turns, loops.value.loops) : cell.turns
+  if (cycle !== cursor.startBar + turns - 1) return
+  const from = t + barSec / 2 - 0.15
+  const set = (k: number) => () => {
+    sweep = k
+    cb.fx.djf = djfNow()
+  }
+  for (let i = 1; i <= SWEEP_STEPS; i++)
+    later(set(i / SWEEP_STEPS), (from + ((i - 1) * (barSec / 2)) / SWEEP_STEPS - c.currentTime) * 1000)
+  later(set(0), (t + barSec - 0.15 - c.currentTime) * 1000)
 }
 
 /** Fondo que pide una célula: sus partes, salvo con el fondo apagado. */
@@ -701,7 +734,7 @@ export function useAudioEngine() {
   }
 
   function syncFx() {
-    cb.fx.djf = dropActive ? DJF_MIN : filterDjf(fx.filter)
+    cb.fx.djf = djfNow()
     const sp = spaceParams(fx.space)
     cb.fx.room = sp.room
     cb.fx.delay = sp.delay
@@ -715,6 +748,8 @@ export function useAudioEngine() {
     // la canción arranca desde la célula que se ve (spec 005, §4.1); el ciclo de Strudel empieza en 0
     cursor = { cellId: viewCellId.value, startBar: 0 }
     viewStartBar = 0
+    prevViewId = null
+    sweep = 0
     currentBar.value = 0
     clock = null
     tracker = null
@@ -747,6 +782,7 @@ export function useAudioEngine() {
     phrase.value = null
     lastBirth = null
     cursor = null
+    sweep = 0
     dropActive = false
     dropping.value = false
     plannedParts = { ...NO_PARTS }
@@ -848,6 +884,7 @@ export function useAudioEngine() {
     song.value = next
     viewCellId.value = first.id
     viewStartBar = 0
+    prevViewId = null
     loops.value = { loops: first.loops.map(({ prev: _prev, ...l }) => ({ ...l, bornAt: 0 })), nextId: next.nextLoopId }
     bgManual.value = { ...first.parts }
     reevaluate()
@@ -950,6 +987,20 @@ export function useAudioEngine() {
     return { time: t, bar: Math.floor(pos), barPhase: pos - Math.floor(pos) }
   }
 
+  /**
+   * Para la transición de agua (spec 005, §5.2): la célula que se ve, de qué compás global a cuál
+   * suena, la siguiente y la anterior. `null` parado o con una sola célula.
+   */
+  function cellPlan(): { cur: Cell; start: number; end: number; next: Cell; prev: Cell | null } | null {
+    if (!playing.value || !multi()) return null
+    const s = liveSong()
+    const cur = cellById(s, viewCellId.value)
+    const next = cur && cellById(s, nextInOrder(s, cur.id))
+    if (!cur || !next) return null
+    const prev = prevViewId === null ? null : (cellById(s, prevViewId) ?? null)
+    return { cur, start: viewStartBar, end: viewStartBar + cur.turns, next, prev }
+  }
+
   /** Código que se muestra y se copia (§16.6). */
   const displayCode = () => songCode(songState(), 'display')
 
@@ -1010,6 +1061,7 @@ export function useAudioEngine() {
     editLoops,
     onVisual,
     clockNow,
+    cellPlan,
     displayCode,
   }
 }

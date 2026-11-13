@@ -22,6 +22,7 @@ import {
   type DropGeo,
 } from '~/lib/aro/shape'
 import { ghostTarget, type GuideOptions, type GuideSpot } from '~/lib/aro/guide'
+import { bridgeHalfWidth } from '~/lib/aro/transition'
 import { FRONT, toFront, toScreen, type AroView } from '~/lib/aro/view'
 import { INK, VOICE_RGB_CSS, type Voice } from '~/lib/palette'
 
@@ -50,6 +51,29 @@ export interface AroPlace {
   voice: Voice | null
   /** distancia al borde exterior (px; > 0 = fuera de la gota) */
   outPx: number
+}
+
+/** Estiramiento del borde hacia otra célula (spec 005, §5.2): dirección y cuánto (px). */
+export interface AroPull {
+  th: number
+  a: number
+}
+
+/** La otra célula que se ve en una transición: la que entra (tenue) o la que se apaga. Solo se ve. */
+export interface AroGhost {
+  geo: DropGeo
+  weights: Weights
+  dots: AroDot[]
+  alpha: number
+}
+
+/** Puente de agua entre dos gotas (spec 005, §5.2): tramo visible y brillo, de 0 (la que sale) a 1. */
+export interface AroBridge {
+  from: DropGeo
+  to: DropGeo
+  t0: number
+  t1: number
+  glow: number | null
 }
 
 export interface AroFrame {
@@ -81,6 +105,11 @@ export interface AroFrame {
   hold: { x: number; y: number; p: number } | null
   /** inclinación y parallax (E3.5, E3.6); sin ella, de frente */
   view?: AroView
+  /** transición entre células (spec 005, §5.2): estiramiento, la otra gota, el puente y la opacidad */
+  pull?: AroPull | null
+  ghost?: AroGhost | null
+  bridge?: AroBridge | null
+  alpha?: number
 }
 
 /** radio del punto en reposo por voz (px) */
@@ -109,6 +138,16 @@ const SPRING_K = 0.09
 const SPRING_DAMP = 0.78
 const SPAWN_TAU = 0.12
 const POP_S = 0.7
+/** ángulos del contorno de la otra gota de una transición (menos detalle: dura poco) */
+const GHOST_POINTS = 72
+/** anchura angular del estiramiento hacia la otra célula */
+const PULL_SHARP = 5
+
+const pullAt = (th: number, pull: AroPull | null | undefined): number => {
+  if (!pull || pull.a <= 0) return 0
+  const d = ((th - pull.th + Math.PI * 3) % TAU) - Math.PI
+  return pull.a * Math.exp(-d * d * PULL_SHARP)
+}
 
 interface Spring {
   th: number
@@ -137,6 +176,7 @@ export class AroCanvas {
   private last: { geo: DropGeo; layout: Layout; t: number; dots: AroDot[]; suggestions: GuideSpot[] } | null = null
   /** radio exterior muestreado en cada frame (con los empujones); lo usan franjas, golpes y ondas */
   private ro = new Float32Array(0)
+  private roGhost = new Float32Array(GHOST_POINTS)
   private wob = INNER_WOBBLE
   private weights: Weights | null = null
   private drag: { key: string; th: number; u: number; outPx: number } | null = null
@@ -345,10 +385,141 @@ export class AroCanvas {
     x.scale(1, v.sy)
     x.translate(0, -f.geo.cy)
     try {
+      // la otra célula y el puente van debajo de la que suena
+      if (f.ghost && f.ghost.alpha > 0.01) this.drawGhost(f.ghost, f)
+      if (f.bridge) this.drawBridge(f.bridge, f)
+      x.globalAlpha = f.alpha ?? 1
       this.drawFront(f)
     } finally {
       x.restore()
     }
+  }
+
+  /** La otra gota de una transición: franjas, golpes y centro, sin aguja ni nada que se toque. */
+  private drawGhost(g: AroGhost, f: AroFrame) {
+    const x = this.ctx
+    const { geo } = g
+    const t = f.reduced ? 0 : f.wall
+    const breath = f.reduced ? 0 : BREATH
+    const ro = this.roGhost
+    const n = ro.length
+    for (let k = 0; k < n; k++) ro[k] = outerRadius((k / n) * TAU, geo, t, breath)
+    const layout = bandLayout(g.weights)
+    const contour = (p: Path2D, u: number, reverse: boolean) => {
+      for (let i = 0; i <= n; i++) {
+        const k = reverse ? (n - (i % n)) % n : i % n
+        const th = (k / n) * TAU
+        const r = geo.core + (ro[k]! - geo.core) * u
+        if (i === 0) p.moveTo(geo.cx + Math.cos(th) * r, geo.cy + Math.sin(th) * r)
+        else p.lineTo(geo.cx + Math.cos(th) * r, geo.cy + Math.sin(th) * r)
+      }
+      p.closePath()
+    }
+    x.save()
+    x.globalAlpha = Math.min(1, g.alpha)
+    for (const v of BAND_ORDER) {
+      const wt = g.weights[v]
+      if (wt < 0.03) continue
+      const col = VOICE_RGB_CSS[v]
+      const outer = new Path2D()
+      contour(outer, layout[v].b, false)
+      const ring = new Path2D(outer)
+      contour(ring, layout[v].a, true)
+      x.fillStyle = `rgba(${col},${0.035 * wt})`
+      x.fill(ring)
+      x.strokeStyle = `rgba(${col},${0.24 * wt})`
+      x.lineWidth = 1
+      x.stroke(outer)
+    }
+    for (const d of g.dots) {
+      const wt = g.weights[d.voice]
+      if (wt < 0.05) continue
+      const th = stepAngle(d.step)
+      const r = radiusAt(th, bandMid(d.voice, layout), outerRadius(th, geo, t, breath), geo.core, t, 0)
+      const px = geo.cx + Math.cos(th) * r
+      const py = geo.cy + Math.sin(th) * r
+      x.fillStyle = `rgba(${VOICE_RGB_CSS[d.voice]},${d.muted ? MUTED_ALPHA : 0.55})`
+      if (d.voice === 'bass') {
+        x.save()
+        x.translate(px, py)
+        x.rotate(th)
+        x.fillRect(-DOT_R.bass * 1.5, -DOT_R.bass / 2, DOT_R.bass * 3, DOT_R.bass)
+        x.restore()
+        continue
+      }
+      x.beginPath()
+      x.arc(px, py, DOT_R[d.voice] * wt, 0, TAU)
+      x.fill()
+    }
+    x.fillStyle = INK
+    x.beginPath()
+    x.arc(geo.cx, geo.cy, geo.core - 3, 0, TAU)
+    x.fill()
+    x.strokeStyle = 'rgba(255,255,255,0.8)'
+    x.lineWidth = 1.2
+    x.stroke()
+    x.fillStyle = `rgba(${VOICE_RGB_CSS.bd},1)`
+    x.beginPath()
+    x.arc(geo.cx, geo.cy, 3, 0, TAU)
+    x.fill()
+    x.restore()
+  }
+
+  /** El puente de agua: del borde de una gota al de la otra, fino en el centro, con su brillo. */
+  private drawBridge(b: AroBridge, f: AroFrame) {
+    if (b.t1 - b.t0 < 0.01) return
+    const x = this.ctx
+    const t = f.wall
+    const phi = Math.atan2(b.to.cy - b.from.cy, b.to.cx - b.from.cx)
+    const dx = Math.cos(phi)
+    const dy = Math.sin(phi)
+    const ra = outerRadius(phi, b.from, t)
+    const rb = outerRadius(phi + Math.PI, b.to, t)
+    const x0 = b.from.cx + dx * ra
+    const y0 = b.from.cy + dy * ra
+    const len = Math.hypot(b.to.cx - dx * rb - x0, b.to.cy - dy * rb - y0)
+    // si las gotas ya se tocan (o se pisan), no hay hueco que salvar
+    if (len < 2 || Math.hypot(b.to.cx - b.from.cx, b.to.cy - b.from.cy) < ra + rb) return
+    const m = 24
+    const left: [number, number][] = []
+    const right: [number, number][] = []
+    for (let i = 0; i <= m; i++) {
+      const s = b.t0 + ((b.t1 - b.t0) * i) / m
+      const hw = bridgeHalfWidth(s, b.t0, b.t1, t) * b.from.R
+      const cx = x0 + dx * len * s
+      const cy = y0 + dy * len * s
+      left.push([cx - dy * hw, cy + dx * hw])
+      right.push([cx + dy * hw, cy - dx * hw])
+    }
+    const side = (pts: [number, number][]) => {
+      const p = new Path2D()
+      pts.forEach(([px, py], i) => (i ? p.lineTo(px, py) : p.moveTo(px, py)))
+      return p
+    }
+    const body = side(left)
+    for (let i = m; i >= 0; i--) body.lineTo(right[i]![0], right[i]![1])
+    body.closePath()
+    const col = VOICE_RGB_CSS.hh
+    x.fillStyle = `rgba(${col},0.06)`
+    x.fill(body)
+    // el brillo corre hacia la célula que entra
+    if (b.glow !== null && b.glow <= b.t1 && b.glow >= b.t0) {
+      const gx = x0 + dx * len * b.glow
+      const gy = y0 + dy * len * b.glow
+      const gr = b.from.R * 0.22
+      const g = x.createRadialGradient(gx, gy, 0, gx, gy, gr)
+      g.addColorStop(0, 'rgba(255,255,255,0.4)')
+      g.addColorStop(1, 'rgba(255,255,255,0)')
+      x.save()
+      x.clip(body)
+      x.fillStyle = g
+      x.fillRect(gx - gr, gy - gr, gr * 2, gr * 2)
+      x.restore()
+    }
+    x.strokeStyle = `rgba(${col},0.24)`
+    x.lineWidth = 1
+    x.stroke(side(left))
+    x.stroke(side(right))
   }
 
   private drawFront(f: AroFrame) {
@@ -375,7 +546,8 @@ export class AroCanvas {
     if (this.ro.length !== n) this.ro = new Float32Array(n)
     for (let k = 0; k < n; k++) {
       const th = (k / n) * TAU
-      this.ro[k] = outerRadius(th, geo, t, breath, this.bumps.length ? bumpAt(th, this.bumps) : 0)
+      // el estiramiento hacia la otra célula va después de la pared: es agua que sale hacia ella
+      this.ro[k] = outerRadius(th, geo, t, breath, this.bumps.length ? bumpAt(th, this.bumps) : 0) + pullAt(th, f.pull)
     }
 
     // latido del bombo: un anillo rosa muy suave sale del centro (detrás de las franjas)

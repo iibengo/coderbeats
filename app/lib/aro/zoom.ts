@@ -113,3 +113,10 @@ export function lerpGeo(a: DropGeo, b: DropGeo, k: number): DropGeo {
     free: { x0: m(a.free.x0, b.free.x0), y0: m(a.free.y0, b.free.y0), x1: m(a.free.x1, b.free.x1), y1: m(a.free.y1, b.free.y1) },
   }
 }
+
+/** La misma gota desplazada (con su rectángulo libre): así conserva su forma al moverse la cámara (spec 005, §5.1). */
+export function moveGeo(g: DropGeo, dx: number, dy: number): DropGeo {
+  if (!dx && !dy) return g
+  const f = g.free
+  return { ...g, cx: g.cx + dx, cy: g.cy + dy, free: { x0: f.x0 + dx, y0: f.y0 + dy, x1: f.x1 + dx, y1: f.y1 + dy } }
+}
