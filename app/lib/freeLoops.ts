@@ -1,4 +1,4 @@
-import { assistQuantize } from './assist'
+import { assistQuantize, laneGrid } from './assist'
 import type { ClosedPhrase, LoopLength } from './phrases'
 import type { Instrument, StyleId } from './types'
 
@@ -52,6 +52,11 @@ export interface BirthOptions {
   quantizeEvery: 1 | 2
   /** compás global en el que nace (el siguiente al cierre) */
   bornAt: number
+  /**
+   * Carriles cuya rejilla de ayuda es la de semicorcheas porque su loop ya tiene golpes fuera de la del
+   * estilo (spec 003, E5.1). Lo rellena `addPhrase`.
+   */
+  fineLanes?: ReadonlySet<Instrument>
   /** compás global en el que empezó la célula en la que se graba (spec 005); 0 = canción de una célula */
   cellStart?: number
   /** qué hacer si el instrumento ya tiene loop (por defecto, completar: §16.21) */
@@ -90,7 +95,6 @@ const plainHits = (hits: CandidateHit[]): LoopHit[] => hits.map(({ alt: _alt, ..
  */
 export function candidatesFromPhrase(phrase: ClosedPhrase, o: BirthOptions): Candidate[] {
   const total = phrase.bars * 16
-  const q = o.quantizeEvery
   const byInst = new Map<Instrument, ClosedPhrase['hits']>()
   for (const h of phrase.hits) byInst.set(h.instrument, [...(byInst.get(h.instrument) ?? []), h])
   const out: Candidate[] = []
@@ -101,6 +105,7 @@ export function candidatesFromPhrase(phrase: ClosedPhrase, o: BirthOptions): Can
       out.push({ ...base, hits: exact.sort((a, b) => a.pos - b.pos), fromTemplate: false })
       continue
     }
+    const q: 1 | 2 = o.fineLanes?.has(instrument) ? 1 : o.quantizeEvery
     const placed = new Map<number, CandidateHit>()
     const put = (pos: number, h: CandidateHit) => {
       const prev = placed.get(pos)
@@ -176,7 +181,14 @@ export function addPhrase(state: LoopsState, phrase: ClosedPhrase, o: BirthOptio
   const newestOf = (inst: Instrument) =>
     loops.filter((l) => l.instrument === inst).sort((a, b) => b.bornAt - a.bornAt || b.id - a.id)[0]
 
-  for (const cand of candidatesFromPhrase(phrase, o)) {
+  // la rejilla de la ayuda se adapta a cada carril (E5.1)
+  const fineLanes = new Set<Instrument>()
+  for (const inst of new Set(phrase.hits.map((h) => h.instrument))) {
+    const own = o.amend ? loops.find((l) => l.instrument === inst && l.bornAt === o.bornAt) : undefined
+    const existing = own ?? newestOf(inst)
+    if (existing && laneGrid(o.quantizeEvery, (own?.prev ? { ...own, ...own.prev } : existing).hits) === 1) fineLanes.add(inst)
+  }
+  for (const cand of candidatesFromPhrase(phrase, { ...o, fineLanes })) {
     const c = { ...cand, hits: plainHits(cand.hits) }
     const own = o.amend ? loops.find((l) => l.instrument === c.instrument && l.bornAt === o.bornAt) : undefined
     const existing = own ?? newestOf(c.instrument)

@@ -32,6 +32,16 @@ export function assistQuantize(
   return ((best % totalSteps) + totalSteps) % totalSteps
 }
 
+/**
+ * Rejilla de la ayuda en un carril (spec 003, E5.1): la del estilo (`styleGrid`: 1 = semicorcheas, 2 =
+ * corcheas), salvo que el loop del carril ya tenga golpes fuera de ella (pasos impares, de la demo o de
+ * mover golpes con el dedo): entonces se permite la resolución de semicorcheas en ese carril.
+ */
+export function laneGrid(styleGrid: 1 | 2, hits: readonly { pos: number }[]): 1 | 2 {
+  if (styleGrid === 1) return 1
+  return hits.some((h) => Math.abs(h.pos / styleGrid - Math.round(h.pos / styleGrid)) > 0.02) ? 1 : styleGrid
+}
+
 /** Plantilla del estilo para un golpe suelto: posiciones de 1 compás. */
 export function templateFor(instrument: Instrument, style: StyleId): number[] {
   return templateSteps(STYLE_MUSIC[style].templates[instrument])

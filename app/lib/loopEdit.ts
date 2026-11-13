@@ -9,6 +9,7 @@
  * - Nada de esto es un nacimiento: no cambia `bornAt` ni `prev`.
  * - El bajo no se edita: solo se ve (E1.4, E3.8).
  */
+import { laneGrid } from './assist'
 import { loopBarAt, MAX_LOOPS, type FreeLoop, type LoopsState } from './freeLoops'
 import type { Instrument } from './types'
 
@@ -73,8 +74,9 @@ export function removeHit(s: LoopsState, loopId: number, pos: number): LoopsStat
  * crea (1 compás), salvo que ya haya 8 loops. Si ya hay golpe en ese paso, no hace nada.
  */
 export function addHit(s: LoopsState, inst: Instrument, step: number, g: number, o: EditOptions, strength = 0.8): EditResult {
-  const at = snapStep(step, o)
   const own = loopOf(s, inst)
+  // la rejilla se adapta al carril: si ya tiene golpes fuera de la del estilo, se permite esa resolución (E5.1)
+  const at = snapStep(step, own ? { ...o, quantizeEvery: laneGrid(o.quantizeEvery, own.hits) } : o)
   if (own) {
     const pos = loopBarAt(own, g) * 16 + at
     if (own.hits.some((h) => sameStep(h.pos, pos, own.bars * 16))) return null
@@ -112,7 +114,9 @@ export function moveHit(
   const loop = s.loops.find((l) => l.id === loopId)
   const hit = loop?.hits.find((h) => Math.abs(h.pos - fromPos) < 1e-6)
   if (!loop || !hit) return null
-  const at = snapStep(step, o)
+  // la rejilla es la del carril al que va el golpe (E5.1)
+  const target0 = toInst === loop.instrument ? loop : loopOf(s, toInst)
+  const at = snapStep(step, target0 ? { ...o, quantizeEvery: laneGrid(o.quantizeEvery, target0.hits) } : o)
   if (toInst === loop.instrument) {
     const without = { ...loop, hits: loop.hits.filter((h) => h !== hit) }
     const r = place(without, at, g, hit.strength)

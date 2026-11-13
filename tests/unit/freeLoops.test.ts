@@ -312,3 +312,39 @@ describe('enmienda (amend)', () => {
     expect(s.loops[0]!.hits.map((h) => h.pos)).toEqual([0, 6, 10, 14])
   })
 })
+
+describe('la rejilla de la ayuda se adapta al carril al grabar (E5.1)', () => {
+  const hhLoop = {
+    id: 1,
+    instrument: 'hh' as Instrument,
+    bars: 1 as const,
+    phaseBar: 0,
+    hits: [1, 3, 5, 6, 8, 10, 12, 14].map((pos) => ({ pos, strength: 0.5 })),
+    muted: false,
+    bornAt: 0,
+    fromTemplate: false,
+  }
+  const base: LoopsState = { loops: [hhLoop], nextId: 2 }
+  const dnb = (o: Partial<BirthOptions> = {}) => opts({ style: 'dnb', quantizeEvery: 2, bornAt: 4, ...o })
+
+  it('un platillo en 7,2 completa el loop con el paso 7, no con el 8 ocupado', () => {
+    const r = addPhrase(base, phrase([[7.2, 'hh']], 3), dnb())
+    const l = r.state.loops.find((x) => x.id === 1)!
+    expect(l.hits.map((h) => h.pos)).toEqual([1, 3, 5, 6, 7, 8, 10, 12, 14])
+    expect(r.events).toHaveLength(1)
+    expect(r.events[0]!.type).toBe('completed')
+  })
+
+  it('en un carril sin golpes finos sigue yendo a la rejilla del estilo (el 8 ocupado no añade nada)', () => {
+    const even: LoopsState = { loops: [{ ...hhLoop, hits: [0, 6, 8].map((pos) => ({ pos, strength: 0.5 })) }], nextId: 2 }
+    const r = addPhrase(even, phrase([[7.2, 'hh']], 3), dnb())
+    expect(r.state.loops[0]!.hits.map((h) => h.pos)).toEqual([0, 6, 8])
+    expect(r.events).toHaveLength(0)
+  })
+
+  it('un instrumento nuevo en la misma frase sigue con la rejilla del estilo', () => {
+    const r = addPhrase(base, phrase([[7.2, 'hh'], [7.2, 'sd']], 3), dnb())
+    const sd = r.state.loops.find((x) => x.instrument === 'sd')!
+    expect(sd.hits.map((h) => h.pos)).toEqual([8])
+  })
+})

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { assistQuantize, templateFor } from '../../app/lib/assist'
+import { assistQuantize, laneGrid, templateFor } from '../../app/lib/assist'
 
 describe('assistQuantize', () => {
   it('house: un bombo a 0,75 del 4 (0,25 del 5) cae en la negra', () => {
@@ -39,5 +39,25 @@ describe('templateFor', () => {
     expect(templateFor('sd', 'dnb')).toEqual([4, 12])
     expect(templateFor('hh', 'house')).toEqual([2, 6, 10, 14])
     expect(templateFor('hh', 'hiphop90')).toEqual([0, 2, 4, 6, 8, 10, 12, 14])
+  })
+})
+
+describe('laneGrid (E5.1: la rejilla se adapta al carril)', () => {
+  const at = (...p: number[]) => p.map((pos) => ({ pos }))
+
+  it('con golpes solo en la rejilla del estilo, no cambia', () => {
+    expect(laneGrid(2, at(0, 2, 4, 6, 8, 12))).toBe(2)
+    expect(laneGrid(2, [])).toBe(2)
+    expect(laneGrid(2, at(16, 18, 30))).toBe(2) // loops de varios compases
+  })
+
+  it('con algún golpe fuera de ella (pasos impares), el carril admite semicorcheas', () => {
+    expect(laneGrid(2, at(1, 3, 5, 6, 8))).toBe(1)
+    expect(laneGrid(2, at(6, 8, 9))).toBe(1)
+    expect(laneGrid(2, at(6, 8, 7.37))).toBe(1) // también decimales (ayuda apagada, o movidos con el dedo)
+  })
+
+  it('la rejilla de semicorcheas del estilo no cambia', () => {
+    expect(laneGrid(1, at(0, 4, 8))).toBe(1)
   })
 })

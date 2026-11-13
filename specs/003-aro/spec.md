@@ -313,3 +313,26 @@ Un sonido de un carril apagado **se ignora, no se reasigna**. La primera versió
 - El clasificador da el voto de cada instrumento; `decideLane` (puro) decide con los carriles (tests: encendido entra; apagado claro se ignora y no se reasigna; duda → al encendido; todos apagados → nada).
 - Interruptor de carriles, puro, con tests. El worker recibe los carriles encendidos con un mensaje nuevo.
 
+---
+
+## Enmienda 5 · la rejilla de la ayuda se adapta al carril (2026-11-13)
+
+Tras probarlo en el iPhone con el registro: en drum and bass, con un loop de platillo con golpes en
+los pasos 6 y 8 y en pasos impares (1, 3, 5…), no se podía poner un golpe en el 7. La ayuda lo llevaba
+a la rejilla de corcheas del estilo (7,2 → 8), el 8 estaba ocupado y lo descartaba.
+
+La ayuda se diseñó para el beatbox de frases enteras (un ritmo aproximado que se coloca en la rejilla
+del estilo). Aquí hay otro caso: un loop que ya tiene más detalle que la rejilla (de la demo o de mover
+golpes con el dedo) al que se le añade un golpe suelto en medio. Esa combinación no estaba en la spec.
+
+### E5.1 La rejilla se adapta a lo que ya hay
+- La rejilla de la ayuda sigue siendo la del estilo (corcheas en drum and bass), **salvo en un carril
+  cuyo loop ya tiene golpes fuera de ella** (p. ej. en semicorcheas): en ese carril se permite la
+  resolución de semicorcheas.
+- Vale en los tres sitios que redondean: tocar una franja vacía, mover un golpe y el beatbox al
+  completar un loop.
+- **Solo cambia ese carril.** Los demás siguen con la rejilla del estilo, y un carril sin golpes fuera de
+  ella no cambia (el 7,2 sigue yendo al 8, y si está ocupado, no se crea).
+- Con semicorcheas en el estilo (hip hop, house), no cambia nada.
+- Lógica en `lib/assist.ts` (`laneGrid`, puro) y tests en `assist`, `loopEdit` y `freeLoops`.
+

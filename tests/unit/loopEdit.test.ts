@@ -105,3 +105,41 @@ describe('removeHit', () => {
     expect(removeHit(once, 1, 0).loops).toHaveLength(0)
   })
 })
+
+describe('la rejilla de la ayuda se adapta al carril (E5.1)', () => {
+  // el caso del registro: dnb, un loop de platillo con golpes en 6 y 8 y en pasos impares
+  const hh = () => state(loop(1, 'hh', [1, 3, 5, 6, 8, 10, 12, 14]))
+
+  it('tocar el paso 7 con ayuda en dnb lo pone en el 7, no lo lleva al 8 ocupado', () => {
+    const r = addHit(hh(), 'hh', 7.2, 0, dnb)
+    expect(r).not.toBeNull()
+    expect(r!.hit.pos).toBe(7)
+    expect(posOf(r!.state, 1)).toEqual([1, 3, 5, 6, 7, 8, 10, 12, 14])
+  })
+
+  it('un carril sin golpes fuera de la rejilla sigue con la del estilo', () => {
+    const even = state(loop(1, 'hh', [0, 2, 4, 6, 10, 12, 14]))
+    // 7,2 va al 8 (libre) y no al 7
+    expect(addHit(even, 'hh', 7.2, 0, dnb)!.hit.pos).toBe(8)
+    // y si el 8 está ocupado, no se crea (como siempre)
+    expect(addHit(state(loop(1, 'hh', [0, 6, 8])), 'hh', 7.2, 0, dnb)).toBeNull()
+  })
+
+  it('solo cambia el carril que tiene golpes finos: los demás siguen con la rejilla del estilo', () => {
+    const s = state(loop(1, 'hh', [1, 3, 5, 6, 8]), loop(2, 'sd', [4, 12]))
+    const r = addHit(s, 'sd', 7.2, 0, dnb)!
+    expect(r.hit.pos).toBe(8)
+  })
+
+  it('mover un golpe a un carril fino admite el paso fino', () => {
+    const s = state(loop(1, 'hh', [1, 3, 5, 6, 8]), loop(2, 'sd', [4, 12]))
+    const r = moveHit(s, 2, 12, 'hh', 7.2, 0, dnb)!
+    expect(r.hit.pos).toBe(7)
+    expect(posOf(r.state, 1)).toContain(7)
+  })
+
+  it('un golpe fino movido en su propio carril se queda en pasos finos', () => {
+    const r = moveHit(hh(), 1, 3, 'hh', 2.9, 0, dnb)!
+    expect(r.hit.pos).toBe(3)
+  })
+})
