@@ -399,7 +399,7 @@ Colocadas en el mapa en una curva suave, de izquierda a derecha, a distintas pro
 Ideas anotadas el 2026-11-13. **No están decididas ni entran en ninguna fase todavía**: se revisan
 antes de la fase 3 o después.
 
-### 13.1 Células libres (satélites) · hecho el 2026-11-14
+### 13.1 Células libres (satélites) · hecho el 2026-11-14 · **sustituido por la enmienda 2 (§16)**
 
 > Implementado en tres partes. Lo que se decidió sin preguntar, en §14 ("Células libres").
 
@@ -527,6 +527,9 @@ qué se decidió y por qué; se cambian sin más si no gustan.
 
 ## 15. Enmienda 1 · células sueltas: copiar, enganchar y cortar (2026-11-13)
 
+> **Cambiado por la enmienda 2 (§16):** una suelta pasa a ser un grupo de una célula apagado; cortar un hilo parte el
+> grupo en dos (§16.3) en vez de sacar una célula; las sueltas ya no se escuchan solas en bucle.
+
 Tras usar la colonia: copiar y ordenar era lioso. La copia se metía justo después de la original y luego
 costaba moverla. Esta enmienda **manda sobre §7.1** (copiar y ordenar) y sobre la decisión 15.
 
@@ -573,3 +576,102 @@ costaba moverla. Esta enmienda **manda sobre §7.1** (copiar y ordenar) y sobre 
 - `isLoose`, `withCopy` (suelta), `withDetached` y `withOrderAfter` con una suelta de destino (cells.ts);
   `threadAt` (colony.ts). Tests: la copia queda fuera del orden, enganchar, cortar (y no se corta con 1 sola),
   avance y ventana con una suelta delante, distancia a un hilo.
+
+## 16. Enmienda 2 · grupos de células en paralelo (2026-11-14)
+
+Estado: **aprobada** (2026-11-14). **Sustituye a §13.1 (células libres) y cambia §15 (sueltas y cortar un hilo)**. Parte del ajuste
+de la idea de las libres: en vez de células sueltas independientes, **grupos de células que suenan a la vez**.
+
+### 16.1 La idea
+- Una canción es **uno o varios grupos de células**. Un **grupo** es una cadena de células unidas por hilo, en un
+  orden: la 1ª → la 2ª → la 3ª…, y tras la última vuelve a la primera.
+- El **grupo principal** es la canción de siempre: de él son Play, el bucle, el salto, el barrido, la cámara que
+  sigue lo que suena, la chapa de vueltas y las transiciones de agua.
+- **Pueden sonar otros grupos a la vez**, cada uno con su orden (p. ej. una melodía A → B → A).
+- **Una célula libre es un grupo de una sola célula**, que se repite. **Una suelta es lo mismo, apagado.** Ya no hay
+  dos clases de célula: hay **grupos, encendidos o apagados**, y **toda célula está en un grupo**.
+
+### 16.2 Cómo suena
+- Cada grupo avanza **por su cuenta**: su célula actual suena sus vueltas y pasa a la siguiente; tras la última,
+  vuelve a la primera. Un grupo de una célula se repite cada `vueltas` compases (nunca menos que su loop más largo).
+- **Siempre en línea de compás:** un grupo entra, cambia de célula y sale solo en líneas de compás.
+- Un grupo se **enciende** en la siguiente línea de compás, empezando por su primera célula (o por la que se toque,
+  §16.4); al **apagarse**, sigue hasta la siguiente línea.
+- **No se esperan entre sí:** sus duraciones no tienen por qué cuadrar (8 compases frente a 18); cada uno gira por su
+  cuenta sobre la misma rejilla de compases.
+- El fondo (bajo y acordes) y los efectos globales (filtro, espacio, calor, barrido) son de la canción y afectan a todos.
+- **Se puede grabar** en una célula de un grupo que no es el principal con la canción avanzando; el grupo se enciende
+  solo, desde esa célula, al nacer su primer loop.
+
+### 16.3 Juntar y separar
+- **Juntar (hilo y asa):** arrastrar el asa de A sobre B pone a B **justo detrás de A, en el grupo de A** (la regla
+  de ordenar de siempre; B sale de su grupo y este se cierra).
+  - Si A es la **cola** de su grupo y B la **cabeza** del suyo, se juntan **los dos grupos enteros**.
+  - Un grupo que se queda sin células desaparece.
+  - El grupo resultante es el principal si alguno de los dos lo era.
+- **Separar:** **tocar un hilo lo corta**: el grupo se parte en dos por ese hilo. La parte de detrás (desde la célula
+  a la que llevaba) es **un grupo nuevo, apagado**, para no cambiar lo que suena. **El principal es el que lleva la
+  primera célula de la canción.**
+- **Copiar (asa → agua)** crea una copia suelta = **un grupo nuevo de una célula, apagado**.
+- **Todas las células tienen asa y número**, también las de un grupo de una célula.
+- **Una célula aparece una sola vez** en un grupo. Para "A → B → A" se hace una copia de A (A′) y se engancha. La misma
+  A repetida (editar una cambia las dos) queda para más adelante.
+
+### 16.4 Encender, apagar y saltar (tocar)
+- **Grupo principal:** como hoy (un toque salta a la célula en la siguiente línea y la deja en bucle; otro toque suelta).
+- **Grupo apagado:** un toque en cualquiera de sus células lo **enciende, empezando por ella**.
+- **Grupo encendido que no es el principal:** un toque en otra célula **salta a ella** (en la siguiente línea de
+  compás) y un toque en la que suena lo **apaga**. En un grupo de una célula, un toque lo enciende o apaga.
+- **Doble toque:** entra (la cámara se acerca). Mientras se ve una célula de un grupo que no es el principal, la vista
+  no sigue lo que suena (como las libres de hoy).
+- **En el aro**, la chapa de una célula de un grupo que no es el principal es el interruptor **"grupo · suena /
+  apagado"**; no hay bucle ni "seguir".
+
+### 16.5 Cómo se ve
+- **Hilos** entre las células de todos los grupos. Los de un grupo apagado, tenues; los de los que no son el
+  principal, con un tinte frío muy suave para distinguirlos de la canción.
+- **La célula que suena en cada grupo encendido lleva su anillo de progreso** (rosa en el principal, blanco en los
+  demás) y sus puntitos de vueltas; las demás, su número.
+- **Un grupo apagado** se ve tenue, con el anillo a trazos.
+- Los grupos nuevos nacen encima de la curva, uno junto a otro (como las libres de hoy).
+
+### 16.6 Datos y migración
+- `Song.order` sigue siendo **el grupo principal**. Los demás: `Song.groups: { id, order, on }[]` y `nextGroupId`, con cada
+  célula en un solo grupo. `on` se guarda; al dar a Play, los encendidos empiezan por su primera célula en el compás 0.
+- **Migrar lo ya guardado** (no se pierde nada): cada célula con `free` pasa a ser un grupo de una, con su `on`; cada
+  suelta (fuera del orden y sin `free`), un grupo de una apagado. `Cell.free` y `Cell.on` se dejan de escribir y se
+  siguen leyendo para migrar.
+- **Máximo 16 células** en total (un grupo de una célula cuenta). Sin tope de grupos.
+- **Mis canciones:** el resumen cuenta los grupos: "4 células + 2 grupos".
+
+### 16.7 Lo que ya está hecho y cómo cambia
+- **Se aprovecha tal cual:** el avance de un orden (`stepPlay`, `windowAt`, `endBar`: sirven para cualquier orden), los
+  tramos con su fase y `filterHaps` del código, "lo que se ve" frente a "lo que suena", grabar fuera de la canción,
+  la chapa-interruptor, los anillos, crear, mover, borrar y deshacer.
+- **Cambia:** el modelo (`free`/`on` → grupos), el estado del motor (un recorrido por grupo en vez de `freeRuns`), el
+  código (una ventana por grupo, y en el que se enseña un `arrange` por grupo dentro de un `stack`), cortar un hilo
+  (separa en dos, no saca una célula), enganchar (mueve entre grupos) y los toques sobre libres y sueltas.
+- **Se pierde:** escuchar una suelta sola en bucle (ahora, tocarla enciende su grupo y suena con la canción) y las
+  células sin asa ni número.
+
+### 16.8 Fases
+- **G1 · Modelo:** grupos, migración, juntar, separar y copiar; con tests (puro).
+- **G2 · Motor:** un recorrido por grupo (encender, apagar, saltar), código del motor y el que se enseña, grabar y
+  borrar; con tests.
+- **G3 · Pantalla:** hilos, asas y números en todas, anillos por grupo, toques, interruptor de la chapa y ⋯.
+- **G4 · Mis canciones y limpieza:** abrir lo antiguo migrado, el resumen, y quitar lo que sobra (`free`/`on`).
+
+### 16.9 Decisiones (aprobadas el 2026-11-14)
+1. **Suelta = grupo de una célula apagado; libre = el mismo, encendido.** Una sola idea en vez de dos.
+2. **Cortar un hilo parte el grupo en dos** (la parte de detrás, apagada), en vez de sacar una sola célula como en §15.4.
+3. **Juntar:** soltar sobre la cabeza de un grupo (desde la cola de otro) junta los dos enteros; en cualquier otro caso
+   mueve solo la célula soltada.
+4. **El principal** es el grupo con la primera célula de la canción; al juntar, el que lo tenía.
+5. **Una célula, una vez por grupo:** "A → B → A" se hace con una copia.
+6. **Tocar un grupo apagado** lo enciende por la célula tocada; **tocar la que suena** de uno encendido lo apaga.
+7. **Sin bucle ni barrido propios** en los grupos que no son el principal; el fondo y los efectos, de la canción.
+8. **Los grupos nuevos nacen apagados.**
+
+Sobre las dos preguntas abiertas: **"A → B → A" se hace con copias** (la misma célula repetida, más adelante) y
+**cortar un hilo parte el grupo en dos** (la parte de detrás, apagada). El resto, de acuerdo.
+
