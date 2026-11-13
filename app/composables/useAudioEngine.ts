@@ -9,6 +9,7 @@ import {
   emptySong,
   endBar,
   fitTurns,
+  isLoose,
   isMulti,
   minTurns,
   nextDepth,
@@ -19,6 +20,7 @@ import {
   stressSong,
   windowAt,
   withCopy,
+  withDetached,
   withNewCell,
   withValidBpm,
   withOrderAfter,
@@ -896,7 +898,8 @@ export function useAudioEngine() {
     viewStartBar = 0
     prevViewId = null
     sweep = 0
-    loop = false
+    // con una suelta a la vista suena ella, en bucle (para escucharla); no es parte de la canción (§15.1)
+    loop = multi() && isLoose(song.value, viewCellId.value)
     jump = null
     viewJump = null
     syncLoopUi()
@@ -1248,7 +1251,7 @@ export function useAudioEngine() {
   // ── Crear, borrar y deshacer células (spec 005, §7.1, fase 3.2) ──────────────────
   /** Lo último que se borró, para "↶ deshacer" (un solo nivel; no se guarda). */
   type UndoRec =
-    | { kind: 'cell'; cell: Cell; prevId: number | null; nextId: number | null }
+    | { kind: 'cell'; cell: Cell; prevId: number | null; nextId: number | null; loose: boolean }
     | { kind: 'clear'; id: number; loops: FreeLoop[]; parts: Parts }
     | { kind: 'all'; song: Song }
   let undoRec: UndoRec | null = null
@@ -1297,8 +1300,8 @@ export function useAudioEngine() {
   }
 
   /**
-   * Copia la célula `srcId` en `at` (mapa): la copia va justo después de la original en el orden
-   * (spec 005, §7.1, el asa). Devuelve su id, o null con 16 células.
+   * Copia la célula `srcId` en `at` (mapa): la copia es **suelta** (enmienda 1, §15): sin hilos y sin
+   * sonar, hasta que se engancha. Devuelve su id, o null con 16 células.
    */
   function copyCell(srcId: number, at: { x: number; y: number }): number | null {
     const s = liveSong()
@@ -1310,19 +1313,53 @@ export function useAudioEngine() {
     song.value = r.song
     // los ids de loop de la copia no deben repetirse con los que se creen en la célula que se ve
     loops.value = { ...loops.value, nextId: Math.max(loops.value.nextId, r.song.nextLoopId) }
-    log('cell', `célula ${srcId} copiada en ${r.id}, justo después`)
-    becameMulti(isMulti(s))
+    log('cell', `célula ${srcId} copiada en la ${r.id}, suelta (no suena hasta engancharla)`)
     reevaluate()
     return r.id
   }
 
   /** Ordenar con el asa: `bId` pasa a sonar justo después de `aId`. */
   function orderAfter(aId: number, bId: number) {
-    const next = withOrderAfter(liveSong(), aId, bId)
+    const s = liveSong()
+    const next = withOrderAfter(s, aId, bId)
     if (!next) return
     song.value = next
-    log('cell', `orden: la ${bId} suena justo después de la ${aId}`)
+    log('cell', `${isLoose(s, bId) ? 'enganchada' : 'orden'}: la ${bId} suena justo después de la ${aId}`)
+    // una suelta que entra puede hacer de la canción de una célula una de varias
+    becameMulti(isMulti(s))
     reevaluate()
+  }
+
+  /**
+   * Cortar un hilo (enmienda 1, §15.4): la célula `id` (a la que llevaba el hilo) sale del orden y queda
+   * suelta; la canción salta por encima. Si suena, sigue hasta el final de sus vueltas y entonces salta.
+   */
+  function detachCell(id: number) {
+    const s = liveSong()
+    const next = withDetached(s, id)
+    if (!next) return
+    const nextId = nextInOrder(s, id)
+    song.value = next
+    log('cell', `hilo cortado: la célula ${id} queda suelta`)
+    if (!isMulti(next)) collapseToSingle()
+    else if (playing.value && cursor && cursor.cellId === id && !loop && !jump) {
+      // suena la cortada: acaba sus vueltas y salta a la que iba detrás
+      jump = { cellId: nextId, startBar: endBar(next, curPlay()), loop: false }
+    }
+    syncLoopUi()
+    reevaluate()
+    updateBackground()
+  }
+
+  /** Queda una sola célula en el orden: vuelve a ser la app de siempre (una célula; las sueltas, aparcadas). */
+  function collapseToSingle() {
+    const only = cellById(song.value, song.value.order[0]!)!
+    if (viewCellId.value !== only.id) showCell(only.id, 0)
+    cursor = cursor && { cellId: only.id, startBar: 0 }
+    viewStartBar = 0
+    loop = false
+    jump = null
+    viewJump = null
   }
 
   /**
@@ -1333,29 +1370,26 @@ export function useAudioEngine() {
     const s = liveSong()
     const cell = cellById(s, id)
     if (!cell) return
-    if (s.cells.length === 1) {
+    // la última célula de la canción (la única del orden) no se borra: se vacía, aunque haya sueltas
+    if (s.order.length === 1 && s.order[0] === id) {
       setUndo({ kind: 'clear', id, loops: cell.loops, parts: { ...cell.parts } })
-      loops.value = clearLoops(loops.value)
-      bgManual.value = { ...NO_PARTS }
-      log('cell', 'la última célula se vacía')
+      if (viewCellId.value === id) {
+        loops.value = clearLoops(loops.value)
+        bgManual.value = { ...NO_PARTS }
+      } else song.value = { ...s, cells: s.cells.map((c) => (c.id === id ? { ...c, loops: [], parts: { ...NO_PARTS } } : c)) }
+      log('cell', 'la última célula de la canción se vacía')
       reevaluate()
       updateBackground()
       return
     }
     const i = s.order.indexOf(id)
-    setUndo({ kind: 'cell', cell, prevId: s.order[i - 1] ?? null, nextId: s.order[i + 1] ?? null })
+    setUndo({ kind: 'cell', cell, prevId: i < 0 ? null : (s.order[i - 1] ?? null), nextId: i < 0 ? null : (s.order[i + 1] ?? null), loose: i < 0 })
     const nextId = nextInOrder(s, id)
     song.value = withoutCell(s, id)
     log('cell', `célula ${id} borrada`)
     if (!multi()) {
-      // queda una sola: vuelve a ser la app de siempre
-      const only = song.value.cells[0]!
-      if (viewCellId.value !== only.id) showCell(only.id, 0)
-      cursor = cursor && { cellId: only.id, startBar: 0 }
-      viewStartBar = 0
-      loop = false
-      jump = null
-      viewJump = null
+      // queda una sola en el orden: vuelve a ser la app de siempre
+      collapseToSingle()
     } else if (playing.value && cursor) {
       if (jump?.cellId === id) jump = null
       if (viewJump?.cellId === id) viewJump = null
@@ -1397,7 +1431,8 @@ export function useAudioEngine() {
     song.value = {
       ...s,
       cells: [...s.cells, rec.cell],
-      order: orderWith(s.order, rec.cell.id, rec.prevId, rec.nextId),
+      // una suelta vuelve suelta; una de la canción, entre sus mismos vecinos
+      order: rec.loose ? s.order : orderWith(s.order, rec.cell.id, rec.prevId, rec.nextId),
       nextLoopId: Math.max(s.nextLoopId, ...rec.cell.loops.map((l) => l.id + 1)),
     }
     log('cell', `célula ${rec.cell.id} recuperada`)
@@ -1443,7 +1478,17 @@ export function useAudioEngine() {
    * compás y queda en bucle (§4.1); parado, solo pasa a verse.
    */
   function travelTo(id: number) {
-    if (!multi() || !cellById(song.value, id)) return
+    if (!cellById(song.value, id)) return
+    if (!multi()) {
+      // una sola célula en el orden (y quizá sueltas): pasar a otra es cambiar la célula que se ve, ya
+      if (id === viewCellId.value) return
+      showCell(id, 0)
+      if (cursor) cursor = { cellId: id, startBar: 0 }
+      viewStartBar = 0
+      reevaluate()
+      updateBackground()
+      return
+    }
     if (!playing.value || !cursor || !clock || !ctx) {
       if (id !== viewCellId.value) showCell(id, 0)
       return
@@ -1567,6 +1612,7 @@ export function useAudioEngine() {
     cycleTurns,
     addCell,
     copyCell,
+    detachCell,
     orderAfter,
     removeCell,
     undo,

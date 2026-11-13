@@ -258,3 +258,40 @@ export function spotAt(px: number, py: number, spots: readonly Spot[], hit: numb
   }
   return best
 }
+
+// ── tocar un hilo para cortarlo (enmienda 1, §15.4) ──────────────────────────────
+/** a cuántos px del hilo cuenta como tocarlo */
+export const THREAD_HIT = 12
+
+/** Distancia de un punto al segmento a–b (px). */
+export function segmentDistance(p: Point, a: Point, b: Point): number {
+  const dx = b.x - a.x
+  const dy = b.y - a.y
+  const len2 = dx * dx + dy * dy
+  const t = len2 > 0 ? Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2)) : 0
+  return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy))
+}
+
+export interface ThreadSeg {
+  fromId: number
+  toId: number
+  a: Point
+  b: Point
+}
+
+/**
+ * Hilo bajo un punto: el más cercano a menos de `hit` px, o null. Devuelve el hilo entero; cortarlo deja
+ * suelta la célula a la que llevaba (`toId`).
+ */
+export function threadAt(px: number, py: number, threads: readonly ThreadSeg[], hit = THREAD_HIT): ThreadSeg | null {
+  let best: ThreadSeg | null = null
+  let bd = hit
+  for (const t of threads) {
+    const d = segmentDistance({ x: px, y: py }, t.a, t.b)
+    if (d <= bd) {
+      bd = d
+      best = t
+    }
+  }
+  return best
+}

@@ -322,9 +322,9 @@ export function orderWith(order: readonly number[], id: number, prevId: number |
 
 // ── copiar y ordenar con el asa (spec 005, §7.1, fase 3.3) ────────────────────────
 /**
- * Copia la célula `srcId` en `at` (mapa): mismos loops (con ids nuevos), partes, vueltas y profundidad,
- * y la copia va justo después de la original en el orden (A → copia → la que seguía). Devuelve null si
- * ya hay `MAX_CELLS` o la original no existe.
+ * Copia la célula `srcId` en `at` (mapa): mismos loops (con ids nuevos), partes, vueltas y profundidad.
+ * La copia es **suelta** (enmienda 1, §15): está en `cells` pero no en el orden, sin hilos y sin sonar,
+ * hasta que se engancha. Devuelve null si ya hay `MAX_CELLS` o la original no existe.
  */
 export function withCopy(song: Song, srcId: number, at: { x: number; y: number }): { song: Song; id: number } | null {
   const src = cellById(song, srcId)
@@ -340,14 +340,24 @@ export function withCopy(song: Song, srcId: number, at: { x: number; y: number }
     parts: { ...src.parts },
     at: { x: at.x, y: at.y, depth: src.at.depth },
   }
-  const order = [...song.order]
-  order.splice(order.indexOf(srcId) + 1, 0, id)
-  return { song: { ...song, cells: [...song.cells, cell], order, nextCellId: id + 1, nextLoopId: loopId }, id }
+  return { song: { ...song, cells: [...song.cells, cell], nextCellId: id + 1, nextLoopId: loopId }, id }
+}
+
+/** ¿Es una célula suelta (aparcada)? Existe, pero no está en el orden: sin hilos y sin sonar con la canción. */
+export const isLoose = (song: Pick<Song, 'cells' | 'order'>, id: number): boolean => !!cellById(song, id) && !song.order.includes(id)
+
+/**
+ * Cortar un hilo (§15.4): `id` sale del orden y queda suelta; la que iba antes pasa a la que iba después.
+ * Devuelve null si no se puede (no está en el orden, o es la única que queda en él).
+ */
+export function withDetached(song: Song, id: number): Song | null {
+  if (song.order.length < 2 || !song.order.includes(id)) return null
+  return { ...song, order: song.order.filter((x) => x !== id) }
 }
 
 /**
- * Ordenar (§7.1): soltar el hilo de A sobre B pone a B justo después de A. Devuelve null si no hay nada
- * que cambiar (misma célula, no existe, o B ya iba justo después de A). La canción es cíclica, así que
+ * Ordenar y enganchar (§7.1, §15.3): soltar el hilo de A sobre B pone a B justo después de A; si B era
+ * una suelta, entra en la canción. Devuelve null si no hay nada que cambiar (misma célula, no existe, o B ya iba justo después de A). La canción es cíclica, así que
  * esta regla cubre cualquier posición.
  */
 export function withOrderAfter(song: Song, aId: number, bId: number): Song | null {

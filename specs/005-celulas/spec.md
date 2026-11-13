@@ -481,6 +481,19 @@ qué se decidió y por qué; se cambian sin más si no gustan.
 
 (Se añaden con cada parte.)
 
+**Enmienda 1 · células sueltas**
+- **Tocar un hilo deja suelta la célula a la que llevaba** (la de destino), no la de origen: así "la canción
+  salta por encima" de ella. Si se prefiere la otra, es cambiar un extremo.
+- **Las sueltas no tienen asa:** no se pueden copiar ni enganchar a otras desde sí mismas; se copian desde una
+  de la canción y se enganchan desde una de la canción.
+- **Dar a Play con una suelta a la vista la toca en bucle** (para escucharla) en vez de entrar en la canción.
+- **Tocar una suelta en la colonia la toca en bucle** como a cualquier otra, también si la canción es de una
+  sola célula (entonces cambia al momento, sin esperar a la línea de compás).
+- **Cortar un hilo no se puede deshacer:** se vuelve a enganchar con el asa.
+- **La última célula de la canción (la única del orden) se vacía en vez de borrarse,** aunque haya sueltas.
+- **Una suelta borrada se recupera suelta** con "↶ deshacer".
+- **Las sueltas se ven al 45 %** de opacidad en la colonia, y sus números también; cerca no cambia nada.
+
 ## 15. Enmienda 1 · células sueltas: copiar, enganchar y cortar (2026-11-13)
 
 Tras usar la colonia: copiar y ordenar era lioso. La copia se metía justo después de la original y luego

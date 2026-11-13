@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   approachBlend,
+  segmentDistance,
+  threadAt,
   HANDLE_DIST,
   handlePoint,
   spotAt,
@@ -273,5 +275,31 @@ describe('colonia: asa de cada célula', () => {
     expect(spotAt(52, 51, spots, 18)).toBe(1)
     expect(spotAt(70, 50, spots, 18)).toBe(2) // más cerca del 2
     expect(spotAt(200, 200, spots, 18)).toBeNull()
+  })
+})
+
+describe('colonia: tocar un hilo', () => {
+  const t1 = { fromId: 1, toId: 2, a: { x: 0, y: 0 }, b: { x: 100, y: 0 } }
+  const t2 = { fromId: 2, toId: 3, a: { x: 100, y: 50 }, b: { x: 200, y: 50 } }
+
+  it('distancia a un segmento: al lado, y más allá de los extremos hasta el extremo', () => {
+    expect(segmentDistance({ x: 50, y: 7 }, t1.a, t1.b)).toBe(7)
+    expect(segmentDistance({ x: -10, y: 0 }, t1.a, t1.b)).toBe(10)
+    expect(segmentDistance({ x: 130, y: 40 }, t1.a, t1.b)).toBe(50)
+    expect(segmentDistance({ x: 3, y: 4 }, t1.a, t1.a)).toBe(5) // segmento sin longitud
+  })
+
+  it('el hilo bajo el dedo, a menos de 12 px; si no, ninguno', () => {
+    expect(threadAt(50, 8, [t1, t2])).toBe(t1)
+    expect(threadAt(150, 44, [t1, t2])).toBe(t2)
+    expect(threadAt(50, 13, [t1, t2])).toBeNull()
+    expect(threadAt(50, 25, [t1, t2])).toBeNull()
+    expect(threadAt(5, 5, [])).toBeNull()
+  })
+
+  it('con dos hilos cerca, el más cercano al dedo', () => {
+    const near = { fromId: 5, toId: 6, a: { x: 0, y: 10 }, b: { x: 100, y: 10 } }
+    expect(threadAt(50, 8, [t1, near])).toBe(near)
+    expect(threadAt(50, 2, [t1, near])).toBe(t1)
   })
 })
