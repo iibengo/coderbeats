@@ -1,6 +1,7 @@
 import type { BackgroundMode, Parts } from '~/lib/background'
 import type { BassPattern } from '~/lib/bass'
 import type { LoopsState } from '~/lib/freeLoops'
+import { migrateRepeatMode } from '~/lib/prefsMigration'
 import type { LoopLength } from '~/lib/phrases'
 import type { SongFx } from '~/lib/song'
 import type { KitId, StyleId } from '~/lib/types'
@@ -23,6 +24,8 @@ export interface StudioPrefs {
   maxPhraseBars: LoopLength
   fx: SongFx
   theme: string
+  /** guardadas con "completa" como valor por defecto (§16.21): un "sustituye" guardado es elegido */
+  completeDefault?: boolean
   /** bajo editado en el aro, por estilo (spec 003, E1.4) */
   bassEdits?: Partial<Record<StyleId, BassPattern>>
 }
@@ -66,8 +69,8 @@ export function usePrefs() {
       engine.bgMode.value = p.bgMode
       if (p.bgManual) engine.setBackgroundManual(p.bgManual)
       engine.setPhraseOptions({ mode: p.phraseMode, closeBeats: p.phraseCloseBeats, maxBars: p.maxPhraseBars })
-      // 'accumulate' (antes de §16.19) pasa a 'complete'
-      engine.setRepeatMode((p.repeatMode as string) === 'accumulate' ? 'complete' : p.repeatMode)
+      // 'accumulate' (antes de §16.19) y el "sustituye" por defecto de antes de §16.21 pasan a 'complete'
+      engine.setRepeatMode(migrateRepeatMode(p.repeatMode, p.completeDefault))
       engine.setFx(p.fx)
       if (p.bassEdits) engine.bassEdits.value = p.bassEdits
     }
@@ -93,6 +96,7 @@ export function usePrefs() {
           fx: { ...engine.fx },
           theme: 'water',
           bassEdits: engine.bassEdits.value,
+          completeDefault: true,
         }) satisfies StudioPrefs,
       (p) => write(PREFS_KEY, p),
       { deep: true },

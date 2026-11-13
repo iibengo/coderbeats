@@ -1309,3 +1309,29 @@ En ⋯, junto a "Borrar todo", un botón **"Cargar demo"**:
 | **house** | negras (four on the floor) | 2 y 4 (hace de palmada) | contratiempos `~ ~ hh ~` |
 
 En el código, `hh*16` aparece desplegado en 16 golpes (`hh hh … hh`): es lo mismo, y así cada golpe es un punto del anillo que se puede completar o sustituir. Lógica en `lib/demos.ts`, con tests.
+
+### 16.21 Golpes sueltos que se quedan y "completa" por defecto (añadido el 2026-11-13)
+
+**Bug que lo motiva** (reproducido con el código, golpes de uno en uno con pausas, "completa", ayuda activada):
+1. **El primer golpe suelto de un instrumento se cambiaba por la plantilla del estilo.** Un bombo en el 3 daba bombo en 0, 8 y 10, y tu golpe desaparecía. Con los mismos golpes rápidos en una sola frase sí se quedaban.
+2. **Un golpe algo desplazado se fundía con uno existente.** La ayuda lo acercaba hasta un paso a un sitio típico del estilo; si ese sitio ya estaba ocupado, no entraba nada. Una caja en 12,6 con el 12 ocupado se perdía.
+
+**Cambio:**
+- **Un golpe suelto se queda como golpe**, sin plantilla, en los dos modos. Sustituye a la plantilla de golpe suelto (§16.1) y a la regla de §16.19 ("la plantilla solo se aplica si el instrumento aún no tiene loop").
+  - La plantilla solo llega con **"Cargar demo"** (§16.20) o con las **sugerencias del aro** (spec 003). Las plantillas se quedan como datos del estilo para eso.
+- **La ayuda ya no funde golpes.** Si el paso al que la ayuda lleva un golpe ya está ocupado (en el loop que se completa o por otro golpe de la misma frase), el golpe va al **paso de la rejilla más cercano a donde lo hiciste**, sin la atracción del estilo.
+  - Si ese paso también está ocupado, es el mismo golpe repetido y no se añade. Así, volver a hacer un ritmo que ya está no lo duplica en los pasos vecinos.
+  - Ejemplos: caja en 12,6 con el 12 ocupado → entra en el 13. Bombo en 7,6 con el 8 ocupado → el paso más cercano es el 8, ocupado: es el mismo golpe un poco adelantado y no se añade.
+  - Vale igual en "sustituye", entre los golpes de una misma frase.
+- **"Completa" por defecto.** "Sustituye" sigue en ⋯.
+  - Quien tenga "sustituye" guardado (era el valor por defecto antes de §16.19) pasa a "completa" **una sola vez**. Si después eliges "sustituye", se respeta.
+- **Diagnóstico** (⋯ → diagnóstico), por cada frase:
+  - el modo y cada golpe oído con su paso;
+  - el loop resultante (pasos);
+  - y si un instrumento no cambió porque todos sus golpes ya estaban.
+- **Sin cambios** en lo demás de §16.19: como mucho una bola por instrumento y sin la regla "sin copias".
+- **Lógica pura y tests** en `lib/freeLoops.ts`:
+  - golpe suelto sin plantilla;
+  - paso ocupado → paso de la rejilla más cercano, o nada si también está ocupado;
+  - lo mismo dentro de una frase.
+  - La migración de prefs, en `usePrefs`.

@@ -1,4 +1,4 @@
-import { assistQuantize, templateFor } from './assist'
+import { assistQuantize } from './assist'
 import type { ClosedPhrase, LoopLength } from './phrases'
 import type { Instrument, StyleId } from './types'
 
@@ -52,7 +52,7 @@ export interface BirthOptions {
   quantizeEvery: 1 | 2
   /** compás global en el que nace (el siguiente al cierre) */
   bornAt: number
-  /** qué hacer si el instrumento ya tiene loop (por defecto, sustituir) */
+  /** qué hacer si el instrumento ya tiene loop (por defecto, completar: §16.21) */
   repeat?: RepeatMode
   /**
    * Enmienda de una frase ya nacida en `bornAt` (golpe tardío): los loops que nacieron de ella
@@ -67,44 +67,63 @@ const mod = (a: number, n: number) => ((a % n) + n) % n
 /** Compás del loop que suena en el compás global `g`. */
 export const loopBarAt = (loop: Pick<FreeLoop, 'bars' | 'phaseBar'>, g: number): number => mod(g - loop.phaseBar, loop.bars)
 
-/** Candidatos (uno por instrumento) a partir de una frase cerrada. */
 /**
- * Candidatos (uno por instrumento) a partir de una frase cerrada. Con `noTemplate`, un golpe
- * suelto de esos instrumentos se queda como golpe (para completar un loop, no para rellenarlo).
+ * Golpe candidato. Con ayuda, `alt` es el paso de la rejilla más cercano a donde lo hiciste (sin la
+ * atracción del estilo) cuando la ayuda lo llevó a otro: se usa si su paso ya está ocupado (§16.21).
  */
-export function candidatesFromPhrase(
-  phrase: ClosedPhrase,
-  o: BirthOptions,
-  noTemplate: ReadonlySet<Instrument> = new Set(),
-): Omit<FreeLoop, 'id'>[] {
+export interface CandidateHit extends LoopHit {
+  alt?: number
+}
+
+export type Candidate = Omit<FreeLoop, 'id' | 'hits'> & { hits: CandidateHit[] }
+
+/** Quita los datos de trabajo de los golpes candidatos antes de guardarlos en un loop. */
+const plainHits = (hits: CandidateHit[]): LoopHit[] => hits.map(({ alt: _alt, ...h }) => h)
+
+/**
+ * Candidatos (uno por instrumento) a partir de una frase cerrada. Un golpe suelto se queda como
+ * golpe, sin plantilla (§16.21). Con ayuda, dos golpes que la ayuda llevaría al mismo paso no se
+ * funden: el que ella movió va a su paso de la rejilla más cercano si está libre; si no, es el
+ * mismo golpe repetido y queda el más fuerte.
+ */
+export function candidatesFromPhrase(phrase: ClosedPhrase, o: BirthOptions): Candidate[] {
   const total = phrase.bars * 16
+  const q = o.quantizeEvery
   const byInst = new Map<Instrument, ClosedPhrase['hits']>()
   for (const h of phrase.hits) byInst.set(h.instrument, [...(byInst.get(h.instrument) ?? []), h])
-  const out: Omit<FreeLoop, 'id'>[] = []
+  const out: Candidate[] = []
   for (const [instrument, hits] of byInst) {
     const base = { instrument, bars: phrase.bars, phaseBar: phrase.startBar, muted: false, bornAt: o.bornAt }
-    if (o.assist && hits.length === 1 && !noTemplate.has(instrument)) {
-      const strength = hits[0]!.strength
-      const steps = templateFor(instrument, o.style)
-      const all = Array.from({ length: phrase.bars }, (_, b) => steps.map((s) => s + b * 16)).flat()
-      out.push({ ...base, hits: all.map((pos) => ({ pos, strength })), fromTemplate: true })
+    if (!o.assist) {
+      const exact = hits.map((h) => ({ pos: mod(h.globalStep - phrase.startBar * 16, total), strength: h.strength }))
+      out.push({ ...base, hits: exact.sort((a, b) => a.pos - b.pos), fromTemplate: false })
       continue
     }
-    const placed = new Map<number, LoopHit>()
-    const exact: LoopHit[] = []
-    for (const h of hits) {
-      const rel = h.globalStep - phrase.startBar * 16
-      if (o.assist) {
-        const step = assistQuantize(rel, instrument, o.style, o.quantizeEvery, total)
-        const prev = placed.get(step)
-        if (!prev || h.strength > prev.strength) placed.set(step, { pos: step, strength: h.strength })
-      } else exact.push({ pos: mod(rel, total), strength: h.strength })
+    const placed = new Map<number, CandidateHit>()
+    const put = (pos: number, h: CandidateHit) => {
+      const prev = placed.get(pos)
+      if (!prev || h.strength > prev.strength) placed.set(pos, h)
     }
-    const list = o.assist ? [...placed.values()] : exact
-    out.push({ ...base, hits: list.sort((a, b) => a.pos - b.pos), fromTemplate: false })
+    const quantized = hits.map((h) => {
+      const rel = h.globalStep - phrase.startBar * 16
+      const step = assistQuantize(rel, instrument, o.style, q, total)
+      const plain = mod(Math.round(rel / q) * q, total)
+      return { step, plain, strength: h.strength }
+    })
+    // primero los golpes que la ayuda no movió; después los movidos, que no pisan a nadie
+    for (const h of quantized) if (h.step === h.plain) put(h.step, { pos: h.step, strength: h.strength })
+    for (const h of quantized) {
+      if (h.step === h.plain) continue
+      if (!placed.has(h.step)) placed.set(h.step, { pos: h.step, strength: h.strength, alt: h.plain })
+      else if (!placed.has(h.plain)) placed.set(h.plain, { pos: h.plain, strength: h.strength })
+      else put(h.plain, { pos: h.plain, strength: h.strength })
+    }
+    out.push({ ...base, hits: [...placed.values()].sort((a, b) => a.pos - b.pos), fromTemplate: false })
   }
   return out
 }
+
+const sameHits = (a: LoopHit[], b: LoopHit[]) => a.length === b.length && a.every((h, i) => Math.abs(h.pos - b[i]!.pos) < 1e-6)
 
 const sameStep = (a: number, b: number, total: number) => {
   const d = mod(a - b, total)
@@ -118,7 +137,7 @@ const sameStep = (a: number, b: number, total: number) => {
  */
 export function mergeLoops(
   base: Pick<FreeLoop, 'bars' | 'phaseBar' | 'hits'>,
-  add: Pick<FreeLoop, 'bars' | 'phaseBar' | 'hits'>,
+  add: Pick<FreeLoop, 'bars' | 'phaseBar'> & { hits: CandidateHit[] },
 ): { bars: LoopLength; phaseBar: number; hits: LoopHit[]; added: number } {
   const bars = Math.max(base.bars, add.bars) as LoopLength
   const total = bars * 16
@@ -126,10 +145,20 @@ export function mergeLoops(
   const hits: LoopHit[] = []
   for (let k = 0; k < bars / base.bars; k++) for (const h of base.hits) hits.push({ ...h, pos: h.pos + k * base.bars * 16 })
   let added = 0
-  for (const h of add.hits) {
-    const raw = h.pos + (add.phaseBar - base.phaseBar) * 16
-    const pos = raw >= 0 && raw < total ? raw : mod(raw, total) // sin ruido de coma flotante si no hace falta
-    if (hits.some((x) => sameStep(x.pos, pos, total))) continue
+  const shift = (p: number) => {
+    const raw = p + (add.phaseBar - base.phaseBar) * 16
+    return raw >= 0 && raw < total ? raw : mod(raw, total) // sin ruido de coma flotante si no hace falta
+  }
+  const taken = (p: number) => hits.some((x) => sameStep(x.pos, p, total))
+  for (const { alt, ...h } of add.hits) {
+    let pos = shift(h.pos)
+    // §16.21: si la ayuda lo llevó a un paso ocupado, va a su paso de la rejilla más cercano;
+    // si ese también está ocupado, es el mismo golpe repetido
+    if (taken(pos)) {
+      if (alt === undefined) continue
+      pos = shift(alt)
+      if (taken(pos)) continue
+    }
     hits.push({ ...h, pos })
     added++
   }
@@ -141,23 +170,24 @@ export function addPhrase(state: LoopsState, phrase: ClosedPhrase, o: BirthOptio
   let loops = [...state.loops]
   let nextId = state.nextId
   const events: LoopEvent[] = []
-  const repeat = o.repeat ?? 'replace'
+  const repeat = o.repeat ?? 'complete'
   const newestOf = (inst: Instrument) =>
     loops.filter((l) => l.instrument === inst).sort((a, b) => b.bornAt - a.bornAt || b.id - a.id)[0]
-  const noTemplate = new Set<Instrument>(
-    repeat === 'complete' ? (['bd', 'sd', 'hh'] as Instrument[]).filter((i) => newestOf(i)) : [],
-  )
 
-  for (const c of candidatesFromPhrase(phrase, o, noTemplate)) {
+  for (const cand of candidatesFromPhrase(phrase, o)) {
+    const c = { ...cand, hits: plainHits(cand.hits) }
     const own = o.amend ? loops.find((l) => l.instrument === c.instrument && l.bornAt === o.bornAt) : undefined
     const existing = own ?? newestOf(c.instrument)
     if (existing) {
       let loop: FreeLoop
       if (repeat === 'complete') {
-        // en una enmienda, los golpes de la frase original ya están dentro: el merge no los duplica
-        const m = mergeLoops(existing, c)
+        // En una enmienda, los golpes de la frase original ya están dentro. Se rehace la fusión
+        // desde la versión anterior al loop (así un golpe movido por la ayuda no se duplica en su
+        // paso alternativo); si no la hay, se fusiona en el loop sin pasos alternativos.
+        const base = own?.prev ? { ...own, ...own.prev } : existing
+        const m = mergeLoops(base, own && !own.prev ? { ...cand, hits: plainHits(cand.hits) } : cand)
         // nada nuevo que añadir: el loop sigue tal cual (sin caída ni reevaluación)
-        if (m.added === 0) continue
+        if (own ? sameHits(m.hits, own.hits) : m.added === 0) continue
         const prev = own ? existing.prev : existing.muted ? undefined : { hits: existing.hits, bars: existing.bars, phaseBar: existing.phaseBar }
         loop = {
           ...existing,

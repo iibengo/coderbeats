@@ -126,7 +126,8 @@ const bgManual = shallowRef<Parts>({ ...NO_PARTS })
 const phraseCloseBeats = ref<1 | 2 | 4>(2)
 const maxPhraseBars = ref<LoopLength>(4)
 const phraseMode = ref<PhraseMode>('bar')
-const repeatMode = ref<RepeatMode>('replace')
+/** §16.21: completa por defecto */
+const repeatMode = ref<RepeatMode>('complete')
 /** frase en curso: golpes oídos (al instante) y compás en el que nacería el loop */
 const phrase = shallowRef<PhraseSnapshot | null>(null)
 const fx = reactive<SongFx>({ filter: 1, space: 0, warmth: 0 })
@@ -378,19 +379,27 @@ function decide(bar: number) {
 }
 
 function logLoopEvent(e: LoopEvent) {
+  const steps = (l: { hits: { pos: number }[] }) => l.hits.map((h) => Math.round(h.pos * 10) / 10).join(' ')
   if (e.type === 'born')
-    log('born', `nace loop ${e.loop.id} (${e.loop.instrument}, ${e.loop.bars} c.${e.loop.fromTemplate ? ', plantilla' : ''})`)
+    log(
+      'born',
+      `nace loop ${e.loop.id} (${e.loop.instrument}, ${e.loop.bars} c.${e.loop.fromTemplate ? ', golpe suelto → plantilla del estilo' : ''}): pasos ${steps(e.loop)}`,
+    )
   else if (e.type === 'replaced') log('born', `loop ${e.loop.id} sustituido (${e.loop.instrument}, ${e.loop.bars} c.)`)
   else if (e.type === 'completed')
-    log('born', `loop ${e.loop.id} completado (${e.loop.instrument}, +${e.added} golpe${e.added === 1 ? '' : 's'})`)
+    log('born', `loop ${e.loop.id} completado (${e.loop.instrument}, +${e.added} golpe${e.added === 1 ? '' : 's'}): pasos ${steps(e.loop)}`)
   else log('removed', `loop ${e.id} retirado (${e.reason === 'limit' ? 'máximo de 8' : 'usuario'})`)
 }
 
 function birth(phrase: ClosedPhrase, bornAt: number, amend = false) {
   lastBirth = { startBar: phrase.startBar, bornAt }
+  // diagnóstico: qué se oyó en cada frase (paso dentro de la frase) y qué pasó con cada instrumento
+  const heard = phrase.hits
+    .map((h) => `${h.instrument} ${(h.globalStep - phrase.startBar * 16).toFixed(1)}`)
+    .join(', ')
   log(
     'phrase',
-    `${amend ? 'enmienda de la frase' : 'frase'} ${phrase.startBar}–${phrase.startBar + phrase.spanBars - 1}: ${phrase.hits.length} golpes → ${phrase.bars} compás(es)`,
+    `${amend ? 'enmienda de la frase' : 'frase'} ${phrase.startBar}–${phrase.startBar + phrase.spanBars - 1} (${repeatMode.value === 'complete' ? 'completa' : 'sustituye'}): ${phrase.hits.length} golpe${phrase.hits.length === 1 ? '' : 's'} [${heard}] → ${phrase.bars} compás(es)`,
   )
   const r = addPhrase(loops.value, phrase, {
     assist: assist.value,
@@ -401,6 +410,9 @@ function birth(phrase: ClosedPhrase, bornAt: number, amend = false) {
     amend,
   })
   loops.value = r.state
+  const touched = new Set(r.events.flatMap((e) => ('loop' in e ? [e.loop.instrument] : [])))
+  for (const inst of new Set(phrase.hits.map((h) => h.instrument)))
+    if (!touched.has(inst)) log('phrase', `${inst}: sin cambios, todos sus golpes caen en pasos ya ocupados tras cuantizar`)
   for (const e of r.events) {
     logLoopEvent(e)
     if (e.type === 'born' || e.type === 'replaced' || e.type === 'completed') {

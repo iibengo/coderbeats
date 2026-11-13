@@ -48,10 +48,21 @@ describe('candidatesFromPhrase', () => {
     ])
   })
 
-  it('golpe suelto con ayuda → plantilla del estilo (repetida en cada compás)', () => {
+  it('golpe suelto con ayuda: se queda como golpe, sin plantilla (§16.21)', () => {
     const [l] = candidatesFromPhrase(phrase([[5, 'hh']], 0, 2), opts({ style: 'house' }))
-    expect(l!.fromTemplate).toBe(true)
-    expect(l!.hits.map((h) => h.pos)).toEqual([2, 6, 10, 14, 18, 22, 26, 30])
+    expect(l!.fromTemplate).toBe(false)
+    expect(l!.hits.map((h) => h.pos)).toEqual([5])
+  })
+
+  it('dos golpes que la ayuda llevaría al mismo paso no se funden (§16.21)', () => {
+    // hip hop: caja en 12 (típico) y en 12,6, que la ayuda acercaría al 12
+    const [l] = candidatesFromPhrase(phrase([[12.6, 'sd'], [12, 'sd']]), opts())
+    expect(l!.hits.map((h) => h.pos)).toEqual([12, 13])
+  })
+
+  it('pero el mismo golpe repetido (mismo paso de la rejilla) cuenta una vez', () => {
+    const [l] = candidatesFromPhrase(phrase([[12.2, 'sd'], [11.9, 'sd']]), opts())
+    expect(l!.hits.map((h) => h.pos)).toEqual([12])
   })
 
   it('sin ayuda: posiciones decimales exactas y sin plantilla', () => {
@@ -169,9 +180,52 @@ describe('modo completa (overdub, §16.19)', () => {
     expect(s.loops[0]!.hits.map((h) => h.pos)).toEqual([0, 6, 8])
   })
 
-  it('pero si el instrumento no tiene loop, un golpe suelto sí da la plantilla', () => {
+  it('y si el instrumento no tiene loop, un golpe suelto también se queda como golpe (§16.21)', () => {
     const s = addPhrase(emptyLoops(), phrase([[3, 'hh']]), { ...c, style: 'house' }).state
-    expect(s.loops[0]!.fromTemplate).toBe(true)
+    expect(s.loops[0]!.fromTemplate).toBe(false)
+    expect(s.loops[0]!.hits.map((h) => h.pos)).toEqual([3])
+  })
+
+  it('golpes de uno en uno con pausas: se quedan todos (el bug de §16.21)', () => {
+    let s = emptyLoops()
+    for (const [step, bar] of [[3, 2], [6, 5], [7, 8]] as const)
+      s = addPhrase(s, phrase([[step, 'bd']], bar), { ...c, bornAt: bar + 1 }).state
+    expect(s.loops).toHaveLength(1)
+    expect(s.loops[0]!.hits.map((h) => h.pos)).toEqual([3, 6, 7])
+  })
+
+  it('si la ayuda lo lleva a un paso ocupado, va a su paso de la rejilla más cercano', () => {
+    let s = addPhrase(emptyLoops(), phrase([[4, 'sd'], [12, 'sd']]), c).state
+    s = addPhrase(s, phrase([[12.6, 'sd']], 3), { ...c, bornAt: 4 }).state
+    expect(s.loops[0]!.hits.map((h) => h.pos)).toEqual([4, 12, 13])
+  })
+
+  it('si ese paso también está ocupado, es el mismo golpe y no se añade', () => {
+    let s = addPhrase(emptyLoops(), phrase([[0, 'bd'], [8, 'bd']]), c).state
+    const r = addPhrase(s, phrase([[7.6, 'bd']], 3), { ...c, bornAt: 4 })
+    expect(r.events).toEqual([])
+    expect(r.state.loops[0]!.hits.map((h) => h.pos)).toEqual([0, 8])
+  })
+
+  it('repetir encima el ritmo que ya está no lo ensucia', () => {
+    let s = addPhrase(emptyLoops(), phrase([[0, 'bd'], [8, 'bd'], [10, 'bd']]), c).state
+    const r = addPhrase(s, phrase([[0.3, 'bd'], [7.8, 'bd'], [10.2, 'bd']], 3), { ...c, bornAt: 4 })
+    expect(r.state.loops[0]!.hits.map((h) => h.pos)).toEqual([0, 8, 10])
+  })
+
+  it('una enmienda no duplica un golpe que la ayuda había movido a su paso alternativo', () => {
+    let s = addPhrase(emptyLoops(), phrase([[4, 'sd'], [12, 'sd']]), c).state
+    s = addPhrase(s, phrase([[12.6, 'sd']], 3), { ...c, bornAt: 4 }).state
+    s = addPhrase(s, phrase([[12.6, 'sd'], [2, 'sd']], 3), { ...c, bornAt: 4, amend: true }).state
+    expect(s.loops[0]!.hits.map((h) => h.pos)).toEqual([2, 4, 12, 13])
+    expect(s.loops[0]!.prev!.hits.map((h) => h.pos)).toEqual([4, 12])
+  })
+
+  it('por defecto, completa (§16.21)', () => {
+    let s = addPhrase(emptyLoops(), phrase([[0, 'hh']]), opts()).state
+    const r = addPhrase(s, phrase([[8, 'hh']], 1), opts({ bornAt: 2 }))
+    expect(r.events.map((e) => e.type)).toEqual(['completed'])
+    expect(r.state.loops[0]!.hits.map((h) => h.pos)).toEqual([0, 8])
   })
 
   it('la versión anterior sigue sonando hasta el nacimiento; un loop silenciado se reactiva', () => {
@@ -232,8 +286,9 @@ describe('modo sustituye (§16.15)', () => {
 
 describe('enmienda (amend)', () => {
   it('regenera en su sitio los loops nacidos de esa frase', () => {
-    let s = addPhrase(emptyLoops(), phrase([[0, 'bd'], [8, 'bd']]), opts({ bornAt: 1 })).state
-    const res = addPhrase(s, phrase([[0, 'bd'], [8, 'bd'], [14, 'bd']]), opts({ bornAt: 1, amend: true }))
+    const r = opts({ repeat: 'replace', bornAt: 1 })
+    let s = addPhrase(emptyLoops(), phrase([[0, 'bd'], [8, 'bd']]), r).state
+    const res = addPhrase(s, phrase([[0, 'bd'], [8, 'bd'], [14, 'bd']]), { ...r, amend: true })
     expect(res.events.map((e) => e.type)).toEqual(['replaced'])
     s = res.state
     expect(s.loops).toHaveLength(1)
