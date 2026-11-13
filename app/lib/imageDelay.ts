@@ -79,3 +79,33 @@ export function takeDue(times: readonly number[], upTo: number): { due: number; 
   while (n < times.length && times[n]! <= upTo) n++
   return { due: n, rest: times.slice(n) }
 }
+
+export interface ImageDelayReport {
+  auto: boolean
+  fineMs: number
+  roundTripMs: number
+  reportedOutputMs: number
+  /** lo guardado de la calibración tal cual (null sin calibrar); ≤ 0 = imposible, no se usa */
+  savedRoundTripMs: number | null
+}
+
+/**
+ * Línea del diagnóstico (E6.9): cuánto va retrasada la imagen (la aguja) ahora mismo y de qué se compone.
+ * Ejemplo: "imagen retrasada 203 ms = 18 informada + 185 de retraso (automático 0 + ajuste fino +185) ·
+ * ida y vuelta calibrada 0 ms (la guardada, −38 ms, es imposible y no se usa)".
+ */
+export function describeImageDelay(r: ImageDelayReport): string {
+  const auto = r.auto ? autoImageDelayMs(r.roundTripMs, r.reportedOutputMs) : 0
+  const extra = imageDelayMs({ auto: r.auto, fineMs: r.fineMs, roundTripMs: r.roundTripMs, reportedOutputMs: r.reportedOutputMs })
+  const fine = sanitizeFine(r.fineMs)
+  const signed = (v: number) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(Math.round(v))}`
+  const reported = Math.round(Math.max(0, r.reportedOutputMs))
+  const calibration =
+    r.savedRoundTripMs !== null && r.savedRoundTripMs <= 0
+      ? `ida y vuelta calibrada 0 ms (la guardada, ${signed(r.savedRoundTripMs)} ms, es imposible y no se usa: repite la calibración)`
+      : r.roundTripMs > 0
+        ? `ida y vuelta calibrada ${Math.round(r.roundTripMs)} ms`
+        : 'sin calibrar'
+  const parts = `automático ${r.auto ? auto : 'apagado'} + ajuste fino ${signed(fine)}`
+  return `imagen retrasada ${reported + extra} ms = ${reported} informada + ${extra} de retraso (${parts}) · ${calibration}`
+}

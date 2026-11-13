@@ -2,7 +2,7 @@
 // Hoja de ajustes (§16.16): todo lo que no es tocar está aquí, escondido tras "⋯".
 import type { BackgroundMode } from '~/lib/background'
 import { KIT_ORDER, KITS } from '~/lib/constants'
-import { autoImageDelayMs, FINE_MAX_MS, FINE_MIN_MS, FINE_STEP_MS } from '~/lib/imageDelay'
+import { autoImageDelayMs, describeImageDelay, FINE_MAX_MS, FINE_MIN_MS, FINE_STEP_MS } from '~/lib/imageDelay'
 import type { LoopLength } from '~/lib/phrases'
 import type { PhraseMode, RepeatMode } from '~/composables/useAudioEngine'
 
@@ -101,6 +101,16 @@ const val = (e: Event) => Number((e.target as HTMLInputElement).value)
 
 /** retraso de imagen automático que sale de tu calibración (spec 003, E6), para enseñarlo */
 const autoMs = computed(() => autoImageDelayMs(engine.roundTripMs.value, engine.reportedOutputMs.value))
+/** cuánto va retrasada la imagen ahora y de qué se compone (spec 003, E6.9) */
+const imageLine = computed(() =>
+  describeImageDelay({
+    auto: engine.imageAuto.value,
+    fineMs: engine.imageFineMs.value,
+    roundTripMs: engine.roundTripMs.value,
+    reportedOutputMs: engine.reportedOutputMs.value,
+    savedRoundTripMs: engine.savedLatencyMs.value,
+  }),
+)
 // al abrir ⋯, se vuelve a leer lo que informa el navegador (puede haber cambiado al conectar unos cascos)
 watch(open, (o) => {
   if (o) engine.refreshImageDelay()
@@ -265,6 +275,7 @@ watch(open, (o) => {
             <button class="rounded-full border border-white/20 px-3 py-1 text-white" @click="stressDemo(16)">demo ×16</button>
           </div>
           <p class="mb-1">visual: {{ props.renderer }}</p>
+          <p class="mb-1 text-neutral-300">{{ imageLine }}</p>
           <p class="mb-2">pantalla: {{ props.layout() }}</p>
           <ul class="space-y-0.5 font-mono tabular-nums">
             <li v-for="(d, i) in diag.slice(0, 60)" :key="i">

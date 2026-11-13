@@ -416,3 +416,9 @@ de salir), pero la calibración lo daba por válido: solo miraba que hubiera 3 p
 - Para la música al empezar, y se para al cerrar ⋯ o al dar a Play.
 - `takeDue` (puro), con tests: cuándo vence cada destello y que más retraso lo atrasa.
 
+### E6.9 El diagnóstico dice cuánto va retrasada la imagen
+- Una línea propia, arriba del diagnóstico (y en lo que se copia): "imagen retrasada 203 ms = 18 informada +
+  185 de retraso (automático 0 + ajuste fino +185) · ida y vuelta calibrada …".
+- Si la calibración guardada es imposible (≤ 0), lo dice ahí mismo y que no se usa.
+- `describeImageDelay` (puro), con tests con el caso del registro.
+

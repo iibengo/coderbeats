@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   AUTO_MIN_MS,
   autoImageDelayMs,
+  describeImageDelay,
   FINE_MAX_MS,
   FINE_MIN_MS,
   IMAGE_MAX_MS,
@@ -113,5 +114,33 @@ describe('prueba de sincronía: cuándo se enciende el punto', () => {
     const r = takeDue(clicks, 3.5)
     expect(r.due).toBe(3)
     expect(r.rest).toEqual([4])
+  })
+})
+
+describe('línea del diagnóstico: cuánto va retrasada la imagen', () => {
+  const base = { auto: true, fineMs: 0, roundTripMs: 0, reportedOutputMs: 18, savedRoundTripMs: null }
+
+  it('el caso del registro: calibración guardada imposible y 185 ms puestos a mano', () => {
+    expect(describeImageDelay({ ...base, fineMs: 185, roundTripMs: 0, savedRoundTripMs: -38 })).toBe(
+      'imagen retrasada 203 ms = 18 informada + 185 de retraso (automático 0 + ajuste fino +185) · ida y vuelta calibrada 0 ms (la guardada, −38 ms, es imposible y no se usa: repite la calibración)',
+    )
+  })
+
+  it('con calibración buena y Bluetooth: el automático y el ajuste se suman', () => {
+    expect(describeImageDelay({ ...base, roundTripMs: 230, savedRoundTripMs: 230, fineMs: -10 })).toBe(
+      'imagen retrasada 190 ms = 18 informada + 172 de retraso (automático 182 + ajuste fino −10) · ida y vuelta calibrada 230 ms',
+    )
+  })
+
+  it('sin calibrar y sin ajuste (el PC): solo lo que informa el navegador', () => {
+    expect(describeImageDelay({ ...base, reportedOutputMs: 20 })).toBe(
+      'imagen retrasada 20 ms = 20 informada + 0 de retraso (automático 0 + ajuste fino 0) · sin calibrar',
+    )
+  })
+
+  it('con el automático apagado lo dice y no lo cuenta', () => {
+    expect(describeImageDelay({ ...base, auto: false, fineMs: 120, roundTripMs: 230, savedRoundTripMs: 230 })).toBe(
+      'imagen retrasada 138 ms = 18 informada + 120 de retraso (automático apagado + ajuste fino +120) · ida y vuelta calibrada 230 ms',
+    )
   })
 })
