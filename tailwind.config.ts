@@ -1,13 +1,14 @@
 import type { Config } from 'tailwindcss'
+import { INK, VOICE_HEX } from './app/lib/palette'
 
 export default {
   theme: {
     extend: {
       colors: {
-        ink: '#0B0B0F',
-        bd: '#F496BC',
-        sd: '#B9A6F2',
-        hh: '#8ECFF2',
+        ink: INK,
+        bd: VOICE_HEX.bd,
+        sd: VOICE_HEX.sd,
+        hh: VOICE_HEX.hh,
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],

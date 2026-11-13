@@ -1,17 +1,19 @@
 <script setup lang="ts">
-// Capa visual común (§16.14, §16.16, §16.17): canvas del tema, anillo = mapa del ritmo,
-// loops flotantes (tocar = silenciar, mantener = borrar), bolas del fondo manual,
-// gestos sobre el agua y bucle rAF único.
+// Capa visual común (§16.14, §16.16, §16.17; spec 003): canvas del tema, el aro (gota con una
+// franja por instrumento), loops flotantes (tocar = silenciar, mantener = borrar), bolas del
+// fondo manual, gestos sobre el agua y bucle rAF único.
+import { allWeights, stepWeights, type Weights } from '~/lib/aro/bands'
+import type { DropGeo } from '~/lib/aro/shape'
 import type { Part } from '~/lib/background'
 import { STYLES } from '~/lib/constants'
 import { spawnPoint, stepDrift, type Body, type DriftBounds } from '~/lib/drift'
 import { loopBarAt } from '~/lib/freeLoops'
 import { dragValue, lockAxis, type Axis } from '~/lib/gestures'
+import { VOICE_HEX } from '~/lib/palette'
 import type { Instrument } from '~/lib/types'
 import { DEFAULT_THEME, themeById } from '~/themes'
 import type { VisualTheme } from '~/themes/types'
-import PhraseRing from './PhraseRing.vue'
-import type { RingDot } from './ring'
+import { AroCanvas, type AroDot, type AroFrame } from './AroCanvas'
 
 const props = withDefaults(defineProps<{ themeId?: string }>(), { themeId: DEFAULT_THEME })
 const engine = useAudioEngine()
@@ -19,17 +21,29 @@ const { loops, playing, phrase, fx, bgParts, bgMode, bgManual, style, currentBar
 
 const root = ref<HTMLElement | null>(null)
 const canvasHost = ref<HTMLElement | null>(null)
-const ring = ref<InstanceType<typeof PhraseRing> | null>(null)
+const aroEl = ref<HTMLCanvasElement | null>(null)
+let aro: AroCanvas | null = null
 const view = reactive({ w: 390, h: 844 })
 const reduced = import.meta.client && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 const rendererName = ref('')
 
 // ── geometría (todo centrado en la ventana, también en escritorio) ───────────────
 const PLAY_FROM_BOTTOM = 56 // centro del botón Play desde abajo (px)
+/** zona de arriba (estilo y ⋯) y de abajo (Play y bolas del fondo) que la gota no pisa (E1.8) */
+const TOP_UI = 52
+const BOTTOM_UI = PLAY_FROM_BOTTOM + 52
 const ringGeo = computed(() => {
-  const r = Math.max(70, Math.min(view.w * 0.27, view.h * 0.2, 230))
+  const r = Math.max(70, Math.min(view.w * 0.3, view.h * 0.22, 260))
   return { x: view.w / 2, y: Math.min(view.h * 0.43, view.h - PLAY_FROM_BOTTOM - 120 - r), r }
 })
+/** geometría de la gota (spec 003): mismo centro y tamaño que el anillo; zoom en la fase 4 */
+const dropGeo = computed<DropGeo>(() => ({
+  cx: ringGeo.value.x,
+  cy: ringGeo.value.y,
+  R: ringGeo.value.r,
+  core: Math.max(16, Math.min(24, ringGeo.value.r * 0.18)),
+  free: { x0: 0, y0: TOP_UI, x1: view.w, y1: view.h - BOTTOM_UI },
+}))
 const bgBalls = computed(() => {
   const y = view.h - PLAY_FROM_BOTTOM
   return [
@@ -42,7 +56,7 @@ const bounds = computed<DriftBounds>(() => ({
   h: view.h,
   margin: 16,
   avoid: [
-    { x: ringGeo.value.x, y: ringGeo.value.y, r: ringGeo.value.r + 26 },
+    { x: ringGeo.value.x, y: ringGeo.value.y, r: ringGeo.value.r * 1.04 + 26 },
     { x: view.w / 2, y: view.h - PLAY_FROM_BOTTOM, r: 52 }, // Play
     ...bgBalls.value.map((b) => ({ x: b.x, y: b.y, r: 40 })),
     { x: view.w / 2, y: 28, r: 40 }, // estilo
@@ -53,16 +67,16 @@ const bounds = computed<DriftBounds>(() => ({
 }))
 const loopSize = (hits: number) => 26 + Math.min(14, hits * 1.5)
 
-// ── anillo: golpes de cada loop en el compás que suena ──────────────────────────
-const ringDots = computed<RingDot[]>(() => {
+// ── aro: golpes de cada loop en el compás que suena ─────────────────────────────
+const ringDots = computed<AroDot[]>(() => {
   const g = playing.value ? currentBar.value : 0
-  const out: RingDot[] = []
+  const out: AroDot[] = []
   for (const l of loops.value.loops) {
     const bar = loopBarAt(l, g)
     for (const h of l.hits) {
       if (h.pos < bar * 16 - 0.5 || h.pos >= bar * 16 + 15.5) continue
       const step = h.pos - bar * 16
-      out.push({ key: `${l.id}-${Math.round(h.pos * 100)}`, loopId: l.id, step, instrument: l.instrument, muted: l.muted })
+      out.push({ key: `${l.id}-${Math.round(h.pos * 100)}`, loopId: l.id, step, voice: l.instrument, muted: l.muted })
     }
   }
   return out
@@ -71,9 +85,21 @@ const phraseDots = computed(() =>
   (phrase.value?.hits ?? []).map((h, i) => ({
     key: `${Math.round(h.globalStep)}-${h.instrument}-${i}`,
     step: ((h.globalStep % 16) + 16) % 16,
-    instrument: h.instrument,
+    voice: h.instrument,
   })),
 )
+/** compás que suena del loop más largo (puntitos junto al centro, E1.1) */
+const barsInfo = computed(() => {
+  const longest = loops.value.loops.reduce((m, l) => Math.max(m, l.bars), 1)
+  if (longest < 2) return null
+  return { current: loopBarAt({ bars: longest as 1 | 2 | 4, phaseBar: 0 }, playing.value ? currentBar.value : 0), total: longest }
+})
+/** franjas que deberían verse: el bajo si suena o está pedido; la melodía, cuando exista (E1.3) */
+const targetWeights = computed<Weights>(() => {
+  const bass = bgParts.value.bass || (bgMode.value === 'manual' && bgManual.value.bass)
+  return { ...allWeights(1), bass: bass ? 1 : 0, mel: 0 }
+})
+let weights: Weights = { ...allWeights(1), bass: 0, mel: 0 }
 
 // ── loops flotantes (posición fuera de la reactividad; se escribe en el DOM en cada frame) ──
 const bodies = new Map<number, Body>()
@@ -154,7 +180,7 @@ function onEngineVisual(h: Parameters<Parameters<typeof engine.onVisual>[0]>[0])
   if (!theme || !h.instrument) return
   const g = ringGeo.value
   if (h.kind === 'heard' && h.instrument !== 'bass' && h.instrument !== 'chords') {
-    const p = ring.value?.pointOf(h.instrument, h.step ?? 0) ?? { x: g.x, y: g.y }
+    const p = aro?.pointOf(h.instrument, h.step ?? 0) ?? { x: g.x, y: g.y }
     theme.hit({ kind: 'heard', time: h.time, loopId: null, instrument: h.instrument, x: p.x, y: p.y, strength: h.strength })
     return
   }
@@ -181,12 +207,12 @@ function onEngineVisual(h: Parameters<Parameters<typeof engine.onVisual>[0]>[0])
     return
   }
   if (h.loopId === null || falls.has(h.loopId)) return
-  // loop: la bola late y brilla y suelta su onda clara; su punto del anillo se enciende con una onda pequeña
+  // loop: la bola late y brilla y suelta su onda clara; su punto del aro se enciende
+  // (sin onda del agua en el aro: la gota tiene las suyas, spec 003 E1.9)
   const strength = 0.6 + 0.4 * h.strength // la mezcla baja la ganancia con muchos loops: la onda no debe desaparecer
   const b = bodies.get(h.loopId)
   if (b) theme.hit({ kind: 'hit', time: h.time, loopId: h.loopId, instrument: h.instrument, x: b.x, y: b.y, strength })
-  const at = ring.value?.light(h.loopId, h.step ?? 0)
-  if (at) theme.hit({ kind: 'hit', time: h.time, loopId: h.loopId, instrument: h.instrument, x: at.x, y: at.y, strength: strength * 0.35 })
+  aro?.light(h.loopId, h.step ?? 0)
   pulse(els.get(h.loopId), h.instrument)
 }
 
@@ -197,6 +223,7 @@ let lastT = 0
 let simT = 0
 const frameMs: number[] = []
 let quality = 1
+let aroDetail = 1
 
 /** 0..1: cuánto late ahora (subida rápida de 40 ms y vuelta suave). */
 function pulseK(el: HTMLElement, nowMs: number): number {
@@ -227,7 +254,6 @@ function tick() {
       }
       lastBeat = beatAbs
     }
-    ring.value?.setPhase(clock.barPhase)
   } else lastBeat = -1
 
   // deriva de los loops
@@ -264,9 +290,9 @@ function tick() {
   }
   for (const el of ballEls.values()) el.style.transform = `translate(-50%, -50%) scale(${pulseScale(el, nowMs)})`
 
-  // dibujo del tema, con vigilancia del tiempo de frame (§16.14)
+  // dibujo del tema y del aro, con vigilancia del tiempo de frame de los dos (§16.14, E1.7)
+  const t0 = performance.now()
   if (theme) {
-    const t0 = performance.now()
     theme.frame({
       time: clock.time,
       playing: playing.value,
@@ -281,14 +307,36 @@ function tick() {
       background: { ...bgParts.value },
       reducedMotion: reduced,
     })
-    frameMs.push(performance.now() - t0)
-    if (frameMs.length >= 120) {
-      const p95 = [...frameMs].sort((a, b) => a - b)[Math.floor(frameMs.length * 0.95)]!
-      frameMs.length = 0
-      if (p95 > 14 && quality > 0.5 && theme.setQuality) {
+  }
+  if (aro) {
+    weights = stepWeights(weights, targetWeights.value, dt, reduced)
+    const f: AroFrame = {
+      wall: t,
+      geo: dropGeo.value,
+      weights,
+      playing: playing.value,
+      phase: clock.barPhase,
+      dots: ringDots.value,
+      phraseDots: phraseDots.value,
+      highlight: highlight.value,
+      bars: barsInfo.value,
+      reduced,
+    }
+    aro.draw(f)
+  }
+  frameMs.push(performance.now() - t0)
+  if (frameMs.length >= 120) {
+    const p95 = [...frameMs].sort((a, b) => a - b)[Math.floor(frameMs.length * 0.95)]!
+    frameMs.length = 0
+    if (p95 > 14) {
+      // primero baja el agua; si no basta, el detalle del aro
+      if (theme?.setQuality && quality > 0.5) {
         quality -= 0.15
         theme.setQuality(quality)
         rendererName.value = theme.renderer()
+      } else if (aro && aroDetail > 0.5) {
+        aroDetail = 0.5
+        aro.setDetail(aroDetail)
       }
     }
   }
@@ -299,6 +347,7 @@ function measure() {
   view.w = window.innerWidth
   view.h = window.innerHeight
   theme?.resize(view.w, view.h, dpr())
+  aro?.resize(view.w, view.h, dpr())
 }
 
 // mientras se ve el escenario, el documento no hace scroll
@@ -308,6 +357,13 @@ onMounted(() => {
   document.documentElement.style.overflow = 'hidden'
   document.body.style.overflow = 'hidden'
   window.scrollTo(0, 0)
+  if (aroEl.value) {
+    try {
+      aro = new AroCanvas(aroEl.value)
+    } catch (e) {
+      console.warn('[visual] sin Canvas 2D para el aro', e)
+    }
+  }
   measure()
   mountTheme()
   offVisual = engine.onVisual(onEngineVisual)
@@ -407,7 +463,7 @@ function waterUp(e: PointerEvent) {
   if (pointers.size === 0) drag.value = null
 }
 
-const fill: Record<Instrument, string> = { bd: '#F496BC', sd: '#B9A6F2', hh: '#8ECFF2' }
+const fill: Record<Instrument, string> = { bd: VOICE_HEX.bd, sd: VOICE_HEX.sd, hh: VOICE_HEX.hh }
 /** medidas reales de la ventana, para el diagnóstico (§16.18) */
 const layoutInfo = () => {
   const r = root.value?.getBoundingClientRect()
@@ -415,7 +471,8 @@ const layoutInfo = () => {
     `ventana ${window.innerWidth}×${window.innerHeight} @${window.devicePixelRatio}`,
     `escenario ${r ? `${Math.round(r.x)},${Math.round(r.y)} ${Math.round(r.width)}×${Math.round(r.height)}` : '—'}`,
     `documento ${document.documentElement.scrollWidth}×${document.documentElement.scrollHeight}`,
-    `anillo (${Math.round(ringGeo.value.x)}, ${Math.round(ringGeo.value.y)}) r ${Math.round(ringGeo.value.r)}`,
+    `aro (${Math.round(ringGeo.value.x)}, ${Math.round(ringGeo.value.y)}) r ${Math.round(ringGeo.value.r)} detalle ${aroDetail}`,
+    `latencia de salida ${Math.round(engine.outputLatency() * 1000)} ms`,
   ].join(' · ')
 }
 defineExpose({ rendererName, layoutInfo })
@@ -433,15 +490,11 @@ defineExpose({ rendererName, layoutInfo })
   >
     <div ref="canvasHost" style="position: absolute; inset: 0" />
 
-    <PhraseRing
-      ref="ring"
-      :x="ringGeo.x"
-      :y="ringGeo.y"
-      :r="ringGeo.r"
-      :dots="ringDots"
-      :phrase-dots="phraseDots"
-      :highlight="highlight"
-      :playing="playing"
+    <!-- el aro (spec 003): fase 1 sin interacción -->
+    <canvas
+      ref="aroEl"
+      aria-hidden="true"
+      style="position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none"
     />
 
     <!-- guía fina del gesto -->

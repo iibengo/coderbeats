@@ -1,3 +1,4 @@
+import { hexToRgb, VOICE_HEX } from '~/lib/palette'
 import type { Instrument } from '~/lib/types'
 
 /** Lo que un tema recibe en cada frame (§16.14). */
@@ -65,11 +66,13 @@ export interface VisualTheme {
   dispose(): void
 }
 
-/** Colores por instrumento (§8.1). */
+const unit = (hex: string) => hexToRgb(hex).map((c) => c / 255) as [number, number, number]
+
+/** Colores por instrumento (§8.1), de la paleta única (spec 003, E1.2). */
 export const INSTRUMENT_RGB: Record<Instrument | 'bass' | 'chords', [number, number, number]> = {
-  bd: [0xf4 / 255, 0x96 / 255, 0xbc / 255],
-  sd: [0xb9 / 255, 0xa6 / 255, 0xf2 / 255],
-  hh: [0x8e / 255, 0xcf / 255, 0xf2 / 255],
+  bd: unit(VOICE_HEX.bd),
+  sd: unit(VOICE_HEX.sd),
+  hh: unit(VOICE_HEX.hh),
   bass: [0.85, 0.85, 0.9],
   chords: [0.85, 0.85, 0.9],
 }

@@ -145,6 +145,16 @@ function requireCtx(): AudioContext {
 
 const toWorker = (m: ToWorker) => worker?.postMessage(m)
 
+/**
+ * Latencia de salida (s): lo que tarda en oírse lo que el contexto reproduce ahora. La imagen va
+ * con lo que se oye (spec 003, E1.6). La latencia calibrada es otra cosa: solo corrige la entrada.
+ */
+function outputLatency(): number {
+  const c = ctx as (AudioContext & { outputLatency?: number }) | null
+  if (!c) return 0
+  return (c.baseLatency || 0) + (c.outputLatency || 0)
+}
+
 function log(kind: DiagEvent['kind'], text: string, uiMs?: number) {
   diag.value = [{ at: ctx?.currentTime ?? 0, kind, text, uiMs }, ...diag.value].slice(0, 300)
 }
@@ -211,7 +221,7 @@ function onPulse(cycle: number, t: number) {
   const barSec = stepSeconds() * 16
   clock = { cycle, time: t, barSec }
   const c = requireCtx()
-  later(() => (currentBar.value = cycle), (t - c.currentTime) * 1000)
+  later(() => (currentBar.value = cycle), (t + outputLatency() - c.currentTime) * 1000)
   if (!tracker) {
     tracker = new PhraseTracker(
       { anchor: t - cycle * barSec, stepSeconds: barSec / 16 },
@@ -257,7 +267,10 @@ function onTrigger(hap: StrudelHap, t: number) {
     // paso dentro del compás (ciclo de Strudel = compás): para encender su punto en el anillo
     step: (((begin % 1) + 1) % 1) * 16,
   }
-  setTimeout(() => visualListeners.forEach((f) => f(visual)), Math.max(0, (time - ctx.currentTime) * 1000))
+  setTimeout(
+    () => visualListeners.forEach((f) => f(visual)),
+    Math.max(0, (time + outputLatency() - ctx.currentTime) * 1000),
+  )
 }
 
 // ── Evaluación del código del motor ────────────────────────────────────────────
@@ -739,9 +752,12 @@ export function useAudioEngine() {
     return () => visualListeners.delete(f)
   }
 
-  /** Reloj del loop para la capa visual: compás y fase (0..1) en el tiempo de contexto actual. */
+  /**
+   * Reloj del loop para la capa visual: compás y fase (0..1) de lo que se oye ahora, es decir,
+   * el tiempo de contexto menos la latencia de salida (spec 003, E1.6).
+   */
   function clockNow(): { time: number; bar: number; barPhase: number } {
-    const t = ctx?.currentTime ?? 0
+    const t = (ctx?.currentTime ?? 0) - outputLatency()
     if (!clock) return { time: t, bar: 0, barPhase: 0 }
     const pos = (t - clock.time) / clock.barSec + clock.cycle
     return { time: t, bar: Math.floor(pos), barPhase: pos - Math.floor(pos) }
@@ -773,6 +789,7 @@ export function useAudioEngine() {
     diag,
     dropping,
     sampleRate: () => ctx?.sampleRate ?? 0,
+    outputLatency,
     start,
     setCalibration,
     setLatency,

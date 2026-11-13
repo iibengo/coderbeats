@@ -1,3 +1,4 @@
+import { INK } from '~/lib/palette'
 import { INSTRUMENT_RGB, type VisualFrame, type VisualTheme } from '../types'
 
 interface Ring {
@@ -73,7 +74,7 @@ export function createWaterCanvas2D(): VisualTheme {
       const t = now()
       c.setTransform(dpr, 0, 0, dpr, 0, 0)
       c.globalCompositeOperation = 'source-over'
-      c.fillStyle = '#0B0B0F'
+      c.fillStyle = INK
       c.fillRect(0, 0, w, h)
       const ga = glow.amp * Math.max(0, 1 - (t - glow.born) / 0.5)
       if (ga > 0.001) {
