@@ -156,8 +156,9 @@ Con los tiempos atados al reloj (`clockNow`, E1.6) y "L" = la línea de compás 
 | **Vueltas y bucle** | **chapa de vueltas**: una gotita pegada al borde de la gota, arriba, donde empieza la aguja | se ve sin tapar golpes y está lejos del centro |
 | **Cambiar las vueltas** | en la colonia, tocar el **número** de la célula (1 → 2 → 4 → 8) | es estructura: se compone de lejos |
 | **Mover** | en la colonia, arrastrar el cuerpo de una célula | es composición del mapa; el orden no cambia |
-| **Dividir (copiar)** | en la colonia, arrastrar desde el **asa** de una célula y soltar en agua vacía | de cerca un dedo es siempre el aro (E1.5) |
-| **Orden** | en la colonia, arrastrar desde el asa de una célula y soltar sobre otra | ídem |
+| **Dividir (copiar)** | en la colonia, arrastrar desde el **asa** de una célula y soltar en agua vacía: copia **suelta** (§15) | de cerca un dedo es siempre el aro (E1.5) |
+| **Orden / enganchar** | en la colonia, arrastrar desde el asa de una célula y soltar sobre otra (o sobre una suelta) | ídem |
+| **Cortar un hilo** | en la colonia, tocar el hilo: la célula a la que llevaba queda suelta (§15) | ídem |
 | **Deshacer borrar** | chip "↶ deshacer" tras borrar una célula o usar "Borrar todo" | borrar es lo único destructivo de la colonia |
 | **Tempo** | tocar el **BPM** junto al nombre del estilo, arriba | el tempo es de la canción, no de una célula |
 
@@ -218,11 +219,12 @@ Con los tiempos atados al reloj (`clockNow`, E1.6) y "L" = la línea de compás 
 - **Asa:** un puntito en el borde de cada célula de la canción, hacia la siguiente en el orden (la
   última, hacia la derecha). Solo se dibuja y se puede coger con un radio de célula de unos 14 px o
   más; con menos zoom, copiar y ordenar quedan desactivados.
-  - **Copiar:** soltar el hilo en agua vacía crea una copia allí (loops, partes y vueltas), justo
-    después de la original en el orden (A → copia → la que seguía). Con 16 células no se copia y el
-    diagnóstico lo dice.
-  - **Ordenar:** soltar el hilo de A sobre B pone a B justo después de A. La canción es cíclica y
-    Play arranca desde la célula que ves, así que esta regla cubre cualquier posición.
+  - **Copiar:** soltar el hilo en agua vacía crea una copia **suelta** allí (loops, partes y vueltas):
+    sin hilos y sin sonar, tenue, hasta que se **enganche** (enmienda 1, §15). Con 16 células no se copia
+    y el diagnóstico lo dice.
+  - **Ordenar y enganchar:** soltar el hilo de A sobre B pone a B justo después de A. Vale con una de la
+    canción (ordenar) y con una suelta (la engancha). La canción es cíclica y Play arranca desde la
+    célula que ves, así que esta regla cubre cualquier posición.
   - Mientras tiras del hilo, la copia se ve como una silueta bajo el dedo y la célula sobre la que
     caes se resalta.
 - **Borrar y deshacer:** al borrar una célula, o al usar "Borrar todo" (⋯, que **pide
@@ -478,3 +480,47 @@ qué se decidió y por qué; se cambian sin más si no gustan.
 - **Un tempo guardado roto no descarta la canción:** se limpia y vuelve el del estilo (nunca se pierden células).
 
 (Se añaden con cada parte.)
+
+## 15. Enmienda 1 · células sueltas: copiar, enganchar y cortar (2026-11-13)
+
+Tras usar la colonia: copiar y ordenar era lioso. La copia se metía justo después de la original y luego
+costaba moverla. Esta enmienda **manda sobre §7.1** (copiar y ordenar) y sobre la decisión 15.
+
+### 15.1 Células sueltas
+- Una **célula suelta** (aparcada) es una célula que **no está en el orden de la canción**: no tiene hilos
+  y **no suena con la canción**. En la colonia se ve **tenue**.
+- **No es una célula libre** (§13.1): las libres sonarán en paralelo a la canción; las sueltas están
+  aparcadas y no suenan.
+- Por dentro es una célula normal: se puede tocar (suena en bucle, para escucharla), mover, entrar a
+  editarla, cambiarle las vueltas y borrar. **Al dar a Play con una suelta a la vista, suena ella en bucle.**
+- **No tiene asa:** no engancha a otras.
+- En el modelo, está en `cells` y no en `order`. No cambia el formato guardado: lo guardado sigue valiendo.
+
+### 15.2 Copiar
+- Arrastrar el **asa** de una célula a **agua vacía** crea una **copia suelta** allí (sus loops, partes y
+  vueltas). Ya no se mete en el orden ni suena.
+- Con 16 células (sueltas incluidas) no se copia.
+
+### 15.3 Enganchar
+- Arrastrar el asa de una célula **sobre una suelta** la pone **justo detrás** (la regla de ordenar de
+  siempre: la suelta pasa a sonar justo después de la que tiene el asa) y ya forma parte de la canción.
+- Sobre una célula que ya está en la canción, sigue siendo ordenar.
+
+### 15.4 Cortar un hilo
+- **Tocar un hilo lo corta:** la célula **a la que llevaba** queda suelta y la canción **salta por encima**
+  (la que iba antes pasa a la que iba después).
+- Solo con un toque (menos de 400 ms y sin moverse): arrastrar sobre el hilo sigue moviendo el mapa.
+  Prioridad al tocar: asa › número › célula › hilo › agua (el agua crea una célula).
+- Si la cortada es la que suena, sigue hasta el final de sus vueltas y entonces salta.
+- No hay deshacer del corte: se vuelve a enganchar con el asa.
+
+### 15.5 Lo que no cambia
+- **Borrar** (mantener, con "↶ deshacer") vale también para las sueltas, que se recuperan sueltas.
+- **La última célula de la canción** (la única que queda en el orden) **no se borra: se vacía**, aunque haya sueltas.
+- Máximo 16 células en total, sueltas incluidas.
+- Crear en agua vacía (3.2) sigue añadiendo la célula al final del orden.
+
+### 15.6 Lógica y tests
+- `isLoose`, `withCopy` (suelta), `withDetached` y `withOrderAfter` con una suelta de destino (cells.ts);
+  `threadAt` (colony.ts). Tests: la copia queda fuera del orden, enganchar, cortar (y no se corta con 1 sola),
+  avance y ventana con una suelta delante, distancia a un hilo.
