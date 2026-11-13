@@ -5,6 +5,7 @@
 // bucle rAF único.
 import { allWeights, stepWeights, type Weights } from '~/lib/aro/bands'
 import type { DropGeo } from '~/lib/aro/shape'
+import { clampZoom, dropLayout, freeRect, lerpGeo, pinchZoom, wheelZoom, zoomLimits, type Insets } from '~/lib/aro/zoom'
 import type { Part } from '~/lib/background'
 import { notesInBar } from '~/lib/bass'
 import { STYLES } from '~/lib/constants'
@@ -39,18 +40,44 @@ const BALL_GAP = 36
 /** zona de arriba (estilo y ⋯) y de abajo (fila de bolas, Play y fondo) que la gota no pisa (E1.8) */
 const TOP_UI = 52
 const BOTTOM_UI = ROW_FROM_BOTTOM + 20
-const ringGeo = computed(() => {
-  const r = Math.max(70, Math.min(view.w * 0.3, view.h * 0.22, 260))
-  return { x: view.w / 2, y: Math.min(view.h * 0.43, view.h - PLAY_FROM_BOTTOM - 120 - r), r }
-})
-/** geometría de la gota (spec 003): mismo centro y tamaño que el anillo; zoom en la fase 4 */
-const dropGeo = computed<DropGeo>(() => ({
-  cx: ringGeo.value.x,
-  cy: ringGeo.value.y,
-  R: ringGeo.value.r,
-  core: Math.max(16, Math.min(24, ringGeo.value.r * 0.18)),
-  free: { x0: 0, y0: TOP_UI, x1: view.w, y1: view.h - BOTTOM_UI },
+/** zonas seguras del sistema (muesca, barra de inicio), medidas con env(safe-area-inset-*) */
+const safe = reactive({ top: 0, right: 0, bottom: 0, left: 0 })
+const safeProbe = ref<HTMLElement | null>(null)
+const insets = computed<Insets>(() => ({
+  top: Math.max(TOP_UI, safe.top + 44),
+  right: safe.right + 8,
+  bottom: BOTTOM_UI + safe.bottom,
+  left: safe.left + 8,
 }))
+const limits = computed(() => zoomLimits(freeRect(view.w, view.h, insets.value)))
+
+// ── zoom (fase 4) ────────────────────────────────────────────────────────────────
+// Se guarda relativo al zoom inicial de la forma de ventana: al girar el móvil se conserva la
+// sensación (en horizontal sigue pegada arriba y abajo).
+const ZOOM_KEY = 'coderbeats:aro:v1'
+let zoomRel = 1
+/** zoom en vivo durante un pellizco (con resistencia más allá de los límites), o null */
+let pinchLive: number | null = null
+const zoomNow = () => pinchLive ?? clampZoom(limits.value.initial * zoomRel, limits.value)
+function setZoom(z: number) {
+  zoomRel = clampZoom(z, limits.value) / limits.value.initial
+  try {
+    localStorage.setItem(ZOOM_KEY, JSON.stringify({ zoomRel }))
+  } catch {
+    // sin almacenamiento: solo para esta sesión
+  }
+}
+function loadZoom() {
+  try {
+    const v = JSON.parse(localStorage.getItem(ZOOM_KEY) ?? 'null') as { zoomRel?: number } | null
+    if (v && typeof v.zoomRel === 'number' && Number.isFinite(v.zoomRel)) zoomRel = v.zoomRel
+  } catch {
+    // sin almacenamiento o dato roto: zoom inicial
+  }
+}
+/** geometría de la gota que se dibuja: se acerca a la de destino en cada frame (sin saltos) */
+let geo: DropGeo | null = null
+const targetGeo = () => dropLayout(view.w, view.h, insets.value, zoomNow())
 const bgBalls = computed(() => {
   const y = view.h - PLAY_FROM_BOTTOM
   return [
@@ -192,7 +219,8 @@ function mountTheme() {
 let offVisual: (() => void) | null = null
 function onEngineVisual(h: Parameters<Parameters<typeof engine.onVisual>[0]>[0]) {
   if (!theme || !h.instrument) return
-  const g = ringGeo.value
+  const gg = geo ?? targetGeo()
+  const g = { x: gg.cx, y: gg.cy }
   if (h.kind === 'heard' && h.instrument !== 'bass' && h.instrument !== 'chords') {
     const p = aro?.pointOf(h.instrument, h.step ?? 0) ?? { x: g.x, y: g.y }
     theme.hit({ kind: 'heard', time: h.time, loopId: null, instrument: h.instrument, x: p.x, y: p.y, strength: h.strength })
@@ -256,7 +284,10 @@ function tick() {
   const dt = lastT ? Math.min(0.05, t - lastT) : 1 / 60
   lastT = t
   const clock = engine.clockNow()
-  const g = ringGeo.value
+  // la gota sigue al zoom y a la ventana con suavidad; durante un pellizco, al instante
+  const target = targetGeo()
+  geo = !geo || reduced || pinchLive !== null ? target : lerpGeo(geo, target, 1 - Math.exp(-dt / 0.12))
+  const g = { x: geo.cx, y: geo.cy }
 
   // pulso: un evento por tiempo, más fuerte en el 1
   if (playing.value && theme) {
@@ -328,7 +359,7 @@ function tick() {
     weights = stepWeights(weights, targetWeights.value, dt, reduced)
     const f: AroFrame = {
       wall: t,
-      geo: dropGeo.value,
+      geo: geo!,
       weights,
       playing: playing.value,
       phase: clock.barPhase,
@@ -362,6 +393,13 @@ function measure() {
   // la ventana manda: el escenario siempre es exactamente la ventana visible
   view.w = window.innerWidth
   view.h = window.innerHeight
+  if (safeProbe.value) {
+    const cs = getComputedStyle(safeProbe.value)
+    safe.top = parseFloat(cs.paddingTop) || 0
+    safe.right = parseFloat(cs.paddingRight) || 0
+    safe.bottom = parseFloat(cs.paddingBottom) || 0
+    safe.left = parseFloat(cs.paddingLeft) || 0
+  }
   theme?.resize(view.w, view.h, dpr())
   aro?.resize(view.w, view.h, dpr())
 }
@@ -380,6 +418,7 @@ onMounted(() => {
       console.warn('[visual] sin Canvas 2D para el aro', e)
     }
   }
+  loadZoom()
   measure()
   mountTheme()
   offVisual = engine.onVisual(onEngineVisual)
@@ -468,6 +507,8 @@ type Gesture =
       axis: Axis
       filter: number
       space: number
+      /** zoom al empezar (para el pellizco) */
+      z0: number
     }
 let gesture: Gesture | null = null
 
@@ -543,7 +584,7 @@ function onDown(e: PointerEvent) {
     // entra el segundo dedo: lo que hiciera el primero se deshace
     cancelAroDrag()
     const { c, d } = twoPoints()
-    gesture = { kind: 'two', t: performance.now(), c0: c, d0: d, mode: null, axis: null, filter: fx.filter, space: fx.space }
+    gesture = { kind: 'two', t: performance.now(), c0: c, d0: d, mode: null, axis: null, filter: fx.filter, space: fx.space, z0: zoomNow() }
     return
   }
   if (pointers.size !== 1) return
@@ -590,8 +631,23 @@ function onMove(e: PointerEvent) {
       gs.axis ??= lockAxis(dcx, dcy)
       applyFx(gs.axis, gs.filter, gs.space, dcx, dcy, c.x, c.y)
     }
-    // pellizco: zoom de la gota en la fase 4
+    // pellizco: zoom continuo, con resistencia más allá de los límites (al soltar, vuelve)
+    if (gs.mode === 'pinch') pinchLive = pinchZoom(gs.z0, gs.d0, d, limits.value)
   }
+}
+
+/** Fin de un pellizco: el zoom vuelve a los límites con suavidad y se guarda. */
+function endPinch() {
+  if (pinchLive === null) return
+  const z = pinchLive
+  pinchLive = null
+  setZoom(z)
+}
+
+/** Rueda (o pellizco del trackpad): zoom (E1.5). */
+function onWheel(e: WheelEvent) {
+  e.preventDefault()
+  setZoom(wheelZoom(zoomNow(), e.deltaY, e.ctrlKey, limits.value))
 }
 
 function applyFx(axis: Axis, filter: number, space: number, dx: number, dy: number, x: number, y: number) {
@@ -614,6 +670,8 @@ function onUp(e: PointerEvent, cancelled = false) {
     gesture = null
   } else if (gs?.kind === 'fx' && gs.id === e.pointerId) gesture = null
   pointers.delete(e.pointerId)
+  // al levantar un dedo del pellizco, termina
+  if (gs?.kind === 'two' && gs.mode === 'pinch') endPinch()
   if (gs?.kind === 'two' && pointers.size === 0) {
     if (!cancelled && !gs.mode && performance.now() - gs.t < TAP_MS) engine.toggleBackground()
     gesture = null
@@ -632,7 +690,8 @@ const layoutInfo = () => {
     `ventana ${window.innerWidth}×${window.innerHeight} @${window.devicePixelRatio}`,
     `escenario ${r ? `${Math.round(r.x)},${Math.round(r.y)} ${Math.round(r.width)}×${Math.round(r.height)}` : '—'}`,
     `documento ${document.documentElement.scrollWidth}×${document.documentElement.scrollHeight}`,
-    `aro (${Math.round(ringGeo.value.x)}, ${Math.round(ringGeo.value.y)}) r ${Math.round(ringGeo.value.r)} detalle ${aroDetail}`,
+    `aro (${Math.round(geo?.cx ?? 0)}, ${Math.round(geo?.cy ?? 0)}) r ${Math.round(geo?.R ?? 0)} zoom ${zoomNow().toFixed(2)} (${limits.value.min}–${limits.value.max.toFixed(2)}) detalle ${aroDetail}`,
+    `zonas seguras ${safe.top}/${safe.right}/${safe.bottom}/${safe.left}`,
     `latencia de salida ${Math.round(engine.outputLatency() * 1000)} ms`,
   ].join(' · ')
 }
@@ -648,8 +707,15 @@ defineExpose({ rendererName, layoutInfo })
     @pointermove="onMove"
     @pointerup="onUp($event)"
     @pointercancel="onUp($event, true)"
+    @wheel="onWheel"
   >
     <div ref="canvasHost" style="position: absolute; inset: 0" />
+    <!-- mide las zonas seguras del sistema (muesca, barra de inicio) -->
+    <div
+      ref="safeProbe"
+      aria-hidden="true"
+      style="position: absolute; visibility: hidden; pointer-events: none; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)"
+    />
 
     <!-- el aro (spec 003): fase 1 sin interacción -->
     <canvas
