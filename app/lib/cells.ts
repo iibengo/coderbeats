@@ -305,3 +305,42 @@ export function orderWith(order: readonly number[], id: number, prevId: number |
   out.splice(after >= 0 ? after + 1 : before >= 0 ? before : out.length, 0, id)
   return out
 }
+
+// ── copiar y ordenar con el asa (spec 005, §7.1, fase 3.3) ────────────────────────
+/**
+ * Copia la célula `srcId` en `at` (mapa): mismos loops (con ids nuevos), partes, vueltas y profundidad,
+ * y la copia va justo después de la original en el orden (A → copia → la que seguía). Devuelve null si
+ * ya hay `MAX_CELLS` o la original no existe.
+ */
+export function withCopy(song: Song, srcId: number, at: { x: number; y: number }): { song: Song; id: number } | null {
+  const src = cellById(song, srcId)
+  if (!src || song.cells.length >= MAX_CELLS) return null
+  const id = song.nextCellId
+  let loopId = song.nextLoopId
+  const { name, ...rest } = src
+  const cell: Cell = {
+    ...rest,
+    id,
+    ...(name ? { name: `${name} copia` } : {}),
+    loops: src.loops.map(({ prev: _prev, ...l }) => ({ ...l, id: loopId++, bornAt: 0 })),
+    parts: { ...src.parts },
+    at: { x: at.x, y: at.y, depth: src.at.depth },
+  }
+  const order = [...song.order]
+  order.splice(order.indexOf(srcId) + 1, 0, id)
+  return { song: { ...song, cells: [...song.cells, cell], order, nextCellId: id + 1, nextLoopId: loopId }, id }
+}
+
+/**
+ * Ordenar (§7.1): soltar el hilo de A sobre B pone a B justo después de A. Devuelve null si no hay nada
+ * que cambiar (misma célula, no existe, o B ya iba justo después de A). La canción es cíclica, así que
+ * esta regla cubre cualquier posición.
+ */
+export function withOrderAfter(song: Song, aId: number, bId: number): Song | null {
+  if (aId === bId || !cellById(song, aId) || !cellById(song, bId)) return null
+  const order = song.order.filter((x) => x !== bId)
+  const i = order.indexOf(aId)
+  if (i < 0) return null
+  order.splice(i + 1, 0, bId)
+  return order.every((v, k) => v === song.order[k]) ? null : { ...song, order }
+}

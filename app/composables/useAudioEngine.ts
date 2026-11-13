@@ -16,7 +16,9 @@ import {
   stepPlay,
   stressSong,
   windowAt,
+  withCopy,
   withNewCell,
+  withOrderAfter,
   withoutCell,
   type Cell,
   type Cursor,
@@ -1117,6 +1119,35 @@ export function useAudioEngine() {
   }
 
   /**
+   * Copia la célula `srcId` en `at` (mapa): la copia va justo después de la original en el orden
+   * (spec 005, §7.1, el asa). Devuelve su id, o null con 16 células.
+   */
+  function copyCell(srcId: number, at: { x: number; y: number }): number | null {
+    const s = liveSong()
+    const r = withCopy(s, srcId, at)
+    if (!r) {
+      log('cell', 'no se copia: ya hay 16 células')
+      return null
+    }
+    song.value = r.song
+    // los ids de loop de la copia no deben repetirse con los que se creen en la célula que se ve
+    loops.value = { ...loops.value, nextId: Math.max(loops.value.nextId, r.song.nextLoopId) }
+    log('cell', `célula ${srcId} copiada en ${r.id}, justo después`)
+    becameMulti(isMulti(s))
+    reevaluate()
+    return r.id
+  }
+
+  /** Ordenar con el asa: `bId` pasa a sonar justo después de `aId`. */
+  function orderAfter(aId: number, bId: number) {
+    const next = withOrderAfter(liveSong(), aId, bId)
+    if (!next) return
+    song.value = next
+    log('cell', `orden: la ${bId} suena justo después de la ${aId}`)
+    reevaluate()
+  }
+
+  /**
    * Borra la célula `id` (se puede deshacer). La última no se borra: se vacía. Si es la que suena,
    * deja de sonar ya y entra la siguiente en la próxima línea de compás.
    */
@@ -1337,6 +1368,8 @@ export function useAudioEngine() {
     loopTarget,
     undoInfo,
     addCell,
+    copyCell,
+    orderAfter,
     removeCell,
     undo,
     nextCellDepth,

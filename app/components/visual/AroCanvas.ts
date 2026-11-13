@@ -137,6 +137,10 @@ export interface AroFrame {
   crowd?: AroGhost[]
   /** colonia: anillo rosa alrededor de la célula que suena (0..1) */
   halo?: number
+  /** colonia: el asa de cada célula (un puntito en el borde, hacia la siguiente) */
+  handles?: { x: number; y: number; alpha: number }[]
+  /** colonia: el hilo que se estira desde un asa; copia sobre agua vacía, orden sobre otra célula */
+  threadDrag?: { from: { x: number; y: number }; to: { x: number; y: number }; target: { x: number; y: number; r: number } | null; ghostR: number | null } | null
   /** colonia: mantener una célula la borra; el anillo se completa alrededor de ella (p = 0..1) */
   holdRing?: { x: number; y: number; r: number; p: number } | null
   /** colonia: cuánto se ha llenado el anillo de la que suena (0..1); null = en bucle, sin avanzar */
@@ -445,6 +449,8 @@ export class AroCanvas {
       if (f.halo && f.halo > 0.01) this.drawHalo(f.halo, f.progress)
       if (f.labels?.length) this.drawLabels(f.labels)
       if (f.holdRing && f.holdRing.p > 0.08) this.drawHoldRing(f.holdRing)
+      if (f.handles?.length) this.drawHandles(f.handles)
+      if (f.threadDrag) this.drawThreadDrag(f.threadDrag)
     } finally {
       x.restore()
     }
@@ -602,6 +608,55 @@ export class AroCanvas {
       x.stroke()
     }
     x.lineCap = 'butt'
+  }
+
+  /** Asas: un puntito con un halo fino en el borde de cada célula. */
+  private drawHandles(hs: { x: number; y: number; alpha: number }[]) {
+    const x = this.ctx
+    for (const h of hs) {
+      if (h.alpha < 0.01) continue
+      x.fillStyle = `rgba(255,255,255,${0.75 * h.alpha})`
+      x.beginPath()
+      x.arc(h.x, h.y, 2.6, 0, TAU)
+      x.fill()
+      x.strokeStyle = `rgba(255,255,255,${0.25 * h.alpha})`
+      x.lineWidth = 1
+      x.beginPath()
+      x.arc(h.x, h.y, 5.5, 0, TAU)
+      x.stroke()
+    }
+  }
+
+  /**
+   * El hilo que sale del asa hasta el dedo. Sobre agua vacía, una silueta de la copia bajo el dedo; sobre
+   * otra célula, esa célula se resalta (orden).
+   */
+  private drawThreadDrag(t: NonNullable<AroFrame['threadDrag']>) {
+    const x = this.ctx
+    const c = threadControl(t.from, t.to, Math.min(Math.hypot(t.to.x - t.from.x, t.to.y - t.from.y) * 0.08, 14))
+    x.strokeStyle = 'rgba(255,255,255,0.6)'
+    x.lineWidth = 1.8
+    x.lineCap = 'round'
+    x.beginPath()
+    x.moveTo(t.from.x, t.from.y)
+    x.quadraticCurveTo(c.x, c.y, t.to.x, t.to.y)
+    x.stroke()
+    x.lineCap = 'butt'
+    if (t.target) {
+      x.strokeStyle = 'rgba(255,255,255,0.9)'
+      x.lineWidth = 2
+      x.beginPath()
+      x.arc(t.target.x, t.target.y, Math.max(t.target.r, 10) + 5, 0, TAU)
+      x.stroke()
+    } else if (t.ghostR) {
+      x.strokeStyle = 'rgba(255,255,255,0.55)'
+      x.lineWidth = 1.2
+      x.setLineDash([3, 3])
+      x.beginPath()
+      x.arc(t.to.x, t.to.y, Math.max(t.ghostR, 8), 0, TAU)
+      x.stroke()
+      x.setLineDash([])
+    }
   }
 
   /** Anillo fino que se completa alrededor de la célula que se mantiene pulsada (se borra al llegar a 1). */

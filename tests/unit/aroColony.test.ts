@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   approachBlend,
+  HANDLE_DIST,
+  handlePoint,
+  spotAt,
   cellProgress,
   lastTurnFill,
   turnIndex,
@@ -250,5 +253,25 @@ describe('colonia: cuánto falta para cambiar', () => {
     expect(lastTurnFill(11.5, 12)).toBe(0.5)
     expect(lastTurnFill(12, 12)).toBe(1)
     expect(lastTurnFill(11.5, Infinity)).toBeUndefined() // en bucle no se llena
+  })
+})
+
+describe('colonia: asa de cada célula', () => {
+  it('el asa sale del borde hacia la siguiente célula; la última, hacia la derecha', () => {
+    const p = handlePoint({ x: 100, y: 100 }, 20, { x: 200, y: 100 })
+    expect(p.x).toBeCloseTo(100 + 20 * HANDLE_DIST)
+    expect(p.y).toBeCloseTo(100)
+    const down = handlePoint({ x: 100, y: 100 }, 20, { x: 100, y: 500 })
+    expect(down.x).toBeCloseTo(100)
+    expect(down.y).toBeCloseTo(100 + 20 * HANDLE_DIST)
+    expect(handlePoint({ x: 0, y: 0 }, 10, null)).toEqual({ x: 10 * HANDLE_DIST, y: 0 })
+    expect(Number.isNaN(handlePoint({ x: 5, y: 5 }, 10, { x: 5, y: 5 }).x)).toBe(false) // sin dirección no hay NaN
+  })
+
+  it('se coge el asa o el número más cercano dentro de su zona', () => {
+    const spots = [{ id: 1, x: 50, y: 50 }, { id: 2, x: 80, y: 50 }]
+    expect(spotAt(52, 51, spots, 18)).toBe(1)
+    expect(spotAt(70, 50, spots, 18)).toBe(2) // más cerca del 2
+    expect(spotAt(200, 200, spots, 18)).toBeNull()
   })
 })

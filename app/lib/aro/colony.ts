@@ -221,3 +221,40 @@ export function lastTurnFill(pos: number, end: number): number | undefined {
   if (!Number.isFinite(end) || pos < end - 1) return undefined
   return clamp01(pos - (end - 1))
 }
+
+// ── asa y número de cada célula (§7.1) ───────────────────────────────────────────
+/** el asa solo se dibuja y se coge con una célula de al menos este radio (px) */
+export const HANDLE_MIN_R = 14
+/** radio de la zona del asa y del número (px) */
+export const HANDLE_HIT = 18
+export const LABEL_HIT = 14
+/** a cuántos radios del centro está el asa: justo fuera del anillo de la que suena */
+export const HANDLE_DIST = 1.14
+
+/** Punto del asa: en el borde de la célula, hacia la siguiente en el orden (la última, hacia la derecha). */
+export function handlePoint(center: Point, r: number, toward: Point | null): Point {
+  const dx = toward ? toward.x - center.x : 1
+  const dy = toward ? toward.y - center.y : 0
+  const l = Math.hypot(dx, dy) || 1
+  return { x: center.x + (dx / l) * r * HANDLE_DIST, y: center.y + (dy / l) * r * HANDLE_DIST }
+}
+
+export interface Spot {
+  id: number
+  x: number
+  y: number
+}
+
+/** Elemento (asa o número) más cercano a un punto, dentro de su zona, o null. */
+export function spotAt(px: number, py: number, spots: readonly Spot[], hit: number): number | null {
+  let best: number | null = null
+  let bd = hit
+  for (const s of spots) {
+    const d = Math.hypot(px - s.x, py - s.y)
+    if (d <= bd) {
+      bd = d
+      best = s.id
+    }
+  }
+  return best
+}

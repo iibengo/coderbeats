@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   advance,
+  cellById,
   endBar,
   stepPlay,
   type Play,
@@ -16,7 +17,9 @@ import {
   MAX_CELLS,
   nextDepth,
   orderWith,
+  withCopy,
   withNewCell,
+  withOrderAfter,
   withoutCell,
   storableSong,
   windowAt,
@@ -375,5 +378,53 @@ describe('cells: crear y borrar', () => {
       { cellId: demo.order[2], from: 9, to: 9 + 8 },
     ])
     expect(stepPlay(song, play, 9).cursor).toEqual({ cellId: demo.order[2], startBar: 9 })
+  })
+})
+
+describe('cells: copiar y ordenar', () => {
+  const demo = demoSong('dnb')!
+  const [a, b, c, d] = demo.order as [number, number, number, number]
+
+  it('la copia va justo después de la original, con loops de ids nuevos y las mismas partes y vueltas', () => {
+    const r = withCopy(demo, c, { x: 20, y: 3 })!
+    expect(r.song.order).toEqual([a, b, c, r.id, d])
+    const copy = r.song.cells.find((x) => x.id === r.id)!
+    const src = cellById(demo, c)!
+    expect(copy.turns).toBe(src.turns)
+    expect(copy.parts).toEqual(src.parts)
+    expect(copy.at).toEqual({ x: 20, y: 3, depth: src.at.depth })
+    expect(copy.name).toBe('drop copia')
+    expect(copy.loops.map((l) => l.hits)).toEqual(src.loops.map((l) => l.hits))
+    const ids = r.song.cells.flatMap((x) => x.loops.map((l) => l.id))
+    expect(new Set(ids).size).toBe(ids.length) // ningún id de loop repetido en toda la canción
+    expect(r.song.nextLoopId).toBeGreaterThan(Math.max(...ids))
+    expect(r.song.nextCellId).toBe(r.id + 1)
+    expect(isSong(r.song)).toBe(true)
+  })
+
+  it('copiar no toca la original, y con 16 células no se copia', () => {
+    const before = JSON.stringify(demo)
+    withCopy(demo, a, { x: 0, y: 0 })
+    expect(JSON.stringify(demo)).toBe(before)
+    expect(withCopy(stressSong(demo, MAX_CELLS), 1, { x: 0, y: 0 })).toBeNull()
+    expect(withCopy(demo, 99, { x: 0, y: 0 })).toBeNull()
+  })
+
+  it('copiar una célula vacía da otra vacía', () => {
+    const r = withCopy(emptySong(), 1, { x: 3, y: 0 })!
+    expect(r.song.order).toEqual([1, r.id])
+    expect(r.song.cells.find((x) => x.id === r.id)!.loops).toEqual([])
+  })
+
+  it('ordenar: soltar el hilo de A sobre B pone a B justo después de A', () => {
+    expect(withOrderAfter(demo, a, d)!.order).toEqual([a, d, b, c])
+    // la última tira de la primera: es el mismo ciclo con otro punto de partida (Play arranca desde la que ves)
+    expect(withOrderAfter(demo, d, a)!.order).toEqual([b, c, d, a])
+    expect(withOrderAfter(demo, c, b)!.order).toEqual([a, c, b, d])
+    // la que ya iba después de A no cambia nada, ni tirar de sí misma, ni una que no existe
+    expect(withOrderAfter(demo, a, b)).toBeNull()
+    expect(withOrderAfter(demo, a, a)).toBeNull()
+    expect(withOrderAfter(demo, a, 99)).toBeNull()
+    expect(demo.order).toEqual([a, b, c, d])
   })
 })

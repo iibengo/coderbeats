@@ -452,4 +452,13 @@ qué se decidió y por qué; se cambian sin más si no gustan.
 - **Vaciar la última célula** también apaga su bajo y sus acordes.
 - **El chip "↶ deshacer" cerca** va 40 px por encima de la fila de bolas, para no taparlas.
 
+**3.3 · Copiar y ordenar con el asa**
+- **Tocar el asa sin arrastrar** cuenta como tocar su célula (suena en bucle), para no tener un punto muerto.
+- **Soltar el hilo sobre la propia célula no hace nada.**
+- **Ordenar de la última sobre la primera** deja el mismo ciclo con otro punto de partida (`[b, c, d, a]`);
+  no se evita, porque Play arranca desde la que ves y el cambio se ve en los hilos.
+- **Copiar y ordenar no se deshacen:** el deshacer es solo de borrados (decisión 18). Si hace falta, se borra la copia.
+- **La copia se llama "<nombre> copia"** y mantiene la profundidad de la original.
+- **Con menos radio de 14 px no hay asa:** las células pequeñas no se copian ni se ordenan hasta acercar un poco el mapa.
+
 (Se añaden con cada parte.)

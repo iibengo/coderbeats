@@ -22,6 +22,9 @@ import {
   depthAlpha,
   depthParallax,
   depthScale,
+  HANDLE_HIT,
+  HANDLE_MIN_R,
+  handlePoint,
   inColony,
   isDoubleTap,
   lastTurnFill,
@@ -31,6 +34,7 @@ import {
   pulseScale as beatScale,
   screenToMap,
   settleZoom,
+  spotAt,
   threadPairs,
   turnIndex,
   type Disc,
@@ -442,6 +446,9 @@ const drift = new Drift()
 let camSmooth: Point | null = null
 let camEaseUntil = 0
 const CAM_EASE_MS = 700
+/** el hilo que se estira desde el asa de una célula (la 3.3): copia en agua vacía, orden sobre otra célula */
+let threadState: { id: number; px: number; py: number } | null = null
+
 /** células recién creadas (id → cuándo): caen como una gota al aparecer */
 const spawns = new Map<number, number>()
 const SPAWN_MS = 450
@@ -471,6 +478,8 @@ let colonyPick: {
   toMap: (fx: number, fy: number, depth: number) => Point
   /** lo contrario: dónde cae un punto del mapa en la pantalla (de frente) */
   toScreen: (p: Point, depth: number) => Point
+  /** el asa de cada célula (de frente), para cogerla */
+  handles: { id: number; x: number; y: number }[]
 } | null = null
 
 function cellScene(
@@ -478,7 +487,7 @@ function cellScene(
   pos: number,
   zEff: number,
   dt: number,
-): Pick<AroFrame, 'geo' | 'ghost' | 'bridge' | 'pull' | 'alpha' | 'crowd' | 'halo' | 'threads' | 'labels' | 'progress'> & { plan: ReturnType<typeof engine.cellPlan>; cam: { x: number; y: number } } {
+): Pick<AroFrame, 'geo' | 'ghost' | 'bridge' | 'pull' | 'alpha' | 'crowd' | 'halo' | 'threads' | 'labels' | 'progress' | 'handles' | 'threadDrag'> & { plan: ReturnType<typeof engine.cellPlan>; cam: { x: number; y: number } } {
   const alpha = reduced && playing.value ? Math.min(1, (performance.now() - cutAt) / CUT_FADE_MS) : 1
   const plan = engine.cellPlan()
   const all = engine.song.value.cells
@@ -553,8 +562,34 @@ function cellScene(
         free: base.free,
         toMap,
         toScreen,
+        handles: [],
       }
     : null
+  // asas (§7.1): un puntito en el borde de cada célula de la canción, hacia la siguiente; solo con radio suficiente
+  const order = engine.song.value.order
+  const handles: { id: number; x: number; y: number; alpha: number }[] = []
+  if (k > 0.01)
+    for (const c of all) {
+      const g = placed.get(c.id)!
+      if (g.R < HANDLE_MIN_R) continue
+      const nextId = order[order.indexOf(c.id) + 1]
+      const ng = nextId !== undefined ? placed.get(nextId) : undefined
+      const p = handlePoint({ x: g.cx, y: g.cy }, g.R, ng ? { x: ng.cx, y: ng.cy } : null)
+      handles.push({ id: c.id, x: p.x, y: p.y, alpha: k * depthAlpha(c.at.depth, k) })
+    }
+  if (colonyPick) colonyPick.handles = handles
+  // el hilo que se estira desde un asa hasta el dedo
+  let threadDrag: AroFrame['threadDrag'] = null
+  if (threadState && colonyPick) {
+    const h = handles.find((x) => x.id === threadState!.id)
+    if (h) {
+      const [fx, fy] = toFront(threadState.px, threadState.py, aroView, 0, colonyPick.cy)
+      const to = clampToRect({ x: fx, y: fy }, base.free)
+      const targetId = cellAtPoint(to.x, to.y, colonyPick.discs.filter((d) => d.id !== threadState!.id))
+      const td = targetId !== null ? colonyPick.discs.find((d) => d.id === targetId) : undefined
+      threadDrag = { from: { x: h.x, y: h.y }, to, target: td ? { x: td.x, y: td.y, r: td.r } : null, ghostR: td ? null : placed.get(threadState.id)!.R }
+    }
+  }
   const live = !!plan && playing.value
   const halo = live ? k : 0
   // cuánto falta para cambiar (§7.2): el anillo de la que suena se llena con sus vueltas; en bucle no avanza
@@ -562,7 +597,6 @@ function cellScene(
   const progress = live && plan ? cellProgress(pos, plan.start, plan.end) : undefined
 
   // hilos de orden (§7.2): entre las consecutivas, tenues; por el de la que suena corre el brillo de la transición
-  const order = engine.song.value.order
   const byId = new Map(all.map((c) => [c.id, c]))
   const threads =
     k > 0.01
@@ -591,7 +625,7 @@ function cellScene(
         })
       : undefined
 
-  if (!plan || !tr) return { geo, alpha, plan, cam, crowd, halo, threads, labels, progress }
+  if (!plan || !tr) return { geo, alpha, plan, cam, crowd, halo, threads, labels, progress, handles, threadDrag }
   const cellOf = (id: number) => (id === plan.cur.id ? plan.cur : id === plan.next.id ? plan.next : plan.prev!)
   let ghost: AroFrame['ghost'] = null
   if (tr.ghost) {
@@ -609,7 +643,7 @@ function cellScene(
     tr.pull > 0
       ? { th: Math.atan2(plan.next.at.y - plan.cur.at.y, plan.next.at.x - plan.cur.at.x), a: tr.pull * PULL_MAX * base.R }
       : null
-  return { geo, ghost, bridge, pull, alpha, plan, cam, crowd, halo, threads, labels, progress }
+  return { geo, ghost, bridge, pull, alpha, plan, cam, crowd, halo, threads, labels, progress, handles, threadDrag }
 }
 
 // ── chapa de vueltas y marcadores del borde (spec 005, §5.3 y §6) ────────────────
@@ -940,7 +974,7 @@ const drag = ref<{ axis: Axis; x: number; y: number } | null>(null)
 
 type Gesture =
   | { kind: 'aro-drag'; id: number; dot: AroDot }
-  | { kind: 'colony'; id: number; x0: number; y0: number; t: number; moved: boolean; lx: number; ly: number; cellId: number | null; grab: Point; held: boolean }
+  | { kind: 'colony'; id: number; x0: number; y0: number; t: number; moved: boolean; lx: number; ly: number; cellId: number | null; grab: Point; held: boolean; handleId: number | null }
   | {
       kind: 'aro-tap'
       id: number
@@ -1056,6 +1090,7 @@ function onDown(e: PointerEvent) {
     // entra el segundo dedo: lo que hiciera el primero se deshace
     disarmLoop()
     endCellDrag(false)
+    endThread(false)
     cancelAroDrag()
     const { c, d } = twoPoints()
     gesture = { kind: 'two', t: performance.now(), c0: c, d0: d, mode: null, axis: null, filter: fx.filter, space: fx.space, z0: zoomNow() }
@@ -1066,8 +1101,10 @@ function onDown(e: PointerEvent) {
   const y = e.clientY
   // colonia (zoom alejado): un dedo no toca el aro, toca células (spec 005, §7.1)
   if (colony.value) {
-    const cellId = cellUnder(x, y)
-    gesture = { kind: 'colony', id: e.pointerId, x0: x, y0: y, t: performance.now(), moved: false, lx: x, ly: y, cellId, grab: grabOffset(cellId, x, y), held: false }
+    // el asa tiene prioridad sobre el cuerpo de la célula
+    const handleId = handleUnder(x, y)
+    const cellId = handleId === null ? cellUnder(x, y) : null
+    gesture = { kind: 'colony', id: e.pointerId, x0: x, y0: y, t: performance.now(), moved: false, lx: x, ly: y, cellId, grab: grabOffset(cellId, x, y), held: false, handleId }
     return
   }
   const dot = aro?.pick(x, y)
@@ -1103,7 +1140,8 @@ function onMove(e: PointerEvent) {
     if (Math.hypot(p.x - gs.x0, p.y - gs.y0) > MOVE_PX) gs.moved = true
     // arrastrar agua mueve el mapa; arrastrar una célula la mueve a ella (el asa, con el hilo, es de la 3.3)
     if (gs.moved) {
-      if (gs.cellId === null) panMap(p.x - gs.lx, p.y - gs.ly)
+      if (gs.handleId !== null) threadState = { id: gs.handleId, px: p.x, py: p.y }
+      else if (gs.cellId === null) panMap(p.x - gs.lx, p.y - gs.ly)
       else {
         if (!dragState) dragTrail.length = 0
         dragState = { id: gs.cellId, px: p.x, py: p.y, grab: gs.grab }
@@ -1195,13 +1233,43 @@ function endCellDrag(commit: boolean) {
   if (v.x || v.y) drift.glide(moved.id, { x: moved.x - final.x, y: moved.y - final.y }, v)
 }
 
+/** Asa bajo un punto de la pantalla en la colonia, o null. */
+function handleUnder(x: number, y: number): number | null {
+  const pk = colonyPick
+  if (!pk) return null
+  const [fx, fy] = toFront(x, y, aroView, 0, pk.cy)
+  return spotAt(fx, fy, pk.handles, HANDLE_HIT)
+}
+
+/**
+ * Suelta el hilo del asa (§7.1): sobre agua vacía, copia la célula allí (justo después de la original en
+ * el orden); sobre otra célula, esa pasa a sonar justo después; sobre la misma, nada.
+ */
+function endThread(commit: boolean) {
+  const ts = threadState
+  threadState = null
+  const pk = colonyPick
+  if (!ts || !commit || !pk) return
+  const [fx, fy] = toFront(ts.px, ts.py, aroView, 0, pk.cy)
+  const f = clampToRect({ x: fx, y: fy }, pk.free)
+  const src = pk.discs.find((d) => d.id === ts.id)
+  const targetId = cellAtPoint(f.x, f.y, pk.discs)
+  if (targetId === ts.id || !src) return
+  if (targetId !== null) return engine.orderAfter(ts.id, targetId)
+  const m = pk.toMap(f.x, f.y, src.depth ?? 0)
+  const id = engine.copyCell(ts.id, { x: m.x, y: m.y })
+  if (id === null) return
+  spawns.set(id, performance.now())
+  camEaseUntil = performance.now() + CAM_EASE_MS
+}
+
 /**
  * Mantener una célula pulsada (§7.1): el anillo se completa alrededor de ella y, a los 0,6 s, se borra
  * (con "↶ deshacer"). Se llama en cada frame; moverse antes cancela el borrado.
  */
 function colonyHold(): { x: number; y: number; r: number; p: number } | null {
   const gs = gesture
-  if (gs?.kind !== 'colony' || gs.cellId === null || gs.moved || gs.held || !colonyPick) return null
+  if (gs?.kind !== 'colony' || gs.cellId === null || gs.handleId !== null || gs.moved || gs.held || !colonyPick) return null
   const d = colonyPick.discs.find((c) => c.id === gs.cellId)
   if (!d) return null
   const p = (performance.now() - gs.t) / COLONY_HOLD_MS
@@ -1318,8 +1386,11 @@ function onUp(e: PointerEvent, cancelled = false) {
     gesture = null
   } else if (gs?.kind === 'colony' && gs.id === e.pointerId) {
     if (dragState) endCellDrag(!cancelled)
+    else if (threadState) endThread(!cancelled)
     else if (!cancelled && !gs.moved && !gs.held && performance.now() - gs.t < TAP_MS) {
-      if (gs.cellId !== null) tapCell(gs.cellId)
+      // tocar el asa cuenta como tocar su célula
+      if (gs.handleId !== null) tapCell(gs.handleId)
+      else if (gs.cellId !== null) tapCell(gs.cellId)
       else tapWater(gs.x0, gs.y0)
     }
     gesture = null
