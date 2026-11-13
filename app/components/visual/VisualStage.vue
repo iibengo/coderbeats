@@ -7,7 +7,21 @@ import { allWeights, stepWeights, type Weights } from '~/lib/aro/bands'
 import { stepAngle, type DropGeo } from '~/lib/aro/shape'
 import { dropAction } from '~/lib/aro/drop'
 import { suggestions } from '~/lib/aro/guide'
-import { boundsCenter, cellAtPoint, colonyCam, colonyMinZoom, crowdAlpha, inColony, settleZoom, type Disc } from '~/lib/aro/colony'
+import {
+  approachBlend,
+  boundsCenter,
+  cellAtPoint,
+  clampCam,
+  colonyCam,
+  colonyMinZoom,
+  crowdAlpha,
+  inColony,
+  mixCam,
+  panBy,
+  settleZoom,
+  type Disc,
+  type Point,
+} from '~/lib/aro/colony'
 import { edgeMarkers } from '~/lib/aro/markers'
 import { transitionAt } from '~/lib/aro/transition'
 import { clampZoom, contourPoints, dropLayout, freeRect, lerpGeo, moveGeo, pinchZoom, stretchOf, wheelZoom, zoomLimits, type Insets } from '~/lib/aro/zoom'
@@ -120,6 +134,12 @@ const bgBalls = computed(() => {
     { part: 'bass' as Part, label: 'bajo', x: view.w / 2 - 96, y },
     { part: 'chords' as Part, label: 'acordes', x: view.w / 2 + 96, y },
   ]
+})
+/** "◎ seguir": donde estaría la fila de bolas (que en la colonia se oculta) */
+const followStyle = computed(() => {
+  const x = compact.value ? sideX.value.left : view.w / 2
+  const y = compact.value ? view.h / 2 : view.h - ROW_FROM_BOTTOM
+  return { left: `${x}px`, top: `${y}px`, transform: 'translate(-50%, -50%)' }
 })
 /** posición de cada bola en la fila, por orden de instrumento (bombo, caja, platillo) */
 const rowSlots = computed(() => {
@@ -352,6 +372,16 @@ watch(engine.viewCellId, () => (cutAt = performance.now()))
  * Cámara y transición para este frame: dónde se dibuja la célula que suena y, si toca, la otra
  * gota, el puente y el estiramiento. Las células están en el mapa en radios de gota (§5.1).
  */
+/**
+ * Cámara del dedo (spec 005, §7.1): al arrastrar el mapa la cámara deja de seguir y aparece "◎ seguir".
+ * `panBlend` mezcla la cámara automática (0) con la del dedo (1) para que no haya saltos.
+ */
+const panned = ref(false)
+let manualCam: Point | null = null
+let panBlend = 0
+/** cámara que se dibujó en el último frame: de ahí parte el arrastre */
+let lastCam: Point = { x: 0, y: 0 }
+
 /** células tocables de la colonia en este frame (centros y radio en px, sin la inclinación) */
 let colonyPick: { discs: Disc[]; cy: number } | null = null
 
@@ -370,7 +400,9 @@ function cellScene(
     : null
   // en la colonia la cámara pasa de la célula que suena al centro del conjunto (§7.1)
   const follow = tr?.cam ?? { x: here?.at.x ?? 0, y: here?.at.y ?? 0 }
-  const cam = cellPoints.value.length > 1 ? colonyCam(follow, boundsCenter(cellPoints.value), zEff, fullLimits.value.min) : follow
+  const auto = cellPoints.value.length > 1 ? colonyCam(follow, boundsCenter(cellPoints.value), zEff, fullLimits.value.min) : follow
+  const cam = mixCam(auto, manualCam, panBlend)
+  lastCam = cam
   const place = (c: Cell) => moveGeo(base, (c.at.x - cam.x) * base.R, (c.at.y - cam.y) * base.R)
   const weightsOf = (c: Cell) => ({ ...allWeights(1), bass: c.parts.bass && bgMode.value !== 'off' ? 1 : 0, mel: 0 })
   const curCell = plan?.cur ?? here
@@ -547,7 +579,12 @@ function tick() {
     weights = stepWeights(weights, targetWeights.value, dt, reduced)
     const zEff = geo!.R / (Math.min(geo!.free.x1 - geo!.free.x0, geo!.free.y1 - geo!.free.y0) / 2)
     const isColony = inColony(zoomNow(), cellPoints.value.length)
-    if (isColony !== colony.value) colony.value = isColony
+    if (isColony !== colony.value) {
+      colony.value = isColony
+      // al volver a cerca, la cámara vuelve a seguir a la que suena
+      if (!isColony) panned.value = false
+    }
+    panBlend = approachBlend(panBlend, panned.value && isColony ? 1 : 0, dt, reduced)
     const { plan, cam, ...scene } = cellScene(geo!, clock.bar + clock.barPhase, zEff)
     updateMarkers(geo!, cam, plan ? plan.next.id : null)
     const f: AroFrame = {
@@ -700,7 +737,7 @@ const drag = ref<{ axis: Axis; x: number; y: number } | null>(null)
 
 type Gesture =
   | { kind: 'aro-drag'; id: number; dot: AroDot }
-  | { kind: 'colony'; id: number; x0: number; y0: number; t: number; moved: boolean }
+  | { kind: 'colony'; id: number; x0: number; y0: number; t: number; moved: boolean; lx: number; ly: number; onCell: boolean }
   | {
       kind: 'aro-tap'
       id: number
@@ -825,7 +862,7 @@ function onDown(e: PointerEvent) {
   const y = e.clientY
   // colonia (zoom alejado): un dedo no toca el aro, toca células (spec 005, §7.1)
   if (colony.value) {
-    gesture = { kind: 'colony', id: e.pointerId, x0: x, y0: y, t: performance.now(), moved: false }
+    gesture = { kind: 'colony', id: e.pointerId, x0: x, y0: y, t: performance.now(), moved: false, lx: x, ly: y, onCell: cellUnder(x, y) !== null }
     return
   }
   const dot = aro?.pick(x, y)
@@ -859,6 +896,10 @@ function onMove(e: PointerEvent) {
     if (Math.hypot(p.x - gs.x0, p.y - gs.y0) > MOVE_PX) gs.moved = true
   } else if (gs.kind === 'colony' && gs.id === e.pointerId) {
     if (Math.hypot(p.x - gs.x0, p.y - gs.y0) > MOVE_PX) gs.moved = true
+    // arrastrar agua mueve el mapa; desde una célula queda para el hilo de la fase 3
+    if (gs.moved && !gs.onCell) panMap(p.x - gs.lx, p.y - gs.ly)
+    gs.lx = p.x
+    gs.ly = p.y
   } else if (gs.kind === 'fx' && gs.id === e.pointerId) {
     const dx = p.x - gs.x0
     const dy = p.y - gs.y0
@@ -882,14 +923,31 @@ function onMove(e: PointerEvent) {
   }
 }
 
+/** Mueve el mapa con el dedo; el primer movimiento parte de la cámara que se ve y la deja de seguir. */
+function panMap(dx: number, dy: number) {
+  if (!panned.value || !manualCam) {
+    manualCam = { ...lastCam }
+    panned.value = true
+    panBlend = 1
+  }
+  // el aro puede estar inclinado: en vertical, el movimiento se mide de frente
+  manualCam = clampCam(panBy(manualCam, dx, dy / aroView.sy, geo?.R ?? 1), cellPoints.value)
+}
+
+/** Célula bajo un punto de la pantalla en la colonia, o null. */
+function cellUnder(x: number, y: number): number | null {
+  const pk = colonyPick
+  if (!pk) return null
+  const [fx, fy] = toFront(x, y, aroView, 0, pk.cy)
+  return cellAtPoint(fx, fy, pk.discs)
+}
+
 /** Tocar una célula en la colonia: el zoom vuelve a cerca y la célula entra en bucle (§7.1). */
 function tapColony(x: number, y: number) {
-  const pk = colonyPick
-  if (!pk) return
-  const [fx, fy] = toFront(x, y, aroView, 0, pk.cy)
-  const id = cellAtPoint(fx, fy, pk.discs)
+  const id = cellUnder(x, y)
   if (id === null) return
   zoomRel = nearRel
+  panned.value = false
   engine.travelTo(id)
 }
 
@@ -1056,6 +1114,18 @@ defineExpose({ rendererName, layoutInfo })
       </span>
     </button>
 
+    <!-- colonia: tras mover el mapa, "◎ seguir" devuelve la cámara a la célula que suena (spec 005, §7.1) -->
+    <button
+      v-if="colony && panned"
+      class="follow-btn absolute"
+      :style="followStyle"
+      aria-label="centrar la cámara en la célula que suena"
+      @pointerdown.stop
+      @click="panned = false"
+    >
+      ◎ seguir
+    </button>
+
     <!-- bolas del fondo (modo manual, §16.17) -->
     <template v-if="bgMode === 'manual' && !colony">
       <button
@@ -1119,6 +1189,24 @@ defineExpose({ rendererName, layoutInfo })
 .marker[data-next='true'] {
   background: #f496bc;
   box-shadow: 0 0 10px rgb(244 150 188 / 0.6);
+}
+/* "◎ seguir" de la colonia */
+.follow-btn {
+  height: 30px;
+  padding: 0 14px;
+  border-radius: 9999px;
+  border: 1px solid #f496bc;
+  background: rgb(255 255 255 / 0.07);
+  color: #f496bc;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.follow-btn::after {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  border-radius: 9999px;
 }
 /* chapa de vueltas: gotita pegada al borde, arriba */
 .chapa {

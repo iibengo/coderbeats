@@ -91,3 +91,32 @@ export function cellAtPoint(px: number, py: number, discs: readonly Disc[], minR
   }
   return best
 }
+
+/** hasta dónde se puede llevar el mapa fuera del conjunto de células (radios de gota) */
+export const PAN_MARGIN = 3
+
+/** Mueve la cámara lo que se ha arrastrado el dedo (px): el mapa va con el dedo, así que la cámara va al revés. `r` = radio de la gota (px). */
+export const panBy = (cam: Point, dxPx: number, dyPx: number, r: number): Point => ({
+  x: cam.x - dxPx / Math.max(1, r),
+  y: cam.y - dyPx / Math.max(1, r),
+})
+
+/** La cámara no sale del conjunto de células más `margin` radios: el mapa nunca se pierde. */
+export function clampCam(cam: Point, points: readonly Point[], margin = PAN_MARGIN): Point {
+  if (!points.length) return cam
+  const xs = points.map((p) => p.x)
+  const ys = points.map((p) => p.y)
+  const c = (v: number, lo: number, hi: number) => Math.min(hi + margin, Math.max(lo - margin, v))
+  return { x: c(cam.x, Math.min(...xs), Math.max(...xs)), y: c(cam.y, Math.min(...ys), Math.max(...ys)) }
+}
+
+/** Mezcla de la cámara automática (0) con la del dedo (1): se acerca a su objetivo, o salta. */
+export function approachBlend(v: number, target: number, dt: number, instant = false, tau = 0.15): number {
+  if (instant) return target
+  const next = v + (target - v) * (1 - Math.exp(-dt / tau))
+  return Math.abs(next - target) < 1e-3 ? target : next
+}
+
+/** Cámara mostrada: entre la automática y la que lleva el dedo según `blend`. */
+export const mixCam = (auto: Point, manual: Point | null, blend: number): Point =>
+  manual && blend > 0 ? { x: auto.x + (manual.x - auto.x) * blend, y: auto.y + (manual.y - auto.y) * blend } : auto

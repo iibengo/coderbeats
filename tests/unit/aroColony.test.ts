@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
+  approachBlend,
   boundsCenter,
+  clampCam,
+  mixCam,
+  panBy,
   cellAtPoint,
   colonyCam,
   colonyMinZoom,
@@ -88,5 +92,30 @@ describe('colonia: tocar una célula', () => {
   it('si dos se pisan, la más cercana al dedo', () => {
     const close = [{ id: 1, x: 100, y: 100, r: 40 }, { id: 2, x: 130, y: 100, r: 40 }]
     expect(cellAtPoint(122, 100, close)).toBe(2)
+  })
+})
+
+describe('colonia: mover el mapa', () => {
+  it('el mapa va con el dedo: arrastrar a la derecha lleva la cámara a la izquierda', () => {
+    expect(panBy({ x: 4, y: 1 }, 60, -30, 30)).toEqual({ x: 2, y: 2 })
+    expect(panBy({ x: 0, y: 0 }, 10, 10, 0).x).toBeCloseTo(-10) // radio mínimo 1: nunca divide por cero
+  })
+
+  it('la cámara no sale del conjunto más 3 radios', () => {
+    const pts = [{ x: 0, y: 0 }, { x: 9, y: 2 }]
+    expect(clampCam({ x: 40, y: -40 }, pts)).toEqual({ x: 12, y: -3 })
+    expect(clampCam({ x: -40, y: 40 }, pts)).toEqual({ x: -3, y: 5 })
+    expect(clampCam({ x: 4, y: 1 }, pts)).toEqual({ x: 4, y: 1 })
+  })
+
+  it('la mezcla va de la cámara automática a la del dedo, sin saltos', () => {
+    expect(mixCam({ x: 0, y: 0 }, { x: 10, y: 4 }, 0)).toEqual({ x: 0, y: 0 })
+    expect(mixCam({ x: 0, y: 0 }, { x: 10, y: 4 }, 0.5)).toEqual({ x: 5, y: 2 })
+    expect(mixCam({ x: 0, y: 0 }, { x: 10, y: 4 }, 1)).toEqual({ x: 10, y: 4 })
+    expect(mixCam({ x: 1, y: 1 }, null, 1)).toEqual({ x: 1, y: 1 })
+    expect(approachBlend(0, 1, 0.15)).toBeGreaterThan(0.5)
+    expect(approachBlend(0, 1, 0.15)).toBeLessThan(0.7)
+    expect(approachBlend(0, 1, 1, true)).toBe(1)
+    expect(approachBlend(0.9995, 1, 0.016)).toBe(1)
   })
 })
