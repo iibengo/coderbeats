@@ -257,3 +257,16 @@ Una línea por loop de voz, en mini-notación con duraciones (`@n` en semicorche
 2. **Longitud máxima** de una frase de melodía: ¿4 compases como la batería, o más para melodías largas?
 
 Resueltas con la spec 003: sin botón "♪" (la melodía es un instrumento más), color blanco, y bajo con la voz solo explícito en ⋯.
+
+## 14. Ideas: afinar fácil (para revisar, 2026-11-13)
+
+Ideas para el futuro. No son decisiones.
+
+- **La app afina por ti**, igual que el imán: **con ayuda**, lo que cantas siempre se ajusta a la nota más cercana de la escala del estilo y nunca suena una nota mala; **sin ayuda**, se respetan tus notas (§5).
+- **Ver tu voz**: mientras cantas, una onda pequeña en el centro del aro se aprieta (agudo) o se abre (grave) con tu tono. Al llegar a una nota de la escala, "encaja" con un destello.
+- **Calibrar el "na" jugando**: un reto corto.
+  - La app toca una nota, tú la imitas y te dice cuánto te acercas (0–10).
+  - Son 5 notas, de grave a aguda.
+  - Sirve para calibrar la clase "na" (§4.3) y aprender tu rango. Sustituiría a la toma de calibración del "na".
+- **Rango de voz**: la escala se coloca donde canta cómodo cada uno, sin pedir nada (con el rango aprendido en el reto; amplía el registro de §5).
+- **Más adelante**: modo reto para practicar el oído, con tarjeta de resultado para compartir, en estilo minimalista (negro, números grandes, rosa `#F496BC`).

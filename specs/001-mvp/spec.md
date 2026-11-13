@@ -540,6 +540,66 @@ En este orden. **Cada punto tendrá su propia spec** (`specs/00N-…/spec.md`) c
 
 La lista de "Fuera del MVP" de §2 queda como referencia; el orden lo fija esta hoja de ruta.
 
+### 14.1 Hoja de ruta ampliada (2026-11-13, ideas para revisar)
+
+Ideas para el futuro, no decisiones cerradas. Cada una tendrá su spec.
+
+#### Spec futura: "células" (la canción)
+
+**Idea**
+- Cada célula es un aro como el actual (spec 003). Una canción es varias células que suenan una tras otra.
+- El objetivo principal es **crear tu propia canción**. Las demos y plantillas son para aprender e inspirarse.
+
+**Dos modos**
+- **Escuchar o aprender**: las demos de "Cargar demo" (§16.20) pasan a ser canciones completas por estilo.
+- **Crear** (el principal).
+
+**Modo crear**
+- **Tempo fácil**: el estilo pone uno por defecto. Para cambiarlo, 4 golpes de beatbox o 4 toques en el centro.
+- **Primera célula**: se graba como ahora.
+- **Crear célula**: tocar el agua fuera de una célula = célula vacía nueva, como una gota que cae.
+- **Dividir**: mantener el centro y arrastrar hacia fuera = copia para variarla.
+- **Orden**: por defecto, el de creación. Arrastrar de una célula a otra crea un puente de agua para cambiarlo.
+- **Vueltas por célula**: numerito en el centro (1, 2, 4, 8) que se toca para cambiar.
+- Tocar una célula mientras suena la deja en bucle hasta soltarla.
+- **Ojo**: el centro acumula demasiadas funciones (borrar, tempo, dividir, vueltas). Repartirlas al diseñar esta spec.
+
+**Plantillas de estilo**
+- Cada estilo sabe hacer canciones: cuántas células, cuántas vueltas cada una y cómo se pasa de una a otra (p. ej., house: intro 8, subida 4, drop 16).
+- En modo crear son una ayuda opcional ("usar estructura house"): colocan células vacías y tú las llenas.
+
+**Navegación (como un mapa)**
+- **Zoom alejado = colonia**:
+  - un dedo mueve el mapa; tocar una célula te acerca;
+  - las células flotan a distintas profundidades, como en el agua (solo se mira y se elige).
+- **Zoom cercano** = tocar una célula, en 2D.
+- **Mientras suena**, la cámara sigue a la célula que toca. Si te mueves tú, deja de seguirla hasta pulsar "seguir".
+- Las células fuera de pantalla se marcan con un puntito de su color en el borde; al tocarlo, viajas ahí.
+
+**Transición visual**
+- Como agua que fluye, en este orden:
+  1. en la última vuelta, la célula se estira hacia la siguiente;
+  2. el sonido pasa por ese puente con un barrido de filtro;
+  3. la cámara se desliza;
+  4. la nueva se enciende y la anterior se apaga.
+
+**Más adelante**
+- Fusionar dos células en una (sumar sus capas).
+
+#### Modo reel
+- Cámara 3D que gira alrededor de la canción. Solo para grabar, sin interacción.
+
+#### Orden de trabajo propuesto
+1. Terminar el aro (spec 003, fases 4 y 5).
+2. Melodía con la voz (spec 002).
+3. Kits y árbol de estilos (spec 004).
+4. Células (la canción).
+5. Reel y exportar.
+
+> Nota: este orden actualiza el de la lista de arriba.
+> - Ya cubiertos: editar pasos tocando el anillo (punto 7) está en la spec 003, y grabar encima (punto 3) es "completa" (§16.21).
+> - Por decidir dónde van: swing y más estilos (punto 2, quizá con la spec 004), el loop crudo tipo RC-505 (5), el 4.º sonido de boca (6) y aprender de mis correcciones (7).
+
 ---
 
 ## 15. Enmienda 1: modo looper

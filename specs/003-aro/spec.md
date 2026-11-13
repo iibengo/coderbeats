@@ -179,3 +179,27 @@ Hoy están repetidos en `VisualStage.vue`, `PhraseRing.vue`, `themes/types.ts` y
 - La órbita de las bolas (§16.18).
 - Los gestos de un dedo sobre el agua (§16.16): pasan a dos dedos (E1.5).
 - La onda del agua en los puntos del anillo (§16.17, punto 4).
+
+---
+
+## Ideas para revisar (2026-11-13, no decididas)
+
+Ideas para el futuro. No son decisiones: se revisan antes de programar cada fase.
+
+### Guía al tocar (minimalista, sin cargar el aro)
+- Sin rejilla de puntos. Mientras arrastras un golpe, solo aparece un **fantasma** (círculo hueco y tenue) donde caerá al soltar.
+- **Hueco solo para el fantasma y las sugerencias.** Tus golpes, siempre rellenos; los silenciados, rellenos pero apagados (tenues). El bajo del fondo se queda como está (rayitas).
+- **Sugerencias del estilo** solo en **franjas vacías** (p. ej., house: bombo en los 4 tiempos), muy tenues.
+  - Tocar una la pone.
+  - Desaparecen en cuanto la franja tiene un golpe.
+- Con la ayuda apagada (modo libre): sin fantasma ni sugerencias.
+
+### Fase 4 (zoom), nota de diseño
+- Diseñar el pellizco como un **gesto continuo**. Más adelante, al alejar más allá de una célula, se verá la **colonia de células** (spec futura, ver la hoja de ruta en la spec 001, §14.1).
+
+### Fase 5: "se toca en 2D, se mira en 3D"
+- **Inclinación al soltar**: mientras tocas, el aro está de frente. Si dejas de tocar unos segundos, se inclina suave, como un disco en perspectiva. Al tocar, vuelve de frente.
+- **Giroscopio**: al mover el móvil, la gota se desplaza un poco respecto al agua de fondo (parallax sutil).
+  - Respeta `prefers-reduced-motion`.
+
+> Nota: en iOS, el giroscopio pide permiso (`DeviceOrientationEvent.requestPermission`) dentro de un gesto del usuario.
