@@ -74,6 +74,10 @@ export interface AroFrame {
   guide: GuideOptions
   /** sugerencias del estilo en las franjas de batería vacías */
   suggestions: GuideSpot[]
+  /** carriles que graban si no son todos (E4.3); null = todos (lo normal: nada que marcar) */
+  lanes: ReadonlySet<Voice> | null
+  /** mantener pulsado un hueco de un carril: dónde y cuánto falta (0..1) para cambiarlo (E4.1) */
+  hold: { x: number; y: number; p: number } | null
 }
 
 /** radio del punto en reposo por voz (px) */
@@ -372,8 +376,11 @@ export class AroCanvas {
       ringPath[v] = ring
       x.fillStyle = `rgba(${col},${0.035 * wt})`
       x.fill(ring)
-      x.strokeStyle = `rgba(${col},${0.24 * wt})`
-      x.lineWidth = 1
+      // carriles que graban (E4.3): si no son todos, los encendidos más brillantes y los apagados más tenues
+      const drum = v === 'bd' || v === 'sd' || v === 'hh'
+      const edge = f.lanes && drum ? (f.lanes.has(v) ? 0.5 : 0.1) : 0.24
+      x.strokeStyle = `rgba(${col},${edge * wt})`
+      x.lineWidth = f.lanes && drum && f.lanes.has(v) ? 1.4 : 1
       x.stroke(outer)
     }
 
@@ -558,6 +565,17 @@ export class AroCanvas {
       x.beginPath()
       x.arc(dragged.px, dragged.py, dragged.r + 6, 0, TAU)
       x.stroke()
+    }
+
+    // mantener un hueco de un carril: un arco fino se completa alrededor del dedo (E4.1)
+    if (f.hold && f.hold.p > 0.08) {
+      x.strokeStyle = 'rgba(255,255,255,0.75)'
+      x.lineWidth = 2
+      x.lineCap = 'round'
+      x.beginPath()
+      x.arc(f.hold.x, f.hold.y, 22, -Math.PI / 2, -Math.PI / 2 + Math.min(1, f.hold.p) * TAU)
+      x.stroke()
+      x.lineCap = 'butt'
     }
 
     // salpicaduras de los golpes borrados

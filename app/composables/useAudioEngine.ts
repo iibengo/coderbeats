@@ -19,6 +19,7 @@ import { detectOnsets, minGapForCell } from '~/lib/onsets'
 import { PhraseTracker, type ClosedPhrase, type LoopLength, type PhraseSnapshot } from '~/lib/phrases'
 import { ENGINE_GLOBAL, songCode, type SongFx, type SongState } from '~/lib/song'
 import type { CalibrationSample, Instrument, KitId, Norm, StyleId } from '~/lib/types'
+import { allLanes, toggleLane as toggleLaneSet, type Lanes } from '~/lib/lanes'
 import { fmtVolume } from '~/lib/volume'
 import type { FromWorker, ToWorker } from '~/lib/workerProtocol'
 
@@ -131,6 +132,8 @@ const repeatMode = ref<RepeatMode>('complete')
 const phrase = shallowRef<PhraseSnapshot | null>(null)
 const fx = reactive<SongFx>({ filter: 1, space: 0, warmth: 0 })
 const loops = shallowRef<LoopsState>(emptyLoops())
+/** carriles que graban (spec 003, E4.1); no se guarda: al abrir, todos encendidos */
+const lanes = shallowRef<Lanes>(allLanes())
 /** partes del fondo que han entrado o están entrando (para el código mostrado) */
 const bgParts = shallowRef<Parts>({ ...NO_PARTS })
 const currentBar = ref(0)
@@ -431,7 +434,14 @@ function onWorkerMessage(m: FromWorker) {
   if (!c) return
   const uiMs = (c.currentTime - m.time) * 1000
   if (m.type === 'echo') return log('echo', `eco descartado (${m.strength.toFixed(3)})`, uiMs)
-  if (m.instrument === 'unknown') return log('unknown', `golpe desconocido (${m.strength.toFixed(3)})${fmtVolume(m.vol)}`, uiMs)
+  if (m.type === 'ignored')
+    return log('unknown', `ignorado: carril apagado (${m.instrument} ${(m.confidence * 100).toFixed(0)}%)${fmtVolume(m.vol)}`, uiMs)
+  if (m.instrument === 'unknown')
+    return log(
+      'unknown',
+      `golpe desconocido (${m.strength.toFixed(3)})${fmtVolume(m.vol)}${lanes.value.size ? '' : ' · ningún carril graba'}`,
+      uiMs,
+    )
   if (!playing.value || !tracker) return log('stopped', `${m.instrument} sin loop en marcha`, uiMs)
   log('hit', `${m.instrument} ${(m.confidence * 100).toFixed(0)}%${fmtVolume(m.vol)}`, uiMs)
   const gs = tracker.globalStep(m.time - latencySec)
@@ -766,6 +776,13 @@ export function useAudioEngine() {
     updateBackground()
   }
 
+  /** Enciende o apaga un carril de grabación (mantener un hueco de su franja, E4.1). */
+  function toggleLane(inst: Instrument) {
+    lanes.value = toggleLaneSet(lanes.value, inst)
+    toWorker({ type: 'lanes', armed: [...lanes.value] })
+    log('hit', `carriles que graban: ${[...lanes.value].join(', ') || 'ninguno'}`)
+  }
+
   function clearAll() {
     loops.value = clearLoops(loops.value)
     reevaluate()
@@ -809,6 +826,8 @@ export function useAudioEngine() {
     phrase,
     fx,
     loops,
+    lanes,
+    toggleLane,
     bgParts,
     currentBar,
     diag,

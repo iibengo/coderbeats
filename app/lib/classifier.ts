@@ -5,6 +5,8 @@ export interface Classification {
   instrument: Instrument | 'unknown'
   confidence: number
   nearestDistance: number
+  /** proporción del voto de cada instrumento entre los k vecinos (suman 1); vacío si es desconocido */
+  scores: Partial<Record<Instrument, number>>
 }
 
 export function computeNorm(vectors: number[][]): Norm {
@@ -59,9 +61,9 @@ export class KnnClassifier {
       .filter((p) => p.i !== exclude)
       .sort((a, b) => a.d - b.d)
     const nearest = ranked[0]
-    if (!nearest) return { instrument: 'unknown', confidence: 0, nearestDistance: Infinity }
+    if (!nearest) return { instrument: 'unknown', confidence: 0, nearestDistance: Infinity, scores: {} }
     if (nearest.d > this.unknownFactor * this.meanPairDistance)
-      return { instrument: 'unknown', confidence: 0, nearestDistance: nearest.d }
+      return { instrument: 'unknown', confidence: 0, nearestDistance: nearest.d, scores: {} }
 
     const weights = new Map<Instrument, number>()
     let total = 0
@@ -72,7 +74,9 @@ export class KnnClassifier {
     }
     let best: Instrument = nearest.instrument
     for (const [inst, w] of weights) if (w > (weights.get(best) ?? 0)) best = inst
-    return { instrument: best, confidence: (weights.get(best) ?? 0) / total, nearestDistance: nearest.d }
+    const scores: Partial<Record<Instrument, number>> = {}
+    for (const [inst, w] of weights) scores[inst] = w / total
+    return { instrument: best, confidence: (weights.get(best) ?? 0) / total, nearestDistance: nearest.d, scores }
   }
 
   /** Precisión leave-one-out sobre la propia calibración y la precisión por instrumento. */

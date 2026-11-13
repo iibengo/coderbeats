@@ -13,6 +13,7 @@ import { notesInBar } from '~/lib/bass'
 import { STYLES } from '~/lib/constants'
 import { loopBarAt } from '~/lib/freeLoops'
 import { dragValue, lockAxis, type Axis } from '~/lib/gestures'
+import { allArmed } from '~/lib/lanes'
 import { addHit, moveHit, removeHit, type EditOptions } from '~/lib/loopEdit'
 import { STYLE_MUSIC } from '~/lib/styles'
 import { VOICE_HEX, type Voice } from '~/lib/palette'
@@ -399,6 +400,8 @@ function tick() {
       bars: barsInfo.value,
       reduced,
       stepSec: 60 / STYLES[style.value].bpm / 4,
+      lanes: allArmed(engine.lanes.value) ? null : engine.lanes.value,
+      hold: holdProgress(),
       guide: { assist: engine.assist.value, quantizeEvery: STYLES[style.value].quantizeEvery },
       suggestions: guideSuggestions.value,
       // en horizontal, más puntos en el contorno cuanto más se estira (E2.1)
@@ -525,13 +528,26 @@ function ballState(p: Part): 'off' | 'pending' | 'on' | 'leaving' {
 // · ratón: dentro de la gota, el aro; fuera, filtro y espacio; la rueda, zoom (fase 4)
 const MOVE_PX = 12
 const TAP_MS = 400
+/** mantener un hueco de un carril este tiempo lo enciende o lo apaga (E4.1); antes, es un toque */
+const HOLD_MS = 500
 const pointers = new Map<number, { x: number; y: number; x0: number; y0: number }>()
 /** guía fina del gesto de filtro / espacio */
 const drag = ref<{ axis: Axis; x: number; y: number } | null>(null)
 
 type Gesture =
   | { kind: 'aro-drag'; id: number; dot: AroDot }
-  | { kind: 'aro-tap'; id: number; x0: number; y0: number; t: number; moved: boolean }
+  | {
+      kind: 'aro-tap'
+      id: number
+      x0: number
+      y0: number
+      t: number
+      moved: boolean
+      /** carril de batería bajo el dedo (mantener lo enciende o apaga, E4.1) */
+      lane: Instrument | null
+      /** ya se cumplió el tiempo de mantener: al soltar no se crea nada */
+      held: boolean
+    }
   | { kind: 'fx'; id: number; x0: number; y0: number; filter: number; space: number; axis: Axis }
   | {
       kind: 'two'
@@ -628,7 +644,10 @@ function onDown(e: PointerEvent) {
   }
   const w = aro?.where(x, y)
   const inside = !!w && w.u <= 1
-  if (inside) gesture = { kind: 'aro-tap', id: e.pointerId, x0: x, y0: y, t: performance.now(), moved: false }
+  if (inside) {
+    const lane = w && isDrum(w.voice) ? w.voice : null
+    gesture = { kind: 'aro-tap', id: e.pointerId, x0: x, y0: y, t: performance.now(), moved: false, lane, held: false }
+  }
   else if (mouse) gesture = { kind: 'fx', id: e.pointerId, x0: x, y0: y, filter: fx.filter, space: fx.space, axis: null }
   else gesture = null
 }
@@ -679,6 +698,23 @@ function onWheel(e: WheelEvent) {
   setZoom(wheelZoom(zoomNow(), e.deltaY, e.ctrlKey, limits.value))
 }
 
+/**
+ * Mantener pulsado un hueco de un carril (E4.1): progreso 0..1 para el arco; al llegar a 1, el
+ * carril se enciende o se apaga (una vez por gesto). Se llama en cada frame.
+ */
+function holdProgress(): { x: number; y: number; p: number } | null {
+  const gs = gesture
+  if (gs?.kind !== 'aro-tap' || !gs.lane || gs.moved || gs.held) return null
+  const p = (performance.now() - gs.t) / HOLD_MS
+  if (p >= 1) {
+    gs.held = true
+    engine.toggleLane(gs.lane)
+    navigator.vibrate?.(12)
+    return null
+  }
+  return { x: gs.x0, y: gs.y0, p }
+}
+
 function applyFx(axis: Axis, filter: number, space: number, dx: number, dy: number, x: number, y: number) {
   if (!axis) return
   drag.value = { axis, x, y }
@@ -695,7 +731,7 @@ function onUp(e: PointerEvent, cancelled = false) {
     editBar.value = null
     gesture = null
   } else if (gs?.kind === 'aro-tap' && gs.id === e.pointerId) {
-    if (!cancelled && p && !gs.moved && performance.now() - gs.t < 500) tapCreate(p.x, p.y)
+    if (!cancelled && p && !gs.moved && !gs.held && performance.now() - gs.t < HOLD_MS) tapCreate(p.x, p.y)
     gesture = null
   } else if (gs?.kind === 'fx' && gs.id === e.pointerId) gesture = null
   pointers.delete(e.pointerId)

@@ -284,9 +284,16 @@ Las ideas para revisar pasan a decisiones de la fase 5. Sustituye al apartado 6 
 - **No se guarda**: al abrir la app, todos encendidos (así nunca parece que "no graba" sin saber por qué).
 - El bajo y la melodía no son carriles que graben (todavía). Cuando exista la melodía con la voz (spec 002), su franja será un carril más ("na").
 
-### E4.2 Solo graban los carriles encendidos
-- El clasificador **elige solo entre los encendidos**: si solo está la caja, todo golpe va a la caja.
-- Lo que no se parece a nada de tu calibración sigue descartándose como "golpe desconocido" (es el filtro de ruido de hoy). El filtro de eco no cambia.
+### E4.2 Solo graban los carriles encendidos (corregido tras probarlo)
+Un sonido de un carril apagado **se ignora, no se reasigna**. La primera versión elegía solo entre los encendidos, y con el platillo apagado un "ts" acababa en la caja (y con caja y platillo apagados, en el bombo).
+- El clasificador decide entre **todos** los instrumentos, como antes.
+- **Gana uno encendido**: entra.
+- **Gana uno apagado con claridad**: se ignora. Sale en el registro como "ignorado: carril apagado".
+- **Duda entre el apagado que gana y uno encendido**: va al encendido.
+  - Hay duda cuando la diferencia de voto entre los dos, entre los vecinos del clasificador, es de 0,25 o menos (por ejemplo 55 % frente a 45 %).
+  - Un encendido sin ningún voto no cuenta como duda.
+- Con todos apagados, todo se ignora: el beatbox no graba.
+- Lo que no se parece a nada de tu calibración sigue descartándose como "golpe desconocido". El filtro de eco no cambia.
 - Los carriles apagados **siguen sonando** lo que tienen.
 
 ### E4.3 Cómo se ve
@@ -303,6 +310,6 @@ Las ideas para revisar pasan a decisiones de la fase 5. Sustituye al apartado 6 
 - Ajustable en ⋯ ("Sensibilidad: alta · media · baja") si hace falta. El valor de partida se decide con tu registro.
 
 ### E4.6 Lógica y tests
-- Clasificador con un conjunto de instrumentos permitidos (tests: solo caja → todo caja; ninguno → no graba; lo desconocido sigue siendo desconocido).
+- El clasificador da el voto de cada instrumento; `decideLane` (puro) decide con los carriles (tests: encendido entra; apagado claro se ignora y no se reasigna; duda → al encendido; todos apagados → nada).
 - Interruptor de carriles, puro, con tests. El worker recibe los carriles encendidos con un mensaje nuevo.
 

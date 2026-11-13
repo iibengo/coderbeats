@@ -2,6 +2,8 @@
 // Worker de análisis en vivo: recibe el audio del micro directamente del AudioWorklet
 // (MessagePort transferido) y devuelve golpes clasificados al hilo principal.
 import { KnnClassifier } from '../lib/classifier'
+import { decideLane } from '../lib/lanes'
+import type { Instrument } from '../lib/types'
 import { EchoGate } from '../lib/echoGate'
 import { extractFeatures } from '../lib/features'
 import { StreamingOnsetDetector, type StreamOnset } from '../lib/streamingOnsets'
@@ -12,6 +14,8 @@ declare const self: DedicatedWorkerGlobalScope
 
 let sampleRate = 48000
 let classifier: KnnClassifier | null = null
+/** carriles que graban (E4.2); por defecto, todos */
+let armed: Set<Instrument> = new Set(['bd', 'sd', 'hh'])
 /** volumen de referencia de tu calibración (E4.0) */
 let refs: VolumeRefs = {}
 let detector: StreamingOnsetDetector | null = null
@@ -35,12 +39,23 @@ function processQueue() {
     }
     const features = extractFeatures(detector.slice(o.sample, FEATURE_SPAN), sampleRate, 0)
     const c = classifier?.classify(features)
-    const instrument = c?.instrument ?? 'unknown'
+    let instrument = c?.instrument ?? 'unknown'
+    let confidence = c?.confidence ?? 0
+    // carriles que graban (E4.2): lo de un carril apagado se ignora, salvo si duda con uno encendido
+    if (c && instrument !== 'unknown') {
+      const d = decideLane(instrument, c.scores, armed)
+      if (d.kind === 'ignore') {
+        post({ type: 'ignored', time, instrument, confidence, vol: relativeVolume(features.rms, instrument, refs) })
+        continue
+      }
+      instrument = d.instrument
+      confidence = d.confidence
+    }
     post({
       type: 'hit',
       time,
       instrument,
-      confidence: c?.confidence ?? 0,
+      confidence,
       strength: o.strength,
       vol: relativeVolume(features.rms, instrument, refs),
       decisionMs,
@@ -90,6 +105,9 @@ self.onmessage = (e: MessageEvent) => {
     case 'stop':
       detector = null
       queue = []
+      break
+    case 'lanes':
+      armed = new Set(m.armed)
       break
     case 'output':
       if (gate) for (const t of m.times) gate.addOutput(t)

@@ -12,6 +12,8 @@ export type ToWorker =
   | { type: 'stop' }
   /** tiempos de contexto en los que la app hará sonar algo (para el filtro de eco) */
   | { type: 'output'; times: number[] }
+  /** carriles que graban (spec 003, E4.2): el clasificador elige solo entre ellos */
+  | { type: 'lanes'; armed: Instrument[] }
 
 /** worker de análisis → hilo principal */
 export type FromWorker =
@@ -28,6 +30,8 @@ export type FromWorker =
       decisionMs: number
     }
   | { type: 'echo'; time: number; strength: number }
+  /** golpe de un carril apagado: se ignora (spec 003, E4.2) */
+  | { type: 'ignored'; time: number; instrument: Instrument; confidence: number; vol: number | null }
 
 /** Muestras que necesita la extracción de features tras el onset (2 ventanas de 2048 solapadas a la mitad). */
 export const FEATURE_SPAN = 3072

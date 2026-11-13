@@ -86,3 +86,13 @@ describe('KnnClassifier', () => {
     expect(knn.classify(at(0.05)).instrument).toBe('bd')
   })
 })
+
+describe('votos por instrumento (para los carriles, spec 003 E4.2)', () => {
+  it('suman 1 y el ganador es el de más voto', () => {
+    const knn = new KnnClassifier(calibration())
+    const c = knn.classify(synthFeatures('hh', 702))
+    const total = Object.values(c.scores).reduce((a, b) => a + b, 0)
+    expect(total).toBeCloseTo(1)
+    expect(c.scores[c.instrument as 'hh']).toBeCloseTo(c.confidence)
+  })
+})
