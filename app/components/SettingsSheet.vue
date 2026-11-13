@@ -16,19 +16,34 @@ const code = computed(() => engine.displayCode())
 const copied = ref(false)
 const tab = ref<'ajustes' | 'codigo' | 'diagnostico'>('ajustes')
 
-async function copy() {
+async function copyText(text: string) {
   try {
-    await navigator.clipboard.writeText(code.value)
+    await navigator.clipboard.writeText(text)
   } catch {
     const ta = document.createElement('textarea')
-    ta.value = code.value
+    ta.value = text
     document.body.appendChild(ta)
     ta.select()
     document.execCommand('copy')
     ta.remove()
   }
+}
+
+async function copy() {
+  await copyText(code.value)
   copied.value = true
   setTimeout(() => (copied.value = false), 1500)
+}
+
+/** Copia el diagnóstico completo (spec 003, E4.0): pantalla y registro, del más antiguo al más nuevo. */
+const diagCopied = ref(false)
+async function copyDiag() {
+  const lines = [...diag.value]
+    .reverse()
+    .map((d) => `${d.at.toFixed(2)} · ${d.kind} · ${d.text}${d.uiMs !== undefined ? ` · ${d.uiMs.toFixed(0)} ms` : ''}`)
+  await copyText([`visual: ${props.renderer}`, `pantalla: ${props.layout()}`, ...lines].join('\n'))
+  diagCopied.value = true
+  setTimeout(() => (diagCopied.value = false), 1500)
 }
 
 /** Demo del estilo actual; si ya hay loops, se pide confirmación antes de reemplazarlos (§16.20). */
@@ -179,6 +194,10 @@ const val = (e: Event) => Number((e.target as HTMLInputElement).value)
         </div>
 
         <div v-else class="text-xs text-neutral-500">
+          <div class="mb-2 flex items-center justify-between">
+            <span>registro ({{ diag.length }})</span>
+            <button class="text-white" @click="copyDiag">{{ diagCopied ? 'Copiado' : 'Copiar' }}</button>
+          </div>
           <p class="mb-1">visual: {{ props.renderer }}</p>
           <p class="mb-2">pantalla: {{ props.layout() }}</p>
           <ul class="space-y-0.5 font-mono tabular-nums">

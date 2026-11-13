@@ -19,6 +19,7 @@ import { detectOnsets, minGapForCell } from '~/lib/onsets'
 import { PhraseTracker, type ClosedPhrase, type LoopLength, type PhraseSnapshot } from '~/lib/phrases'
 import { ENGINE_GLOBAL, songCode, type SongFx, type SongState } from '~/lib/song'
 import type { CalibrationSample, Instrument, KitId, Norm, StyleId } from '~/lib/types'
+import { fmtVolume } from '~/lib/volume'
 import type { FromWorker, ToWorker } from '~/lib/workerProtocol'
 
 type StrudelModule = typeof import('@strudel/web')
@@ -430,9 +431,9 @@ function onWorkerMessage(m: FromWorker) {
   if (!c) return
   const uiMs = (c.currentTime - m.time) * 1000
   if (m.type === 'echo') return log('echo', `eco descartado (${m.strength.toFixed(3)})`, uiMs)
-  if (m.instrument === 'unknown') return log('unknown', `golpe desconocido (${m.strength.toFixed(3)})`, uiMs)
+  if (m.instrument === 'unknown') return log('unknown', `golpe desconocido (${m.strength.toFixed(3)})${fmtVolume(m.vol)}`, uiMs)
   if (!playing.value || !tracker) return log('stopped', `${m.instrument} sin loop en marcha`, uiMs)
-  log('hit', `${m.instrument} ${(m.confidence * 100).toFixed(0)}%`, uiMs)
+  log('hit', `${m.instrument} ${(m.confidence * 100).toFixed(0)}%${fmtVolume(m.vol)}`, uiMs)
   const gs = tracker.globalStep(m.time - latencySec)
   const heard: VisualHit = {
     kind: 'heard',

@@ -259,3 +259,50 @@ Las ideas para revisar pasan a decisiones de la fase 5. Sustituye al apartado 6 
 ### E3.8 Cambios tras probar la parte 1
 - **El bajo, solo de ver.** Moverlo solo cambiaba un compás y acortaba la nota al final del compás, y confundía. Ya no se coge (E1.4). Se borran los bajos editados guardados: vuelve el de cada estilo.
 - **Estela mucho más suave**, que casi no se note (E3.4).
+
+---
+
+## Enmienda 4 · carriles que graban (2026-11-13, para aprobar)
+
+**Problema:** a veces se cuelan golpes de más al hacer beatbox. Puede ser **confusión** (un "bum" que se clasifica como otro instrumento) o **ruido** (sonidos flojos o eco que pasan como golpes). El registro de hoy no basta para distinguirlos: muestra el instrumento y la confianza de cada golpe, pero no su volumen.
+
+### E4.0 Primero, medir
+- En ⋯ → diagnóstico, cada golpe muestra también su **volumen relativo a tu calibración**, por ejemplo `hit bd 62% · vol 0,4`. Así:
+  - **confusión** = golpes con volumen normal y el instrumento equivocado (a menudo con confianza baja);
+  - **ruido** = golpes con volumen muy por debajo del de tu calibración;
+  - **eco** = líneas "eco descartado" (ya existen), solo sin cascos.
+- Botón **"Copiar"** en el diagnóstico, como el del código, para pegarlo y revisarlo juntos.
+- El umbral de E4.5 solo entra si el registro dice que es ruido.
+
+### E4.1 Cada carril es un interruptor de grabación
+- Bombo, caja y platillo son carriles que graban. **Por defecto, todos encendidos** (como ahora).
+- **Mantener pulsado un hueco de un carril** (unos 0,5 s, sin moverse) lo enciende o lo apaga. Se pueden encender varios.
+  - Mientras se mantiene, un arco fino se completa alrededor del dedo (como el de mantener una bola).
+  - Si se suelta antes, es un toque: crea un golpe, como ahora. Si se cumple el tiempo, cambia el carril y al soltar no se crea nada.
+  - Sobre un golpe no cuenta: tocar un golpe es cogerlo.
+- Se pueden apagar todos: entonces el beatbox no graba (para tocar solo con el dedo).
+- **No se guarda**: al abrir la app, todos encendidos (así nunca parece que "no graba" sin saber por qué).
+- El bajo y la melodía no son carriles que graben (todavía). Cuando exista la melodía con la voz (spec 002), su franja será un carril más ("na").
+
+### E4.2 Solo graban los carriles encendidos
+- El clasificador **elige solo entre los encendidos**: si solo está la caja, todo golpe va a la caja.
+- Lo que no se parece a nada de tu calibración sigue descartándose como "golpe desconocido" (es el filtro de ruido de hoy). El filtro de eco no cambia.
+- Los carriles apagados **siguen sonando** lo que tienen.
+
+### E4.3 Cómo se ve
+- Con todos encendidos (lo normal), nada nuevo.
+- Si alguno está apagado: los encendidos, con el borde algo más brillante; los apagados, con el borde más tenue.
+- Sin puntito rojo: el rojo no está en la paleta (E1.2), y el borde basta.
+
+### E4.4 Encaje con los gestos
+- Hoy mantener pulsado un hueco de una franja no hace nada (tocar y levantar en menos de 0,5 s crea un golpe; moverse lo cancela). El gesto está libre.
+- Sustituye a la reserva de E1.1 (pregunta 2), que guardaba ese gesto para silenciar desde el aro. Silenciar sigue en la bola.
+
+### E4.5 Umbral de volumen (solo si E4.0 dice que es ruido)
+- Un golpe por debajo de una fracción del volumen de tus golpes de calibración (de partida, un 30 %) se descarta y sale en el registro como "flojo".
+- Ajustable en ⋯ ("Sensibilidad: alta · media · baja") si hace falta. El valor de partida se decide con tu registro.
+
+### E4.6 Lógica y tests
+- Clasificador con un conjunto de instrumentos permitidos (tests: solo caja → todo caja; ninguno → no graba; lo desconocido sigue siendo desconocido).
+- Interruptor de carriles, puro, con tests. El worker recibe los carriles encendidos con un mensaje nuevo.
+

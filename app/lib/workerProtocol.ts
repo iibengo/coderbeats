@@ -22,6 +22,8 @@ export type FromWorker =
       instrument: Instrument | 'unknown'
       confidence: number
       strength: number
+      /** volumen relativo a tu calibración (1 = como tus golpes); null sin calibración (E4.0) */
+      vol: number | null
       /** ms desde el onset hasta la decisión */
       decisionMs: number
     }

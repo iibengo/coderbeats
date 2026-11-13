@@ -5,12 +5,15 @@ import { KnnClassifier } from '../lib/classifier'
 import { EchoGate } from '../lib/echoGate'
 import { extractFeatures } from '../lib/features'
 import { StreamingOnsetDetector, type StreamOnset } from '../lib/streamingOnsets'
+import { relativeVolume, volumeRefs, type VolumeRefs } from '../lib/volume'
 import { FEATURE_SPAN, type FromWorker, type ToWorker } from '../lib/workerProtocol'
 
 declare const self: DedicatedWorkerGlobalScope
 
 let sampleRate = 48000
 let classifier: KnnClassifier | null = null
+/** volumen de referencia de tu calibración (E4.0) */
+let refs: VolumeRefs = {}
 let detector: StreamingOnsetDetector | null = null
 let gate: EchoGate | null = null
 let firstFrame: number | null = null
@@ -32,12 +35,14 @@ function processQueue() {
     }
     const features = extractFeatures(detector.slice(o.sample, FEATURE_SPAN), sampleRate, 0)
     const c = classifier?.classify(features)
+    const instrument = c?.instrument ?? 'unknown'
     post({
       type: 'hit',
       time,
-      instrument: c?.instrument ?? 'unknown',
+      instrument,
       confidence: c?.confidence ?? 0,
       strength: o.strength,
+      vol: relativeVolume(features.rms, instrument, refs),
       decisionMs,
     })
   }
@@ -63,6 +68,7 @@ self.onmessage = (e: MessageEvent) => {
     case 'init': {
       sampleRate = m.sampleRate
       classifier = m.samples.length ? new KnnClassifier(m.samples, m.norm) : null
+      refs = volumeRefs(m.samples)
       const port = e.ports[0]
       if (port)
         port.onmessage = (ev: MessageEvent) => {
@@ -73,6 +79,7 @@ self.onmessage = (e: MessageEvent) => {
     }
     case 'calibration':
       classifier = m.samples.length ? new KnnClassifier(m.samples, m.norm) : null
+      refs = volumeRefs(m.samples)
       break
     case 'start':
       detector = new StreamingOnsetDetector(sampleRate, { minGap: m.minGap })
