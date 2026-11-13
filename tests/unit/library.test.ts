@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { demoSong, emptySong, withCopy, withFreeOn, withNewFree } from '../../app/lib/cells'
+import { demoSong, emptySong, withCopy, withGroupOn, withNewGroup } from '../../app/lib/cells'
 import {
   addSong,
   autoName,
@@ -193,20 +193,16 @@ describe('operaciones', () => {
 })
 
 describe('lo que se enseña', () => {
-  it('resumen: células, sueltas, compases y tempo', () => {
+  it('resumen: células, grupos en paralelo, compases y tempo', () => {
     const demo = makeSaved(snap(), 'a', 'A', at(1))
     expect(summaryText(demo)).toBe('Drum and bass · 4 células · 18 compases · 174 bpm')
-    const withLoose = withCopy(demoSong('dnb')!, 1, { x: 0, y: 0 })!.song
-    expect(summaryText(makeSaved(snap({ song: { ...withLoose, bpm: 160 } }), 'b', 'B', at(1)))).toBe(
-      'Drum and bass · 4 células + 1 suelta · 18 compases · 160 bpm',
+    const withGroup = withCopy(demoSong('dnb')!, 1, { x: 0, y: 0 })!.song
+    expect(summaryText(makeSaved(snap({ song: { ...withGroup, bpm: 160 } }), 'b', 'B', at(1)))).toBe(
+      'Drum and bass · 4 células + 1 grupo · 18 compases · 160 bpm',
     )
     expect(summaryText(makeSaved(snap({ style: 'house', song: emptySong() }), 'c', 'C', at(1)))).toBe('House · 1 célula · 1 compases · 124 bpm')
-    // las libres se cuentan aparte de las sueltas
-    const free = withNewFree(withLoose, undefined)!
-    const two = withNewFree(free.song)!
-    expect(summaryText(makeSaved(snap({ song: withFreeOn(two.song, two.id, true)! }), 'd', 'D', at(1)))).toBe(
-      'Drum and bass · 4 células + 1 suelta + 2 libres · 18 compases · 174 bpm',
-    )
+    const two = withNewGroup(withGroupOn(withNewGroup(demoSong('dnb')!)!.song, 1, true) ?? withNewGroup(demoSong('dnb')!)!.song)!
+    expect(summaryText(makeSaved(snap({ song: two.song }), 'd', 'D', at(1)))).toContain('+ 2 grupos')
   })
 
   it('fecha corta, y vacía si no se entiende', () => {

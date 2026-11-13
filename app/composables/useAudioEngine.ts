@@ -5,36 +5,53 @@ import { demoState } from '~/lib/demos'
 import { analyzeEchoTest, type EchoTestResult } from '~/lib/echoGate'
 import {
   cellById,
+  withoutCell,
   demoSong,
   emptySong,
   endBar,
   fitTurns,
-  freeOn,
-  isFree,
-  isLoose,
+  groupIdOf,
+  groupOn,
+  groupSong,
+  inParallel,
   isMulti,
+  MAIN,
   minTurns,
   nextDepth,
   nextInOrder,
   nextTurns,
-  orderWith,
+  normalizeSong,
+  orderOf,
   stepPlay,
   stressSong,
   windowAt,
-  withCopy,
-  withDetached,
-  withFreeOn,
-  withNewCell,
-  withNewFree,
-  withValidBpm,
+  withCut,
   withOrderAfter,
-  withoutCell,
+  withCopy,
+  withGroupOn,
+  withNewCell,
+  withNewGroup,
+  withRestoredCell,
+  withValidBpm,
   type Cell,
   type Cursor,
   type Jump,
   type Play,
   type Song,
 } from '~/lib/cells'
+import {
+  groupWindow,
+  holdGroup,
+  isRunning,
+  reconcileGroup,
+  releaseGroup,
+  retargetMain,
+  startGroup,
+  stepGroup,
+  stopGroup,
+  tapGroup,
+  type GroupPlay,
+} from '~/lib/groups'
 import {
   addPhrase,
   clearLoops,
@@ -362,17 +379,24 @@ function onPulse(cycle: number, t: number) {
     syncLoopUi()
   }
   if (cursor && multi()) scheduleSweep(cycle, t, barSec)
-  // las libres que se apagaron dejan de estar en el código en cuanto pasa su línea de compás
-  let freePruned = false
-  for (const [id, run] of freeRuns)
-    if (run.to !== null && cycle >= run.to) {
-      freeRuns.delete(id)
-      freePruned = true
+  // los grupos en paralelo avanzan por su cuenta, en línea de compás; los que se apagaron salen en su línea
+  if (groupPlays.size) {
+    const sg = liveSong()
+    let changed = false
+    for (const [gid, gp] of groupPlays) {
+      const next = stepGroup(groupSong(sg, gid), gp, cycle)
+      if (next === null) groupPlays.delete(gid)
+      else if (next !== gp) groupPlays.set(gid, next)
+      if (next !== gp) changed = true
     }
-  if (freePruned) reevaluate()
+    if (changed) reevaluate()
+  }
   later(() => {
-    // la vista sigue a la canción, salvo que se esté en una libre (a menos que se haya viajado a propósito)
-    if (entered && (consumed || !isFree(song.value, viewCellId.value))) showCell(entered.cellId, entered.startBar)
+    // la vista sigue a la canción, salvo que se esté en una célula de un grupo en paralelo (a menos que se haya viajado a propósito)
+    if (entered && (consumed || !inParallel(song.value, viewCellId.value))) showCell(entered.cellId, entered.startBar)
+    // en una célula de un grupo, el compás que se ve cuenta desde que esa célula empezó a sonar
+    const vgp = groupPlays.get(groupIdOf(song.value, viewCellId.value) ?? MAIN)
+    if (vgp && vgp.play.cursor.cellId === viewCellId.value) viewStartBar = vgp.play.cursor.startBar
     if (consumed && viewJump === consumed) {
       viewJump = null
       syncLoopUi()
@@ -464,73 +488,134 @@ function showCell(id: number, startBar: number) {
   viewStartBar = startBar
   loops.value = { loops: cell.loops, nextId: s.nextLoopId }
   bgManual.value = { ...cell.parts }
+  syncGroupHolds()
 }
 
-// ── Células libres (satélites, spec 005, §13.1) ───────────────────────────────────
+// ── Grupos en paralelo (spec 005, enmienda 2, §16) ─────────────────────────────────
 /**
- * Las libres que suenan en paralelo a la canción: desde qué compás global empezaron (su fase cuenta desde
- * ahí) y hasta cuál (null = sin fin; con número, se apagó y sigue hasta esa línea de compás).
+ * Los grupos que suenan (o se están apagando), por id de grupo: dónde va cada uno (célula, compás de inicio,
+ * salto) y cuándo se apaga. Los apagados no están. La canción (el grupo principal) tiene su propio estado.
  */
-const freeRuns = new Map<number, { from: number; to: number | null }>()
+const groupPlays = new Map<number, GroupPlay>()
 
 /** Compás global más cercano al que se puede programar un cambio: nunca uno cuyo pulso ya pasó. */
 const jumpBarNow = (): number => Math.max(nextBarLine(), lastPulseCycle + 1)
 
-/** Al dar a Play suenan, desde el compás 0, las libres que estaban encendidas. */
-function startFreeRuns() {
-  freeRuns.clear()
-  for (const c of freeOn(liveSong())) freeRuns.set(c.id, { from: 0, to: null })
+/** Al dar a Play suenan, desde el compás 0 y por su primera célula, los grupos que estaban encendidos. */
+function startGroupPlays() {
+  groupPlays.clear()
+  for (const g of liveSong().groups) if (g.on && g.order.length) groupPlays.set(g.id, startGroup(g.order[0]!, 0))
 }
 
 /**
  * Los loops y las partes del fondo de la célula de la canción en el modo de una sola célula: la que se ve,
- * salvo que se vea una libre (que suena aparte). Con varias células mandan las de cada una (§4.2).
+ * salvo que se vea una de un grupo en paralelo (que suena aparte). Con varias células mandan las de cada una (§4.2).
  */
 function songCellNow(): { loops: FreeLoop[]; parts: Parts } {
-  if (!isFree(song.value, viewCellId.value)) return { loops: loops.value.loops, parts: bgManual.value }
+  if (!inParallel(song.value, viewCellId.value)) return { loops: loops.value.loops, parts: bgManual.value }
   const s = liveSong()
   const c = cellById(s, cursor?.cellId ?? s.order[0]!) ?? cellById(s, s.order[0]!)!
   return { loops: c.loops, parts: c.parts }
 }
 
 /**
- * Enciende o apaga una libre. El interruptor cambia al momento; sonando, el sonido entra o sale en la
- * siguiente línea de compás (al apagarla, sigue hasta esa línea).
+ * Mientras se ve una célula de un grupo en paralelo (para grabar o editarla), su grupo se queda en ella en
+ * bucle; al dejar de verla, sigue por su orden (§16.2). Se llama cada vez que cambia la vista o la estructura.
  */
-function setFreeOn(id: number, on: boolean) {
-  const next = withFreeOn(liveSong(), id, on)
+function syncGroupHolds() {
+  if (!groupPlays.size || !playing.value || !clock || !ctx) return
+  const s = liveSong()
+  const view = viewCellId.value
+  const vg = groupIdOf(s, view)
+  const line = jumpBarNow()
+  for (const [gid, gp] of groupPlays) groupPlays.set(gid, gid === vg ? holdGroup(groupSong(s, gid), gp, view, line) : releaseGroup(gp, line))
+}
+
+/** Tras cambiar la estructura: los grupos que ya no existen se paran; a los que se les ha ido la célula que sonaba, vuelven a empezar. */
+function reconcileGroups(next: Song) {
+  const line = jumpBarNow()
+  for (const [gid, gp] of groupPlays) {
+    if (!next.groups.some((g) => g.id === gid)) groupPlays.delete(gid)
+    else groupPlays.set(gid, reconcileGroup(groupSong(next, gid), gp, line))
+  }
+}
+
+/**
+ * Enciende o apaga un grupo en paralelo. El interruptor cambia al momento; sonando, entra (por `startCell`, o su
+ * primera célula) en la siguiente línea de compás, y al apagarlo sigue hasta esa línea.
+ */
+function setGroupOn(gid: number, on: boolean, startCell?: number) {
+  const next = withGroupOn(liveSong(), gid, on)
   if (!next) return
   song.value = next
   if (playing.value && clock && ctx) {
     const line = jumpBarNow()
+    const gs = groupSong(next, gid)
     if (on) {
-      freeRuns.set(id, { from: line, to: null })
-      if (viewCellId.value === id) viewStartBar = line
+      let gp = startGroup(startCell ?? gs.order[0]!, line)
+      // si se ve una célula de este grupo, se queda en ella mientras se ve
+      if (groupIdOf(next, viewCellId.value) === gid) gp = holdGroup(gs, gp, viewCellId.value, line)
+      groupPlays.set(gid, gp)
     } else {
-      const run = freeRuns.get(id)
-      if (run && run.to === null) run.to = line
+      const gp = groupPlays.get(gid)
+      if (gp) groupPlays.set(gid, stopGroup(gp, line))
     }
   }
-  log('cell', `${on ? 'enciende' : 'apaga'} la libre ${id}`)
+  log('cell', `${on ? 'enciende' : 'apaga'} el grupo ${gid}`)
   reevaluate()
 }
 
-/** Tocar una libre: la enciende o la apaga (spec 005, §13.1). */
-function toggleFree(id: number) {
-  const cell = cellById(song.value, id)
-  if (cell?.free) setFreeOn(id, !cell.on)
+/** Tocar una célula de un grupo en paralelo (§16.4): apagado, lo enciende por ella; encendido, en la que suena lo apaga y en otra salta a ella. */
+function tapGroupCell(id: number) {
+  const gid = groupIdOf(song.value, id)
+  if (gid === null || gid === MAIN) return
+  const s = liveSong()
+  if (!playing.value || !clock || !ctx) {
+    // parado: solo el interruptor
+    const next = withGroupOn(s, gid, !groupOn(s, gid))
+    if (next) song.value = next
+    return
+  }
+  const r = tapGroup(groupSong(s, gid), groupPlays.get(gid), id, jumpBarNow())
+  groupPlays.set(gid, r.gp)
+  const next = withGroupOn(s, gid, r.on)
+  if (next) song.value = next
+  log('cell', r.on ? `grupo ${gid}: suena desde la célula ${id}` : `grupo ${gid}: se apaga`)
+  reevaluate()
 }
 
-/** Desde qué compás cuenta la fase de una libre que se llena: el de su encendido (se enciende sola al nacer su primer loop). */
+/** El interruptor de un grupo (chapa del aro): lo enciende o lo apaga. */
+function toggleGroup(gid: number) {
+  if (gid !== MAIN) setGroupOn(gid, !groupOn(song.value, gid), cellById(song.value, viewCellId.value) && groupIdOf(song.value, viewCellId.value) === gid ? viewCellId.value : undefined)
+}
+
+/** "Apagar extras" (colonia): apaga todos los grupos menos la canción. */
+function stopExtras() {
+  const s = liveSong()
+  let next = s
+  for (const g of s.groups) if (g.on) next = withGroupOn(next, g.id, false)!
+  song.value = next
+  if (playing.value && clock && ctx) {
+    const line = jumpBarNow()
+    for (const [gid, gp] of groupPlays) groupPlays.set(gid, stopGroup(gp, line))
+  }
+  log('cell', 'extras apagados')
+  reevaluate()
+}
+
+/** Desde qué compás cuenta la fase de una célula de un grupo que se llena: el de su inicio (se enciende sola al nacer su primer loop). */
 function birthCellStart(bornAt: number): number {
   const id = viewCellId.value
-  if (!isFree(song.value, id)) return cursor?.startBar ?? 0
-  let run = freeRuns.get(id)
-  if (!run || run.to !== null) {
-    setFreeOn(id, true)
-    run = freeRuns.get(id)
+  const gid = groupIdOf(song.value, id)
+  if (gid === null || gid === MAIN) return cursor?.startBar ?? 0
+  let gp = groupPlays.get(gid)
+  if (!isRunning(gp)) {
+    setGroupOn(gid, true, id)
+    gp = groupPlays.get(gid)
   }
-  return run?.from ?? bornAt
+  if (!gp) return bornAt
+  if (gp.play.cursor.cellId === id) return gp.play.cursor.startBar
+  return gp.play.jump?.cellId === id ? gp.play.jump.startBar : gp.from
 }
 
 /**
@@ -596,13 +681,13 @@ function songState(display = false): SongState {
     metronome: metronome.value,
     fx: { ...fx },
   }
-  // las libres que suenan en paralelo: en el motor, sus tramos; en el código que se enseña, las encendidas
-  const free = display
-    ? freeOn(liveSong()).map((c) => ({ cellId: c.id, from: 0, to: null }))
-    : [...freeRuns].map(([cellId, r]) => ({ cellId, from: r.from, to: r.to }))
-  if (free.length) st.free = { list: liveSong().cells, segments: free }
-  if (!multi()) return st
+  // los grupos en paralelo: en el motor, sus tramos; en el código que se enseña, los encendidos enteros
   const s = liveSong()
+  const items = display
+    ? s.groups.filter((g) => g.on).map((g) => ({ id: g.id, order: g.order, window: [] }))
+    : [...groupPlays].map(([gid, gp]) => ({ id: gid, order: orderOf(s, gid), window: groupWindow(groupSong(s, gid), gp) }))
+  if (items.length) st.groups = { list: s.cells, items }
+  if (!multi()) return st
   const at = cursor ?? { cellId: viewCellId.value, startBar: 0 }
   return { ...st, cells: { list: s.cells, order: s.order, window: windowAt(s, at, { loop, jump }) } }
 }
@@ -773,7 +858,7 @@ function onWorkerMessage(m: FromWorker) {
   if (isTooQuiet(m.vol)) return log('unknown', `flojo: descartado (${m.instrument} ${(m.confidence * 100).toFixed(0)}%)${fmtVolume(m.vol)}`, uiMs)
   if (!playing.value || !tracker) return log('stopped', `${m.instrument} sin loop en marcha`, uiMs)
   // con varias células, en estado canción no se graba; en bucle, sí (spec 005, §4.4)
-  if (multi() && !loop && !isFree(song.value, viewCellId.value)) return log('unknown', `ignorado: canción avanzando (${m.instrument} ${(m.confidence * 100).toFixed(0)}%)`, uiMs)
+  if (multi() && !loop && !inParallel(song.value, viewCellId.value)) return log('unknown', `ignorado: canción avanzando (${m.instrument} ${(m.confidence * 100).toFixed(0)}%)`, uiMs)
   log('hit', `${m.instrument} ${(m.confidence * 100).toFixed(0)}%${fmtVolume(m.vol)}`, uiMs)
   const gs = tracker.globalStep(m.time - latencySec)
   const heard: VisualHit = {
@@ -982,17 +1067,17 @@ export function useAudioEngine() {
     // al arrancar, lo que ya existe suena desde el primer compás
     loops.value = { ...loops.value, loops: loops.value.loops.map((l) => ({ ...l, bornAt: 0 })) }
     // la canción arranca desde la célula que se ve (spec 005, §4.1); el ciclo de Strudel empieza en 0
-    // con una libre a la vista, la canción suena desde su primera célula y la libre, aparte
-    cursor = { cellId: isFree(song.value, viewCellId.value) ? song.value.order[0]! : viewCellId.value, startBar: 0 }
+    // con una célula de un grupo a la vista, la canción suena desde su primera célula y el grupo, aparte
+    cursor = { cellId: inParallel(song.value, viewCellId.value) ? song.value.order[0]! : viewCellId.value, startBar: 0 }
     viewStartBar = 0
     prevViewId = null
     sweep = 0
-    // con una suelta a la vista suena ella, en bucle (para escucharla); no es parte de la canción (§15.1)
-    loop = multi() && isLoose(song.value, viewCellId.value)
+    loop = false
     jump = null
     viewJump = null
     syncLoopUi()
-    startFreeRuns()
+    startGroupPlays()
+    syncGroupHolds()
     currentBar.value = 0
     clock = null
     tracker = null
@@ -1026,7 +1111,7 @@ export function useAudioEngine() {
     lastBirth = null
     cursor = null
     sweep = 0
-    freeRuns.clear()
+    groupPlays.clear()
     loop = false
     jump = null
     viewJump = null
@@ -1223,7 +1308,9 @@ export function useAudioEngine() {
 
   /** Pone una canción entera (guardada o demo) y enseña su primera célula. Parado. */
   function setSong(raw: Song) {
-    const next = withValidBpm(raw)
+    // lo guardado antes de los grupos se migra (una libre → un grupo de una célula; una suelta, uno apagado)
+    const next = normalizeSong(withValidBpm(raw))
+    groupPlays.clear()
     const first = cellById(next, next.order[0]!)!
     song.value = next
     viewCellId.value = first.id
@@ -1260,8 +1347,8 @@ export function useAudioEngine() {
    * de la demo y enciende bajo y acordes del fondo. Sonando, entra en la siguiente línea de compás.
    */
   async function loadDemo() {
-    // la demo es de la canción: si se ve una libre, se vuelve a la primera célula
-    if (isFree(song.value, viewCellId.value)) showCell(song.value.order[0]!, 0)
+    // la demo es de la canción: si se ve una célula de un grupo, se vuelve a la primera
+    if (inParallel(song.value, viewCellId.value)) showCell(song.value.order[0]!, 0)
     // canción completa del estilo (spec 005), si la tiene
     const demo = demoSong(style.value)
     if (demo) {
@@ -1364,7 +1451,7 @@ export function useAudioEngine() {
   // ── Crear, borrar y deshacer células (spec 005, §7.1, fase 3.2) ──────────────────
   /** Lo último que se borró, para "↶ deshacer" (un solo nivel; no se guarda). */
   type UndoRec =
-    | { kind: 'cell'; cell: Cell; prevId: number | null; nextId: number | null; loose: boolean }
+    | { kind: 'cell'; cell: Cell; prevId: number | null; nextId: number | null; gid: number; on: boolean }
     | { kind: 'clear'; id: number; loops: FreeLoop[]; parts: Parts }
     | { kind: 'all'; song: Song }
     | { kind: 'made'; id: number }
@@ -1416,8 +1503,8 @@ export function useAudioEngine() {
   }
 
   /**
-   * Copia la célula `srcId` en `at` (mapa): la copia es **suelta** (enmienda 1, §15): sin hilos y sin
-   * sonar, hasta que se engancha. Devuelve su id, o null con 16 células.
+   * Copia la célula `srcId` en `at` (mapa): la copia es un grupo nuevo de una célula, apagado (§16.3): no
+   * suena hasta que se toca. Devuelve su id, o null con 16 células.
    */
   function copyCell(srcId: number, at: { x: number; y: number }): number | null {
     const s = liveSong()
@@ -1429,45 +1516,55 @@ export function useAudioEngine() {
     song.value = r.song
     // los ids de loop de la copia no deben repetirse con los que se creen en la célula que se ve
     loops.value = { ...loops.value, nextId: Math.max(loops.value.nextId, r.song.nextLoopId) }
-    log('cell', `célula ${srcId} copiada en la ${r.id}, suelta (no suena hasta engancharla)`)
+    log('cell', `célula ${srcId} copiada en la ${r.id}, grupo ${r.groupId} apagado`)
     reevaluate()
     return r.id
   }
 
-  /** Ordenar con el asa: `bId` pasa a sonar justo después de `aId`. */
-  function orderAfter(aId: number, bId: number) {
-    const s = liveSong()
-    const next = withOrderAfter(s, aId, bId)
-    if (!next) return
-    song.value = next
-    log('cell', `${isLoose(s, bId) ? 'enganchada' : 'orden'}: la ${bId} suena justo después de la ${aId}`)
-    // una suelta que entra puede hacer de la canción de una célula una de varias
-    becameMulti(isMulti(s))
-    reevaluate()
-  }
-
   /**
-   * Cortar un hilo (enmienda 1, §15.4): la célula `id` (a la que llevaba el hilo) sale del orden y queda
-   * suelta; la canción salta por encima. Si suena, sigue hasta el final de sus vueltas y entonces salta.
+   * Una operación de estructura (juntar, cortar): cambia qué células van en qué grupo, y con ello lo que suena.
+   * La canción salta si la célula que sonaba ya no es suya; los grupos en paralelo reconcilian su posición.
    */
-  function detachCell(id: number) {
-    const s = liveSong()
-    const next = withDetached(s, id)
-    if (!next) return
-    const nextId = nextInOrder(s, id)
+  function restructure(prev: Song, next: Song, what: string) {
     song.value = next
-    log('cell', `hilo cortado: la célula ${id} queda suelta`)
+    log('cell', what)
     if (!isMulti(next)) collapseToSingle()
-    else if (playing.value && cursor && cursor.cellId === id && !loop && !jump) {
-      // suena la cortada: acaba sus vueltas y salta a la que iba detrás
-      jump = { cellId: nextId, startBar: endBar(next, curPlay()), loop: false }
+    else if (playing.value && cursor) {
+      // la célula que suena sale de la canción: salta a la primera de las de detrás que sigan en ella
+      const target = retargetMain(prev.order, next.order, cursor.cellId)
+      if (target !== null) {
+        loop = false
+        jump = { cellId: target, startBar: jumpBarNow(), loop: false }
+      } else if (jump && !next.order.includes(jump.cellId)) jump = null
     }
+    becameMulti(isMulti(prev))
+    reconcileGroups(next)
     syncLoopUi()
+    syncGroupHolds()
     reevaluate()
     updateBackground()
   }
 
-  /** Queda una sola célula en el orden: vuelve a ser la app de siempre (una célula; las sueltas, aparcadas). */
+  /**
+   * Juntar y ordenar con el asa (§16.3): `bId` pasa a sonar justo detrás de `aId`, en el grupo de `aId`; la cola de
+   * un grupo sobre la cabeza de otro junta los dos enteros.
+   */
+  function orderAfter(aId: number, bId: number) {
+    const s = liveSong()
+    const next = withOrderAfter(s, aId, bId)
+    if (!next) return
+    restructure(s, next, `la ${bId} suena justo detrás de la ${aId}`)
+  }
+
+  /** Cortar un hilo (§16.3): el grupo se parte en dos y la parte de detrás (desde `toId`) nace apagada. */
+  function cutThread(toId: number) {
+    const s = liveSong()
+    const next = withCut(s, toId)
+    if (!next) return
+    restructure(s, next, `hilo cortado: el grupo se parte antes de la célula ${toId}`)
+  }
+
+  /** Queda una sola célula en la canción: vuelve a ser la app de siempre (los demás grupos, aparte). */
   function collapseToSingle() {
     const only = cellById(song.value, song.value.order[0]!)!
     if (viewCellId.value !== only.id) showCell(only.id, 0)
@@ -1498,25 +1595,29 @@ export function useAudioEngine() {
       updateBackground()
       return
     }
-    const i = s.order.indexOf(id)
-    setUndo({ kind: 'cell', cell, prevId: i < 0 ? null : (s.order[i - 1] ?? null), nextId: i < 0 ? null : (s.order[i + 1] ?? null), loose: i < 0 })
+    const gid = groupIdOf(s, id) ?? MAIN
+    const order = orderOf(s, gid)
+    const i = order.indexOf(id)
+    setUndo({ kind: 'cell', cell, prevId: order[i - 1] ?? null, nextId: order[i + 1] ?? null, gid, on: groupOn(s, gid) })
     const nextId = nextInOrder(s, id)
     song.value = withoutCell(s, id)
-    freeRuns.delete(id)
     log('cell', `célula ${id} borrada`)
-    if (!multi()) {
-      // queda una sola en el orden: vuelve a ser la app de siempre
-      collapseToSingle()
-    } else if (playing.value && cursor) {
-      if (jump?.cellId === id) jump = null
-      if (viewJump?.cellId === id) viewJump = null
-      if (cursor.cellId === id) {
-        // suena la siguiente a partir de la próxima línea de compás; la borrada calla ya
-        loop = false
-        jump = jump ?? { cellId: nextId, startBar: jumpBar(), loop: false }
-      }
-    } else if (viewCellId.value === id) showCell(nextId, 0)
-    // si se veía la borrada (una libre o una suelta) y suena otra, la vista pasa a la que suena
+    if (gid === MAIN) {
+      if (!multi()) {
+        // queda una sola en la canción: vuelve a ser la app de siempre
+        collapseToSingle()
+      } else if (playing.value && cursor) {
+        if (jump?.cellId === id) jump = null
+        if (viewJump?.cellId === id) viewJump = null
+        if (cursor.cellId === id) {
+          // suena la siguiente a partir de la próxima línea de compás; la borrada calla ya
+          loop = false
+          jump = jump ?? { cellId: nextId, startBar: jumpBar(), loop: false }
+        }
+      } else if (viewCellId.value === id) showCell(nextId, 0)
+    }
+    reconcileGroups(song.value)
+    // si se veía la borrada y suena otra, la vista pasa a la que suena
     if (!cellById(song.value, viewCellId.value) && !(cursor && cursor.cellId === id)) showCell(cursor?.cellId ?? nextId, cursor?.startBar ?? 0)
     syncLoopUi()
     reevaluate()
@@ -1556,41 +1657,46 @@ export function useAudioEngine() {
       log('cell', 'no se puede deshacer: la célula ya no cabe')
       return
     }
-    song.value = {
-      ...s,
-      cells: [...s.cells, rec.cell],
-      // una suelta vuelve suelta; una de la canción, entre sus mismos vecinos
-      order: rec.loose ? s.order : orderWith(s.order, rec.cell.id, rec.prevId, rec.nextId),
-      nextLoopId: Math.max(s.nextLoopId, ...rec.cell.loops.map((l) => l.id + 1)),
-    }
+    // vuelve a su grupo, entre sus mismos vecinos; si el grupo ya no existe, como un grupo nuevo de una célula
+    song.value = withRestoredCell(
+      { ...s, nextLoopId: Math.max(s.nextLoopId, ...rec.cell.loops.map((l) => l.id + 1)) },
+      rec.cell,
+      rec.gid,
+      rec.prevId,
+      rec.nextId,
+      rec.on,
+    )
     log('cell', `célula ${rec.cell.id} recuperada`)
-    // una libre que estaba encendida vuelve a sonar en la siguiente línea de compás
-    if (rec.cell.free && rec.cell.on && playing.value && clock) freeRuns.set(rec.cell.id, { from: jumpBarNow(), to: null })
+    // un grupo encendido que vuelve a existir suena de nuevo en la siguiente línea de compás
+    const back = groupIdOf(song.value, rec.cell.id)
+    if (back !== null && back !== MAIN && groupOn(song.value, back) && !groupPlays.has(back) && playing.value && clock)
+      groupPlays.set(back, startGroup(orderOf(song.value, back)[0]!, jumpBarNow()))
     becameMulti(isMulti(s))
+    syncGroupHolds()
     reevaluate()
   }
 
   /**
-   * Entrar en una libre (se ve su aro, sin tocar lo que suena): doble toque en la colonia o el marcador del
-   * borde. La fase que se ve cuenta desde su compás de encendido.
+   * Entrar en una célula de un grupo en paralelo (se ve su aro, sin tocar lo que suena): doble toque en la colonia o
+   * el marcador del borde. Mientras se ve, su grupo se queda en ella (§16.2).
    */
   function enterCell(id: number) {
-    const cell = cellById(song.value, id)
-    if (!cell?.free || id === viewCellId.value) return
-    const run = freeRuns.get(id)
-    showCell(id, run && run.to === null ? run.from : 0)
+    const gid = groupIdOf(song.value, id)
+    if (gid === null || gid === MAIN || id === viewCellId.value) return
+    const gp = groupPlays.get(gid)
+    showCell(id, gp && gp.play.cursor.cellId === id ? gp.play.cursor.startBar : 0)
     reevaluate()
   }
 
-  /** Crea una célula libre (⋯ → "añadir célula libre"), apagada y vacía, y entra en ella para llenarla. */
-  function addFreeCell(): number | null {
-    const r = withNewFree(liveSong())
+  /** Crea una célula libre (⋯ → "añadir célula libre"): un grupo nuevo de una célula, apagado y vacío; entra en ella para llenarla. */
+  function addGroupCell(): number | null {
+    const r = withNewGroup(liveSong())
     if (!r) {
       log('cell', 'no se crea otra célula: ya hay 16')
       return null
     }
     song.value = r.song
-    log('cell', `célula libre ${r.id} creada, apagada`)
+    log('cell', `célula libre ${r.id} creada (grupo ${r.groupId}, apagado)`)
     enterCell(r.id)
     return r.id
   }
@@ -1634,10 +1740,10 @@ export function useAudioEngine() {
    */
   function travelTo(id: number) {
     if (!cellById(song.value, id)) return
-    // una libre no se "viaja": se entra en ella (la canción sigue como está)
-    if (isFree(song.value, id)) return enterCell(id)
+    // una célula de un grupo en paralelo no se "viaja": se entra en ella (la canción sigue como está)
+    if (inParallel(song.value, id)) return enterCell(id)
     if (!multi()) {
-      // una sola célula en el orden (y quizá sueltas): pasar a otra es cambiar la célula que se ve, ya
+      // una sola célula en la canción: volver a ella es cambiar la célula que se ve
       if (id === viewCellId.value) return
       showCell(id, 0)
       if (cursor) cursor = { cellId: id, startBar: 0 }
@@ -1650,8 +1756,8 @@ export function useAudioEngine() {
       if (id !== viewCellId.value) showCell(id, 0)
       return
     }
-    // si se veía una libre y se toca la célula que suena, la vista vuelve a ella
-    if (!jump && id === cursor.cellId && isFree(song.value, viewCellId.value)) showCell(id, cursor.startBar)
+    // si se veía una célula de un grupo y se toca la que suena, la vista vuelve a ella
+    if (!jump && id === cursor.cellId && inParallel(song.value, viewCellId.value)) showCell(id, cursor.startBar)
     if (!jump && id === cursor.cellId) return loopHere()
     const end = endBar(liveSong(), curPlay())
     jump = { cellId: id, startBar: jump ? jump.startBar : Math.min(jumpBar(), end), loop: true }
@@ -1665,8 +1771,8 @@ export function useAudioEngine() {
    * suena, la siguiente y la anterior. `null` parado o con una sola célula.
    */
   function cellPlan(): { cur: Cell; start: number; end: number; next: Cell; prev: Cell | null; loop: boolean } | null {
-    // con una libre a la vista no hay transiciones ni chapa de vueltas: la libre no pasa de una célula a otra
-    if (!playing.value || !multi() || isFree(song.value, viewCellId.value)) return null
+    // con una célula de un grupo a la vista no hay transiciones de la canción ni chapa de vueltas
+    if (!playing.value || !multi() || inParallel(song.value, viewCellId.value)) return null
     const s = liveSong()
     const cur = cellById(s, viewCellId.value)
     const next = cur && cellById(s, nextInOrder(s, cur.id))
@@ -1772,13 +1878,24 @@ export function useAudioEngine() {
     cycleTurns,
     snapshot,
     openSaved,
-    viewIsFree: computed(() => isFree(song.value, viewCellId.value)),
-    toggleFree,
-    addFreeCell,
+    // grupos en paralelo (§16)
+    viewIsFree: computed(() => inParallel(song.value, viewCellId.value)),
+    viewGroup: computed(() => groupIdOf(song.value, viewCellId.value) ?? MAIN),
+    viewGroupOn: computed(() => groupOn(song.value, groupIdOf(song.value, viewCellId.value) ?? MAIN)),
+    extrasOn: computed(() => song.value.groups.some((g) => g.on)),
+    groupOf: (id: number): number => groupIdOf(song.value, id) ?? MAIN,
+    tapGroupCell,
+    toggleGroup,
+    stopExtras,
+    cutThread,
+    addGroupCell,
     enterCell,
+    // nombres de antes de los grupos, hasta que la pantalla se cambie
+    toggleFree: tapGroupCell,
+    addFreeCell: addGroupCell,
+    detachCell: cutThread,
     addCell,
     copyCell,
-    detachCell,
     orderAfter,
     removeCell,
     undo,

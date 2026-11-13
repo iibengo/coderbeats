@@ -193,14 +193,13 @@ export function restoreEntry(lib: Library, entry: Entry, index: number): Library
 }
 
 // ── lo que se enseña ─────────────────────────────────────────────────────────────
-/** Resumen de la fila: "Drum and bass · 4 células + 1 suelta + 1 libre · 18 compases · 174 bpm". */
+/** Resumen de la fila: "Drum and bass · 4 células + 2 grupos · 18 compases · 174 bpm" (los grupos en paralelo, §16). */
 export function summaryText(s: SavedSong): string {
   const inOrder = s.song.order.length
-  const free = s.song.cells.filter((c) => c.free).length
-  const loose = s.song.cells.length - inOrder - free
+  const groups = s.song.groups?.length ?? 0
   const bpm = s.song.bpm ?? STYLES[s.style].bpm
-  const extra = (n: number, one: string, many: string) => (n > 0 ? ` + ${n} ${n === 1 ? one : many}` : '')
-  const cells = `${inOrder} ${inOrder === 1 ? 'célula' : 'células'}${extra(loose, 'suelta', 'sueltas')}${extra(free, 'libre', 'libres')}`
+  const extra = groups > 0 ? ` + ${groups} ${groups === 1 ? 'grupo' : 'grupos'}` : ''
+  const cells = `${inOrder} ${inOrder === 1 ? 'célula' : 'células'}${extra}`
   return `${STYLES[s.style].label} · ${cells} · ${songBars(s.song)} compases · ${Math.round(bpm)} bpm`
 }
 

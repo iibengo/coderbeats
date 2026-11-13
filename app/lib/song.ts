@@ -34,11 +34,10 @@ export interface SongState {
    */
   cells?: { list: CellCode[]; order: number[]; window: Segment[] }
   /**
-   * Células libres que suenan en paralelo (spec 005, §13.1): sus loops y los tramos en los que corren
-   * (en el motor, desde el compás en que se encienden hasta el en que se apagan; en el código que se
-   * enseña, todas las encendidas, sin límite).
+   * Grupos de células que suenan en paralelo a la canción (spec 005, enmienda 2, §16). En el motor, de cada
+   * uno sus tramos (la célula que suena y la siguiente); en el código que se enseña, su orden entero.
    */
-  free?: { list: CellCode[]; segments: Segment[] }
+  groups?: { list: CellCode[]; items: { id: number; order: number[]; window: Segment[] }[] }
 }
 
 /** Lo que necesita el generador de cada célula. */
@@ -153,23 +152,44 @@ function backgroundLines(st: SongState, bass: boolean, chords: boolean, engine: 
 const cellLabel = (c: Pick<Cell, 'id' | 'name'>) => c.name ?? `célula ${c.id}`
 
 /**
- * Las células libres que suenan en paralelo (§13.1): cada una, su propio `stack` con su fase (empieza en
- * su compás de encendido). En el motor va acotada a sus compases con `filterHaps`; en el código que se
- * enseña, sin límites.
+ * Los grupos de células que suenan en paralelo a la canción (§16): cada uno, su propio `stack` con su fase
+ * (cada tramo cuenta desde su compás de inicio). En el motor van acotados a sus compases con `filterHaps`
+ * (la célula que suena y la siguiente, como la canción); en el código que se enseña, el grupo entero con su
+ * orden: una célula, un `stack`; varias, un `arrange`.
  */
-function freeLines(st: SongState, mode: SongMode, duck: boolean, ind: string): string[] {
-  if (!st.free) return []
+function groupLines(st: SongState, mode: SongMode, duck: boolean, ind: string): string[] {
+  if (!st.groups) return []
   const out: string[] = []
-  for (const seg of st.free.segments) {
-    const cell = st.free.list.find((c) => c.id === seg.cellId)
-    if (!cell) continue
-    const inner = loopsLines(cell.loops, st, mode, duck, ind + IND, mode === 'engine' ? seg.from : 0)
-    if (!inner.length) continue
-    out.push(`${ind}// célula libre · ${cellLabel(cell)}`)
+  const { list, items } = st.groups
+  for (const item of items) {
     if (mode === 'engine') {
-      const range = seg.to === null ? `h.whole.begin >= ${seg.from}` : `h.whole.begin >= ${seg.from} && h.whole.begin < ${seg.to}`
-      out.push(`${ind}stack(`, ...inner, `${ind}).filterHaps((h) => ${range}),`)
-    } else out.push(`${ind}stack(`, ...inner, `${ind}),`)
+      for (const seg of item.window) {
+        const cell = list.find((c) => c.id === seg.cellId)
+        if (!cell) continue
+        const inner = loopsLines(cell.loops, st, mode, duck, ind + IND, seg.from)
+        if (!inner.length) continue
+        const range = seg.to === null ? `h.whole.begin >= ${seg.from}` : `h.whole.begin >= ${seg.from} && h.whole.begin < ${seg.to}`
+        out.push(`${ind}// grupo ${item.id} · ${cellLabel(cell)} · compases ${seg.from}–${seg.to === null ? '…' : seg.to - 1}`)
+        out.push(`${ind}stack(`, ...inner, `${ind}).filterHaps((h) => ${range}),`)
+      }
+      continue
+    }
+    const cells = item.order.map((id) => list.find((c) => c.id === id)).filter((c): c is CellCode => !!c)
+    if (!cells.length) continue
+    if (cells.length === 1) {
+      const inner = loopsLines(cells[0]!.loops, st, mode, duck, ind + IND, 0)
+      if (!inner.length) continue
+      out.push(`${ind}// grupo ${item.id} · ${cellLabel(cells[0]!)}`, `${ind}stack(`, ...inner, `${ind}),`)
+      continue
+    }
+    out.push(`${ind}// grupo ${item.id}`, `${ind}arrange(`)
+    for (const cell of cells) {
+      const lines = loopsLines(cell.loops, st, mode, duck, ind + IND + IND, 0)
+      out.push(`${ind}${IND}// ${cellLabel(cell)} · ${cell.turns} vuelta${cell.turns === 1 ? '' : 's'}`)
+      if (!lines.length) out.push(`${ind}${IND}[${cell.turns}, silence],`)
+      else out.push(`${ind}${IND}[${cell.turns}, stack(`, ...lines, `${ind}${IND})],`)
+    }
+    out.push(`${ind}),`)
   }
   return out
 }
@@ -212,9 +232,9 @@ export function songCode(st: SongState, mode: SongMode = 'display'): string {
     out.push(`${IND}// tus loops`)
     out.push(...loopsLines(st.loops, st, mode, duck, IND))
   }
-  const free = freeLines(st, mode, duck, IND)
-  out.push(...free)
-  if (!showBass && !showChords && !st.loops.length && !free.length && !engine && !multi) out.push(`${IND}silence,`)
+  const extra = groupLines(st, mode, duck, IND)
+  out.push(...extra)
+  if (!showBass && !showChords && !st.loops.length && !extra.length && !engine && !multi) out.push(`${IND}silence,`)
 
   const djf = filterDjf(st.fx.filter)
   let tail = ')'
@@ -235,7 +255,7 @@ function songArrangeCode(st: SongState): string {
   const bgOn = st.background.mode !== 'off'
   const out: string[] = [`setcpm(${st.bpm ?? style.bpm}/4)`, `// ${style.label.toLowerCase()} · ${music.key}`, 'arrange(']
   const ind = IND + IND
-  const freeBlock = freeLines(st, 'display', bgOn && list.some((c) => c.parts.bass || c.parts.chords), IND)
+  const freeBlock = groupLines(st, 'display', bgOn && list.some((c) => c.parts.bass || c.parts.chords), IND)
   for (const id of order) {
     const cell = list.find((c) => c.id === id)
     if (!cell) continue
@@ -248,7 +268,7 @@ function songArrangeCode(st: SongState): string {
   }
   const djf = filterDjf(st.fx.filter)
   if (freeBlock.length) {
-    // con células libres, la canción y las libres suenan a la vez: un `stack` que las junta
+    // con grupos en paralelo, la canción y ellos suenan a la vez: un `stack` que los junta
     const head = out.slice(0, 2)
     const body = out.slice(3).map((l) => `${IND}${l}`)
     return [...head, 'stack(', `${IND}arrange(`, ...body, `${IND}),`, ...freeBlock, djf < 0.5 ? `).djf(${djf})` : ')'].join('\n')

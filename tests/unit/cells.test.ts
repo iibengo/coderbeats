@@ -2,53 +2,42 @@ import { describe, expect, it } from 'vitest'
 import {
   advance,
   cellById,
-  endBar,
-  stepPlay,
-  type Play,
   demoSong,
   emptySong,
+  endBar,
   fitTurns,
-  freeCells,
-  freeOn,
-  isFree,
-  isLoose,
-  isSong,
-  nextFreeSpot,
-  minTurns,
-  nextInOrder,
-  songBars,
-  songFromLoops,
-  stressSong,
-  MAX_CELLS,
-  nextDepth,
-  nextTurns,
-  orderWith,
-  cellRemoved,
   groupIdOf,
   groupOn,
   groupSong,
   inParallel,
+  isSong,
   MAIN,
+  MAX_CELLS,
+  minTurns,
+  nextDepth,
   nextGroupSpot,
+  nextInOrder,
+  nextTurns,
   normalizeSong,
   orderOf,
+  orderWith,
+  songBars,
+  songFromLoops,
+  stepPlay,
+  storableSong,
+  stressSong,
+  windowAt,
   withCopy,
   withCut,
-  withDetached,
-  withFreeOn,
-  withGroupAfter,
-  withGroupCopy,
   withGroupOn,
-  withNewGroup,
-  withRestoredCell,
   withNewCell,
-  withNewFree,
+  withNewGroup,
   withOrderAfter,
+  withRestoredCell,
   withValidBpm,
   withoutCell,
-  storableSong,
-  windowAt,
   type Cursor,
+  type Play,
   type Song,
 } from '../../app/lib/cells'
 import type { FreeLoop } from '../../app/lib/freeLoops'
@@ -406,58 +395,6 @@ describe('cells: crear y borrar', () => {
   })
 })
 
-describe('cells: copiar y ordenar', () => {
-  const demo = demoSong('dnb')!
-  const [a, b, c, d] = demo.order as [number, number, number, number]
-
-  it('la copia es suelta: está en las células pero no en el orden, con loops de ids nuevos y las mismas partes y vueltas', () => {
-    const r = withCopy(demo, c, { x: 20, y: 3 })!
-    expect(r.song.order).toEqual([a, b, c, d]) // el orden no cambia: no suena
-    expect(isLoose(r.song, r.id)).toBe(true)
-    expect(isLoose(demo, c)).toBe(false)
-    const copy = r.song.cells.find((x) => x.id === r.id)!
-    const src = cellById(demo, c)!
-    expect(copy.turns).toBe(src.turns)
-    expect(copy.parts).toEqual(src.parts)
-    expect(copy.at).toEqual({ x: 20, y: 3, depth: src.at.depth })
-    expect(copy.name).toBe('drop copia')
-    expect(copy.loops.map((l) => l.hits)).toEqual(src.loops.map((l) => l.hits))
-    const ids = r.song.cells.flatMap((x) => x.loops.map((l) => l.id))
-    expect(new Set(ids).size).toBe(ids.length) // ningún id de loop repetido en toda la canción
-    expect(r.song.nextLoopId).toBeGreaterThan(Math.max(...ids))
-    expect(r.song.nextCellId).toBe(r.id + 1)
-    expect(isSong(r.song)).toBe(true) // lo guardado con sueltas vale
-    expect(songBars(r.song)).toBe(songBars(demo)) // la suelta no suma compases a la canción
-  })
-
-  it('copiar no toca la original, y con 16 células no se copia', () => {
-    const before = JSON.stringify(demo)
-    withCopy(demo, a, { x: 0, y: 0 })
-    expect(JSON.stringify(demo)).toBe(before)
-    expect(withCopy(stressSong(demo, MAX_CELLS), 1, { x: 0, y: 0 })).toBeNull()
-    expect(withCopy(demo, 99, { x: 0, y: 0 })).toBeNull()
-  })
-
-  it('copiar una célula vacía da otra vacía', () => {
-    const r = withCopy(emptySong(), 1, { x: 3, y: 0 })!
-    expect(r.song.order).toEqual([1]) // suelta: no entra en el orden
-    expect(isLoose(r.song, r.id)).toBe(true)
-    expect(r.song.cells.find((x) => x.id === r.id)!.loops).toEqual([])
-  })
-
-  it('ordenar: soltar el hilo de A sobre B pone a B justo después de A', () => {
-    expect(withOrderAfter(demo, a, d)!.order).toEqual([a, d, b, c])
-    // la última tira de la primera: es el mismo ciclo con otro punto de partida (Play arranca desde la que ves)
-    expect(withOrderAfter(demo, d, a)!.order).toEqual([b, c, d, a])
-    expect(withOrderAfter(demo, c, b)!.order).toEqual([a, c, b, d])
-    // la que ya iba después de A no cambia nada, ni tirar de sí misma, ni una que no existe
-    expect(withOrderAfter(demo, a, b)).toBeNull()
-    expect(withOrderAfter(demo, a, a)).toBeNull()
-    expect(withOrderAfter(demo, a, 99)).toBeNull()
-    expect(demo.order).toEqual([a, b, c, d])
-  })
-})
-
 describe('cells: vueltas con el número', () => {
   it('1 → 2 → 4 → 8 → 16 → 32 → 1 (hasta 32 para melodías largas)', () => {
     expect(nextTurns(1, 1)).toBe(2)
@@ -491,146 +428,6 @@ describe('cells: el tempo guardado', () => {
     expect(withValidBpm({ ...s, bpm: '130' as unknown as number }).bpm).toBeNull()
     expect(withValidBpm({ ...s, bpm: 9999 }).bpm).toBeNull()
     expect(withValidBpm({ ...s, bpm: 9999 }).cells).toBe(s.cells) // el resto de la canción no se toca
-  })
-})
-
-describe('cells: células sueltas (enmienda 1)', () => {
-  const demo = demoSong('dnb')!
-  const [a, b, c, d] = demo.order as [number, number, number, number]
-  const withLoose = () => withCopy(demo, b, { x: 30, y: 2 })!
-
-  it('enganchar: la suelta pasa a sonar justo después de la que tiene el asa', () => {
-    const { song, id } = withLoose()
-    const hooked = withOrderAfter(song, c, id)!
-    expect(hooked.order).toEqual([a, b, c, id, d])
-    expect(isLoose(hooked, id)).toBe(false)
-    expect(nextInOrder(hooked, c)).toBe(id)
-    // y tras la última, al final
-    expect(withOrderAfter(song, d, id)!.order).toEqual([a, b, c, d, id])
-  })
-
-  it('enganchar una suelta que ya iba detrás no es un cambio de orden, pero una suelta siempre entra', () => {
-    const { song, id } = withLoose()
-    expect(withOrderAfter(song, a, id)!.order).toEqual([a, id, b, c, d])
-    // una suelta no puede enganchar a otra: no está en el orden
-    const two = withCopy(song, c, { x: 1, y: 1 })!
-    expect(withOrderAfter(two.song, id, two.id)).toBeNull()
-  })
-
-  it('cortar un hilo deja suelta la célula a la que llevaba y la canción salta por encima', () => {
-    const cut = withDetached(demo, c)!
-    expect(cut.order).toEqual([a, b, d])
-    expect(isLoose(cut, c)).toBe(true)
-    expect(cellById(cut, c)).toBeDefined() // la célula sigue existiendo, con sus loops
-    expect(nextInOrder(cut, b)).toBe(d) // salta por encima
-    expect(demo.order).toEqual([a, b, c, d])
-  })
-
-  it('no se corta si es la única en el orden o ya es suelta', () => {
-    const one = withDetached(withDetached(withDetached(demo, d)!, c)!, b)!
-    expect(one.order).toEqual([a])
-    expect(withDetached(one, a)).toBeNull() // la última de la canción no se saca
-    expect(withDetached(demo, 99)).toBeNull()
-    const { song, id } = withLoose()
-    expect(withDetached(song, id)).toBeNull() // ya es suelta
-  })
-
-  it('cortar y enganchar de nuevo devuelve la célula a su sitio', () => {
-    const cut = withDetached(demo, c)!
-    expect(withOrderAfter(cut, b, c)!.order).toEqual(demo.order)
-  })
-
-  it('una suelta delante: avanza a la primera de la canción, y la ventana lleva su tramo y el siguiente', () => {
-    const { song, id } = withLoose()
-    const start = { cellId: id, startBar: 0 }
-    const turns = cellById(song, id)!.turns
-    // tras sus vueltas entra la primera de la canción
-    expect(advance(song, start, turns).cellId).toBe(a)
-    expect(windowAt(song, start)).toEqual([
-      { cellId: id, from: 0, to: turns },
-      { cellId: a, from: turns, to: turns + cellById(song, a)!.turns },
-    ])
-    // en bucle (para escucharla) no avanza nunca
-    expect(stepPlay(song, { cursor: start, loop: true, jump: null }, 99).cursor).toEqual(start)
-  })
-
-  it('con una sola célula en el orden y sueltas, la canción sigue siendo de una célula', () => {
-    const one = withDetached(withDetached(withDetached(demo, d)!, c)!, b)!
-    expect(isLoose(one, b)).toBe(true)
-    expect(songBars(one)).toBe(cellById(one, a)!.turns)
-    expect(windowAt(one, { cellId: a, startBar: 0 })).toEqual([{ cellId: a, from: 0, to: null }])
-  })
-})
-
-describe('cells: células libres (satélites, §13.1)', () => {
-  const demo = demoSong('dnb')!
-  const [a, b] = demo.order as [number, number, number, number]
-
-  it('una libre nueva: apagada, vacía, fuera del orden y sin ser una suelta', () => {
-    const r = withNewFree(demo)!
-    const c = cellById(r.song, r.id)!
-    expect(c).toMatchObject({ free: true, on: false, loops: [], turns: 1 })
-    expect(r.song.order).toEqual(demo.order) // no está en el orden: sin hilos
-    expect(isFree(r.song, r.id)).toBe(true)
-    expect(isLoose(r.song, r.id)).toBe(false) // distinta de una suelta
-    expect(isSong(r.song)).toBe(true)
-    expect(songBars(r.song)).toBe(songBars(demo)) // no suma compases a la canción
-    expect(freeCells(r.song)).toHaveLength(1)
-    expect(freeOn(r.song)).toHaveLength(0)
-  })
-
-  it('flota encima de la curva de la canción, una al lado de otra', () => {
-    const a = withNewFree(demo)!
-    const b = withNewFree(a.song)!
-    const pa = cellById(a.song, a.id)!.at
-    const pb = cellById(b.song, b.id)!.at
-    const minY = Math.min(...demo.cells.map((c) => c.at.y))
-    expect(pa.y).toBeLessThan(minY)
-    expect(pb.y).toBe(pa.y)
-    expect(pb.x).toBeCloseTo(pa.x + 3)
-    expect(nextFreeSpot(demo).x).toBe(Math.min(...demo.cells.map((c) => c.at.x)))
-  })
-
-  it('cuentan para las 16 células', () => {
-    expect(withNewFree(stressSong(demo, MAX_CELLS))).toBeNull()
-    expect(withNewFree(withoutCell(stressSong(demo, MAX_CELLS), 3))).not.toBeNull()
-  })
-
-  it('encender y apagar cambia solo esa célula; una que no es libre no se enciende', () => {
-    const { song, id } = withNewFree(demo)!
-    const on = withFreeOn(song, id, true)!
-    expect(freeOn(on).map((c) => c.id)).toEqual([id])
-    expect(withFreeOn(on, id, false)!.cells.find((c) => c.id === id)!.on).toBe(false)
-    expect(withFreeOn(song, a, true)).toBeNull()
-    expect(withFreeOn(song, 999, true)).toBeNull()
-    expect(on.order).toEqual(demo.order)
-  })
-
-  it('copiar una libre da otra libre, apagada', () => {
-    const { song, id } = withNewFree(demo)!
-    const lit = withFreeOn(song, id, true)!
-    const copy = withCopy(lit, id, { x: 1, y: 1 })!
-    const c = cellById(copy.song, copy.id)!
-    expect(c).toMatchObject({ free: true, on: false })
-    expect(copy.song.order).toEqual(demo.order)
-    // y una de la canción copiada sigue siendo suelta, no libre
-    const fromSong = withCopy(demo, a, { x: 0, y: 0 })!
-    expect(isFree(fromSong.song, fromSong.id)).toBe(false)
-    expect(isLoose(fromSong.song, fromSong.id)).toBe(true)
-  })
-
-  it('una libre no entra en la canción por ahora (más adelante): ni como destino ni como origen', () => {
-    const { song, id } = withNewFree(demo)!
-    expect(withOrderAfter(song, a, id)).toBeNull()
-    expect(withOrderAfter(song, id, b)).toBeNull()
-  })
-
-  it('lo guardado conserva si es libre y si está encendida', () => {
-    const { song, id } = withNewFree(demo)!
-    const on = withFreeOn(song, id, true)!
-    const back = JSON.parse(JSON.stringify(storableSong(on))) as typeof on
-    expect(isSong(back)).toBe(true)
-    expect(cellById(back, id)).toMatchObject({ free: true, on: true })
   })
 })
 
@@ -700,7 +497,7 @@ describe('grupos de células (enmienda 2, §16)', () => {
     expect(solo.order).toEqual([ids[0]!.id])
     expect(stepPlay(solo, { cursor: { cellId: ids[0]!.id, startBar: 4 }, loop: false, jump: null }, 99).cursor).toEqual({ cellId: ids[0]!.id, startBar: 4 })
     // uno de varias avanza por su orden y vuelve a la primera
-    const two = withGroupAfter(song, ids[0]!.id, b)!
+    const two = withOrderAfter(song, ids[0]!.id, b)!
     const pair = groupSong(two, g)
     expect(pair.order).toEqual([ids[0]!.id, b])
     expect(advance(pair, { cellId: ids[0]!.id, startBar: 0 }, 1).cellId).toBe(b)
@@ -708,20 +505,20 @@ describe('grupos de células (enmienda 2, §16)', () => {
   })
 
   it('copiar crea un grupo nuevo de una célula, apagado; la canción no cambia', () => {
-    const r = withGroupCopy(demo, c, { x: 20, y: 3 })!
+    const r = withCopy(demo, c, { x: 20, y: 3 })!
     expect(r.song.order).toEqual(demo.order)
     expect(r.song.groups).toEqual([{ id: r.groupId, order: [r.id], on: false }])
     expect(cellById(r.song, r.id)!.turns).toBe(cellById(demo, c)!.turns)
     const ids = r.song.cells.flatMap((x) => x.loops.map((l) => l.id))
     expect(new Set(ids).size).toBe(ids.length)
     expect(r.song.nextLoopId).toBeGreaterThan(Math.max(...ids))
-    expect(withGroupCopy(stressSong(demo, MAX_CELLS), 1, { x: 0, y: 0 })).toBeNull()
+    expect(withCopy(stressSong(demo, MAX_CELLS), 1, { x: 0, y: 0 })).toBeNull()
   })
 
   it('juntar: B va justo detrás de A, en el grupo de A (una suelta entra en la canción)', () => {
     const { song, ids } = withG()
     const x = ids[0]!.id
-    const hooked = withGroupAfter(song, c, x)!
+    const hooked = withOrderAfter(song, c, x)!
     expect(hooked.order).toEqual([a, b, c, x, d])
     expect(hooked.groups).toEqual([]) // el grupo de una célula desaparece
     expect(groupIdOf(hooked, x)).toBe(MAIN)
@@ -730,11 +527,11 @@ describe('grupos de células (enmienda 2, §16)', () => {
   it('juntar la cola de un grupo con la cabeza de otro junta los dos grupos enteros', () => {
     const { song, ids } = withG(2)
     const [g1, g2] = ids as [{ id: number; groupId: number }, { id: number; groupId: number }]
-    const pair = withGroupAfter(song, g1.id, g2.id)! // g2 detrás de g1: un grupo de dos
+    const pair = withOrderAfter(song, g1.id, g2.id)! // g2 detrás de g1: un grupo de dos
     expect(pair.groups).toHaveLength(1)
     expect(orderOf(pair, g1.groupId)).toEqual([g1.id, g2.id])
     // y ese grupo (cola g2) sobre la cabeza de otro de la canción… la canción entera tras él
-    const merged = withGroupAfter(pair, g2.id, a)!
+    const merged = withOrderAfter(pair, g2.id, a)!
     expect(merged.order).toEqual([g1.id, g2.id, a, b, c, d]) // el resultado es el principal
     expect(merged.groups).toEqual([])
     expect(groupIdOf(merged, g1.id)).toBe(MAIN)
@@ -744,23 +541,23 @@ describe('grupos de células (enmienda 2, §16)', () => {
     const { song, ids } = withG()
     const g = ids[0]!
     // b no es la cabeza de la canción: solo b pasa a detrás de la célula del grupo
-    const moved = withGroupAfter(song, g.id, b)!
+    const moved = withOrderAfter(song, g.id, b)!
     expect(moved.order).toEqual([a, c, d])
     expect(orderOf(moved, g.groupId)).toEqual([g.id, b])
     // la única célula de la canción no se puede sacar a otro grupo…
     const r1 = withNewGroup(emptySong())!
     const r2 = withNewGroup(r1.song)!
-    const pair = withGroupAfter(r2.song, r1.id, r2.id)! // un grupo [r1, r2]
-    expect(withGroupAfter(pair, r1.id, 1)).toBeNull() // r1 no es la cola: solo se movería la 1 y la canción se quedaría vacía
+    const pair = withOrderAfter(r2.song, r1.id, r2.id)! // un grupo [r1, r2]
+    expect(withOrderAfter(pair, r1.id, 1)).toBeNull() // r1 no es la cola: solo se movería la 1 y la canción se quedaría vacía
     // …salvo que sea juntar los dos grupos enteros (cola sobre cabeza): la canción pasa a llevar el grupo delante
-    expect(withGroupAfter(pair, r2.id, 1)!.order).toEqual([r1.id, r2.id, 1])
+    expect(withOrderAfter(pair, r2.id, 1)!.order).toEqual([r1.id, r2.id, 1])
   })
 
   it('dentro de un grupo, ordenar es la regla de siempre; sin cambios, null', () => {
-    expect(withGroupAfter(demo, a, d)!.order).toEqual([a, d, b, c])
-    expect(withGroupAfter(demo, a, b)).toBeNull()
-    expect(withGroupAfter(demo, a, a)).toBeNull()
-    expect(withGroupAfter(demo, a, 999)).toBeNull()
+    expect(withOrderAfter(demo, a, d)!.order).toEqual([a, d, b, c])
+    expect(withOrderAfter(demo, a, b)).toBeNull()
+    expect(withOrderAfter(demo, a, a)).toBeNull()
+    expect(withOrderAfter(demo, a, 999)).toBeNull()
     expect(demo.order).toEqual([a, b, c, d])
   })
 
@@ -778,7 +575,7 @@ describe('grupos de células (enmienda 2, §16)', () => {
 
   it('cortar un grupo en paralelo conserva su estado en la parte de delante; la de detrás nace apagada', () => {
     const { song, ids } = withG()
-    const joined = withGroupOn(withGroupAfter(withGroupAfter(song, ids[0]!.id, b)!, b, c)!, ids[0]!.groupId, true)!
+    const joined = withGroupOn(withOrderAfter(withOrderAfter(song, ids[0]!.id, b)!, b, c)!, ids[0]!.groupId, true)!
     expect(orderOf(joined, ids[0]!.groupId)).toEqual([ids[0]!.id, b, c])
     const cut = withCut(joined, c)!
     expect(orderOf(cut, ids[0]!.groupId)).toEqual([ids[0]!.id, b])
@@ -788,19 +585,19 @@ describe('grupos de células (enmienda 2, §16)', () => {
 
   it('borrar una célula la saca de su grupo; un grupo sin células desaparece', () => {
     const { song, ids } = withG()
-    const gone = cellRemoved(song, ids[0]!.id)
+    const gone = withoutCell(song, ids[0]!.id)
     expect(gone.groups).toEqual([])
     expect(gone.cells.some((x) => x.id === ids[0]!.id)).toBe(false)
-    expect(cellRemoved(demo, b).order).toEqual([a, c, d])
+    expect(withoutCell(demo, b).order).toEqual([a, c, d])
   })
 
   it('deshacer un borrado: vuelve a su grupo, entre sus mismos vecinos; si el grupo ya no está, apagado y suelto', () => {
     const cell = cellById(demo, b)!
-    const gone = cellRemoved(demo, b)
+    const gone = withoutCell(demo, b)
     expect(withRestoredCell(gone, cell, MAIN, a, c, true).order).toEqual([a, b, c, d])
     const { song, ids } = withG()
     const lone = cellById(song, ids[0]!.id)!
-    const without = cellRemoved(song, ids[0]!.id)
+    const without = withoutCell(song, ids[0]!.id)
     const back = withRestoredCell(without, lone, ids[0]!.groupId, null, null, true)
     expect(back.groups).toEqual([{ id: ids[0]!.groupId, order: [lone.id], on: true }])
     expect(back.nextGroupId).toBeGreaterThan(ids[0]!.groupId)
