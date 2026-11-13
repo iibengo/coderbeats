@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { demoSong, emptySong, withCopy } from '../../app/lib/cells'
+import { demoSong, emptySong, withCopy, withFreeOn, withNewFree } from '../../app/lib/cells'
 import {
   addSong,
   autoName,
@@ -201,6 +201,12 @@ describe('lo que se enseña', () => {
       'Drum and bass · 4 células + 1 suelta · 18 compases · 160 bpm',
     )
     expect(summaryText(makeSaved(snap({ style: 'house', song: emptySong() }), 'c', 'C', at(1)))).toBe('House · 1 célula · 1 compases · 124 bpm')
+    // las libres se cuentan aparte de las sueltas
+    const free = withNewFree(withLoose, undefined)!
+    const two = withNewFree(free.song)!
+    expect(summaryText(makeSaved(snap({ song: withFreeOn(two.song, two.id, true)! }), 'd', 'D', at(1)))).toBe(
+      'Drum and bass · 4 células + 1 suelta + 2 libres · 18 compases · 174 bpm',
+    )
   })
 
   it('fecha corta, y vacía si no se entiende', () => {

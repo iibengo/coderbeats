@@ -8,8 +8,12 @@ import {
   demoSong,
   emptySong,
   fitTurns,
+  freeCells,
+  freeOn,
+  isFree,
   isLoose,
   isSong,
+  nextFreeSpot,
   minTurns,
   nextInOrder,
   songBars,
@@ -21,7 +25,9 @@ import {
   orderWith,
   withCopy,
   withDetached,
+  withFreeOn,
   withNewCell,
+  withNewFree,
   withOrderAfter,
   withValidBpm,
   withoutCell,
@@ -529,5 +535,77 @@ describe('cells: células sueltas (enmienda 1)', () => {
     expect(isLoose(one, b)).toBe(true)
     expect(songBars(one)).toBe(cellById(one, a)!.turns)
     expect(windowAt(one, { cellId: a, startBar: 0 })).toEqual([{ cellId: a, from: 0, to: null }])
+  })
+})
+
+describe('cells: células libres (satélites, §13.1)', () => {
+  const demo = demoSong('dnb')!
+  const [a, b] = demo.order as [number, number, number, number]
+
+  it('una libre nueva: apagada, vacía, fuera del orden y sin ser una suelta', () => {
+    const r = withNewFree(demo)!
+    const c = cellById(r.song, r.id)!
+    expect(c).toMatchObject({ free: true, on: false, loops: [], turns: 1 })
+    expect(r.song.order).toEqual(demo.order) // no está en el orden: sin hilos
+    expect(isFree(r.song, r.id)).toBe(true)
+    expect(isLoose(r.song, r.id)).toBe(false) // distinta de una suelta
+    expect(isSong(r.song)).toBe(true)
+    expect(songBars(r.song)).toBe(songBars(demo)) // no suma compases a la canción
+    expect(freeCells(r.song)).toHaveLength(1)
+    expect(freeOn(r.song)).toHaveLength(0)
+  })
+
+  it('flota encima de la curva de la canción, una al lado de otra', () => {
+    const a = withNewFree(demo)!
+    const b = withNewFree(a.song)!
+    const pa = cellById(a.song, a.id)!.at
+    const pb = cellById(b.song, b.id)!.at
+    const minY = Math.min(...demo.cells.map((c) => c.at.y))
+    expect(pa.y).toBeLessThan(minY)
+    expect(pb.y).toBe(pa.y)
+    expect(pb.x).toBeCloseTo(pa.x + 3)
+    expect(nextFreeSpot(demo).x).toBe(Math.min(...demo.cells.map((c) => c.at.x)))
+  })
+
+  it('cuentan para las 16 células', () => {
+    expect(withNewFree(stressSong(demo, MAX_CELLS))).toBeNull()
+    expect(withNewFree(withoutCell(stressSong(demo, MAX_CELLS), 3))).not.toBeNull()
+  })
+
+  it('encender y apagar cambia solo esa célula; una que no es libre no se enciende', () => {
+    const { song, id } = withNewFree(demo)!
+    const on = withFreeOn(song, id, true)!
+    expect(freeOn(on).map((c) => c.id)).toEqual([id])
+    expect(withFreeOn(on, id, false)!.cells.find((c) => c.id === id)!.on).toBe(false)
+    expect(withFreeOn(song, a, true)).toBeNull()
+    expect(withFreeOn(song, 999, true)).toBeNull()
+    expect(on.order).toEqual(demo.order)
+  })
+
+  it('copiar una libre da otra libre, apagada', () => {
+    const { song, id } = withNewFree(demo)!
+    const lit = withFreeOn(song, id, true)!
+    const copy = withCopy(lit, id, { x: 1, y: 1 })!
+    const c = cellById(copy.song, copy.id)!
+    expect(c).toMatchObject({ free: true, on: false })
+    expect(copy.song.order).toEqual(demo.order)
+    // y una de la canción copiada sigue siendo suelta, no libre
+    const fromSong = withCopy(demo, a, { x: 0, y: 0 })!
+    expect(isFree(fromSong.song, fromSong.id)).toBe(false)
+    expect(isLoose(fromSong.song, fromSong.id)).toBe(true)
+  })
+
+  it('una libre no entra en la canción por ahora (más adelante): ni como destino ni como origen', () => {
+    const { song, id } = withNewFree(demo)!
+    expect(withOrderAfter(song, a, id)).toBeNull()
+    expect(withOrderAfter(song, id, b)).toBeNull()
+  })
+
+  it('lo guardado conserva si es libre y si está encendida', () => {
+    const { song, id } = withNewFree(demo)!
+    const on = withFreeOn(song, id, true)!
+    const back = JSON.parse(JSON.stringify(storableSong(on))) as typeof on
+    expect(isSong(back)).toBe(true)
+    expect(cellById(back, id)).toMatchObject({ free: true, on: true })
   })
 })

@@ -27,6 +27,13 @@ export interface Cell {
   turns: Turns
   /** posición en el mapa (unidades = radio de una gota) y profundidad 0..1 (0 = delante) */
   at: { x: number; y: number; depth: number }
+  /**
+   * Célula libre (satélite, §13.1): no está en el orden, no lleva hilos y suena **en paralelo** a la
+   * canción, sin fin, mientras esté encendida (`on`). No es una suelta (la suelta no suena).
+   */
+  free?: boolean
+  /** solo en las libres: encendida (suena) o apagada */
+  on?: boolean
 }
 
 export interface Song {
@@ -334,6 +341,8 @@ export function withCopy(song: Song, srcId: number, at: { x: number; y: number }
   const { name, ...rest } = src
   const cell: Cell = {
     ...rest,
+    // copiar una libre da otra libre, apagada (§13.1)
+    ...(src.free ? { free: true, on: false } : {}),
     id,
     ...(name ? { name: `${name} copia` } : {}),
     loops: src.loops.map(({ prev: _prev, ...l }) => ({ ...l, id: loopId++, bornAt: 0 })),
@@ -344,7 +353,19 @@ export function withCopy(song: Song, srcId: number, at: { x: number; y: number }
 }
 
 /** ¿Es una célula suelta (aparcada)? Existe, pero no está en el orden: sin hilos y sin sonar con la canción. */
-export const isLoose = (song: Pick<Song, 'cells' | 'order'>, id: number): boolean => !!cellById(song, id) && !song.order.includes(id)
+export const isLoose = (song: Pick<Song, 'cells' | 'order'>, id: number): boolean => {
+  const c = cellById(song, id)
+  return !!c && !c.free && !song.order.includes(id)
+}
+
+/** ¿Es una célula libre (satélite)? */
+export const isFree = (song: Pick<Song, 'cells'>, id: number): boolean => !!cellById(song, id)?.free
+
+/** Las células libres de la canción. */
+export const freeCells = (song: Pick<Song, 'cells'>): Cell[] => song.cells.filter((c) => c.free)
+
+/** Las libres encendidas (las que suenan en paralelo). */
+export const freeOn = (song: Pick<Song, 'cells'>): Cell[] => song.cells.filter((c) => c.free && c.on)
 
 /**
  * Cortar un hilo (§15.4): `id` sale del orden y queda suelta; la que iba antes pasa a la que iba después.
@@ -362,9 +383,37 @@ export function withDetached(song: Song, id: number): Song | null {
  */
 export function withOrderAfter(song: Song, aId: number, bId: number): Song | null {
   if (aId === bId || !cellById(song, aId) || !cellById(song, bId)) return null
+  // las libres no entran en la canción por ahora (§13.1: "más adelante")
+  if (isFree(song, aId) || isFree(song, bId)) return null
   const order = song.order.filter((x) => x !== bId)
   const i = order.indexOf(aId)
   if (i < 0) return null
   order.splice(i + 1, 0, bId)
   return order.every((v, k) => v === song.order[k]) ? null : { ...song, order }
+}
+
+// ── células libres (satélites, spec 005 §13.1) ────────────────────────────────────
+/** Dónde flota la próxima célula libre: encima de la curva de la canción, una al lado de otra. */
+export function nextFreeSpot(song: Song): { x: number; y: number; depth: number } {
+  const others = song.cells.filter((c) => !c.free)
+  const base = others.length ? others : song.cells
+  const minX = Math.min(...base.map((c) => c.at.x))
+  const minY = Math.min(...base.map((c) => c.at.y))
+  const k = freeCells(song).length
+  return { x: minX + 3 * k, y: minY - 3.5, depth: 0.25 }
+}
+
+/** Añade una célula libre, apagada y vacía, encima de la curva. Devuelve null si ya hay `MAX_CELLS`. */
+export function withNewFree(song: Song, at: { x: number; y: number; depth?: number } = nextFreeSpot(song)): { song: Song; id: number } | null {
+  if (song.cells.length >= MAX_CELLS) return null
+  const id = song.nextCellId
+  const cell: Cell = { ...emptyCell(id), free: true, on: false, at: { x: at.x, y: at.y, depth: at.depth ?? 0.25 } }
+  return { song: { ...song, cells: [...song.cells, cell], nextCellId: id + 1 }, id }
+}
+
+/** Enciende o apaga una libre (la canción no cambia). Devuelve null si no es una libre. */
+export function withFreeOn(song: Song, id: number, on: boolean): Song | null {
+  const c = cellById(song, id)
+  if (!c?.free) return null
+  return { ...song, cells: song.cells.map((x) => (x.id === id ? { ...x, on } : x)) }
 }

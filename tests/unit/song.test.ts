@@ -177,3 +177,80 @@ describe('tempo propio de la canción (spec 005, §6)', () => {
     expect(at(120)).not.toBe(at())
   })
 })
+
+describe('células libres en el código (spec 005, §13.1)', () => {
+  const drums = (...pos: number[]) => [loop('bd', pos)]
+  const freeCell = (id: number, loops: FreeLoop[]) => ({ id, name: undefined, loops, parts: { bass: false, chords: false }, turns: 1 as const })
+  const main = [loop('sd', [4, 12])]
+
+  it('en el motor: un tramo propio, desde el compás en que se enciende y sin final', () => {
+    const f = freeCell(9, drums(0, 8))
+    const code = songCode(state({ loops: main, free: { list: [f], segments: [{ cellId: 9, from: 24, to: null }] } }), 'engine')
+    expect(code).toContain('// célula libre · célula 9')
+    expect(code).toContain('.filterHaps((h) => h.whole.begin >= 24)')
+    // sigue llevando lo de la canción
+    expect(code).toContain('// tus loops')
+  })
+
+  it('al apagarla, el tramo se acota a su último compás', () => {
+    const f = freeCell(9, drums(0))
+    const code = songCode(state({ free: { list: [f], segments: [{ cellId: 9, from: 8, to: 20 }] } }), 'engine')
+    expect(code).toContain('.filterHaps((h) => h.whole.begin >= 8 && h.whole.begin < 20)')
+  })
+
+  it('su fase cuenta desde su compás de encendido, no desde el de la canción', () => {
+    const f = freeCell(9, [loop('bd', [16, 24], { bars: 2 })])
+    const at0 = songCode(state({ free: { list: [f], segments: [{ cellId: 9, from: 0, to: null }] } }), 'engine')
+    const at1 = songCode(state({ free: { list: [f], segments: [{ cellId: 9, from: 1, to: null }] } }), 'engine')
+    expect(at0).not.toBe(at1)
+  })
+
+  it('varias libres, cada una con su tramo; una vacía o desconocida no añade nada', () => {
+    const code = songCode(
+      state({
+        free: {
+          list: [freeCell(9, drums(0)), freeCell(10, drums(4)), freeCell(11, [])],
+          segments: [
+            { cellId: 9, from: 8, to: null },
+            { cellId: 10, from: 16, to: null },
+            { cellId: 11, from: 8, to: null },
+            { cellId: 77, from: 8, to: null },
+          ],
+        },
+      }),
+      'engine',
+    )
+    expect(code.match(/célula libre/g)).toHaveLength(2)
+    expect(code).toContain('begin >= 8)')
+    expect(code).toContain('begin >= 16)')
+  })
+
+  it('sin libres, el código es el de siempre', () => {
+    expect(songCode(state({ loops: main }), 'engine')).toBe(songCode(state({ loops: main, free: { list: [], segments: [] } }), 'engine'))
+  })
+
+  it('en el código que se enseña: sin límites, y en una sola célula va dentro del mismo stack', () => {
+    const f = freeCell(9, drums(0, 8))
+    const code = songCode(state({ loops: main, free: { list: [f], segments: [{ cellId: 9, from: 0, to: null }] } }))
+    expect(code).toContain('// célula libre · célula 9')
+    expect(code).not.toContain('filterHaps')
+    expect(code.startsWith('setcpm(174/4)\nstack(')).toBe(true)
+  })
+
+  it('en una canción de varias células, la canción y las libres suenan a la vez: un stack que junta arrange y las libres', () => {
+    const cells = [
+      { id: 1, loops: [loop('bd', [0])], parts: { bass: false, chords: false }, turns: 2 as const },
+      { id: 2, loops: [loop('sd', [4])], parts: { bass: false, chords: false }, turns: 2 as const },
+    ]
+    const f = freeCell(9, drums(0, 8))
+    const withFree = songCode(state({ cells: { list: cells, order: [1, 2], window: [] }, free: { list: [f], segments: [{ cellId: 9, from: 0, to: null }] } }))
+    const plain = songCode(state({ cells: { list: cells, order: [1, 2], window: [] } }))
+    expect(plain).toContain('arrange(')
+    expect(plain).not.toContain('stack(\n  arrange(')
+    expect(withFree).toContain('stack(\n  arrange(')
+    expect(withFree).toContain('// célula libre · célula 9')
+    // la canción es la misma dentro del stack
+    expect(withFree.replace(/\n  /g, '\n')).toContain('[2, stack(')
+    expect(withFree.trimEnd().endsWith(')')).toBe(true)
+  })
+})

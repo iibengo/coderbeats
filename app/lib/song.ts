@@ -33,6 +33,12 @@ export interface SongState {
    * - engine: solo los tramos de `window` (la célula que suena y la siguiente), acotados a sus compases.
    */
   cells?: { list: CellCode[]; order: number[]; window: Segment[] }
+  /**
+   * Células libres que suenan en paralelo (spec 005, §13.1): sus loops y los tramos en los que corren
+   * (en el motor, desde el compás en que se encienden hasta el en que se apagan; en el código que se
+   * enseña, todas las encendidas, sin límite).
+   */
+  free?: { list: CellCode[]; segments: Segment[] }
 }
 
 /** Lo que necesita el generador de cada célula. */
@@ -146,6 +152,28 @@ function backgroundLines(st: SongState, bass: boolean, chords: boolean, engine: 
 
 const cellLabel = (c: Pick<Cell, 'id' | 'name'>) => c.name ?? `célula ${c.id}`
 
+/**
+ * Las células libres que suenan en paralelo (§13.1): cada una, su propio `stack` con su fase (empieza en
+ * su compás de encendido). En el motor va acotada a sus compases con `filterHaps`; en el código que se
+ * enseña, sin límites.
+ */
+function freeLines(st: SongState, mode: SongMode, duck: boolean, ind: string): string[] {
+  if (!st.free) return []
+  const out: string[] = []
+  for (const seg of st.free.segments) {
+    const cell = st.free.list.find((c) => c.id === seg.cellId)
+    if (!cell) continue
+    const inner = loopsLines(cell.loops, st, mode, duck, ind + IND, mode === 'engine' ? seg.from : 0)
+    if (!inner.length) continue
+    out.push(`${ind}// célula libre · ${cellLabel(cell)}`)
+    if (mode === 'engine') {
+      const range = seg.to === null ? `h.whole.begin >= ${seg.from}` : `h.whole.begin >= ${seg.from} && h.whole.begin < ${seg.to}`
+      out.push(`${ind}stack(`, ...inner, `${ind}).filterHaps((h) => ${range}),`)
+    } else out.push(`${ind}stack(`, ...inner, `${ind}),`)
+  }
+  return out
+}
+
 /** Código Strudel completo del estado. Determinista. */
 export function songCode(st: SongState, mode: SongMode = 'display'): string {
   const multi = !!st.cells && st.cells.order.length > 1
@@ -184,7 +212,9 @@ export function songCode(st: SongState, mode: SongMode = 'display'): string {
     out.push(`${IND}// tus loops`)
     out.push(...loopsLines(st.loops, st, mode, duck, IND))
   }
-  if (!showBass && !showChords && !st.loops.length && !engine) out.push(`${IND}silence,`)
+  const free = freeLines(st, mode, duck, IND)
+  out.push(...free)
+  if (!showBass && !showChords && !st.loops.length && !free.length && !engine && !multi) out.push(`${IND}silence,`)
 
   const djf = filterDjf(st.fx.filter)
   let tail = ')'
@@ -205,6 +235,7 @@ function songArrangeCode(st: SongState): string {
   const bgOn = st.background.mode !== 'off'
   const out: string[] = [`setcpm(${st.bpm ?? style.bpm}/4)`, `// ${style.label.toLowerCase()} · ${music.key}`, 'arrange(']
   const ind = IND + IND
+  const freeBlock = freeLines(st, 'display', bgOn && list.some((c) => c.parts.bass || c.parts.chords), IND)
   for (const id of order) {
     const cell = list.find((c) => c.id === id)
     if (!cell) continue
@@ -216,6 +247,12 @@ function songArrangeCode(st: SongState): string {
     else out.push(`${IND}[${cell.turns}, stack(`, ...lines, `${IND})],`)
   }
   const djf = filterDjf(st.fx.filter)
+  if (freeBlock.length) {
+    // con células libres, la canción y las libres suenan a la vez: un `stack` que las junta
+    const head = out.slice(0, 2)
+    const body = out.slice(3).map((l) => `${IND}${l}`)
+    return [...head, 'stack(', `${IND}arrange(`, ...body, `${IND}),`, ...freeBlock, djf < 0.5 ? `).djf(${djf})` : ')'].join('\n')
+  }
   out.push(djf < 0.5 ? `).djf(${djf})` : ')')
   return out.join('\n')
 }
