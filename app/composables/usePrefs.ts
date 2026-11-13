@@ -1,4 +1,5 @@
 import type { BackgroundMode, Parts } from '~/lib/background'
+import type { BassPattern } from '~/lib/bass'
 import type { LoopsState } from '~/lib/freeLoops'
 import type { LoopLength } from '~/lib/phrases'
 import type { SongFx } from '~/lib/song'
@@ -22,6 +23,8 @@ export interface StudioPrefs {
   maxPhraseBars: LoopLength
   fx: SongFx
   theme: string
+  /** bajo editado en el aro, por estilo (spec 003, E1.4) */
+  bassEdits?: Partial<Record<StyleId, BassPattern>>
 }
 
 function read<T>(key: string, valid: (x: unknown) => x is T): T | null {
@@ -66,6 +69,7 @@ export function usePrefs() {
       // 'accumulate' (antes de §16.19) pasa a 'complete'
       engine.setRepeatMode((p.repeatMode as string) === 'accumulate' ? 'complete' : p.repeatMode)
       engine.setFx(p.fx)
+      if (p.bassEdits) engine.bassEdits.value = p.bassEdits
     }
     const l = read(LOOPS_KEY, isLoops)
     if (l && !engine.loops.value.loops.length) engine.setLoops(l)
@@ -88,6 +92,7 @@ export function usePrefs() {
           maxPhraseBars: engine.maxPhraseBars.value,
           fx: { ...engine.fx },
           theme: 'water',
+          bassEdits: engine.bassEdits.value,
         }) satisfies StudioPrefs,
       (p) => write(PREFS_KEY, p),
       { deep: true },

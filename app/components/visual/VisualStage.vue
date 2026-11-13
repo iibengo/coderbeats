@@ -1,17 +1,18 @@
 <script setup lang="ts">
 // Capa visual común (§16.14, §16.16, §16.17; spec 003): canvas del tema, el aro (gota con una
-// franja por instrumento), loops flotantes (tocar = silenciar, mantener = borrar), bolas del
-// fondo manual, gestos sobre el agua y bucle rAF único.
+// franja por instrumento, que se toca con un dedo), fila de bolas de los loops (tocar = silenciar,
+// mantener = borrar), bolas del fondo manual, gestos de dos dedos (filtro, espacio, fondo) y
+// bucle rAF único.
 import { allWeights, stepWeights, type Weights } from '~/lib/aro/bands'
 import type { DropGeo } from '~/lib/aro/shape'
 import type { Part } from '~/lib/background'
 import { notesInBar } from '~/lib/bass'
 import { STYLES } from '~/lib/constants'
-import { spawnPoint, stepDrift, type Body, type DriftBounds } from '~/lib/drift'
 import { loopBarAt } from '~/lib/freeLoops'
 import { dragValue, lockAxis, type Axis } from '~/lib/gestures'
-import { VOICE_HEX } from '~/lib/palette'
-import { STYLE_MUSIC } from '~/lib/styles'
+import { addHit, moveBassNote, moveHit, removeHit, type EditOptions } from '~/lib/loopEdit'
+import { VOICE_HEX, type Voice } from '~/lib/palette'
+import { INSTRUMENTS } from '~/lib/constants'
 import type { Instrument } from '~/lib/types'
 import { DEFAULT_THEME, themeById } from '~/themes'
 import type { VisualTheme } from '~/themes/types'
@@ -31,9 +32,13 @@ const rendererName = ref('')
 
 // ── geometría (todo centrado en la ventana, también en escritorio) ───────────────
 const PLAY_FROM_BOTTOM = 56 // centro del botón Play desde abajo (px)
-/** zona de arriba (estilo y ⋯) y de abajo (Play y bolas del fondo) que la gota no pisa (E1.8) */
+/** fila de bolas de los loops: encima de Play (E1.1) */
+const ROW_FROM_BOTTOM = PLAY_FROM_BOTTOM + 62
+const BALL = 22
+const BALL_GAP = 36
+/** zona de arriba (estilo y ⋯) y de abajo (fila de bolas, Play y fondo) que la gota no pisa (E1.8) */
 const TOP_UI = 52
-const BOTTOM_UI = PLAY_FROM_BOTTOM + 52
+const BOTTOM_UI = ROW_FROM_BOTTOM + 20
 const ringGeo = computed(() => {
   const r = Math.max(70, Math.min(view.w * 0.3, view.h * 0.22, 260))
   return { x: view.w / 2, y: Math.min(view.h * 0.43, view.h - PLAY_FROM_BOTTOM - 120 - r), r }
@@ -53,37 +58,39 @@ const bgBalls = computed(() => {
     { part: 'chords' as Part, label: 'acordes', x: view.w / 2 + 96, y },
   ]
 })
-const bounds = computed<DriftBounds>(() => ({
-  w: view.w,
-  h: view.h,
-  margin: 16,
-  avoid: [
-    { x: ringGeo.value.x, y: ringGeo.value.y, r: ringGeo.value.r * 1.04 + 26 },
-    { x: view.w / 2, y: view.h - PLAY_FROM_BOTTOM, r: 52 }, // Play
-    ...bgBalls.value.map((b) => ({ x: b.x, y: b.y, r: 40 })),
-    { x: view.w / 2, y: 28, r: 40 }, // estilo
-    { x: view.w - 28, y: 28, r: 26 }, // ⋯
-  ],
-  // los loops flotan alrededor del anillo (§16.18)
-  orbit: { x: ringGeo.value.x, y: ringGeo.value.y, r: ringGeo.value.r + 36, band: Math.max(70, ringGeo.value.r * 0.55) },
-}))
-const loopSize = (hits: number) => 26 + Math.min(14, hits * 1.5)
+/** posición de cada bola en la fila, por orden de instrumento (bombo, caja, platillo) */
+const rowSlots = computed(() => {
+  const order = [...loops.value.loops].sort(
+    (a, b) => INSTRUMENTS.indexOf(a.instrument) - INSTRUMENTS.indexOf(b.instrument) || a.id - b.id,
+  )
+  const y = view.h - ROW_FROM_BOTTOM
+  const x0 = view.w / 2 - ((order.length - 1) * BALL_GAP) / 2
+  return new Map(order.map((l, i) => [l.id, { x: x0 + i * BALL_GAP, y }]))
+})
 
-// ── aro: golpes de cada loop en el compás que suena ─────────────────────────────
+// ── aro: golpes de cada loop en el compás que se ve ─────────────────────────────
+/** compás congelado mientras se arrastra un golpe (E1.1): se edita el compás que se ve */
+const editBar = ref<number | null>(null)
+const shownBar = () => editBar.value ?? (playing.value ? currentBar.value : 0)
+const dotKey = (loopId: number, pos: number) => (loopId < 0 ? `bass-${pos}` : `${loopId}-${Math.round(pos * 100)}`)
 const ringDots = computed<AroDot[]>(() => {
-  const g = playing.value ? currentBar.value : 0
+  const g = shownBar()
   const out: AroDot[] = []
   for (const l of loops.value.loops) {
     const bar = loopBarAt(l, g)
     for (const h of l.hits) {
       if (h.pos < bar * 16 - 0.5 || h.pos >= bar * 16 + 15.5) continue
       const step = h.pos - bar * 16
-      out.push({ key: `${l.id}-${Math.round(h.pos * 100)}`, loopId: l.id, step, voice: l.instrument, muted: l.muted })
+      out.push({ key: dotKey(l.id, h.pos), loopId: l.id, step, pos: h.pos, voice: l.instrument, muted: l.muted })
     }
   }
-  // el bajo del fondo: sus notas del compás que suena (rayitas; spec 003 §3)
-  for (const n of notesInBar(STYLE_MUSIC[style.value].background.bass, g))
-    out.push({ key: `bass-${n.pos}`, loopId: -1, step: n.pos, voice: 'bass', muted: false })
+  // el bajo del fondo (o el editado): sus notas del compás que se ve (rayitas; spec 003 §3)
+  const bass = engine.bassPattern()
+  const bar = ((g % bass.bars) + bass.bars) % bass.bars
+  for (const n of notesInBar(bass, g)) {
+    const pos = bar * 16 + n.pos
+    out.push({ key: dotKey(-1, pos), loopId: -1, step: n.pos, pos, voice: 'bass', muted: false })
+  }
   return out
 })
 const phraseDots = computed(() =>
@@ -106,7 +113,13 @@ const targetWeights = computed<Weights>(() => {
 })
 let weights: Weights = { ...allWeights(1), bass: 0, mel: 0 }
 
-// ── loops flotantes (posición fuera de la reactividad; se escribe en el DOM en cada frame) ──
+// ── bolas de los loops (posición fuera de la reactividad; se escribe en el DOM en cada frame) ──
+interface Body {
+  id: number
+  x: number
+  y: number
+  r: number
+}
 const bodies = new Map<number, Body>()
 const falls = new Map<number, { t0: number; t1: number; fromX: number; fromY: number }>()
 const els = new Map<number, HTMLElement>()
@@ -128,15 +141,11 @@ const pulse = (el: HTMLElement | undefined, instrument: keyof typeof PULSE_AMP) 
   el.dataset.amp = String(PULSE_AMP[instrument])
 }
 
-function ensureBody(id: number, hits: number) {
-  const r = loopSize(hits) / 2
+function ensureBody(id: number) {
   const b = bodies.get(id)
-  if (b) {
-    b.r = r
-    return b
-  }
-  const p = spawnPoint([...bodies.values()], bounds.value, r)
-  const nb: Body = { id, x: p.x, y: p.y, vx: 0, vy: 0, r }
+  if (b) return b
+  const p = rowSlots.value.get(id) ?? { x: view.w / 2, y: view.h - ROW_FROM_BOTTOM }
+  const nb: Body = { id, x: p.x, y: p.y, r: BALL / 2 }
   bodies.set(id, nb)
   return nb
 }
@@ -146,7 +155,7 @@ watch(
   (ls) => {
     const ids = new Set(ls.map((l) => l.id))
     for (const id of [...bodies.keys()]) if (!ids.has(id)) bodies.delete(id)
-    for (const l of ls) ensureBody(l.id, l.hits.length)
+    for (const l of ls) ensureBody(l.id)
   },
   { immediate: true },
 )
@@ -191,7 +200,7 @@ function onEngineVisual(h: Parameters<Parameters<typeof engine.onVisual>[0]>[0])
   }
   if (h.kind === 'birth' && h.loopId !== null) {
     const id = h.loopId
-    const b = bodies.get(id) ?? ensureBody(id, 4)
+    const b = bodies.get(id) ?? ensureBody(id)
     const now = engine.clockNow().time
     const fallSec = Math.max(0.22, Math.min(0.6, h.time - now))
     const t0 = performance.now() / 1000
@@ -226,7 +235,6 @@ function onEngineVisual(h: Parameters<Parameters<typeof engine.onVisual>[0]>[0])
 let raf = 0
 let lastBeat = -1
 let lastT = 0
-let simT = 0
 const frameMs: number[] = []
 let quality = 1
 let aroDetail = 1
@@ -262,11 +270,13 @@ function tick() {
     }
   } else lastBeat = -1
 
-  // deriva de los loops
-  if (!reduced) {
-    simT += dt
-    const next = stepDrift([...bodies.values()], dt, simT, bounds.value)
-    for (const b of next) bodies.set(b.id, b)
+  // bolas quietas en su fila (E1.1); al nacer o desaparecer una, las demás se recolocan con suavidad
+  const follow = reduced ? 1 : 1 - Math.exp(-dt / 0.15)
+  for (const b of bodies.values()) {
+    const slot = rowSlots.value.get(b.id)
+    if (!slot) continue
+    b.x += (slot.x - b.x) * follow
+    b.y += (slot.y - b.y) * follow
   }
   const nowMs = performance.now()
   for (const [id, el] of els) {
@@ -292,7 +302,7 @@ function tick() {
     el.style.filter = k > 0 ? `brightness(${1 + 0.6 * k})` : ''
     // en reposo, el brillo base (color al 33 %); al latir, crece y se satura
     const glow = el.dataset.glow
-    el.style.boxShadow = glow ? `0 0 ${18 + 34 * k}px ${glow}${k > 0.05 ? '' : '55'}` : 'none'
+    el.style.boxShadow = glow ? `0 0 ${8 + 18 * k}px ${glow}${k > 0.05 ? '' : '55'}` : 'none'
   }
   for (const el of ballEls.values()) el.style.transform = `translate(-50%, -50%) scale(${pulseScale(el, nowMs)})`
 
@@ -374,12 +384,14 @@ onMounted(() => {
   mountTheme()
   offVisual = engine.onVisual(onEngineVisual)
   window.addEventListener('resize', measure)
+  document.addEventListener('gesturestart', noSafariZoom)
   raf = requestAnimationFrame(tick)
 })
 onBeforeUnmount(() => {
   cancelAnimationFrame(raf)
   offVisual?.()
   window.removeEventListener('resize', measure)
+  document.removeEventListener('gesturestart', noSafariZoom)
   theme?.dispose()
   document.documentElement.style.overflow = savedOverflow[0]
   document.body.style.overflow = savedOverflow[1]
@@ -432,42 +444,185 @@ function ballState(p: Part): 'off' | 'pending' | 'on' | 'leaving' {
   return sounding ? 'leaving' : 'off'
 }
 
-// ── interacción: gestos sobre el agua (vertical = filtro, horizontal = espacio) y 2 dedos = fondo ──
-const pointers = new Map<number, { x: number; y: number; t: number }>()
-const drag = ref<{ axis: Axis; x0: number; y0: number; filter: number; space: number; x: number; y: number } | null>(null)
-let twoFinger: { t: number; moved: boolean } | null = null
+// ── interacción: gestos (spec 003, E1.5) ────────────────────────────────────────
+// · un dedo: siempre el aro (arrastrar un golpe; tocar una franja vacía crea uno; al centro, se borra)
+// · dos dedos juntos: filtro (vertical) y espacio (horizontal), en cualquier sitio
+// · pellizcar: zoom (fase 4) · tocar con dos dedos sin moverlos: fondo sí / no
+// · ratón: dentro de la gota, el aro; fuera, filtro y espacio; la rueda, zoom (fase 4)
+const MOVE_PX = 12
+const TAP_MS = 400
+const pointers = new Map<number, { x: number; y: number; x0: number; y0: number }>()
+/** guía fina del gesto de filtro / espacio */
+const drag = ref<{ axis: Axis; x: number; y: number } | null>(null)
 
-function waterDown(e: PointerEvent) {
-  ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
-  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, t: performance.now() })
-  if (pointers.size === 2) {
-    twoFinger = { t: performance.now(), moved: false }
-    drag.value = null
+type Gesture =
+  | { kind: 'aro-drag'; id: number; dot: AroDot }
+  | { kind: 'aro-tap'; id: number; x0: number; y0: number; t: number; moved: boolean }
+  | { kind: 'fx'; id: number; x0: number; y0: number; filter: number; space: number; axis: Axis }
+  | {
+      kind: 'two'
+      t: number
+      c0: { x: number; y: number }
+      d0: number
+      mode: null | 'pan' | 'pinch'
+      axis: Axis
+      filter: number
+      space: number
+    }
+let gesture: Gesture | null = null
+
+const isDrum = (v: Voice | null): v is Instrument => v === 'bd' || v === 'sd' || v === 'hh'
+const editOptions = (): EditOptions => ({ assist: engine.assist.value, quantizeEvery: STYLES[style.value].quantizeEvery })
+
+function twoPoints() {
+  const [a, b] = [...pointers.values()]
+  return { c: { x: (a!.x + b!.x) / 2, y: (a!.y + b!.y) / 2 }, d: Math.hypot(a!.x - b!.x, a!.y - b!.y) }
+}
+
+/** El golpe vuelve a su sitio con rebote (soltado donde no puede ir). */
+function bounceBack(dot: AroDot, x: number, y: number) {
+  const w = aro?.where(x, y)
+  if (w) aro?.settle(dot.key, w.th, w.u)
+  else aro?.setDrag(null)
+}
+
+function cancelAroDrag() {
+  if (gesture?.kind !== 'aro-drag') return
+  const p = pointers.get(gesture.id)
+  bounceBack(gesture.dot, p?.x ?? 0, p?.y ?? 0)
+  editBar.value = null
+}
+
+/** Soltar un golpe (E1.4). */
+function dropDot(dot: AroDot, x: number, y: number) {
+  if (!aro) return
+  const w = aro.where(x, y)
+  const o = editOptions()
+  const g = shownBar()
+  // el bajo se mueve solo en el tiempo y no sale de su franja
+  if (dot.loopId < 0) {
+    if (w.voice !== 'bass') return bounceBack(dot, x, y)
+    const r = moveBassNote(engine.bassPattern(), dot.pos, w.step, o)
+    if (!r) return bounceBack(dot, x, y)
+    engine.setBass(r.pattern)
+    aro.settle(dotKey(-1, r.pos), w.th, w.u)
     return
   }
-  drag.value = { axis: null, x0: e.clientX, y0: e.clientY, filter: fx.filter, space: fx.space, x: e.clientX, y: e.clientY }
+  // al centro: se borra con una salpicadura
+  if (w.u < 0) {
+    aro.setDrag(null)
+    aro.splash(x, y, dot.voice)
+    engine.editLoops(removeHit(loops.value, dot.loopId, dot.pos))
+    return
+  }
+  // fuera de la gota: a la franja de fuera (platillo); solo entre baterías
+  const target = w.u >= 1 ? 'hh' : w.voice
+  if (!isDrum(target) || !isDrum(dot.voice)) return bounceBack(dot, x, y)
+  const r = moveHit(loops.value, dot.loopId, dot.pos, target, w.step, g, o)
+  if (!r) return bounceBack(dot, x, y)
+  engine.editLoops(r.state)
+  aro.settle(dotKey(r.hit.loopId, r.hit.pos), w.th, Math.min(1, w.u))
 }
-function waterMove(e: PointerEvent) {
+
+/** Tocar una franja vacía de batería: crea un golpe ahí, ya imantado. */
+function tapCreate(x: number, y: number) {
+  if (!aro) return
+  const w = aro.where(x, y)
+  if (!isDrum(w.voice)) return
+  const r = addHit(loops.value, w.voice, w.step, shownBar(), editOptions())
+  if (!r) return
+  engine.editLoops(r.state)
+  aro.spawn(dotKey(r.hit.loopId, r.hit.pos), w.th)
+}
+
+function onDown(e: PointerEvent) {
+  ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY })
+  const mouse = e.pointerType === 'mouse'
+  if (!mouse && pointers.size === 2) {
+    // entra el segundo dedo: lo que hiciera el primero se deshace
+    cancelAroDrag()
+    const { c, d } = twoPoints()
+    gesture = { kind: 'two', t: performance.now(), c0: c, d0: d, mode: null, axis: null, filter: fx.filter, space: fx.space }
+    return
+  }
+  if (pointers.size !== 1) return
+  const x = e.clientX
+  const y = e.clientY
+  const dot = aro?.pick(x, y)
+  if (dot) {
+    editBar.value = shownBar()
+    gesture = { kind: 'aro-drag', id: e.pointerId, dot }
+    aro!.setDrag(dot.key, x, y)
+    return
+  }
+  const w = aro?.where(x, y)
+  const inside = !!w && w.u <= 1
+  if (inside) gesture = { kind: 'aro-tap', id: e.pointerId, x0: x, y0: y, t: performance.now(), moved: false }
+  else if (mouse) gesture = { kind: 'fx', id: e.pointerId, x0: x, y0: y, filter: fx.filter, space: fx.space, axis: null }
+  else gesture = null
+}
+
+function onMove(e: PointerEvent) {
   const p = pointers.get(e.pointerId)
-  if (p && twoFinger && Math.hypot(e.clientX - p.x, e.clientY - p.y) > 12) twoFinger.moved = true
-  const d = drag.value
-  if (!d || pointers.size !== 1) return
-  d.x = e.clientX
-  d.y = e.clientY
-  const dx = e.clientX - d.x0
-  const dy = e.clientY - d.y0
-  d.axis ??= lockAxis(dx, dy)
-  if (d.axis === 'y') engine.setFx({ filter: dragValue(d.filter, 'y', dy, view.h) })
-  if (d.axis === 'x') engine.setFx({ space: dragValue(d.space, 'x', dx, view.w) })
+  if (!p) return
+  p.x = e.clientX
+  p.y = e.clientY
+  const gs = gesture
+  if (!gs) return
+  if (gs.kind === 'aro-drag' && gs.id === e.pointerId) aro?.setDrag(gs.dot.key, p.x, p.y)
+  else if (gs.kind === 'aro-tap' && gs.id === e.pointerId) {
+    if (Math.hypot(p.x - gs.x0, p.y - gs.y0) > MOVE_PX) gs.moved = true
+  } else if (gs.kind === 'fx' && gs.id === e.pointerId) {
+    const dx = p.x - gs.x0
+    const dy = p.y - gs.y0
+    gs.axis ??= lockAxis(dx, dy)
+    applyFx(gs.axis, gs.filter, gs.space, dx, dy, p.x, p.y)
+  } else if (gs.kind === 'two' && pointers.size === 2) {
+    const { c, d } = twoPoints()
+    const dcx = c.x - gs.c0.x
+    const dcy = c.y - gs.c0.y
+    const dd = d - gs.d0
+    // arrastre o pellizco: se decide tras 12 px, para todo el gesto
+    if (!gs.mode && Math.max(Math.hypot(dcx, dcy), Math.abs(dd)) > MOVE_PX)
+      gs.mode = Math.abs(dd) > Math.hypot(dcx, dcy) ? 'pinch' : 'pan'
+    if (gs.mode === 'pan') {
+      gs.axis ??= lockAxis(dcx, dcy)
+      applyFx(gs.axis, gs.filter, gs.space, dcx, dcy, c.x, c.y)
+    }
+    // pellizco: zoom de la gota en la fase 4
+  }
 }
-function waterUp(e: PointerEvent) {
+
+function applyFx(axis: Axis, filter: number, space: number, dx: number, dy: number, x: number, y: number) {
+  if (!axis) return
+  drag.value = { axis, x, y }
+  if (axis === 'y') engine.setFx({ filter: dragValue(filter, 'y', dy, view.h) })
+  else engine.setFx({ space: dragValue(space, 'x', dx, view.w) })
+}
+
+function onUp(e: PointerEvent, cancelled = false) {
+  const p = pointers.get(e.pointerId)
+  const gs = gesture
+  if (gs?.kind === 'aro-drag' && gs.id === e.pointerId) {
+    if (cancelled || !p) cancelAroDrag()
+    else dropDot(gs.dot, p.x, p.y)
+    editBar.value = null
+    gesture = null
+  } else if (gs?.kind === 'aro-tap' && gs.id === e.pointerId) {
+    if (!cancelled && p && !gs.moved && performance.now() - gs.t < 500) tapCreate(p.x, p.y)
+    gesture = null
+  } else if (gs?.kind === 'fx' && gs.id === e.pointerId) gesture = null
   pointers.delete(e.pointerId)
-  if (twoFinger && pointers.size === 0) {
-    if (!twoFinger.moved && performance.now() - twoFinger.t < 400) engine.toggleBackground()
-    twoFinger = null
+  if (gs?.kind === 'two' && pointers.size === 0) {
+    if (!cancelled && !gs.mode && performance.now() - gs.t < TAP_MS) engine.toggleBackground()
+    gesture = null
   }
   if (pointers.size === 0) drag.value = null
 }
+
+/** iOS: sin el zoom propio de Safari con dos dedos (E1.5) */
+const noSafariZoom = (e: Event) => e.preventDefault()
 
 const fill: Record<Instrument, string> = { bd: VOICE_HEX.bd, sd: VOICE_HEX.sd, hh: VOICE_HEX.hh }
 /** medidas reales de la ventana, para el diagnóstico (§16.18) */
@@ -489,10 +644,10 @@ defineExpose({ rendererName, layoutInfo })
     ref="root"
     class="touch-none bg-ink select-none"
     style="position: fixed; inset: 0; overflow: hidden"
-    @pointerdown="waterDown"
-    @pointermove="waterMove"
-    @pointerup="waterUp"
-    @pointercancel="waterUp"
+    @pointerdown="onDown"
+    @pointermove="onMove"
+    @pointerup="onUp($event)"
+    @pointercancel="onUp($event, true)"
   >
     <div ref="canvasHost" style="position: absolute; inset: 0" />
 
@@ -532,15 +687,15 @@ defineExpose({ rendererName, layoutInfo })
       </button>
     </template>
 
-    <!-- loops flotantes -->
+    <!-- bolas de los loops: pequeñas y quietas, en fila (spec 003, E1.1) -->
     <button
       v-for="l in loops.loops"
       :key="l.id"
       :ref="setEl(l.id)"
-      class="absolute top-0 left-0 rounded-full will-change-transform"
+      class="loop-ball absolute top-0 left-0 rounded-full will-change-transform"
       :style="{
-        width: `${loopSize(l.hits.length)}px`,
-        height: `${loopSize(l.hits.length)}px`,
+        width: `${BALL}px`,
+        height: `${BALL}px`,
         background: l.muted ? 'transparent' : fill[l.instrument],
         border: `2px solid ${fill[l.instrument]}`,
         opacity: l.muted ? 0.45 : 1,
@@ -561,6 +716,13 @@ defineExpose({ rendererName, layoutInfo })
 </template>
 
 <style scoped>
+/* zona de toque de 40 px aunque la bola mida 22 */
+.loop-ball::after {
+  content: '';
+  position: absolute;
+  inset: -9px;
+  border-radius: 9999px;
+}
 .bg-ball {
   width: 44px;
   height: 44px;

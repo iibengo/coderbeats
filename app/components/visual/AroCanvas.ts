@@ -1,11 +1,25 @@
 /**
- * Dibujo del aro en Canvas 2D (spec 003, fases 1 y 2): la gota, sus franjas, la aguja, los golpes
+ * Dibujo del aro en Canvas 2D (spec 003, fases 1–3): la gota, sus franjas, la aguja, los golpes
  * (puntos; el bajo, rayitas) y lo que pasa al sonar: una onda pequeña en el golpe y un arco fino
  * que corre por su franja, y en el bombo un latido desde el centro que empuja el borde.
- * Solo dibuja; no toca el audio ni el estado. La interacción llega en la fase 3.
+ * Para el tacto: elegir el golpe bajo el dedo, dibujarlo mientras se arrastra, el muelle con rebote
+ * al soltarlo, la aparición de un golpe nuevo y la salpicadura al borrarlo.
+ * Solo dibuja; no toca el audio ni el estado.
  */
-import { bandLayout, bandMid, BAND_ORDER, type Layout, type Weights } from '~/lib/aro/bands'
-import { BREATH, bumpAt, bumpEnvelope, INNER_WOBBLE, outerRadius, radiusAt, stepAngle, TAU, type Bump, type DropGeo } from '~/lib/aro/shape'
+import { bandAt, bandLayout, bandMid, BAND_ORDER, type Layout, type Weights } from '~/lib/aro/bands'
+import {
+  angleStep,
+  BREATH,
+  bumpAt,
+  bumpEnvelope,
+  INNER_WOBBLE,
+  outerRadius,
+  radiusAt,
+  stepAngle,
+  TAU,
+  type Bump,
+  type DropGeo,
+} from '~/lib/aro/shape'
 import { INK, VOICE_RGB_CSS, type Voice } from '~/lib/palette'
 
 export interface AroDot {
@@ -14,8 +28,21 @@ export interface AroDot {
   loopId: number
   /** paso dentro del compás, 0..16 (decimal sin ayuda) */
   step: number
+  /** posición en su loop (o en el patrón del bajo), en semicorcheas: identifica el golpe */
+  pos: number
   voice: Voice
   muted: boolean
+}
+
+/** Dónde cae un punto de la pantalla en el aro. */
+export interface AroPlace {
+  th: number
+  /** 0 = borde del centro, 1 = borde exterior (< 0 = centro, > 1 = fuera) */
+  u: number
+  /** paso del compás, 0..16 */
+  step: number
+  /** franja visible bajo el punto, o null */
+  voice: Voice | null
 }
 
 export interface AroFrame {
@@ -49,6 +76,20 @@ const KICK_BUMP_S = 0.7
 const KICK_BUMP_PX = 9
 const KICK_CORE_S = 0.6
 const MAX_WAVES = 32
+/** distancia máxima del dedo a un golpe para cogerlo (px) */
+const PICK_PX = 26
+/** muelle del imán: tirón y amortiguación por frame de 60 Hz (como el boceto) */
+const SPRING_K = 0.09
+const SPRING_DAMP = 0.78
+const SPAWN_TAU = 0.12
+const POP_S = 0.7
+
+interface Spring {
+  th: number
+  u: number
+  vth: number
+  vu: number
+}
 
 interface Wave {
   voice: Voice
@@ -71,6 +112,12 @@ export class AroCanvas {
   /** radio exterior muestreado en cada frame (con los empujones); lo usan franjas, golpes y ondas */
   private ro = new Float32Array(0)
   private wob = INNER_WOBBLE
+  private weights: Weights | null = null
+  private drag: { key: string; th: number; u: number } | null = null
+  private springs = new Map<string, Spring>()
+  private spawns = new Map<string, number>()
+  private pops: { x: number; y: number; voice: Voice; born: number }[] = []
+  private lastNow = 0
 
   constructor(private canvas: HTMLCanvasElement) {
     const ctx = canvas.getContext('2d')
@@ -115,6 +162,66 @@ export class AroCanvas {
       this.kick = now
       this.bumps.push({ th, a: 0, a0: KICK_BUMP_PX, born: now })
     }
+  }
+
+  /** Dónde cae (px, py) en el aro. */
+  where(px: number, py: number): AroPlace {
+    const L = this.last
+    if (!L || !this.weights) return { th: 0, u: 2, step: 0, voice: null }
+    const dx = px - L.geo.cx
+    const dy = py - L.geo.cy
+    const th = Math.atan2(dy, dx)
+    const u = (Math.hypot(dx, dy) - L.geo.core) / Math.max(1, this.roAt(th) - L.geo.core)
+    return { th, u, step: angleStep(th), voice: bandAt(u, L.layout, this.weights) }
+  }
+
+  /** Golpe más cercano a (px, py), a menos de 26 px, de una franja visible. */
+  pick(px: number, py: number): AroDot | null {
+    const L = this.last
+    if (!L || !this.weights) return null
+    let best: AroDot | null = null
+    let bd = PICK_PX
+    for (const d of L.dots) {
+      if (this.weights[d.voice] < 0.5) continue
+      const [x, y] = this.at(stepAngle(d.step), bandMid(d.voice, L.layout))
+      const dd = Math.hypot(x - px, y - py)
+      if (dd < bd) {
+        bd = dd
+        best = d
+      }
+    }
+    return best
+  }
+
+  /** Arrastra un golpe: se dibuja libre bajo el dedo. `null` lo suelta (sin animar). */
+  setDrag(key: string | null, px = 0, py = 0) {
+    if (!key) {
+      this.drag = null
+      return
+    }
+    const w = this.where(px, py)
+    this.drag = { key, th: w.th, u: w.u }
+  }
+
+  /** Al soltar: el golpe `key` sale de (th, u) y se desliza a su sitio con un pequeño rebote. */
+  settle(key: string, th: number, u: number) {
+    this.drag = null
+    if (this.reduced) return // el imán coloca sin muelle (E1.7)
+    this.springs.set(key, { th, u, vth: 0, vu: 0 })
+  }
+
+  /** Golpe recién creado: aparece creciendo, con un empujoncito del borde. */
+  spawn(key: string, th: number) {
+    if (this.reduced) return
+    const now = performance.now() / 1000
+    this.spawns.set(key, now)
+    this.bumps.push({ th, a: 0, a0: 6, born: now })
+  }
+
+  /** Golpe borrado en el centro: una pequeña salpicadura. */
+  splash(px: number, py: number, voice: Voice) {
+    if (this.reduced) return
+    this.pops.push({ x: px, y: py, voice, born: performance.now() / 1000 })
   }
 
   /** Posición (px CSS) de un paso en el centro de la franja de una voz. */
@@ -177,7 +284,10 @@ export class AroCanvas {
     this.wob = f.reduced ? INNER_WOBBLE * 0.6 : this.detail < 0.75 ? 0 : INNER_WOBBLE // quieta, pero imperfecta
     const layout = bandLayout(f.weights)
     this.last = { geo, layout, t, dots: f.dots }
+    this.weights = f.weights
     const now = performance.now() / 1000
+    const frames = Math.min(3, Math.max(1, Math.round((now - (this.lastNow || now - 1 / 60)) * 60)))
+    this.lastNow = now
     x.clearRect(0, 0, this.w, this.h)
 
     // empujones del borde (latido del bombo)
@@ -268,11 +378,36 @@ export class AroCanvas {
 
     // golpes: puntos; el bajo, rayitas
     const head = stepAngle(f.phase * 16)
+    let dragged: { d: AroDot; px: number; py: number; r: number } | null = null
     for (const d of f.dots) {
-      const wt = f.weights[d.voice]
+      const isDrag = this.drag?.key === d.key
+      const wt = isDrag ? 1 : f.weights[d.voice]
       if (wt < 0.05) continue
-      const th = stepAngle(d.step)
-      const [px, py] = this.at(th, bandMid(d.voice, layout))
+      let th = stepAngle(d.step)
+      let u = bandMid(d.voice, layout)
+      // arrastrado: bajo el dedo; recién soltado: muelle hacia su sitio (imán)
+      if (isDrag) {
+        th = this.drag!.th
+        u = this.drag!.u
+      } else {
+        const sp = this.springs.get(d.key)
+        if (sp) {
+          for (let i = 0; i < frames; i++) {
+            const dth = ((th - sp.th + Math.PI * 3) % TAU) - Math.PI
+            sp.vth = (sp.vth + dth * SPRING_K) * SPRING_DAMP
+            sp.th += sp.vth
+            sp.vu = (sp.vu + (u - sp.u) * SPRING_K) * SPRING_DAMP
+            sp.u += sp.vu
+          }
+          const done = Math.abs(((th - sp.th + Math.PI * 3) % TAU) - Math.PI) < 1e-3 && Math.abs(u - sp.u) < 1e-3
+          if (done && Math.abs(sp.vth) < 1e-3 && Math.abs(sp.vu) < 1e-3) this.springs.delete(d.key)
+          else {
+            th = sp.th
+            u = sp.u
+          }
+        }
+      }
+      const [px, py] = this.at(th, u)
       const dd = f.playing ? Math.abs(((th - head + Math.PI * 3) % TAU) - Math.PI) : Math.PI
       const near = f.reduced ? 0 : Math.exp(-dd * dd * 30)
       const since = now - (this.flashes.get(d.key) ?? -1e9)
@@ -280,7 +415,11 @@ export class AroCanvas {
       const hl = f.highlight === d.loopId
       const faded = f.highlight !== null && !hl
       const grow = f.reduced ? 0 : near * 2 + fl * 1.5
-      const r = (DOT_R[d.voice] + grow) * (hl ? 1.45 : 1) * wt
+      const born = this.spawns.get(d.key)
+      const spawnK = born === undefined ? 0 : Math.exp(-(now - born) / SPAWN_TAU)
+      if (born !== undefined && spawnK < 0.01) this.spawns.delete(d.key)
+      const r = (DOT_R[d.voice] + grow) * (hl ? 1.45 : 1) * (isDrag ? 1.8 : 1) * (1 - spawnK * 0.8) * wt
+      if (isDrag) dragged = { d, px, py, r }
       const col = VOICE_RGB_CSS[d.voice]
       const alpha = (0.55 + Math.max(near, fl) * 0.45) * (faded ? 0.25 : 1)
       if (d.voice === 'bass') {
@@ -311,6 +450,28 @@ export class AroCanvas {
       }
     }
     for (const [k, at] of this.flashes) if (now - at > FLASH_TAU * 6) this.flashes.delete(k)
+    // muelles de golpes que ya no existen (p. ej. borrados)
+    if (this.springs.size) for (const k of this.springs.keys()) if (!f.dots.some((d) => d.key === k)) this.springs.delete(k)
+
+    // el golpe arrastrado lleva un anillo fino
+    if (dragged) {
+      x.strokeStyle = `rgba(${VOICE_RGB_CSS[dragged.d.voice]},0.5)`
+      x.lineWidth = 1
+      x.beginPath()
+      x.arc(dragged.px, dragged.py, dragged.r + 6, 0, TAU)
+      x.stroke()
+    }
+
+    // salpicaduras de los golpes borrados
+    this.pops = this.pops.filter((p) => now - p.born < POP_S)
+    for (const p of this.pops) {
+      const k = (now - p.born) / POP_S
+      x.strokeStyle = `rgba(${VOICE_RGB_CSS[p.voice]},${(1 - k) * 0.6})`
+      x.lineWidth = 1
+      x.beginPath()
+      x.arc(p.x, p.y, 4 + k * 45, 0, TAU)
+      x.stroke()
+    }
 
     // frase en curso: al instante, más grandes
     for (const d of f.phraseDots) {
@@ -348,7 +509,8 @@ export class AroCanvas {
     }
     x.closePath()
     x.fill()
-    x.strokeStyle = 'rgba(255,255,255,0.8)'
+    // un golpe arrastrado sobre el centro se borrará al soltarlo: el borde se pone rosa
+    x.strokeStyle = this.drag && this.drag.u < 0 ? `rgba(${VOICE_RGB_CSS.bd},0.9)` : 'rgba(255,255,255,0.8)'
     x.lineWidth = 1.2
     x.stroke()
     x.fillStyle = `rgba(${VOICE_RGB_CSS.bd},1)`
