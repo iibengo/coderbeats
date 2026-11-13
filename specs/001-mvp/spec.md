@@ -610,10 +610,10 @@ Ideas para el futuro, no decisiones cerradas. Cada una tendrá su spec.
 - Con las células: una canción guardada = sus células.
 
 #### Orden de trabajo propuesto
-1. Terminar el aro (spec 003, fases 4 y 5).
-2. Melodía con la voz (spec 002).
-3. Kits y árbol de estilos (spec 004).
-4. Células (la canción).
+1. Terminar el aro (spec 003, fases 4 y 5). Hecho.
+2. Células (la canción, spec 005). Adelantada el 2026-11-13, antes que la melodía.
+3. Melodía con la voz (spec 002).
+4. Kits y árbol de estilos (spec 004).
 5. Reel y exportar.
 
 > Nota: este orden actualiza el de la lista de arriba.
