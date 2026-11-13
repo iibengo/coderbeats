@@ -160,8 +160,10 @@ Las he tomado yo al hacer las tres partes (2026-11-13); se cambian sin más.
    si lo editas, al guardar cambios se renombra. "Como nueva" guarda una distinta con lo que haya en el campo.
 3. **De qué guardada viene lo de ahora se recuerda al recargar** (`coderbeats:library:current`), para que
    "Guardar cambios" y el aviso al abrir sigan funcionando. Es solo un id; no guarda ninguna canción.
-4. **"Cargar demo" y "Borrar todo" no desvinculan** la canción de la guardada. Si luego das a "Guardar
-   cambios", sustituye la guardada por lo de ahora; el panel dice "Viene de «X»" para que se vea.
+4. **"Cargar demo", "Borrar todo" y la demo de prueba del diagnóstico desvinculan** la canción de la guardada
+   de la que venía (cambiado el 2026-11-13): el botón vuelve a "Guardar" y no se puede machacar una guardada
+   sin querer. Deshacer "Borrar todo" tampoco la vuelve a vincular. Cambiar el estilo, un golpe o el tempo, en
+   cambio, sigue siendo editar esa canción: se puede "Guardar cambios".
 5. **El "↶ deshacer" del borrado dura 8 s aunque cierres el panel:** si lo reabres a tiempo, sigue ahí.
 6. **Si borras la guardada de la que viene lo de ahora,** el botón vuelve a ser "Guardar" (nueva).
 7. **Guardar cambios sube la entrada arriba** (la lista va por la fecha de la última vez que se guardó).

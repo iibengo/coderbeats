@@ -10,6 +10,8 @@ const open = defineModel<boolean>('open', { required: true })
 const props = defineProps<{ renderer: string; layout: () => string }>()
 const emit = defineEmits<{ recalibrate: ['latency' | 'sounds'] }>()
 const engine = useAudioEngine()
+// lo que reemplaza la canción la desvincula de la guardada de la que venía (spec 006, §10.4): así "Guardar" no machaca una guardada
+const library = useLibrary()
 const { kit, assist, metronome, bgMode, phraseCloseBeats, maxPhraseBars, phraseMode, repeatMode, fx, playing, diag, echo, loops, multi, imageAuto, imageFineMs, imageDelayShown, syncTest, syncFlash } =
   engine
 
@@ -55,19 +57,24 @@ async function copyDiag() {
 function loadDemo() {
   if ((loops.value.loops.length || multi.value) && !confirm('¿Reemplazar tu canción por la demo de este estilo?')) return
   engine.loadDemo()
+  library.setCurrent(null)
   open.value = false
 }
 
 /** Prueba de rendimiento (diagnóstico): la demo repetida hasta 8 o 16 células. */
 async function stressDemo(count: 8 | 16) {
   if ((loops.value.loops.length || multi.value) && !confirm(`¿Reemplazar tu canción por la demo de prueba de ${count} células?`)) return
-  if (await engine.loadStressDemo(count)) open.value = false
+  if (await engine.loadStressDemo(count)) {
+    library.setCurrent(null)
+    open.value = false
+  }
 }
 
 /** "Borrar todo" pide confirmación y se puede deshacer unos segundos (spec 005, §7.1). */
 function clearAll() {
   if ((loops.value.loops.length || multi.value) && !confirm('¿Borrar toda la canción?')) return
   engine.clearAll()
+  library.setCurrent(null)
 }
 
 function recalibrate(what: 'latency' | 'sounds') {
