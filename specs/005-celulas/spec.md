@@ -258,8 +258,18 @@ Cada parte termina en algo que se prueba en el iPhone y en un commit con visto b
 - **1.2 Transición de agua:** estiramiento, puente, deslizamiento de cámara y barrido de filtro (§4.3, §5.2).
 - **1.3 Bucle y marcadores:** tocar la célula que suena la deja en bucle, con la chapa de vueltas; los marcadores del borde; el micro graba solo en bucle (§4.4).
 
-**Fase 2 · Mapa**
-- Zoom continuo hasta la colonia, mover el mapa, profundidad y parallax, hilos de orden, tocar para viajar, "seguir" y detalle reducido (§7).
+**Fase 2 · Mapa** (§7; decisiones en §12, 9–13)
+- **2.1 Alejar y ver** (lo mínimo):
+  - el zoom sigue por debajo del mínimo de la gota hasta que caben todas las células (mínimo = ajustar a todas, no fijo);
+  - se dibujan todas como gotas pequeñas, sin ondas ni estela; la que suena, en rosa, y la cámara sobre ella;
+  - tocar una célula viaja a ella en bucle (`travelTo`) y el zoom vuelve a cerca;
+  - `lib/aro/colony.ts` (puro, con tests): zoom → modo, ajustar a todas, posiciones, qué célula hay bajo el dedo;
+  - Hito: con la demo sonando, alejar, ver las 4 células, tocar el drop y ver cómo entra.
+- **2.2 Mover el mapa y "◎ seguir":** un dedo o el ratón arrastran el mapa y la cámara deja de seguir; "◎ seguir" (centrar) la devuelve a la que suena. Los marcadores del borde se ocultan en la colonia.
+- **2.3 Profundidad y parallax:** las del fondo hasta un 70 % y más tenues, con parallax al mover el mapa; al tocar se elige la de delante.
+- **2.4 Hilos y números:** hilos de orden entre células, con el brillo de la transición corriendo por el de la que suena, y número de vueltas junto a cada una.
+- **2.5 Rendimiento:** detalle reducido de las células de fondo en el vigilante de frames; prueba con 8 células sonando.
+- Cada parte lleva su movimiento reducido (sin parallax, la cámara corta) y su cuota del vigilante de frames.
 
 **Fase 3 · Crear**
 - 3.1 Célula vacía (cae como una gota), borrar célula y "Borrar todo" (= canción de una célula vacía).
@@ -293,3 +303,11 @@ Colocadas en el mapa en una curva suave, de izquierda a derecha, a distintas pro
 7. **Un estilo, un kit y un tempo por canción.**
 
 8. **Subida de la demo de drum and bass:** bombo y caja más los acordes, sin platillo ni bajo. El bajo se guarda para el drop (tabla de §11).
+
+**Fase 2 (aprobadas el 2026-11-13)**
+
+9. **Entrada en la colonia con histéresis:** entre el zoom mínimo de la gota (0,5) y 0,4 se queda cerca, como hoy; por debajo de 0,4 es colonia. Un pellizco algo pasado no te saca de la célula.
+10. **Gestos en la colonia:** un dedo mueve el mapa o toca una célula; los dos dedos no tienen filtro ni espacio, pero **tocar con dos dedos sin moverlos sigue cambiando el fondo sí / no**. Cerca, nada cambia.
+11. **Qué se oculta al alejar:** la chapa de vueltas, los marcadores del borde y las bolas de loops, de bajo y de acordes (son de la célula que se ve). **Play se sigue viendo.**
+12. **Dos "seguir":** el de la chapa ("▶ seguir") continúa la canción; el del mapa es "◎ seguir" y dice "centrar": devuelve la cámara a la célula que suena.
+13. **El zoom de la colonia no se guarda:** solo se guarda el de cerca (`coderbeats:aro:v1`), para no abrir la app alejada.
