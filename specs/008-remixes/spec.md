@@ -1,6 +1,6 @@
 # 008 · Remixes
 
-> Estado: **en marcha** (2026-11-14). Dos remixes: "Himno de la alegría" en dembow y "Dies Irae" en techno (con el wowo).
+> Estado: **en marcha** (2026-11-14). Tres remixes: "Himno de la alegría" en dembow, "Dies Irae" en techno (con el wowo) y "Sinfonía n.º 40" en techno (§12).
 > Parte de: spec 005 (células y su demo del dembow, §20), 002 (melodía como loop) y 006 (Mis canciones).
 
 ## 1. Idea
@@ -227,3 +227,56 @@ entran en el `wowPlan` siguen siendo la 3 y la 4).
 **Se comprueba** (`tests/unit/techno.test.ts`): la célula (vueltas, sin wowo, el filtro que sube, los dos sintes), que va
 justo antes del drop, y el código evaluado en Strudel: ruido y pad con su filtro en los compases 24–26, la caja
 8/16/16/0 golpes, **ningún evento** en el compás 27 y el bombo en el 28. **Pendiente:** escucharlo en la app.
+
+## 12. Tercer remix: la Sinfonía n.º 40 de Mozart en techno (2026-11-14)
+
+**La idea.** El tema del primer movimiento de la **Sinfonía n.º 40 en sol menor, K. 550** (Mozart, 1788; dominio público, el autor
+murió en 1791) como un techno que sube y cae dos veces, de ≈ **3 min 56 s** (126 compases a 128 bpm). Usa los kits y el master nuevos
+(spec 010): kit **Electrónico** (uzu-drumkit), bombo afinado (`kickTune`) y la cadena master «cálida».
+
+**Tonalidad y armonía.** El tema va **bajado una quinta, a do menor** (−7 semitonos), la tonalidad del techno de la app
+(bajo pedal en do, acordes `Cm–A♭–B♭–Gm`, escala de do menor). No se toca `kickTune` (`<c3 ab2 bb2 g2>`): ya sigue las raíces de
+esos acordes (do, la♭, si♭, sol). Las notas del tema se han escrito **de oído** (la célula «mi♭ re re» ×3, el salto de sexta, la
+bajada) y hay que **revisarlas contra la partitura** (dominio público); la «sensible» (si natural) está en la escala permitida de este remix.
+
+**Las doce células** (126 compases) y dos grupos en paralelo con el tema (4 células: 12 + 4 = 16, el máximo, `MAX_CELLS`):
+
+| # | Célula | Compases | Qué suena |
+|---|---|---|---|
+| 1 | **Intro** | 16 | Solo el bombo afinado; el filtro (`lpf`) se abre a partir del compás 9 (200 → 20 000 Hz) |
+| 2 | **Entra el tema** | 16 | El tema A en lead con el **wowo acid** abriéndose 500 → 4 200 Hz, sobre el bajo y el bombo (con platillo) |
+| 3 | **Groove** | 16 | Bombo, palmada con redoble, platillo y bajo; **entra el tema completo** (grupo 1: A, B, A, B) |
+| 4 | **Break** | 8 | Sin bombo: acordes y el tema en pad, que se abre |
+| 5 | **Build** | 8 | Sin bombo: caja en roll, platillo en semicorcheas, wowo house 1 400 → 8 000 Hz, bajo |
+| 6 | **Riser** | 4 | Ruido, pad y caja que se abren; el último compás, en silencio (§11) |
+| 7 | **Drop 1** | 16 | Todo (bajo, acordes, bombo, palmada, platillo) y el **platillo al entrar**; el tema **una octava más alto** (grupo 2) |
+| 8 | **Break corto** | 4 | Acordes y el tema en pad |
+| 9 | **Build 2** | 4 | Roll, platillo, wowo acid 2 000 → 4 600 Hz |
+| 10 | **Riser 2** | 2 | La versión corta (§11) |
+| 11 | **Drop 2** | 16 | **Más fuerte**: lo del Drop 1 y, además, un pad que sostiene la raíz de cada acorde |
+| 12 | **Salida** | 16 | Acordes y el tema en pad, con el platillo y el filtro cerrándose (3 200 → 350 Hz) |
+
+**Grupos en paralelo** (`Remix`'s `GroupSpec` admite ahora varias células que encienden y apagan): grupo 1 (**Tema A, Tema B**, plano) se
+enciende en el Groove y se apaga en el Break; grupo 2 (**Tema A↑, Tema B↑**, una octava más alto) se enciende en cada drop (Drop 1 y Drop 2)
+y se apaga en el Break corto y en la Salida. El tema avanza **entero**: A, B, A, B… sin repetir el mismo trozo.
+
+**Sinte nuevo `crash`** (`melody.ts`): ruido blanco de ataque inmediato, cola larga y filtro paso alto; hace de platillo (el modelo solo tiene
+bombo, caja y platillo cerrado).
+
+**Lo que no se puede con el modelo actual, y cómo se aproxima:**
+
+| Se pedía | Aproximación |
+|---|---|
+| Algo cambia **cada 8 compases** | Dentro de un bloque de 16, lo que cambia es el **filtro por vuelta** (la Intro se abre a mitad; el wowo se abre vuelta a vuelta) y el **tema** (A/B cambia cada 4); el resto de cambios van **entre células**. No hay «cada 8» dentro de una célula: un loop es de como mucho 4 compases |
+| **Redoble** de caja al final de cada bloque | El redoble (4 semicorcheas) va en el 4.º compás de un loop de 4, así que cae **cada 4 compases**, no solo al final de cada bloque de 16 |
+| **Crash al entrar cada drop** | El platillo va en el 1.er compás del loop de 4: suena al entrar **y cada 4 compases del drop** |
+| Un grupo se enciende **dos veces** (cada drop) | El motor lo hace bien (cada célula que lo enciende lo reinicia); el **código mostrado** (`groupSchedule`) solo cuenta el primer intervalo: copiado a strudel.cc, el tema del Drop 2 no suena (el resto sí) |
+| Wowo en las células de los grupos | No: el motor solo admite wowo en células de la canción (009 §4). El tema con wowo va en «Entra el tema» (en la propia célula, 4 compases que se repiten 4 veces) y el tema que avanza (Groove, drops) va en lead sin wowo |
+| Un 5.º wowo | Hay tres (Entra el tema, Build, Build 2); el motor admite cuatro |
+| Armonía propia de la sinfonía | La armonía es la del estilo techno (`Cm–A♭–B♭–Gm`, un acorde por compás), no la de Mozart; el tema, en do menor, se apoya en ella |
+
+**Se comprueba** (`tests/unit/mozart.test.ts`, `wowo.test.ts`, `remixes.test.ts`): la atribución, la estructura (12 células, 126 compases, 3 min 56 s),
+que cabe en el modelo (16 células, ida y vuelta por JSON), qué entra y sale en cada bloque, los grupos y sus disparadores, el tema (la célula de tres
+notas, todo en do menor), los wowos, el código mostrado evaluado en Strudel (el kit sin `.bank()`, el bombo afinado c·a♭·b♭·g, el Intro solo con
+bombo, el redoble 2/2/2/5, el platillo, el último compás de cada riser en silencio, el sidechain), y el código del motor en varias ventanas.
+**Pendiente:** escucharlo en la app.

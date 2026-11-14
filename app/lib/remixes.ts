@@ -73,8 +73,10 @@ const P = {
  * canción y apagado por la `off` (por nombre).
  */
 interface GroupSpec {
-  on: string
-  off?: string
+  /** la célula (o las células) de la canción que lo encienden, por nombre */
+  on: string | readonly string[]
+  /** la que lo apaga (o las que lo apagan), por nombre */
+  off?: string | readonly string[]
   cells: { name: string; turns: Turns; mel: { notes: readonly Note[]; synth: MelodySynth }; lpf?: number[] }[]
 }
 
@@ -158,10 +160,14 @@ function buildSong(specs: readonly CellSpec[], groupSpecs: readonly GroupSpec[] 
       })
     })
     groups.push({ id: gid, order: ids, on: false })
-    const on = cells.find((c) => c.name === g.on)
-    if (on) on.groupOn = [...(on.groupOn ?? []), gid]
-    const off = g.off ? cells.find((c) => c.name === g.off) : undefined
-    if (off) off.groupOff = [...(off.groupOff ?? []), gid]
+    for (const name of [g.on].flat()) {
+      const on = cells.find((c) => c.name === name)
+      if (on) on.groupOn = [...(on.groupOn ?? []), gid]
+    }
+    for (const name of g.off ? [g.off].flat() : []) {
+      const off = cells.find((c) => c.name === name)
+      if (off) off.groupOff = [...(off.groupOff ?? []), gid]
+    }
   })
   return { version: 1, cells, order: cells.slice(0, specs.length).map((c) => c.id), groups, nextGroupId: groups.length + 1, bpm: null, nextCellId: nextCell, nextLoopId: id }
 }
@@ -245,6 +251,62 @@ const DIES_TECHNO: CellSpec[] = [
   { name: 'Salida', turns: 2, parts: { bass: false, chords: true }, drums: {}, lpf: [1800, 600], text: 'solo los acordes, que se apagan' },
 ]
 
+// ── Sinfonía n.º 40 de Mozart (K. 550, 1.er movimiento, 1788), en techno (spec 008, §12) ───────────────────────────
+// El tema, escrito de oído por coderbeats (revisar las notas contra la partitura, que es de dominio público): sol menor,
+// con la célula de tres notas «mi♭ re re» repetida y el salto de sexta. Aquí **bajado una quinta a do menor** (−7), la
+// tonalidad del techno de la app (bajo en do y acordes Cm–A♭–B♭–Gm; el bombo afinado a esas raíces, `kickTune`). Un compás
+// del tema = un compás de 16 pasos (negra = 4, corchea = 2). MIDI en sol menor: E♭5=75 D5=74 B♭5=82 A5=81 G5=79 F♯5=78.
+const MOZART_G: { a: readonly Note[]; b: readonly Note[] } = {
+  // A: la célula tres veces, el salto B♭5 y la bajada sobre sol (4 compases)
+  a: [
+    [0, 2, 75], [2, 2, 74], [4, 4, 74], [8, 2, 75], [10, 2, 74], [12, 4, 74], // mi♭ re re · mi♭ re re
+    [16, 2, 75], [18, 2, 74], [20, 4, 74], [24, 4, 82], [28, 4, 81], // mi♭ re re · si♭ la (el salto)
+    [32, 4, 79], [36, 2, 78], [38, 2, 79], [40, 4, 81], [44, 4, 82], // sol fa♯ sol la si♭
+    [48, 4, 81], [52, 4, 79], [56, 4, 78], [60, 4, 79], // la sol fa♯ sol
+  ],
+  // B: la respuesta, con la misma célula y una bajada que cierra
+  b: [
+    [0, 2, 75], [2, 2, 74], [4, 4, 74], [8, 2, 75], [10, 2, 74], [12, 4, 74],
+    [16, 2, 75], [18, 2, 74], [20, 4, 74], [24, 4, 79], [28, 4, 78],
+    [32, 4, 75], [36, 4, 74], [40, 4, 72], [44, 4, 70],
+    [48, 8, 69], [56, 8, 67],
+  ],
+}
+const MOZART_SHIFT = -7 // sol menor → do menor
+const MZ = { a: up(MOZART_G.a, MOZART_SHIFT), b: up(MOZART_G.b, MOZART_SHIFT) }
+const MZ_UP = { a: up(MZ.a, 12), b: up(MZ.b, 12) }
+/** el pad que sostiene la raíz de cada acorde (Cm A♭ B♭ Gm), un compás cada uno */
+const MZ_ROOTS: readonly Note[] = [[0, 16, 60], [16, 16, 56], [32, 16, 58], [48, 16, 55]]
+/** el platillo (ruido) en el primer compás del loop de 4: al entrar el drop y cada 4 compases */
+const MZ_CRASH: readonly Note[] = [[0, 16, 60]]
+/** la palmada en 2 y 4 durante 4 compases, con el **redoble** de semicorcheas al final del cuarto */
+const MZ_CLAP_FILL = [T.clap, T.clap, T.clap, '~ ~ ~ ~ sd ~ ~ ~ ~ ~ ~ ~ sd sd sd sd'].join(' ')
+
+/**
+ * Doce células (126 compases ≈ 3 min 56 s a 128 bpm) y dos grupos en paralelo con el tema (que avanza entero: A, B, A, B…).
+ * Un compás de 4 del loop se repite, así que el redoble y el platillo caen cada 4 compases (§12: aproximación del modelo).
+ */
+const MOZART_TECHNO: CellSpec[] = [
+  { name: 'Intro', turns: 16, parts: { bass: false, chords: false }, drums: { bd: T.bd4 }, lpf: [200, 200, 200, 200, 260, 260, 260, 260, 900, 1400, 2200, 3500, 5000, 8000, 12000, 20000], text: 'solo el bombo afinado; el filtro se abre a partir del compás 9' },
+  { name: 'Entra el tema', turns: 16, parts: { bass: true, chords: false }, drums: { bd: T.bd4, hh: T.hat }, mel: { notes: MZ.a, synth: 'lead' }, lpf: [500, 550, 620, 700, 800, 900, 1050, 1200, 1400, 1650, 1900, 2200, 2600, 3000, 3500, 4200], wow: WOW_PRESETS.acid, text: 'el tema con el wowo, que se abre poco a poco, sobre el bajo y el bombo' },
+  { name: 'Groove', turns: 16, parts: { bass: true, chords: false }, drums: { bd: T.bd4, sd: MZ_CLAP_FILL, hh: T.hat }, text: 'palmada y platillo, con redoble cada 4 compases; entra el tema completo (A, B, A, B)' },
+  { name: 'Break', turns: 8, parts: { bass: false, chords: true }, drums: {}, mel: { notes: MZ.a, synth: 'pad' }, lpf: [900, 1100, 1300, 1500, 1800, 2200, 2800, 3500], text: 'sin bombo: los acordes y el tema en pad, que se abre' },
+  { name: 'Build', turns: 8, parts: { bass: true, chords: false }, drums: { sd: T.roll, hh: T.hats16 }, mel: { notes: MZ.b, synth: 'lead' }, lpf: [1400, 1800, 2400, 3000, 3800, 4800, 6200, 8000], wow: WOW_PRESETS.house, text: 'sin bombo: la caja en roll, el platillo en semicorcheas y el wowo abriéndose hasta 8 000 Hz' },
+  { name: 'Riser', turns: 4, parts: { bass: false, chords: false }, drums: { sd: RISER_ROLL }, extra: [{ notes: RISER_NOISE, synth: 'riser' }, { notes: RISER_PAD, synth: 'pad' }], lpf: [600, 1500, 4000, 12000], text: 'ruido y pad que se abren, la caja en roll y el último compás en silencio' },
+  { name: 'Drop 1', turns: 16, parts: { bass: true, chords: true }, drums: { bd: T.bd4, sd: MZ_CLAP_FILL, hh: T.hats16 }, extra: [{ notes: MZ_CRASH, synth: 'crash' }], text: 'el drop: todo, con el platillo al entrar; el tema una octava más alta (A↑, B↑)' },
+  { name: 'Break corto', turns: 4, parts: { bass: false, chords: true }, drums: {}, mel: { notes: MZ.a, synth: 'pad' }, lpf: [1200, 1800, 2800, 4200], text: 'un respiro: los acordes y el tema en pad' },
+  { name: 'Build 2', turns: 4, parts: { bass: true, chords: false }, drums: { sd: T.roll, hh: T.hats16 }, mel: { notes: MZ.b, synth: 'lead' }, lpf: [2000, 2600, 3400, 4600], wow: WOW_PRESETS.acid, text: 'el segundo build, más corto' },
+  { name: 'Riser 2', turns: 2, parts: { bass: false, chords: false }, drums: { sd: RISER2_ROLL }, extra: [{ notes: RISER2_NOISE, synth: 'riser' }, { notes: RISER2_PAD, synth: 'pad' }], lpf: [3000, 12000], text: 'el build corto: un compás que se abre y otro en silencio' },
+  { name: 'Drop 2', turns: 16, parts: { bass: true, chords: true }, drums: { bd: T.bd4, sd: MZ_CLAP_FILL, hh: T.hats16 }, extra: [{ notes: MZ_CRASH, synth: 'crash' }, { notes: MZ_ROOTS, synth: 'pad' }], text: 'el drop final, más fuerte: además un pad que sostiene la raíz de cada acorde; el tema una octava más alta' },
+  { name: 'Salida', turns: 16, parts: { bass: false, chords: true }, drums: { hh: T.hat }, mel: { notes: MZ.a, synth: 'pad' }, lpf: [3200, 3000, 2800, 2500, 2200, 1900, 1600, 1400, 1200, 1000, 850, 700, 600, 500, 420, 350], text: 'los acordes y el tema en pad, que se apaga' },
+]
+
+/** El tema, en orden y sin repetirse, en grupos que se encienden con el Groove (plano) y con cada drop (una octava más alto). */
+const MOZART_GROUPS: GroupSpec[] = [
+  { on: 'Groove', off: 'Break', cells: [{ name: 'Tema A', turns: 4, mel: { notes: MZ.a, synth: 'lead' } }, { name: 'Tema B', turns: 4, mel: { notes: MZ.b, synth: 'lead' } }] },
+  { on: ['Drop 1', 'Drop 2'], off: ['Break corto', 'Salida'], cells: [{ name: 'Tema A↑', turns: 4, mel: { notes: MZ_UP.a, synth: 'lead' } }, { name: 'Tema B↑', turns: 4, mel: { notes: MZ_UP.b, synth: 'lead' } }] },
+]
+
 export const REMIXES: readonly Remix[] = [
   {
     id: 'oda-alegria-dembow',
@@ -269,6 +331,18 @@ export const REMIXES: readonly Remix[] = [
     key: 'Do menor',
     info: { cells: DIES_TECHNO.map((s) => ({ name: s.name, turns: s.turns, text: s.text })) },
     build: () => buildSong(DIES_TECHNO),
+  },
+  {
+    id: 'sinfonia-40-techno',
+    title: 'Sinfonía n.º 40',
+    composer: 'Wolfgang Amadeus Mozart',
+    years: '1756–1791',
+    publicDomain: 'Obra de dominio público (el autor murió en 1791); el arreglo (ritmo, bajo, acordes, estructura; el tema bajado de sol menor a do menor) es de coderbeats.',
+    style: 'techno',
+    kit: 'electro',
+    key: 'Do menor',
+    info: { cells: MOZART_TECHNO.map((s) => ({ name: s.name, turns: s.turns, text: s.text })) },
+    build: () => buildSong(MOZART_TECHNO, MOZART_GROUPS),
   },
 ]
 

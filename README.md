@@ -6,7 +6,7 @@ Un instrumento para jugar con la voz: haces beatbox (bum, pff, ts) y coderbeats 
 - **Células y canción**: cada célula es un aro con sus loops, su bajo y sus acordes; varias células, una tras otra, forman una canción. Hay grupos que suenan en paralelo.
 - **Fondo y efectos**: bajo y acordes por estilo (hip hop 90, house, drum and bass, dembow, techno), filtro, espacio y calor; el filtro de una célula puede barrer vuelta a vuelta (loops de canción y remixes) y hacer el **wowo** (resonancia y envolvente en cada golpe). La app lleva una cadena master «cálida» (saturación suave y compresión de pegamento) que **strudel.cc no tiene**: el código copiado suena algo más seco.
 - **Código = sonido**: el código mostrado, pegado en strudel.cc, suena igual que en coderbeats.
-- **Remixes**: canciones de demo de dominio público (el Himno de la alegría en dembow, el Dies Irae en techno), con su atribución.
+- **Remixes**: canciones de demo de dominio público (el Himno de la alegría en dembow, el Dies Irae y la Sinfonía n.º 40 de Mozart en techno), con su atribución.
 - **Mis canciones**: se guardan en el navegador (localStorage), en tu dispositivo.
 - Funciona como PWA, pensada también para móvil.
 

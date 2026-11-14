@@ -20,7 +20,7 @@ const code = () =>
 
 describe('la lista de remixes', () => {
   it('hay un remix con su atribución a la vista y su estilo, kit y tonalidad', () => {
-    expect(REMIXES).toHaveLength(2)
+    expect(REMIXES).toHaveLength(3)
     expect(remix).toMatchObject({ title: 'Himno de la alegría', composer: 'Ludwig van Beethoven', years: '1770–1827', style: 'dembow', kit: '808', key: 'Re mayor' })
     expect(remix.publicDomain).toMatch(/dominio público/)
     const techno = remixById('dies-irae-techno')!
