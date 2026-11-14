@@ -769,3 +769,115 @@ arrange([4, ambiente], [8, stack(acordes, bajo, bateria)])
 4. **Muestra del 808.** El código mostrado lleva `.n(1)` en bombo y caja (el índice del 808 que usa la app, para que suene el mismo archivo en strudel.cc, §16.12 de la 001); el original usa el índice 0 por defecto, así que en strudel.cc esas dos muestras pueden ser otro archivo del banco.
 5. **Orbits y comentarios.** La app añade `.orbit()` y comentarios con el nombre de cada célula, y el platillo de la Intro dura 1/16 en vez de 1/8 por la rejilla de pasos (no importa para una muestra de un golpe). Sin `const` ni `stack` externos: es un único `arrange`.
 6. **Bola de la melodía en la Intro.** El sine aparece como un loop de melodía más: se puede silenciar, borrar o sustituir cantando (se perdería el sinte propio si se sustituye con la voz: la nueva melodía vuelve a tener el del estilo).
+
+---
+
+## 21. Enmienda 5 · fundir células (2026-11-14, solo spec: para revisar, sin programar)
+
+### 21.1 La idea
+
+Arrastrar una célula **encima de otra y mantener**: se **funden** en una, que suena con las capas de las dos a la vez. Sirve para construir una célula densa a partir de dos sencillas (la batería de una con el bajo de otra, o dos melodías) sin volver a grabar nada.
+
+**Fundir = añadir el contenido de A a B y borrar A.** Lo segundo es el borrado de siempre (§7.1: hilos que se recomponen, orden, célula que suena, "↶ deshacer"), así que casi todo se reutiliza. Aquí se detalla solo lo nuevo.
+
+- **A** es la célula que se arrastra y **B** la que recibe: B se queda (su sitio, su nombre, sus hilos, su grupo) y A desaparece dentro de ella.
+- Vale con cualquier pareja: de la canción, de un grupo en paralelo (§16) o suelta (§15). El resultado vive donde vive B.
+
+### 21.2 El gesto
+
+1. Se arrastra A (el cuerpo, como para moverla) hasta que **cubra más de la mitad de B**. Mientras tanto B se **atrae** hacia A en lugar de apartarse (hoy las cercanas se apartan, §7.1) y B se resalta con un anillo tenue.
+2. **Mantener** sin mover (menos de 12 px) con A sobre B: un **anillo se completa en unos 0,8 s alrededor del dedo**, de otro color que el del borrado (azul `#8ECFF2`, no el rosa de las bolas, para no confundirlo con "mantener 0,6 s = borrar").
+3. Al completarse, se funden. Si se suelta antes, **no pasa nada especial**: A se queda donde la sueltes, solapada (las células pueden solaparse, §7.1). Si el dedo sale de B antes de completar el anillo, se cancela.
+
+- No choca con el borrado: este es mantener **sin arrastrar** una célula; fundir es mantener **al final de un arrastre**, ya sobre otra.
+- Con el ratón es igual: arrastrar con el botón pulsado, mantenerlo, soltar.
+- Con el zoom tan alejado que no se puede agarrar el cuerpo (pocos píxeles), no se funde (como la copia y el orden, §7.1).
+- No se puede fundir una célula consigo misma ni con menos de dos células.
+
+### 21.3 Qué resulta
+
+| | Resultado |
+|---|---|
+| **Loops de un instrumento que están en las dos** (bombo, caja, platillo) | **Un solo loop**, con los golpes de los dos. Los patrones se repiten hasta la longitud más larga antes de juntarlos (un loop de 1 compás sobre uno de 4 suena en los 4, como sonaba). **Dos golpes en el mismo paso quedan en uno** (a menos de media semicorchea cuenta como el mismo paso, como al completar, §16.19 de la 001); se queda el de B. |
+| Loops de un instrumento que solo está en una | Se pasa tal cual (con su id y su fase). |
+| **Loops silenciados** | Sus golpes **no se funden** (no sonaban): si el instrumento está en las dos y uno está silenciado, el resultado es el del que suena. Si el único loop de ese instrumento está silenciado, se pasa silenciado. |
+| **Melodía** (`'mel'`, spec 002) | Ver §21.4. |
+| **Bajo y acordes** (partes del fondo) | O lógico: suena el bajo (o los acordes) si suena en cualquiera de las dos. |
+| **Vueltas** | El **mayor** de los dos (y nunca menos que el loop más largo, como hoy). |
+| **Nombre** | El de B (el de A se pierde; el "deshacer" lo devuelve). |
+| **Posición, hilos, grupo, orden** | Los de B. A sale de su orden o de su grupo como al borrarla (sus vecinos se unen); si A estaba sola en un grupo, el grupo desaparece. |
+| **Versiones previas** (`prev`) y nacimientos | Se descartan (`storableSong`); en marcha, los loops que cambian nacen con su versión previa hasta la siguiente línea de compás, como "completa" (sin hueco ni solape). |
+
+- Como mucho 3 loops de batería y 1 de melodía por célula: nunca se pasa del límite de 8 loops.
+- **Ids:** los loops que sobreviven conservan el suyo; el resultado no repite ningún id (ya eran únicos en toda la canción, §3).
+
+### 21.4 Melodías: dos notas a la vez
+
+La melodía es **monofónica** (spec 002, §5): un loop `'mel'` por célula, una voz, un sinte y un solo orbit. Al fundir dos melodías, ¿qué pasa cuando dos notas **distintas** empiezan a la vez, o una entra en medio de otra más larga?
+
+**Propuesta (la que recomiendo para la primera versión): se queda una; las demás solo entran si caben.**
+- Se juntan las dos melodías (repetidas a la misma longitud) con **la misma regla que "completa"** (`mergeMelody`): las notas de B no se tocan; una nota de A **solo entra si empieza en un hueco libre** y se **recorta** contra la siguiente nota y contra la línea de compás. Si empieza dentro de una nota de B, o a la vez que ella, **se descarta**.
+- Es lo mismo que ya hace la melodía al completar con la voz y lo mismo que "dos golpes en el mismo paso quedan en uno": **gana lo que ya estaba (B)**.
+- **Se avisa de lo perdido:** el chip dice "↶ deshacer · 3 notas no entraron"; el diagnóstico lista cuáles. El deshacer devuelve todo.
+- Por qué no suenan juntas: la monofonía no es un detalle del generador, sostiene el resto (la ayuda de la 002 asume una voz; `note("a3@4 …")` una nota a la vez; el órgano de la F2 se pensó con una nota por columna; el bajo con la voz es monofónico). Permitir acordes cambia el modelo de datos, el código y la edición.
+
+**Alternativa, para cuando se quiera (spec 002, fase posterior): "suenan juntas".** `MelodyHit` admitiría varias notas con el mismo `pos` (un acorde), el código lo escribiría con la coma de la mini-notación (`[a3,c4]@4`), el órgano mostraría las notas apiladas y habría un tope de 3 voces. Entonces la fusión podría ofrecerse con las dos opciones ("se queda una" o "suenan juntas"), por ejemplo según se mantenga más o menos. **Pregunta abierta 1.**
+
+Otras reglas de la melodía al fundir:
+- Si solo una de las dos células tiene melodía, se pasa tal cual (con su sinte propio si lo lleva, p. ej. el `drone` del dembow, spec 005 §20).
+- Si las dos tienen y el sinte propio de cada una es distinto, **gana el de B** (un loop solo puede tener uno).
+
+### 21.5 Deshacer
+
+El chip "↶ deshacer" de siempre (unos 8 s, un solo nivel, encima de Play): devuelve **las dos células tal como estaban**, con su posición, sus hilos y su sitio en el orden y en los grupos. Es un registro nuevo (`kind: 'merge'`) que guarda la canción anterior entera, como "Borrar todo"; fundir otra cosa o borrar algo lo reemplaza. No se guarda al cerrar la app.
+
+### 21.6 Cómo se ve (agua)
+
+Todo visual, y se simplifica con movimiento reducido:
+- Al arrastrar A sobre B, las dos gotas se **atraen** y se tocan con una ondulación del borde de B.
+- Al completarse el anillo, **A se disuelve dentro de B**: su silueta se estira hacia el centro de B (unos 500 ms), B hace un latido ("pop") y sale una onda de agua, la de nacimiento de las bolas (spec 003, E1.8).
+- Las **capas nuevas** de B (los loops que vienen de A) nacen con la caída de siempre, en la siguiente línea de compás, y sus bolas aparecen en la fila.
+- Con movimiento reducido: sin atracción ni estiramiento; A desaparece con un fundido corto y B se enciende con opacidad.
+
+### 21.7 Cómo suena
+
+- Fundir no para la música. El código se reevalúa y lo nuevo **entra en la siguiente línea de compás** (como cualquier cambio de loops, §4.2), con la versión anterior sonando hasta ahí.
+- **Si A es la célula que suena** en estado canción, la reproducción **pasa a B** en esa línea de compás, con el mismo número de vuelta (la canción no se corta). Si B es la que suena, sigue y recibe las capas de A. Si ninguna suena, no cambia nada audible.
+- Si A es parte de un grupo en paralelo que suena, el grupo sigue sonando sin ella (como al borrar una célula de un grupo, §16.3).
+- **Entrar a editar** (§18) no cambia: la vista sigue a B si estabas en A.
+
+### 21.8 Casos límite
+
+- **Una de las dos vacía** (sin loops, sin partes): se funde igual (se queda el contenido de la otra); sirve para "absorber" una célula en blanco.
+- **Fundir con una copia suelta de sí misma:** los golpes iguales quedan en uno; es una forma de limpiar duplicados.
+- **Dos células con tempo distinto:** el tempo es de la canción (§6), no de la célula; no aplica.
+- **Fundir A en B y luego B en C:** funciona sin más (un solo nivel de deshacer: solo la última se puede deshacer).
+- **Con 1 célula** no se puede (se necesitan dos).
+- **Los dos "↶ deshacer" a la vez:** no hay; el último registro manda (un solo nivel, §7.1).
+- **Guardar y "Mis canciones" (spec 006):** el resultado es una canción normal; "no guardado" se actualiza como con cualquier cambio.
+
+### 21.9 Lógica y tests (cuando se programe)
+
+Puro, en `lib/cells.ts`: `mergeCells(song, aId, bId): { song: Song; dropped: { notes: number; hits: number } } | null`.
+- Mezcla por instrumento con los patrones expandidos a la longitud común y la fase relativa a la célula (variante de `mergeLoops` que repite también lo que se añade).
+- Reutiliza el borrado de célula de `lib/cells.ts` para quitar A (orden, grupos y vecinos).
+- Tests: un instrumento en las dos y en una sola; golpes iguales en el mismo paso (a menos y a más de media semicorchea); longitudes distintas (1 y 4 compases) y fases distintas; silenciados; partes del fondo; vueltas; melodías (hueco libre, empiece dentro, misma nota a la vez, recorte contra la siguiente y la línea de compás, sinte propio); A y B en la canción, en un grupo y sueltas; A o B vacía; A = B (null); idempotencia de ids; la canción resultante es válida (`isSong`) y el código que sale evalúa en Strudel (mismo comprobador de eventos que la demo del dembow, §20.3).
+- Motor (`mergeCells(a, b)`): registro de deshacer, cambio de célula que suena y reevaluación; con los tests de grupos de `engineGroups.test.ts` como modelo.
+
+### 21.10 Fases
+
+- **M1.** `lib/cells.ts` `mergeCells` + tests (sin interfaz).
+- **M2.** Motor: acción, deshacer, célula que suena y diagnóstico ("ha fundido X en Y: N golpes iguales, M notas no entraron").
+- **M3.** Gesto en la colonia (atracción, anillo azul, mantener 0,8 s) y la animación de agua.
+- **M4.** Con la melodía polifónica (spec 002, posterior): la segunda opción de §21.4.
+
+### 21.11 Decisiones a revisar y preguntas abiertas
+
+1. **Pregunta abierta 1 — dos notas a la vez en una melodía:** se queda una (B gana) y se avisa de lo perdido (recomendado ahora), o suenan juntas (acorde; requiere la melodía polifónica). ¿Se prefiere esperar a la polifonía para fundir melodías, o fundir ya con "se queda una"?
+2. **Tiempo del anillo:** 0,8 s (frente a 0,6 s de borrar), y color azul para distinguirlo. Alternativa: el mismo color con un icono.
+3. **Qué célula se queda:** la de destino (B, sobre la que se suelta). Alternativa: que gane la de más loops, o que haya que elegir.
+4. **Vueltas = el mayor de los dos.** Alternativa: las de B.
+5. **Nombre = el de B.** Alternativa: "B + A", o el de A si B no tiene.
+6. **Golpes en el mismo paso:** queda el de B (su fuerza). Alternativa: el más fuerte de los dos.
+7. **Los silenciados no se funden.** Alternativa: fundirlos y dejar el loop silenciado.
+8. **Una nota de A que empieza dentro de una de B se descarta** (no recorta a B). Alternativa: que la de A recorte a la de B donde empieza (legato).
