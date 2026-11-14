@@ -1067,6 +1067,8 @@ export function useAudioEngine() {
     refreshImageDelay()
     // al arrancar, lo que ya existe suena desde el primer compás
     loops.value = { ...loops.value, loops: loops.value.loops.map((l) => ({ ...l, bornAt: 0 })) }
+    // y las de las demás células (también las de los grupos en paralelo): si no, un `bornAt` de la vez anterior las deja mudas hasta ese compás
+    song.value = { ...song.value, cells: song.value.cells.map((c) => ({ ...c, loops: c.loops.map((l) => ({ ...l, bornAt: 0 })) })) }
     // la canción arranca desde la célula que se ve (spec 005, §4.1); el ciclo de Strudel empieza en 0
     // con una célula de un grupo a la vista, la canción suena desde su primera célula y el grupo, aparte
     cursor = { cellId: inParallel(song.value, viewCellId.value) ? song.value.order[0]! : viewCellId.value, startBar: 0 }
