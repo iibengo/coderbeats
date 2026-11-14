@@ -234,6 +234,8 @@ Las otras cinco, decididas por lo más simple:
 | **5** | **Primer minuto guiado** (§12.2) | tests de la máquina de pasos (pura); a mano: arranque con la app vacía |
 | **6** | **Recompensa** cuando todos los carriles tienen algo (§12.3) | test de la condición (pura); a mano |
 | **7** | Limpieza: retirar `pinned`/`viewAway` si ya no hacen falta; README y esta spec | tests de todo |
+| **8** | **Convertir en canción** (§14.2): de un loop a la estructura completa | tests de la función pura; a mano |
+| **9** | **Componer en directo** (§14.1): grabar canción tocando las capas | tests de la línea de tiempo y del convertidor; a mano |
 
 ## 12. Añadidos a Jugar (2026-11-14)
 
@@ -263,6 +265,51 @@ Reglas: **la guía nunca bloquea** (todo se puede tocar mientras se muestra; si 
 Cuando **todos los carriles tienen algo** (bombo, caja y platillo con golpes; y la melodía, si está activada), **la gota entera se enciende una vuelta** (un barrido de luz por todas
 las franjas, de la aguja una vuelta completa), con un destello suave al cerrar el compás. **Una vez por canción y sesión** (no cada vez que se vuelve a cumplir), y **solo en Jugar**.
 La condición es una **función pura** (`allLanesFilled(loops, lanes)`).
+
+## 14. Lo más importante: una forma más fácil de componer (2026-11-14)
+
+Hoy, componer es **armar células a mano en la colonia** (crear, copiar, ordenar, vueltas, disparadores). Es potente y es lo más difícil de la app. Estas dos ideas
+llevan **la composición a Jugar**, sin mapa: la persona toca o pulsa, y **la app construye las células**. El resultado **es una canción normal** (el mismo `Song`),
+que luego se puede retocar en Componer. *Nota:* la decisión 4 («Jugar no crea células») se refiere a hacerlas **a mano**; aquí las crea la app a partir de lo que se toca.
+
+### 14.1 Componer tocando en directo (tipo Incredibox)
+
+- **Qué hace la persona:** con sus loops hechos (bombo, caja, platillo, melodía, bajo y acordes) pulsa **«grabar canción»** y **enciende y apaga capas al ritmo** tocando
+  los anillos (las bolas de los loops y del fondo, que ya se pueden silenciar con un toque: spec 003). Pulsa de nuevo para terminar.
+- **Qué apunta la app:** **por compás**, qué capas están encendidas (una línea de tiempo `Compás → conjunto de capas`). Los cambios se aplican en la siguiente línea de compás (como hoy).
+- **Al terminar se convierte en células:** cada **tramo seguido con el mismo conjunto de capas** es una célula (`turns` = sus compases, redondeados al 1/2/4/8/16/32 más
+  cercano que no se pase; `loops` = las capas encendidas; `parts` = bajo y acordes según el fondo). Un tramo corto (< 1 compás) se une al vecino. El orden es el de la grabación.
+  Se les **pone nombre** por lo que tienen (intro: pocas capas; subida: sin bombo; drop: todas; final: pocas), con la misma regla que 14.2.
+- **Qué se ve:** mientras graba, un punto rojo discreto junto a Play (rojo no está en la paleta, E1.2: se usa el rosa de la marca, parpadeando) y un contador de compases.
+  Al terminar, **la tira de células** (§3.6) aparece con las células nuevas y una frase: «Tu canción: 6 partes. Ábrela en Componer para retocarla».
+- **Qué NO hace:** no graba el filtro, el espacio ni la voz mientras (solo las capas); no cambia los loops (las capas son las que ya hay).
+- **Riesgos:** (1) apagar/encender cae **entre compases** o a mitad: se redondea al compás **siguiente**; (2) una grabación muy larga da muchas células (tope 16 = `MAX_CELLS`: si se pasa, se
+  fusionan los tramos más cortos y se avisa); (3) las capas sustituyen a lo que hubiera: si ya había una canción de varias células, **se pide confirmación** (con «↶ deshacer», 005 §7.1).
+
+### 14.2 «Convertir en canción»
+
+- **Qué hace la persona:** con **un loop** (una sola célula) en Jugar, un botón **«Convertir en canción»** (en el estado de una célula con algo, junto a Play o en ⋯) crea **la estructura completa del estilo**.
+- **La plantilla** (una por estilo, datos puros, `lib/songTemplates.ts`), a partir de las capas de la célula:
+
+| Parte | Vueltas | Capas |
+|---|---|---|
+| **Intro** | 4 | el fondo y **una** capa (la más suave: el platillo, o el bombo si no hay otra) |
+| **Entra** | 4–8 | + las demás capas de batería, sin la melodía |
+| **Subida** | 4 | **sin bombo**, la caja se acelera (el roll de 008), el filtro se abre |
+| **Drop** | 8 | **todo** (la célula tal cual) |
+| **Final** | 2–4 | solo los acordes (o el fondo), que se apagan (`lpf` bajando) |
+
+  Cada estilo ajusta vueltas y el roll (dembow, techno, dnb…); los **remixes** (008) son los ejemplos que se imitan. La célula original **se queda como el Drop**.
+- **Qué se ve:** la tira de células aparece con 5 puntitos y el nombre de cada parte; la música sigue. **«↶ deshacer»** devuelve el loop de antes.
+- **Qué NO hace:** no inventa notas ni toca la melodía (solo apaga o enciende lo que hay); si hay una sola capa, la Intro y el Final son más cortas y se avisa.
+- **Riesgos:** sacar demasiado de una célula pobre (con un solo bombo, casi todo queda vacío): la plantilla **se salta las partes que quedarían iguales** (un loop de una sola capa da solo Intro con fondo + Drop).
+
+### 14.3 Cuál primero: **14.2 (Convertir en canción)**
+
+- Es una **función pura** (`loops → células`), muy fácil de probar y de afinar con los remixes como referencia, **sin ninguna interfaz nueva más allá de un botón**.
+- Da **un resultado entero con un toque**, la mejor primera impresión («mi loop ya es una canción») y cubre justo el salto que hoy asusta (de una gota a una canción).
+- **14.1 la necesita**: el convertidor de «línea de tiempo de capas → células» **es la misma idea** (partir por tramos y nombrar), así que 14.2 deja hecho el 70 % de 14.1 (nombrar partes, redondear vueltas, aplicar `lpf`).
+- 14.1 sí requiere **interfaz nueva** (grabar, contador, el toque en vivo con cuantizado por compás) y mucho más ajuste de dedo. Se hace **después**, sobre lo que ya funciona.
 
 ## 13. Más adelante (no ahora)
 
