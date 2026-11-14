@@ -1,3 +1,5 @@
+import { fileURLToPath } from 'node:url'
+
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
@@ -8,7 +10,15 @@ export default defineNuxtConfig({
   typescript: { strict: true },
 
   // Todo el audio corre en el navegador: la página no se renderiza en el servidor.
-  routeRules: { '/': { ssr: false }, '/spike': { ssr: false } },
+  routeRules: { '/': { ssr: false }, ...(process.env.NODE_ENV === 'production' ? {} : { '/spike': { ssr: false } }) },
+
+  // /spike (banco de pruebas de Strudel) vive en dev/ y solo existe con `nuxt dev`: no entra en el build
+  hooks: {
+    'pages:extend'(pages) {
+      if (process.env.NODE_ENV === 'production') return
+      pages.push({ name: 'spike', path: '/spike', file: fileURLToPath(new URL('./dev/spike.vue', import.meta.url)) })
+    },
+  },
 
   app: {
     head: {
