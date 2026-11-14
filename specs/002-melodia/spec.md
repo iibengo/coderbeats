@@ -294,6 +294,7 @@ Una línea por loop de voz, en mini-notación con duraciones (`@n` en semicorche
   - **Estirar el arco para cambiar la duración de una nota.** Las notas son arcos (003, E3.1); se agarra el extremo final del arco y se estira o se acorta, con ayuda en pasos de semicorchea (sin ayuda, en la rejilla fina) y recortado en la línea de compás (§5). Cambia la línea `note()` igual que lo demás.
   - **El órgano de la célula.** Tocar la franja de la melodía la abre **a pantalla completa**, como un instrumento ("caja de música") de esa célula: **horizontal = tiempo** (los pasos de los compases del loop) y **vertical = solo las notas de la escala del estilo** (una fila por grado, en el registro del sinte). Tocar un hueco pone una nota, arrastrar la mueve, estirar el arco cambia su duración, tocar una nota la borra. Con **transición de agua** al abrir y al cerrar (como la de las células, 005 §5.2). Mientras está abierto, la célula sigue sonando y las notas suenan al ponerlas. Para decidir entonces: qué pasa con los loops de batería (no se ven), el gesto para cerrar y cómo se toca en vertical en el móvil.
 - **F3. Calibración del "na" jugando** (el reto), clase "na" del clasificador, rango de voz, métricas con tus tomas y selector de sinte en ⋯.
+- **F2/F3 (a decidir en cuál): que suene menos robótica** (§17): legato, duración real de cada nota, glide entre notas y un sinte más rico con reverb y delay.
 - **F4. Bajo con la voz** ("Voz como: bajo" y retirar el bajo del fondo, §7).
 - **F5. Prueba con tu voz en el ordenador y en el móvil, y ajuste fino.**
 
@@ -358,3 +359,34 @@ Cosas que se decidieron sin preguntar durante la implementación de la F1 (2026-
 11. **Ajustes y datos guardados:** el interruptor de la melodía se guarda en los ajustes del dispositivo (apagado por defecto, "beta"). Los loops de melodía se guardan con la canción (y en Mis canciones) con la validación estricta de §8.1; el sinte no.
 12. **Sin ayuda:** la melodía se escribe con la rejilla fina de un cuarto de paso (sin `.nudge()`, que los sintes no aplican) y sin escala; el registro sí se corrige siempre.
 13. **El análisis corre en el worker mientras suena:** YIN cada ~5 ms y una revisión de notas cada 50 ms de audio, solo con la melodía activada y en marcha. Sin medir todavía en el iPhone (objetivo: ninguna tarea de más de 50 ms).
+
+## 17. Ideas para la F2 o la F3: que suene menos robótica (2026-11-14, solo apuntado; no se programa todavía)
+
+Con la F1 probada (funciona, sale la bola blanca y suena), el comentario es que **suena muy robótica**. Las causas, vistas en el código de hoy:
+- Con la ayuda, cada nota se **redondea a celdas de una semicorchea** (`assistMelody`): la duración que cantaste se pierde, y todas las notas quedan "cuadradas".
+- Las notas se tocan **sin ataque ni relación entre ellas**: cada una nace y muere sola, y el sinte es una línea de Strudel fija por estilo.
+- Los sintes (`SYNTH_SOUND`) son sencillos: un `triangle` con FM, un `square` con filtro y un `supersaw`.
+
+Lo que se quiere:
+
+1. **Legato.** Que las notas seguidas se unan en vez de sonar cada una por separado. Hoy solo se alarga la anterior si el hueco es menor de una celda (`§5.4`). Pensar: legato como propiedad de la nota (se une a la siguiente si en la voz no hubo silencio) o del loop (cuánto se solapa); con la monofonía del sinte (una voz) y que el filtro y la envolvente no se reinicien entre notas unidas, que es lo que hace sonar "a máquina".
+2. **Duración real de cada nota.** Respetar lo que se cantó: una nota corta (staccato) suena corta y una larga suena larga, en vez de redondear a la semicorchea. Pensar: que la **ayuda** cuantice el *inicio* a la rejilla pero deje la **duración** en una rejilla más fina (como sin ayuda, un cuarto de paso, §5), o que redondee la duración solo hacia notas largas (≥ 1 celda) y deje las cortas; y que `dur` guarde el valor fino. Esto debería ir a la vez que estirar el arco para cambiar la duración (F2): lo que se edita y lo que se canta tienen la misma resolución.
+3. **Glide (portamento) entre notas.** Que el tono se deslice de una nota a la siguiente en vez de saltar. **Strudel no tiene un parámetro `slide` general** (en `@strudel/core` está como pendiente, "TODO: slide param for certain synths"), así que hay que comprobar en el laboratorio cuál de estas vías funciona en superdough 1.3:
+   - una **envolvente de altura** por nota (`penv` con `pdecay`/`pattack`, si existen) que parte del intervalo hasta la nota anterior y cae a 0, con el valor de cada nota calculado al generar el código (en la mini-notación, un patrón de `penv` con el mismo ritmo que `note()`);
+   - o un sinte propio de la app (un nodo de Web Audio monofónico con portamento) en lugar de uno de Strudel, que sería lo más fiel pero rompe "el código mostrado, pegado en strudel.cc, suena igual" (criterio 6).
+   - Cuánto glide: proporcional al intervalo y con un tope (por ejemplo 60–120 ms); y solo entre notas **unidas** (legato). Opción en ⋯: "Glide: poco · mucho".
+4. **Un sinte más rico, con reverb y delay.** Subir el nivel de los tres sintes (y el `drone`, 005 §20):
+   - **Piano (hip hop 90):** más cuerpo (un segundo oscilador desafinado, ataque corto, caída natural), reverb de sala (`room`/`roomsize`) y un delay suave (`delay`, `delaytime`, `delayfeedback`) a corcheas con puntillo.
+   - **Lead (house):** `supersaw` con `detune` y `unison`/`spread` (a comprobar), filtro con envolvente (`lpenv`) y algo de `chorus`; delay a negras con puntillo.
+   - **Pad (drum and bass):** más lento y ancho (ataque largo, `phaser` o `chorus`), reverb grande.
+   - Que reverb y delay **no vayan por loop**, sino que se puedan **subir y bajar** (un ajuste de ⋯ "Melodía: seca · con reverb · con eco") o formen parte del sinte elegido; recordar que el "espacio" de ⋯ ya mete `room` y `delay` en todo el bloque (§8.6): decidir si la melodía lo comparte o tiene el suyo (orbit 5 propio).
+   - Un **vibrato** suave que entra al sostener una nota (la voz real lo tiene) y un ligero **cambio de volumen** por nota según la fuerza cantada (`strength`, hoy sin usar al tocar).
+5. **Humanizar un poco, sin romper la rejilla** (opcional): variaciones mínimas de volumen y de inicio (±10 ms) entre repeticiones del loop, apagables.
+
+**Cómo se decide cuál vale:** en el laboratorio (`/lab/voz`, "Probar sintes") se añadirá un modo para **escuchar la misma melodía** con cada variante (legato sí/no, duración real sí/no, glide, sinte A/B/C) y quedarse con lo que suene mejor. Lo medible (que suene, que no haya errores de Strudel) se comprueba como hasta ahora; lo demás es de oído.
+
+**Lo que hay que decidir al programarlo:**
+- Si la ayuda mantiene la **duración real** (y con qué resolución) o solo el inicio.
+- Qué vía de **glide** (envolvente de altura en el código o sinte propio) y si se acepta salir de "el código pegado en strudel.cc suena igual".
+- Qué ajustes aparecen en ⋯ (sinte, glide, reverb y eco) y cuáles van fijos por estilo.
+- Que el **órgano de la célula** (F2) y el estirar arcos usen la misma resolución de duración, y que el legato se vea (arcos unidos).
