@@ -260,7 +260,7 @@ Una línea por loop de voz, en mini-notación con duraciones (`@n` en semicorche
 | **Deslizamientos** (portamento, "scoops") | Se descarta el 20 % inicial y final de cada nota para la altura. Si un tramo es todo deslizamiento (pendiente sostenida), se corta en el punto de máxima pendiente |
 | **Voz suave** | Umbral de voz relativo al ruido de fondo; la frase se normaliza a −3 dBFS antes de YIN; la probabilidad de voz filtra el ruido. Test a −35 dBFS |
 | **Errores de octava** | Mediana y arreglo de saltos en `lib/pitch.ts`, y la ayuda corrige los que queden. Si el laboratorio sigue mostrándolos, pasa a pYIN con Viterbi (§4.1) |
-| **El fondo entra por el micro** (altavoces): el bajo y los acordes tienen tono y crearían **melodías falsas** | Con cascos no pasa. Si la prueba de eco detecta fuga, **la melodía se desactiva** y aparece un icono de cascos pequeño; la batería sigue funcionando |
+| **El fondo entra por el micro** (altavoces): el bajo y los acordes tienen tono y crearían **melodías falsas** | Con cascos no pasa. Si la prueba de eco detecta fuga, **la melodía se desactiva** y aparece un icono de cascos pequeño; la batería sigue funcionando. **Medido en la toma 9 (§15.15):** lo que se cuela del fondo es poco y flojo, y una nota tiene que superar 2 veces el piso de volumen y tener probabilidad de voz media ≥ 0,7 (§4.2). Con un fondo muy fuerte (piso > 0,006) esa regla no basta y manda la desactivación por fuga |
 | **"Bum" o "dum" confundidos con melodía**, o "na" con bombo | Puerta de tono sostenido (≥ 80 ms) y 4.ª clase calibrada (§4.3). Umbrales fijados con tus tomas; se mide la confusión (§9) |
 | Respiraciones y consonantes | Son frames sin voz y se ignoran. Las consonantes sirven para separar notas repetidas |
 | Cálculo en el móvil (YIN en streaming cada ~5 ms y segmentación al cerrar la frase) | Se hace en el worker y se mide en la implementación (objetivo < 300 ms en un iPhone de gama media). Si no da tiempo, el salto sube a 512 muestras; si aún no, el loop nace un compás más tarde, pero nunca se corta el audio |
@@ -289,7 +289,9 @@ Una línea por loop de voz, en mini-notación con duraciones (`@n` en semicorche
   - Bola blanca y línea de código.
   - Interruptor "Melodía (beta)" en ⋯, apagado por defecto y desactivado si hay fuga.
   - Sin franja en el aro todavía.
-- **F2. Visual:** franja con notas (arcos), punto de altura en vivo con destello al encajar, editar la nota subiendo o bajando el punto, onda del canal A y carril "na".
+- **F2. Visual:** franja con notas (arcos), punto de altura en vivo con destello al encajar, editar la nota subiendo o bajando el punto, onda del canal A y carril "na". Ideas del 2026-11-14 (a detallar al empezar la F2):
+  - **Estirar el arco para cambiar la duración de una nota.** Las notas son arcos (003, E3.1); se agarra el extremo final del arco y se estira o se acorta, con ayuda en pasos de semicorchea (sin ayuda, en la rejilla fina) y recortado en la línea de compás (§5). Cambia la línea `note()` igual que lo demás.
+  - **El órgano de la célula.** Tocar la franja de la melodía la abre **a pantalla completa**, como un instrumento ("caja de música") de esa célula: **horizontal = tiempo** (los pasos de los compases del loop) y **vertical = solo las notas de la escala del estilo** (una fila por grado, en el registro del sinte). Tocar un hueco pone una nota, arrastrar la mueve, estirar el arco cambia su duración, tocar una nota la borra. Con **transición de agua** al abrir y al cerrar (como la de las células, 005 §5.2). Mientras está abierto, la célula sigue sonando y las notas suenan al ponerlas. Para decidir entonces: qué pasa con los loops de batería (no se ven), el gesto para cerrar y cómo se toca en vertical en el móvil.
 - **F3. Calibración del "na" jugando** (el reto), clase "na" del clasificador, rango de voz, métricas con tus tomas y selector de sinte en ⋯.
 - **F4. Bajo con la voz** ("Voz como: bajo" y retirar el bajo del fondo, §7).
 - **F5. Prueba con tu voz en el ordenador y en el móvil, y ajuste fino.**
@@ -336,3 +338,11 @@ Lo que cambió respecto al borrador del 2026-11-13, y por qué.
     - Toma 7 (mezcla): la puerta por onset dejaba pasar 1 "na"; el volumen de los "na" decae de 0,019 a ~0,002 en décimas de segundo con el tono limpio.
     - Toma 8 (solo beatbox, 29 onsets): 0 notas con cualquier combinación de umbrales de volumen (0,001–0,004), probabilidad (0,6–0,8) y duración mínima (0,1–0,2 s). Con la puerta por onset, hasta 6 confundidos de 29.
     - Consecuencia: criterio "notas primero" (§4.3) y los valores por defecto de §4.2. Quedan por medir con más tomas: el 90 % de la ayuda (la ayuda aún no existe) y la toma 9 (fuga).
+15. **Toma 9 (fuga, sin cascos, fondo de prueba por los altavoces; 2026-11-14):** el micro marca 0,0043 de volumen solo con el fondo; ahí salen notas **G5** (pico 0,0048, probabilidad de voz media 0,55): es la fuga de verdad. De 1,5 s a 14 s el volumen es 3–8 veces mayor y la correlación con el fondo conocido es baja (0,06–0,28): las ~24 notas entre A2 y D3 son voz (tu rango), no fondo. Reglas añadidas (§4.2): pico mayor que 2 veces el piso (el 5 % más bajo del volumen de la toma, con tope de 0,006) y probabilidad de voz media ≥ 0,7; el pico es el percentil 80 de la nota. No se pudo usar la correlación con el fondo como detector de fuga: con un fondo sin fase conocida (las sierras y los triángulos no son periódicos juntos) la correlación sale baja incluso solo con fondo.
+
+## 16. Decisiones a revisar
+
+Cosas que se decidieron sin preguntar durante la implementación de la F1 (2026-11-14). Cada una dice qué se eligió y qué alternativa quedó. Se revisan al final de la F1.
+
+1. **Melodía = notas primero** (§4.3) y no la puerta por onset: decidido con las tomas 7 y 8.
+2. **El piso de volumen** (§4.2) se calcula sobre la toma entera (el 5 % más bajo, con tope 0,006). En vivo hará falta una ventana móvil de ~10 s; si nadie calla en 10 s, el tope evita que el piso sea la propia voz. Alternativa: medir el piso en la prueba de eco al empezar, con el fondo sonando.
