@@ -1,0 +1,219 @@
+# 011 · Modos: la misma canción, dos vistas
+
+> Estado: **propuesta, sin programar** (2026-11-14). Para que la decidas: §10 reúne lo que hay que elegir.
+> Parte de: spec 003 (el aro), 005 (células, colonia, grupos, disparadores), 002 (melodía), 006 (Mis canciones), 008 (remixes),
+> 010 (sonidos). El inventario de §2 se hizo mirando `Studio.vue`, `VisualStage.vue`, `SettingsSheet.vue` y las specs, no de memoria.
+
+## 1. Idea y principio
+
+La app ha crecido por capas (aro → células → colonia → grupos → disparadores) y hoy **todo está en una sola pantalla**: la gota, el mapa
+de células al alejar el zoom, doce gestos distintos, marcadores, botones de acción, hojas de ajustes. Para quien llega a tocar, es mucho.
+Para quien compone, es justo lo que necesita. La propuesta no quita nada: **separa lo que se ve y se toca según lo que se quiere hacer**.
+
+**Principio: una sola canción, varias vistas.** Hay **un único modelo** (`Song`: células, loops, notas, grupos, disparadores, `lpf`, `wow`;
+spec 005 §3) y **un único motor**. Un modo no tiene datos propios: es **una forma de mirar y tocar esa misma canción**.
+
+Tres reglas que no se negocian:
+
+1. **Cualquier canción (demo, remix, guardada) se abre y suena en cualquier modo**, igual. El modo no se guarda en la canción.
+2. **Lo que se hace en un modo se ve en el otro** (un golpe puesto en «Jugar» está en la célula que se ve en «Componer»).
+3. **Cambiar de modo no corta la música** ni cambia lo que suena: solo cambia lo que se ve y se toca.
+
+## 2. Inventario: qué hay hoy y a qué modo iría
+
+Leyenda: **J** = Jugar · **C** = Componer · **J+C** = en los dos · **⋯** = ajustes / avanzado (hoja, fuera de las pantallas) · **—** = se retira o se pospone.
+
+### 2.1 Barra y botones (hoy, `Studio.vue`)
+
+| Qué | Hoy | Modo |
+|---|---|---|
+| Estilos (hip hop, house, dnb, dembow, techno) | barra de arriba, siempre | **J+C** |
+| BPM / tempo fácil (4 toques, mantener = el del estilo) | junto a los estilos | **J+C** (en Jugar, solo el número; el gesto, igual) |
+| Play / Parar | abajo, grande | **J+C** |
+| Mis canciones (biblioteca, 006) | botón arriba a la izquierda | **J+C** |
+| Remixes (008) | botón debajo del anterior | **J+C** |
+| ⋯ Ajustes | arriba a la derecha | **J+C** |
+| (nuevo) **Selector de modo** | — | **J+C** (§5) |
+
+### 2.2 La gota (aro, spec 003; lo que se hace «de cerca»)
+
+| Qué | Hoy | Modo |
+|---|---|---|
+| La gota, sus franjas (bombo, caja, platillo, melodía, bajo) y la aguja con su estela | siempre | **J** |
+| Beatbox: la voz graba golpes (clasificador, calibración, cuantizado) | de cerca, sonando | **J** |
+| Crear un golpe (tocar), arrastrar, llevarlo al centro = borrar | de cerca | **J** |
+| Sugerencias del estilo (guía al tocar) | de cerca | **J** |
+| Carriles que graban (mantener un hueco 0,5 s; E4) | de cerca | **J** |
+| Tocar la franja de la melodía → **órgano** (pantalla completa; spec 002) | de cerca | **J** (se abre desde Jugar; ver §3.3) |
+| Melodía con la voz (beta, en ⋯) | de cerca | **J** |
+| Dos dedos: **filtro** (vertical) y **espacio** (horizontal); dos dedos sin mover = fondo sí/no | de cerca, y en cualquier sitio | **J** (y filtro/espacio en **C**, ver §4.2) |
+| Bolas flotantes: una por loop (tocar = silenciar, mantener = borrar) y las del fondo (bajo, acordes) | de cerca | **J** |
+| Puntitos del compás junto al centro | de cerca | **J** |
+| Chapa de vueltas (● ● ○ ○; tocarla = bucle ∞ / ▶ seguir) | de cerca, una célula de varias | **J** (simplificada, §3.2) |
+| Retraso de imagen, prueba de sincronía, calibraciones | ⋯ | **⋯** |
+
+### 2.3 La colonia (el mapa de células, spec 005 §7, §15, §16, §22)
+
+| Qué | Hoy | Modo |
+|---|---|---|
+| Mapa con todas las células, profundidad, física al mover | alejando el zoom | **C** |
+| Hilos de orden (cortar uno = soltar la célula) | colonia | **C** |
+| Mover una célula; copiar (arrastrar el asa a agua vacía); ordenar (asa sobre otra) | colonia | **C** |
+| Tocar agua vacía = célula nueva; número de vueltas (tocar = 1→2→4→8); mantener = borrar + «↶ deshacer» | colonia | **C** |
+| Un toque en una célula = salta a ella y queda en bucle; doble toque = entrar | colonia | **C** (y el doble toque pasa a «Jugar sobre esa célula», §3.4) |
+| Grupos en paralelo / células libres: encender y apagar, marcadores ▶ ■ de los disparadores (§22) | colonia | **C** |
+| Anillo de progreso, puntitos de vueltas, hilo que se llena | colonia | **C** |
+| «◎ centrar», «∞ ▶ seguir canción», «apagar grupos», «↶ deshacer» | zona de acciones | **C** (los de «seguir» y «grupos», también **J**, §3.2) |
+| Marcadores del borde (otras células, al ver una) | de cerca | **C** (en Jugar sobran) |
+| «Añadir célula libre», «Borrar todo» | ⋯ | **C** (en la propia pantalla, no en ⋯) |
+
+### 2.4 Hojas y ajustes (`SettingsSheet`, `LibrarySheet`, `RemixSheet`)
+
+| Qué | Hoy | Modo |
+|---|---|---|
+| Kit (Electrónico / Vinilo / 808; spec 010) | ⋯ | **⋯** (a la vista del estilo, se elige solo) |
+| Fondo: apagado / manual / auto | ⋯ y bolas | **⋯** (y las bolas en J) |
+| Frases (modo, cierre, máx.), modo de repetición | ⋯ | **⋯ · avanzado** |
+| Melodía con la voz, Retraso de imagen, Prueba de sincronía | ⋯ | **⋯** |
+| «Cargar demo» | ⋯ | **J+C** (un botón claro en ambos; hoy está escondido) |
+| Recalibrar latencia / sonidos | ⋯ | **⋯** |
+| Pestaña **código** (Strudel de la canción, copiar) | ⋯ → código | **⋯** (y un atajo, §3.5) |
+| Diagnóstico / registro | ⋯ | **⋯ · avanzado** |
+| Mis canciones, Remixes | hojas | **J+C** |
+
+## 3. Los modos
+
+### 3.1 Cuántos: dos, y dos «herramientas» sin modo propio
+
+- **Jugar** (por defecto): una gota, la voz y el dedo. Sin mapa, sin números, sin hilos.
+- **Componer**: la colonia entera, para ordenar, copiar, agrupar y disparar.
+- El **Órgano** (melodía) y el **Código** **no son modos**: son herramientas que se abren desde cualquiera de los dos (el órgano, hoy ya
+  pantalla completa al tocar la franja de la melodía; el código, la pestaña de ⋯). Así no hay tercer sitio al que ir y volver.
+
+Alternativas descartadas en §10: tres modos con «Órgano» propio (el órgano ya es una hoja y no es una vista de la canción entera) y un modo
+«Código» (es de lectura, y la hoja de ⋯ basta).
+
+### 3.2 Jugar (por defecto)
+
+**Qué se ve:** la gota de la célula que suena (agua, franjas, aguja, golpes), las bolas de los loops y del fondo, los puntitos de vueltas
+junto al centro y, **si la canción tiene más de una célula**, una **tira de células** muy fina (§3.6). Nada de mapa, números, hilos, asas
+ni marcadores del borde.
+
+**Qué se puede tocar:** todo lo de §2.2 (golpes, carriles, órgano, filtro/espacio, bolas, voz) más **Play**, los estilos y el tempo.
+Un solo cambio respecto a hoy: **la gota sigue siempre a la canción** (si la canción pasa de la célula 2 a la 3, la gota cambia con la transición de agua).
+
+**Qué se graba:** la voz (beatbox, y la melodía con la voz si está activada) y los toques **en la célula que se ve**, que es la que suena.
+Es lo mismo que hoy.
+
+**Qué NO se puede hacer:** crear, copiar, ordenar, mover o borrar células, ni tocar grupos y disparadores. Para eso, «Componer».
+
+### 3.3 Componer
+
+**Qué se ve:** la colonia (§2.3). Sin aguja ni estela en la célula que se mira; solo la que suena lleva aguja y anillo.
+
+**Qué se puede tocar:** todo lo de §2.3, más Play, estilos, tempo y **filtro/espacio con dos dedos** (hoy no se puede en la colonia; ver §4.2).
+**Doble toque en una célula** = «entrar a jugar en ella» (§3.4).
+
+**Qué se graba:** **nada** con la voz (no hay gota). Lo que se compone son estructuras: células, vueltas, orden, grupos, disparadores.
+
+### 3.4 Entrar a jugar en una célula (el puente entre los dos modos)
+
+Hoy, doble toque en la colonia acerca la cámara a una célula **y la deja «fijada»** (la vista no sigue a la canción hasta «Volver a la canción»;
+spec 005 §18). Esa fijación es lo que se ha visto confuso. Propuesta, ya a medias en el código (`5f14557`):
+
+- **Doble toque en Componer → pasa a Jugar con esa célula en la gota**, sin cambiar lo que suena. Una chapa visible: «**editando: Drop 1** · ▶ seguir la canción».
+- **«▶ seguir la canción»** (o volver a Componer) suelta la fijación: la gota vuelve a la célula que suena. **No hay otra forma de quedar «fijado».**
+- En **Jugar a secas** (sin haber entrado desde Componer) nunca hay fijación: la gota sigue a la canción.
+
+Con eso, los estados raros de hoy (vista fijada, célula de grupo a la vista, «◎ centrar» más «∞ seguir» más «volver») se reducen a **uno**: *editando* o *siguiendo*.
+
+### 3.5 Herramientas sin modo propio
+
+- **Órgano** (melodía): se abre tocando la franja de la melodía, en Jugar. En Componer, doble toque en una célula con melodía y luego la franja (dos pasos, como hoy).
+- **Código**: un botón pequeño «‹/›» al lado de ⋯, en ambos modos, que abre la pestaña de código (hoy: ⋯ → código). Solo lectura y «copiar».
+
+### 3.6 Una canción de muchas células en Jugar
+
+Es el caso difícil: el Himno son 12 células, el Mozart 12 (+4 de grupos). En Jugar solo hay **una gota**. Tres opciones:
+
+| Opción | Qué es | Pros | Contras |
+|---|---|---|---|
+| **A. Seguir la célula que suena** (recomendada) | La gota es la célula que suena; cambia con la transición de agua. Una **tira de células** abajo (un puntito por célula de la canción, la actual iluminada, con sus vueltas) | Es lo que hace hoy el motor; cero conceptos nuevos; se ve dónde va la canción | Lo que grabas va a la célula del momento: si cambia, cambia |
+| **B. Bucle por defecto** | Jugar siempre en bucle sobre una célula («∞»); la canción no avanza | Simple de entender (una gota = un loop) | Una canción de 12 células **no se oye entera** en Jugar: rompe la regla 3 |
+| **C. Aplanar** | Una gota «resumen» del conjunto | — | Imposible sin un modelo nuevo (no existe «la célula de toda la canción») |
+
+**Recomendación: A**, con dos detalles:
+- **Tocar un puntito de la tira = «ir a esa célula»** (hoy: un toque en la colonia; salta en la siguiente línea de compás y queda en bucle ∞). Un toque más suelta el bucle.
+- **Mantener un puntito** = entrar a jugar en esa célula (§3.4) sin esperar a que suene.
+- **Los grupos en paralelo suenan igual** (las melodías de los remixes), pero **en Jugar no se ven**: solo un indicador discreto «+ grupo» junto a Play y el botón de apagarlos (hoy «apagar grupos»). Para verlos y tocarlos, Componer.
+- Con **una sola célula** (lo normal al empezar) no hay tira: Jugar es exactamente la app simple de hoy.
+
+## 4. Cómo se cambia de modo
+
+### 4.1 El selector
+
+Un **interruptor de dos estados** junto al nombre del estilo (o bajo ⋯), con la palabra del modo: **Jugar | Componer**. Siempre visible, siempre el mismo sitio.
+**El modo se guarda por dispositivo** (en las preferencias, 003 E6.4), no en la canción. Por defecto, **Jugar** (también para quien ya usaba la colonia: ver §8).
+
+### 4.2 Atajos
+
+- **Pellizcar para alejar** en Jugar (hoy: entra a la colonia): **pasa a Componer**, con un aviso la primera vez («esto es Componer»). **Pellizcar para acercar** en Componer: pasa a Jugar.
+  Así la memoria muscular de quien ya usa la colonia no se pierde.
+- **Doble toque** en una célula (Componer) → Jugar sobre ella (§3.4).
+- **Filtro y espacio con dos dedos** funcionan también en Componer (hoy solo de cerca): son efectos de toda la canción, no de una célula; poder moverlos con el mapa a la vista no cuesta nada.
+
+### 4.3 Qué conserva el cambio
+
+La música sigue; la gota o el mapa se **transforman con una transición de agua** (la cámara ya sabe acercarse y alejarse, spec 005 §5). La selección y la vista fijada (§3.4) se **sueltan** al volver a Componer (ya implementado).
+
+## 5. Cualquier demo o remix, en cualquier modo
+
+- Se abren como hoy (`replaceSong`), con su estilo y su kit, **y el modo no cambia**. Abrir el Himno desde Jugar: la gota es la **Intro**; empieza a sonar y la tira va avanzando.
+- En Jugar, **todo suena igual**: bajo, acordes, risers, platillo, grupos. Lo único que cambia es qué se ve.
+- Una canción con **grupos y disparadores** (los remixes) funciona en Jugar sin que el usuario los toque nunca; para editarlos, Componer.
+- **Lo guardado no cambia de formato** (`Song`, spec 006): no hay campo de modo. Una canción guardada desde Jugar se abre igual en Componer.
+- Los remixes son un buen **banco de pruebas** de la regla 1: un test los abre y los recorre en cada modo (§9).
+
+## 6. Qué se pierde, qué se gana
+
+| Se gana | Se pierde (o se mueve) |
+|---|---|
+| Pantalla de inicio de **una gota y un botón de Play**, sin mapa ni números | En Jugar no se puede **copiar/ordenar/mover/borrar** células: hay que cambiar a Componer |
+| Los estados de «fijado/libre/siguiendo» se reducen a **editando o siguiendo** (§3.4) | El «pellizco = mapa» pasa a ser **un cambio de modo** (con aviso), no un zoom continuo |
+| El código de `VisualStage.vue` (unas 2 000 líneas) se puede **partir en dos vistas** y probar por separado | La transición continua gota ↔ mapa (el zoom sin saltos) se sustituye por una transición con corte limpio; hay que decidir si se conserva (§10) |
+| «Cargar demo» a la vista | Un clic más para quien componía sin salir de la gota |
+
+## 7. Lo que cambia en el código (para estimar, no para hacer ahora)
+
+1. **Pref `mode: 'jugar' | 'componer'`** (`usePrefs`), con migración (por defecto Jugar) y su guarda (`prefsGuard`).
+2. **Partir `VisualStage.vue`**: hoy mezcla la gota, la colonia, las bolas, los marcadores y los gestos. Habría una vista por modo; lo común (cámara, agua, motor) se queda.
+3. **La tira de células** (nuevo, pequeño) y el **selector** (nuevo, pequeño).
+4. **Gestos por modo** (`lib/gestures.ts`): la tabla de §2 decide qué gesto vale en cuál.
+5. **Estados «editando/siguiendo»**: retirar `pinned`/`viewAway` y dejar uno solo; mantener el comportamiento ya corregido de soltar al alejar.
+6. **Nada** cambia en `Song`, el motor, `lib/song.ts`, el código mostrado ni la biblioteca.
+
+## 8. Quien ya usa la app
+
+- El **primer arranque tras actualizar** abre en **Jugar** aunque se usara la colonia, con un único aviso: «Ahora hay dos vistas: **Jugar** y **Componer** (el mapa)».
+- Las canciones guardadas y las preferencias **se abren igual** (no hay formato nuevo). El zoom guardado (`coderbeats:aro:v1`) sigue valiendo para Jugar.
+- La **calibración** (latencia, sonidos) no cambia ni se pide de nuevo.
+
+## 9. Cómo se comprobará
+
+- **Los datos no cambian**: ningún test de `Song`/`cells`/`song.ts` debe tocarse. Es la señal de que los modos son solo vista.
+- **Un test recorre todos los remixes y demos** abriéndolos con el modo en cada valor y comprobando que **el código que suena es el mismo byte a byte** (`songCode` no depende del modo).
+- La pref `mode` y su migración (`prefsGuard`, `prefsMigration`).
+- La **tira de células** (cuántos puntitos, cuál está iluminada) como función pura; los **gestos por modo** como tabla pura (qué gesto vale en cuál).
+- **Pendiente de oído y de dedo** (móvil): que Jugar se sienta simple, que el pellizco no cambie de modo sin querer, y que el doble toque de Componer a Jugar sea claro.
+
+## 10. Decisiones que hay que tomar
+
+1. **¿Dos modos (Jugar / Componer) con Órgano y Código como herramientas?** (recomendado) ¿o un tercero?
+2. **Nombres:** «Jugar / Componer» u otros («Tocar / Armar», «Simple / Completo»…).
+3. **Muchas células en Jugar:** ¿la opción A (seguir la canción con tira de células, §3.6)? ¿Y qué hace **tocar un puntito**: saltar y bucle (como hoy en la colonia) o solo mirar?
+4. **El pellizco:** ¿cambia de modo (§4.2) o el zoom se queda continuo dentro de cada modo y el cambio solo se hace con el selector?
+5. **«Editando: X · ▶ seguir la canción» (§3.4)** como única fijación: ¿te parece bien que **no** exista «◎ centrar» ni «volver a la canción» aparte?
+6. **Filtro y espacio** con dos dedos también en Componer.
+7. **«Cargar demo»** a la vista en los dos modos.
+8. **¿Jugar puede crear una célula nueva** con un botón «+»? (hoy, tocar agua vacía en la colonia). Sin él, quien empieza a una célula solo la amplía tocando; con él, Jugar crece hacia Componer.
+9. **Orden de las fases** si se aprueba: (1) pref + selector + migración, (2) Jugar sin colonia (con la tira), (3) Componer = la colonia de hoy, (4) pellizco y transiciones, (5) retirar `pinned/viewAway`.
