@@ -110,6 +110,8 @@ export interface AroLabel {
   alpha: number
   /** en la que suena: puntitos de vueltas (●●○○) en vez del número */
   dots?: { turns: number; turn: number }
+  /** disparadores de grupos de la célula (spec 005, §22): ▶ enciende un grupo, ■ apaga uno; se dibuja a la derecha del número */
+  mark?: string
 }
 
 export interface AroFrame {
@@ -952,6 +954,13 @@ export class AroCanvas {
       }
       x.fillStyle = `rgba(255,255,255,${l.alpha})`
       x.fillText(l.text, l.x, l.y)
+    }
+    // marcas de disparadores (▶ enciende, ■ apaga un grupo), a la derecha de lo que haya
+    x.font = '500 9px system-ui, sans-serif'
+    for (const l of ls) {
+      if (!l.mark || l.alpha < 0.01) continue
+      x.fillStyle = `rgba(255,255,255,${Math.min(1, l.alpha * 1.4)})`
+      x.fillText(l.mark, l.x + (l.dots ? Math.min(4, l.dots.turns) * 3 + 8 : l.text.length * 3 + 9), l.y)
     }
   }
 

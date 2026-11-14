@@ -85,7 +85,7 @@ describe('el grupo en paralelo del Himno (spec 005, §22)', () => {
   const names = group.order.map((id) => cellOf(id).name)
   it('un grupo de 5 células de 4 compases (20 = 8 + 4 + 8), en orden: A, A′, B, A↑, A′↑', () => {
     expect(song.groups).toHaveLength(1)
-    expect(names).toEqual(['Himno A', 'Himno A′', 'Puente B', 'Himno A↑', 'Himno A′↑'])
+    expect(names).toEqual(['Himno A', 'Himno A2', 'Puente B', 'Himno A agudo', 'Himno A2 agudo'])
     expect(group.order.map((id) => cellOf(id).turns)).toEqual([4, 4, 4, 4, 4])
     expect(group.on).toBe(false) // lo enciende el Dembow, no Play
     expect(song.cells).toHaveLength(12)
@@ -103,7 +103,7 @@ describe('el grupo en paralelo del Himno (spec 005, §22)', () => {
   })
   it('el puente lleva el filtro que se abre; las demás frases, ninguno', () => {
     expect(song.cells.find((c) => c.name === 'Puente B')!.lpf).toEqual([600, 1000, 2000, 6000])
-    for (const n of ['Himno A', 'Himno A′', 'Himno A↑', 'Himno A′↑']) expect(song.cells.find((c) => c.name === n)!.lpf).toBeUndefined()
+    for (const n of ['Himno A', 'Himno A2', 'Himno A agudo', 'Himno A2 agudo']) expect(song.cells.find((c) => c.name === n)!.lpf).toBeUndefined()
   })
   it('un grupo sin disparadores no existiría: se borra el grupo y los disparadores desaparecen al normalizar', () => {
     const n = normalizeSong({ ...song, groups: [] })
@@ -139,7 +139,7 @@ describe('la melodía: el tema de la Oda a la alegría en re mayor', () => {
   it('todas las notas son de la escala del dembow (si menor = re mayor), también una octava más aguda', () => {
     const scale = STYLE_MUSIC.dembow.scale
     for (const m of [...midis(ODE_A), ...midis(ODE_A2), ...midis(ODE_B)]) expect(scale).toContain(m % 12)
-    const hi = song.cells.find((c) => c.name === 'Himno A′↑')!.loops.find((l) => l.instrument === 'mel')!
+    const hi = song.cells.find((c) => c.name === 'Himno A2 agudo')!.loops.find((l) => l.instrument === 'mel')!
     expect(hi.hits.map((h) => h.midi)).toEqual(midis(ODE_A2).map((m) => m + 12))
     expect(Math.max(...hi.hits.map((h) => h.midi!))).toBeLessThanOrEqual(84) // dentro del registro del lead
   })

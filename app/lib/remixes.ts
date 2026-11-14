@@ -104,10 +104,10 @@ const ODE_GROUP: GroupSpec = {
   off: 'Final',
   cells: [
     { name: 'Himno A', turns: 4, mel: { notes: ODE_A, synth: 'lead' } },
-    { name: 'Himno A′', turns: 4, mel: { notes: ODE_A2, synth: 'lead' } },
+    { name: 'Himno A2', turns: 4, mel: { notes: ODE_A2, synth: 'lead' } },
     { name: 'Puente B', turns: 4, mel: { notes: ODE_B, synth: 'lead' }, lpf: [600, 1000, 2000, 6000] },
-    { name: 'Himno A↑', turns: 4, mel: { notes: up(ODE_A, 12), synth: 'lead' } },
-    { name: 'Himno A′↑', turns: 4, mel: { notes: up(ODE_A2, 12), synth: 'lead' } },
+    { name: 'Himno A agudo', turns: 4, mel: { notes: up(ODE_A, 12), synth: 'lead' } },
+    { name: 'Himno A2 agudo', turns: 4, mel: { notes: up(ODE_A2, 12), synth: 'lead' } },
   ],
 }
 
@@ -148,7 +148,7 @@ function buildSong(specs: readonly CellSpec[], groupSpecs: readonly GroupSpec[] 
       cells.push({
         id: cid, name: gc.name, loops: [loop('mel', 4, gc.mel.notes.map(([pos, dur, midi]) => ({ pos, dur, midi, strength: 0.8 })), gc.mel.synth)],
         parts: { bass: false, chords: false }, turns: gc.turns, ...(gc.lpf ? { lpf: [...gc.lpf] } : {}),
-        at: { x: 9 + k * 3, y: 4.5 + gi * 2.5, depth: [0.5, 0.2, 0.6, 0.3][k % 4]! },
+        at: { x: 8 + k * 3.6, y: 4.8 + gi * 2.5, depth: [0.5, 0.2, 0.6, 0.3][k % 4]! },
       })
     })
     groups.push({ id: gid, order: ids, on: false })

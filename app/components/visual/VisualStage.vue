@@ -54,7 +54,7 @@ import { clampZoom, contourPoints, dropLayout, freeRect, lerpGeo, moveGeo, pinch
 import type { Part } from '~/lib/background'
 import { notesInBar } from '~/lib/bass'
 import { STYLES } from '~/lib/constants'
-import { fitTurns, groupIdOf, MAIN, orderOf, type Cell } from '~/lib/cells'
+import { fitTurns, groupIdOf, groupTriggers, MAIN, orderOf, type Cell } from '~/lib/cells'
 import { loopBarAt, type FreeLoop } from '~/lib/freeLoops'
 import { describeImageDelay } from '~/lib/imageDelay'
 import { dragValue, lockAxis, type Axis } from '~/lib/gestures'
@@ -700,7 +700,9 @@ function cellScene(
       ? all.map((c) => {
           const g = placed.get(c.id)!
           const turns = c.id === engine.viewCellId.value ? fitTurns(c.turns, loops.value.loops) : c.turns
-          const base = { x: g.cx, y: g.cy + g.R + 11, text: String(turns), alpha: 0.5 * k * depthAlpha(c.at.depth, k) * looseMul(c.id) }
+          const trig = groupTriggers(engine.song.value, c.id)
+          const mark = `${trig.on.length ? '▶' : ''}${trig.off.length ? '■' : ''}`
+          const base = { x: g.cx, y: g.cy + g.R + 11, text: String(turns), alpha: 0.5 * k * depthAlpha(c.at.depth, k) * looseMul(c.id), ...(mark ? { mark } : {}) }
           // la que suena (en la canción o en un grupo), puntitos de vueltas (●●○○) en vez del número; con más de 8, "5/16"
           const sounding = (start: number, n: number) => {
             const turn = turnIndex(pos, start, n)

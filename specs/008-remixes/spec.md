@@ -97,7 +97,7 @@ interface Cell {
 
 ## 8. Decisiones a revisar
 
-1. **Qué frase va dónde:** A suave en Despierta y Entra el ritmo; en el grupo, A y A′ (Dembow), B (Subida), A↑ y A′↑ (Subidón), por pedido del autor.
+1. **Qué frase va dónde:** A suave en Despierta y Entra el ritmo; en el grupo, A y A′ (Dembow), B (Subida), A↑ y A′↑ (Subidón); las células se llaman «Himno A», «Himno A2», «Puente B», «Himno A agudo» y «Himno A2 agudo» (los nombres solo llevan letras y números), por pedido del autor.
 2. **La melodía continúa en la célula 3** (Entra el ritmo, solo "+ bombo"): se interpretó como que lo anterior sigue.
 3. **El platillo** va en corcheas en las células 2 y 3 y en semicorcheas desde la 4 (el patrón del dembow).
 4. **El bajo solo en el Subidón**, como pedía la descripción.
