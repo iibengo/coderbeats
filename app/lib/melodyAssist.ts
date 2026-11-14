@@ -31,6 +31,11 @@ export interface AssistOptions {
   register: MelodySynth | 'bass'
   /** segundos por semicorchea (para el mínimo de 60 ms) */
   stepSeconds: number
+  /**
+   * Rejilla de las duraciones (pasos). Por defecto la misma que la del inicio (con ayuda, 1: la duración se redondea a
+   * celdas, que es lo que suena hoy). Con 0,25 la duración se acerca a lo cantado (spec 002, §17; solo el laboratorio).
+   */
+  durGrid?: number
 }
 
 /** Semitono más pequeño de la rejilla fina sin ayuda: un cuarto de semicorchea. */
@@ -172,11 +177,12 @@ export function assistMelody(notes: readonly RawNote[], o: AssistOptions): Melod
 
   // ritmo: rejilla de semicorcheas con ayuda; rejilla fina sin ella
   const grid = o.assist ? 1 : FINE_GRID
-  const minDur = grid
+  const dg = o.durGrid ?? grid
+  const minDur = dg
   let timed = work.map((n) => ({
     ...n,
     rel: Math.max(0, Math.round(n.rel / grid) * grid),
-    dur: Math.max(minDur, Math.round(n.dur / grid) * grid),
+    dur: Math.max(minDur, Math.round(n.dur / dg) * dg),
   }))
   // monofonía: dos notas en el mismo inicio, queda la más larga (o la más fuerte); la anterior se corta donde empieza la siguiente
   const mono: typeof timed = []

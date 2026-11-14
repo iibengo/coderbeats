@@ -383,7 +383,7 @@ Lo que se quiere:
    - Un **vibrato** suave que entra al sostener una nota (la voz real lo tiene) y un ligero **cambio de volumen** por nota según la fuerza cantada (`strength`, hoy sin usar al tocar).
 5. **Humanizar un poco, sin romper la rejilla** (opcional): variaciones mínimas de volumen y de inicio (±10 ms) entre repeticiones del loop, apagables.
 
-**Cómo se decide cuál vale:** en el laboratorio (`/lab/voz`, "Probar sintes") se añadirá un modo para **escuchar la misma melodía** con cada variante (legato sí/no, duración real sí/no, glide, sinte A/B/C) y quedarse con lo que suene mejor. Lo medible (que suene, que no haya errores de Strudel) se comprueba como hasta ahora; lo demás es de oído.
+**Cómo se decide cuál vale:** en el laboratorio (**`/lab/sonido`, ya hecho el 2026-11-14**; antes se pensó en `/lab/voz`) hay un modo para **escuchar la misma melodía** con cada variante (legato sí/no, duración real sí/no, glide, sinte A/B/C) y quedarse con lo que suene mejor. Lo medible (que suene, que no haya errores de Strudel) se comprueba como hasta ahora; lo demás es de oído.
 
 **Lo que hay que decidir al programarlo:**
 - Si la ayuda mantiene la **duración real** (y con qué resolución) o solo el inicio.
@@ -404,3 +404,11 @@ Lo que se quiere:
 22. **Transición de agua:** un círculo que crece desde el punto tocado (y se recoge al cerrar), con tres ondas; es una aproximación sencilla (`clip-path`), no la gota con borde irregular de las células. Con movimiento reducido, un fundido. El órgano va en un `Teleport` al `body` por encima de todo (los controles de abajo no se ven): lleva Play/Parar, el selector de compases y cerrar (✕ o Escape).
 23. **Loops con sinte propio** (el `drone` del dembow): el órgano y el aro usan su registro, no el del estilo.
 24. **Pruebas visuales:** `dev/lab-aro` monta el aro con una canción de ejemplo y sin audio (`?live=62&wobble=1` simula la voz). Los gestos del aro y del órgano se probaron con Chrome sin cabeza (ratón simulado); la sensación al tacto en el móvil (tamaños de asa, zonas de toque) queda por probar.
+
+### Modo A/B del sonido (2026-11-14): `/lab/sonido`
+
+Hecho, sin cambiar el sonido de la app (`lib/melodyVariants.ts` solo lo usa el laboratorio; la ayuda ganó una opción `durGrid` que por defecto deja la duración a celdas, como hoy).
+- **Dos paneles, A (el sonido de hoy) y B (una propuesta)**, con: sinte (actual, mejorado B o C), duración (a celdas o la real, a un cuarto de paso), legato (no, rellena los huecos de hasta 2 pasos, o huecos y solape con `.clip(1.15)`), glide (no, **envolvente de altura `penv` de Strudel** que parte de la nota anterior, o **sinte propio de Web Audio con portamento**), duración del glide, y reverb y eco extra.
+- **Tres melodías de prueba** (legato, staccato y mixta) en los tres estilos, con «Alternar A/B» (dos vueltas de cada una hasta que pares), el código y las notas de cada una, y «Mi elección» (se guarda en el navegador y se copia al portapapeles).
+- **Verificado en Chrome:** los 9 sintes (3 por sinte) y una propuesta completa por sinte suenan (picos de 0,23 a 0,52); `penv` funciona en superdough 1.3 (las notas y los valores de `penv` salen como se espera al evaluar el código en Node); el eco usa `delaytime` en segundos. Las líneas `b` y `c` de cada sinte son propuestas a afinar de oído, no decididas.
+- El glide por Web Audio es solo para comparar: usarlo en la app **rompería** "el código pegado en strudel.cc suena igual".

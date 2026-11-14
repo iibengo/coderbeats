@@ -11,7 +11,7 @@ export default defineNuxtConfig({
   typescript: { strict: true },
 
   // Todo el audio corre en el navegador: la página no se renderiza en el servidor.
-  routeRules: { '/': { ssr: false }, ...(process.env.NODE_ENV === 'production' ? {} : { '/spike': { ssr: false }, '/lab/voz': { ssr: false }, '/lab/aro': { ssr: false } }) },
+  routeRules: { '/': { ssr: false }, ...(process.env.NODE_ENV === 'production' ? {} : { '/spike': { ssr: false }, '/lab/voz': { ssr: false }, '/lab/aro': { ssr: false }, '/lab/sonido': { ssr: false } }) },
 
   // Páginas de desarrollo (en dev/): /spike (banco de pruebas de Strudel) y /lab/voz (laboratorio de voz, spec 002).
   // Solo existen con `nuxt dev`: no entran en el build.
@@ -22,6 +22,7 @@ export default defineNuxtConfig({
       pages.push({ name: 'spike', path: '/spike', file: dev('spike.vue') })
       pages.push({ name: 'lab-voz', path: '/lab/voz', file: dev('lab-voz.vue') })
       pages.push({ name: 'lab-aro', path: '/lab/aro', file: dev('lab-aro.vue') })
+      pages.push({ name: 'lab-sonido', path: '/lab/sonido', file: dev('lab-sonido.vue') })
     },
   },
 
