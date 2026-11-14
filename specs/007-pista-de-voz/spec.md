@@ -1,6 +1,6 @@
 # 007 · Pista de voz en bucle (loop station)
 
-> Estado: **borrador, para revisar** (2026-11-14). No se programa nada hasta que se apruebe.
+> Estado: **borrador, con las dos primeras decisiones tomadas el 2026-11-14** (§15.1 y §15.2). No se programa nada hasta que se apruebe.
 > Parte de: spec 001 (frases y loops, §16), 002 (melodía con la voz), 003 (el aro y los carriles que graban, E4), 005 (células, grupos y tempo) y 006 (Mis canciones).
 > Idea del usuario (2026-11-14): una pista de **voz real** en bucle, como una loop station (Boss RC-505).
 
@@ -225,8 +225,8 @@ Hito: te enseño los números antes de seguir.
 
 ## 15. Decisiones a revisar y preguntas abiertas
 
-1. **Carril exclusivo (§4.1):** voz armada = batería y melodía no graban. Alternativa: grabar la voz *y* clasificar a la vez (se oye tu beatbox dentro del audio *y* nacen golpes: se duplica).
-2. **Sustituye = la última capa (§4.1.5).** Alternativas: todas las capas, o la que se elija tocando su bola.
+1. **DECIDIDO (2026-11-14): carril exclusivo (§4.1).** Con la voz armada **no se graba batería ni melodía** (el audio es solo audio; el beatbox y las notas no crean loops). Alternativa descartada: grabar la voz *y* clasificar a la vez.
+2. **DECIDIDO (2026-11-14): "sustituye" reemplaza la última capa grabada (§4.5).** Las demás capas siguen. Alternativas descartadas: todas las capas, o la que se elija tocando su bola.
 3. **Reproducción por Strudel o propia (§6.2):** propuesta A (Strudel con `loopAt`), a decidir con la fase 0.
 4. **Dónde va la franja (§8):** la más exterior (propuesta) o entre la melodía y el platillo.
 5. **Capas máximas:** 4 por célula y 8 en la canción (a afinar de oído y con la memoria del móvil).
