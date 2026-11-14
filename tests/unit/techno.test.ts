@@ -136,13 +136,13 @@ describe('el remix Dies Irae en techno', () => {
     expect(filtered).toContain('square')
   })
   it('el bombo va afinado a la raíz del acorde de cada compás (Cm A♭ B♭ Gm)', async () => {
-    expect(STYLE_MUSIC.techno.kickTune).toBe('<c3 ab2 bb2 g2>')
+    expect(STYLE_MUSIC.techno.kickTune).toBe('<c2 ab1 bb1 g1>')
     const c = code()
-    expect(c).toContain('.note("<c3 ab2 bb2 g2>")')
+    expect(c).toContain('.note("<c2 ab1 bb1 g1>")')
     const ev = await events(c, 56)
     const kicks = ev.filter((e) => e.value.s === 'bd' && e.begin >= 0 && e.begin < 8)
     const noteOf = (bar: number) => [...new Set(kicks.filter((e) => Math.floor(e.begin) === bar).map((e) => String(e.value.note)))]
-    expect([0, 1, 2, 3, 4].map(noteOf)).toEqual([['c3'], ['ab2'], ['bb2'], ['g2'], ['c3']])
+    expect([0, 1, 2, 3, 4].map(noteOf)).toEqual([['c2'], ['ab1'], ['bb1'], ['g1'], ['c2']])
   })
   it('el Riser: ruido y un pad de otro color que se abren, la caja en roll y el último compás en silencio', async () => {
     const riser = byName('Riser')
@@ -182,6 +182,19 @@ describe('el remix Dies Irae en techno', () => {
     expect(at(44, 45).filter((e) => e.value.s === 'sd')).toHaveLength(16)
     expect(at(45, 46)).toEqual([])
     expect(at(46, 47).some((e) => e.value.s === 'bd')).toBe(true)
+  })
+  it('el afinado deja el bombo en la raíz de cada acorde, no una octava más arriba (c2 = sin cambio; c3 = +12)', async () => {
+    const { noteToMidi } = await import('@strudel/core')
+    // el bombo del Electrónico (bd 0 de uzu-drumkit) suena a ≈ 63 Hz = midi 35,5 (medido); `.note(x)` lo mueve midi(x) − 36
+    const KICK_MIDI = 35.5
+    const roots = [36, 32, 34, 31] // do, la♭, si♭, sol (graves)
+    const tune = STYLE_MUSIC.techno.kickTune!.replace(/[<>]/g, '').split(' ')
+    expect(tune).toHaveLength(4)
+    tune.forEach((n, i) => {
+      const pitch = KICK_MIDI + (noteToMidi(n) - 36)
+      expect(Math.abs(pitch - roots[i]!), n).toBeLessThanOrEqual(1) // a menos de un semitono de la raíz
+    })
+    expect(noteToMidi('c3') - 36).toBe(12) // la trampa: c3 sube una octava
   })
   it('la estructura suena: el build sin bombo y el drop con él', async () => {
     const ev = await events(code(), 56)

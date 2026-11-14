@@ -115,7 +115,7 @@ describe('el remix de la Sinfonía n.º 40 de Mozart en techno (spec 008, §12)'
     expect(synths('Groove')).not.toContain('crash')
   })
   it('el kickTune encaja: el bombo sigue las raíces de los acordes de la tonalidad del remix (Cm A♭ B♭ Gm)', () => {
-    expect(STYLE_MUSIC.techno.kickTune).toBe('<c3 ab2 bb2 g2>')
+    expect(STYLE_MUSIC.techno.kickTune).toBe('<c2 ab1 bb1 g1>')
     expect(STYLE_MUSIC.techno.chordTones.map((t) => t[0])).toEqual([0, 8, 10, 7]) // c, a♭, b♭, g
   })
 })
@@ -125,7 +125,7 @@ describe('el código mostrado del Mozart se evalúa en Strudel y suena como se d
     const c = code()
     expect(c.startsWith('setcpm(128/4)\n')).toBe(true)
     expect(c).not.toContain('.bank(')
-    expect(c).toContain('.note("<c3 ab2 bb2 g2>")')
+    expect(c).toContain('.note("<c2 ab1 bb1 g1>")')
     expect(c).toContain('.lpq(8).lpenv(3)') // el wowo acid de la entrada
     const ev = await events(c, 126)
     expect(ev.length).toBeGreaterThan(1000)
@@ -135,8 +135,8 @@ describe('el código mostrado del Mozart se evalúa en Strudel y suena como se d
     const s = starts()
     const kicks = ev.filter((e) => e.value.s === 'bd')
     const noteIn = (bar: number) => [...new Set(kicks.filter((e) => Math.floor(e.begin) === bar).map((e) => String(e.value.note)))]
-    // el ciclo del bombo y el de los acordes empiezan juntos en cada sección: c3 ab2 bb2 g2
-    expect([0, 1, 2, 3, 4].map((k) => noteIn(s['Intro']![0] + k))).toEqual([['c3'], ['ab2'], ['bb2'], ['g2'], ['c3']])
+    // el ciclo del bombo y el de los acordes empiezan juntos en cada sección: c2 ab1 bb1 g1
+    expect([0, 1, 2, 3, 4].map((k) => noteIn(s['Intro']![0] + k))).toEqual([['c2'], ['ab1'], ['bb1'], ['g1'], ['c2']])
     const inRange = (from: number, to: number, key: string) => ev.filter((e) => e.begin >= from && e.begin < to && e.value.s === key).length
     expect(inRange(...s['Intro']!, 'sd') + inRange(...s['Intro']!, 'hh')).toBe(0)
     expect(inRange(...s['Break']!, 'bd')).toBe(0)

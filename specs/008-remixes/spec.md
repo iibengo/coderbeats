@@ -193,16 +193,17 @@ sobre todos los loops de la célula, pero **el bajo siempre va por fuera**.
   wowo. Salida (solo acordes con filtro) no cambia: los acordes siguen dentro del filtro.
 
 **B. El bombo afinado por compás** (`StyleMusic.kickTune`, `styles.ts`): el estilo puede dar un patrón de notas, una por acorde
-del fondo, que se pone al bombo con `.note(...)`. En superdough, `.note()` sobre un sample lo repite a esa altura (`c3`,
-midi 36, es sin cambio), así que el bombo sube y baja como mucho 5 semitonos. Techno: `<c3 ab2 bb2 g2>`, las raíces de
+del fondo, que se pone al bombo con `.note(...)`. En superdough, `.note(x)` sobre un sample lo mueve `midi(x) − 36` semitonos (`c2` = 36: sin cambio; `c3` = 48: **una octava más arriba**). El bombo del kit «Electrónico» suena a ≈ 63 Hz (≈ do), así que Techno: `<c2 ab1 bb1 g1>` lo deja en las raíces de
 `Cm–A♭–B♭–Gm`, un acorde por compás (el mismo ciclo que los acordes), para que el drop «caiga» sobre la armonía. Los
 demás estilos no lo llevan: suenan igual que antes.
+
+> **Corrección (2026-11-14):** la primera versión llevaba `<c3 ab2 bb2 g2>`, que **subía el bombo una octava** (`c3` es midi 48, no 36). Con el bombo del Electrónico, `<c2 ab1 bb1 g1>` lo deja en la raíz de cada acorde.
 
 **C.** Hecha: ver §11.
 
 **Se comprueba** en `tests/unit/techno.test.ts`: el bajo mantiene su `lpf(450)` en «Entra el tema» y el build; el bombo, la
 caja y el platillo no tienen `cutoff` ni resonancia; el filtro y el color del wowo solo en el `stack` de la melodía (código
-mostrado y del motor); el bombo con `.note` por compás (`c3 ab2 bb2 g2 c3…`). **Pendiente:** escucharlo en la app.
+mostrado y del motor); el bombo con `.note` por compás (`c2 ab1 bb1 g1 c2…`). **Pendiente:** escucharlo en la app.
 
 ## 11. El Riser: un build de verdad antes del drop (2026-11-14)
 
@@ -235,7 +236,7 @@ murió en 1791) como un techno que sube y cae dos veces, de ≈ **3 min 56 s** (
 (spec 010): kit **Electrónico** (uzu-drumkit), bombo afinado (`kickTune`) y la cadena master «cálida».
 
 **Tonalidad y armonía.** El tema va **bajado una quinta, a do menor** (−7 semitonos), la tonalidad del techno de la app
-(bajo pedal en do, acordes `Cm–A♭–B♭–Gm`, escala de do menor). No se toca `kickTune` (`<c3 ab2 bb2 g2>`): ya sigue las raíces de
+(bajo pedal en do, acordes `Cm–A♭–B♭–Gm`, escala de do menor). No se toca `kickTune` (`<c2 ab1 bb1 g1>`): ya sigue las raíces de
 esos acordes (do, la♭, si♭, sol). Las notas del tema se han escrito **de oído** (la célula «mi♭ re re» ×3, el salto de sexta, la
 bajada) y hay que **revisarlas contra la partitura** (dominio público); la «sensible» (si natural) está en la escala permitida de este remix.
 

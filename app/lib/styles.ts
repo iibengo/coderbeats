@@ -205,8 +205,9 @@ export const STYLE_MUSIC: Record<StyleId, StyleMusic> = {
     },
     // do menor: C D Eb F G Ab Bb
     // el bombo, afinado a la raíz de cada acorde del fondo (Cm A♭ B♭ Gm), uno por compás: el drop "cae" sobre ellos.
-    // El bombo del kit «Electrónico» (bd 0 de uzu-drumkit) suena a ≈63 Hz (≈ do, medido a mano): c3 no lo mueve y las demás notas lo bajan a las raíces.
-    kickTune: '<c3 ab2 bb2 g2>',
+    // `.note(x)` sobre un sample lo mueve (midi(x) − 36) semitonos: `c2` (midi 36) no lo mueve, `c3` lo subiría una octava. El bombo del kit
+    // «Electrónico» (bd 0 de uzu-drumkit) suena a ≈63 Hz (≈ do, medido), así que `c2` lo deja en do y las demás notas lo bajan a la raíz.
+    kickTune: '<c2 ab1 bb1 g1>',
     scale: [0, 2, 3, 5, 7, 8, 10],
     chordTones: [
       [0, 3, 7],
