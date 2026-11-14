@@ -40,6 +40,9 @@ export interface AroDot {
   dur?: number
   voice: Voice
   muted: boolean
+  /** solo melodía: altura MIDI y su posición vertical 0..1 en el registro de su sinte (0 = grave, dentro; 1 = agudo, fuera) */
+  midi?: number
+  frac?: number
 }
 
 /** Dónde cae un punto de la pantalla en el aro. */
@@ -132,6 +135,8 @@ export interface AroFrame {
   guide: GuideOptions
   /** sugerencias del estilo en las franjas de batería vacías */
   suggestions: GuideSpot[]
+  /** franja de la melodía: posiciones 0..1 de las notas de la escala del estilo (guías muy tenues) */
+  melGuides?: number[]
   /** carriles que graban si no son todos (E4.3); null = todos (lo normal: nada que marcar) */
   lanes: ReadonlySet<Voice> | null
   /** mantener pulsado un hueco de un carril: dónde y cuánto falta (0..1) para cambiarlo (E4.1) */
@@ -167,6 +172,8 @@ export interface AroFrame {
   labels?: AroLabel[]
 }
 
+/** margen (fracción de la franja) que la melodía deja arriba y abajo para que sus notas no toquen el borde */
+const MEL_MARGIN = 0.1
 /** radio del punto en reposo por voz (px) */
 const DOT_R: Record<Voice, number> = { bd: 5, bass: 4, sd: 4.5, mel: 3.6, hh: 4 }
 /** duración del encendido al sonar (s) */
@@ -317,7 +324,7 @@ export class AroCanvas {
     let bd = PICK_PX
     for (const d of L.dots) {
       if (this.weights[d.voice] < 0.5 || d.voice === 'bass') continue
-      const [x, y] = this.at(stepAngle(d.step), bandMid(d.voice, L.layout))
+      const [x, y] = this.at(stepAngle(d.step), this.dotU(d, L.layout))
       const dd = Math.hypot(x - px, y - py)
       if (dd < bd) {
         bd = dd
@@ -406,6 +413,13 @@ export class AroCanvas {
     const a = this.ro[k]!
     const b = this.ro[(k + 1) % n]!
     return a + (b - a) * (f - k)
+  }
+
+  /** u (0..1 en el aro) donde se dibuja un golpe: el medio de su franja; en la melodía, según su altura */
+  private dotU(d: AroDot, layout: Layout): number {
+    const { a, b } = layout[d.voice]
+    if (d.voice !== 'mel' || d.frac === undefined) return (a + b) / 2
+    return a + (b - a) * (MEL_MARGIN + (1 - 2 * MEL_MARGIN) * d.frac)
   }
 
   private at(th: number, u: number, wobble = this.wob): [number, number] {
@@ -919,6 +933,18 @@ export class AroCanvas {
       x.stroke(outer)
     }
 
+    // guías de la melodía: una línea muy tenue en cada nota de la escala, dentro de su franja
+    if (f.melGuides?.length && f.weights.mel >= 0.3 && this.detail >= 0.75) {
+      const { a, b } = layout.mel
+      x.lineWidth = 0.7
+      x.strokeStyle = `rgba(${VOICE_RGB_CSS.mel},${0.07 * f.weights.mel})`
+      for (const g of f.melGuides) {
+        const p = new Path2D()
+        this.loopPath(p, a + (b - a) * (MEL_MARGIN + (1 - 2 * MEL_MARGIN) * g), false)
+        x.stroke(p)
+      }
+    }
+
     // ondas: una pequeña en el golpe y un arco que corre por su franja; no salen de ella
     this.waves = this.waves.filter((w) => now - w.born < WAVE_LIFE[w.voice] && f.weights[w.voice] >= 0.05)
     for (const w of this.waves) {
@@ -1014,7 +1040,7 @@ export class AroCanvas {
       const wt = isDrag ? 1 : f.weights[d.voice]
       if (wt < 0.05) continue
       let th = stepAngle(d.step)
-      let u = bandMid(d.voice, layout)
+      let u = this.dotU(d, layout)
       // arrastrado: bajo el dedo; recién soltado: muelle hacia su sitio (imán)
       if (isDrag) {
         th = this.drag!.th
@@ -1052,7 +1078,7 @@ export class AroCanvas {
       if (isDrag) dragged = { d, px, py, r }
       const col = VOICE_RGB_CSS[d.voice]
       const alpha = (0.55 + Math.max(near, fl) * 0.45) * (faded ? 0.25 : 1)
-      if (d.voice === 'bass') {
+      if (d.voice === 'bass' || d.voice === 'mel') {
         // el arco de la duración: tenue en reposo; al sonar se enciende y se apaga a lo largo de la nota
         if (d.dur) {
           const lit = this.arcsLit.get(d.key)
@@ -1061,20 +1087,23 @@ export class AroCanvas {
           const glow = p < 1 ? 1 - p : 0
           const { a0, a1 } = noteArc(angleStep(th), d.dur)
           x.strokeStyle = `rgba(${col},${(0.28 + 0.6 * glow) * (faded ? 0.25 : 1) * (d.muted ? 0.4 : 1) * wt})`
-          x.lineWidth = 2 + 1.5 * glow
+          x.lineWidth = (d.voice === 'mel' ? 3 : 2) + 1.5 * glow
           x.lineCap = 'round'
           x.beginPath()
           this.arcPath(u, a0, a1)
           x.stroke()
           x.lineCap = 'butt'
         }
-        x.save()
-        x.translate(px, py)
-        x.rotate(th) // radial, como en el boceto
-        x.fillStyle = `rgba(${col},${d.muted ? alpha * 0.4 : alpha})`
-        x.fillRect(-r * 1.5, -r / 2, r * 3, r)
-        x.restore()
-        continue
+        if (d.voice === 'bass') {
+          x.save()
+          x.translate(px, py)
+          x.rotate(th) // radial, como en el boceto
+          x.fillStyle = `rgba(${col},${d.muted ? alpha * 0.4 : alpha})`
+          x.fillRect(-r * 1.5, -r / 2, r * 3, r)
+          x.restore()
+          continue
+        }
+        // la melodía: además del arco, un punto en su inicio (abajo)
       }
       x.beginPath()
       x.arc(px, py, r, 0, TAU)

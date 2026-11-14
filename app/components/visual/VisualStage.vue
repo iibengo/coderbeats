@@ -62,6 +62,7 @@ import { allArmed } from '~/lib/lanes'
 import { approachTilt, followBase, parallaxOffset, tiltTarget, toFront, type AroView, type Tilt } from '~/lib/aro/view'
 import { addHit, moveHit, removeHit, type EditOptions } from '~/lib/loopEdit'
 import { STYLE_MUSIC } from '~/lib/styles'
+import { midiToFrac, rangeOf, scaleNotes } from '~/lib/melodyView'
 import { VOICE_HEX, type Voice } from '~/lib/palette'
 import { INSTRUMENTS } from '~/lib/constants'
 import type { Instrument } from '~/lib/types'
@@ -197,13 +198,19 @@ const dotKey = (loopId: number, pos: number) => (loopId < 0 ? `bass-${pos}` : `$
 function dotsOf(ls: readonly FreeLoop[], g: number): AroDot[] {
   const out: AroDot[] = []
   for (const l of ls) {
-    // la franja de la melodía llega en la F2 (spec 002): de momento solo se oye, con su bola
-    if (l.instrument === 'mel') continue
     const bar = loopBarAt(l, g)
+    const range = l.instrument === 'mel' ? rangeOf(l.synth ?? STYLE_MUSIC[style.value].synth) : null
     for (const h of l.hits) {
       if (h.pos < bar * 16 - 0.5 || h.pos >= bar * 16 + 15.5) continue
       const step = h.pos - bar * 16
-      out.push({ key: dotKey(l.id, h.pos), loopId: l.id, step, pos: h.pos, voice: l.instrument, muted: l.muted })
+      const dot: AroDot = { key: dotKey(l.id, h.pos), loopId: l.id, step, pos: h.pos, voice: l.instrument, muted: l.muted }
+      // la melodía: arco con su duración, a la altura de su nota (spec 002, F2)
+      if (range && h.midi !== undefined) {
+        dot.midi = h.midi
+        dot.dur = h.dur
+        dot.frac = midiToFrac(h.midi, range)
+      }
+      out.push(dot)
     }
   }
   // el bajo del fondo: sus notas del compás que se ve (rayita y arco; solo se ve, E1.4)
@@ -248,9 +255,16 @@ const guideSuggestions = computed(() =>
 /** franjas que deberían verse: el bajo si suena o está pedido; la melodía, cuando exista (E1.3) */
 const targetWeights = computed<Weights>(() => {
   const bass = bgParts.value.bass || (bgMode.value === 'manual' && bgManual.value.bass)
-  return { ...allWeights(1), bass: bass ? 1 : 0, mel: 0 }
+  // la melodía: visible si está activada (para poder tocarla) o si la célula que se ve ya tiene una
+  const mel = engine.melodyOn.value || loops.value.loops.some((l) => l.instrument === 'mel')
+  return { ...allWeights(1), bass: bass ? 1 : 0, mel: mel ? 1 : 0 }
 })
 let weights: Weights = { ...allWeights(1), bass: 0, mel: 0 }
+/** guías de la franja de la melodía: las notas de la escala del estilo en el registro de su sinte */
+const melGuides = computed(() => {
+  const range = rangeOf(loops.value.loops.find((l) => l.instrument === 'mel')?.synth ?? STYLE_MUSIC[style.value].synth)
+  return scaleNotes(style.value, range).map((m) => midiToFrac(m, range))
+})
 
 // ── bolas de los loops (posición fuera de la reactividad; se escribe en el DOM en cada frame) ──
 interface Body {
@@ -551,7 +565,7 @@ function cellScene(
     const g = groupOfId.get(id)
     return !g || g.gid === MAIN || g.on ? 1 : 1 - 0.5 * k
   }
-  const weightsOf = (c: Cell) => ({ ...allWeights(1), bass: c.parts.bass && bgMode.value !== 'off' ? 1 : 0, mel: 0 })
+  const weightsOf = (c: Cell) => ({ ...allWeights(1), bass: c.parts.bass && bgMode.value !== 'off' ? 1 : 0, mel: c.loops.some((l) => l.instrument === 'mel') ? 1 : 0 })
   const curCell = plan?.cur ?? here
   const geo = curCell ? place(curCell) : base
   const alpha = alphaBase * (curCell ? looseMul(curCell.id) : 1)
@@ -913,6 +927,7 @@ function tick() {
       playing: playing.value,
       phase: clock.barPhase,
       dots: ringDots.value,
+      melGuides: melGuides.value,
       phraseDots: phraseDots.value,
       highlight: highlight.value,
       bars: barsInfo.value,
