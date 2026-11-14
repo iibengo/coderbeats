@@ -42,7 +42,8 @@ describe('segmentNotes', () => {
   })
 
   it('una nota a −35 dBFS con ruido se encuentra', () => {
-    const x = voice(SR, [{ midi: 62, sec: 0.5 }], { peakDb: -35, noiseDb: -60 })
+    // con silencio alrededor, como en una toma real (de ahí sale el piso de ruido)
+    const x = voice(SR, [{ silence: 0.4 }, { midi: 62, sec: 0.5 }, { silence: 0.4 }], { peakDb: -35, noiseDb: -60 })
     expect(names(x)).toEqual(['D4'])
   })
 
@@ -107,6 +108,22 @@ describe('fragmentos al empezar y terminar una nota', () => {
   it('un fragmento largo (0,5 s) o muy lejano (6 semitonos) es una nota', () => {
     expect(run([{ midi: 54, sec: 0.5 }, { midi: 60, sec: 0.6 }]).map((x) => midiName(x.midi))).toEqual(['F#3', 'C4'])
     expect(run([{ midi: 54, sec: 0.08 }, { midi: 60, sec: 0.6 }]).map((x) => midiName(x.midi))).toEqual(['C4'])
+  })
+})
+
+describe('fondo por los altavoces', () => {
+  it('un fondo constante con tono (piso alto) no da notas flojas; lo cantado, más fuerte, sí', () => {
+    // fondo: sierra grave + triángulos, a un volumen que el micro oye (piso ~0,005); voz 4 veces más fuerte
+    const bg = voice(SR, [{ midi: 79, sec: 3 }], { peakDb: -44, noiseDb: -70 })
+    const mix = Float32Array.from(bg)
+    const sung = voice(SR, [{ silence: 1.4 }, { midi: 48, sec: 0.8 }])
+    for (let i = 0; i < mix.length && i < sung.length; i++) mix[i] = mix[i]! + sung[i]! * 0.12
+    const notes = segmentNotes(trackPitch(mix, SR)).map((n) => midiName(n.midi))
+    expect(notes).toEqual(['C3'])
+  })
+  it('sin ese criterio, el fondo flojo sí daría nota (la regla del piso es la que lo evita)', () => {
+    const bg = voice(SR, [{ midi: 79, sec: 1 }], { peakDb: -44, noiseDb: -70 })
+    expect(segmentNotes(trackPitch(bg, SR), [], { floorFactor: 0, minPeakRms: 0, minMeanProb: 0 }).length).toBeGreaterThan(0)
   })
 })
 

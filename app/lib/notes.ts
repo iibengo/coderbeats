@@ -15,13 +15,25 @@ export interface Note {
   rms: number
 }
 
+/** Un piso de volumen mayor que esto no se tiene en cuenta (un fondo así de fuerte en el micro: sin melodía, §10). */
+export const FLOOR_CAP = 0.006
+
 export interface NoteOptions {
   /** probabilidad de voz mínima */
   minProb: number
   /** volumen mínimo para contar como voz */
   minRms: number
-  /** una nota tiene que llegar al menos a este volumen en algún frame (la cola puede ser más suave): descarta zumbidos de fondo con tono */
+  /** una nota tiene que llegar al menos a este volumen (percentil 80 de sus frames: la cola puede ser más suave): descarta zumbidos de fondo con tono */
   minPeakRms: number
+  /**
+   * Con un fondo sonando por los altavoces, el micro lo oye: el piso de volumen sube. El pico de una nota tiene que
+   * superar `floorFactor` veces el piso (el 5 % más bajo del volumen de la toma, o `floor` si se da, p. ej. el de una
+   * ventana móvil en vivo). Con la sala en silencio el piso es ínfimo y manda `minPeakRms`.
+   */
+  floorFactor: number
+  floor?: number
+  /** probabilidad de voz media mínima de una nota (los falsos tonos del fondo, ~0,55, no llegan) */
+  minMeanProb: number
   /** duración mínima de una nota (s) */
   minNoteSec: number
   /** huecos sin voz de hasta esto (s) no parten la nota, salvo que haya un onset dentro */
@@ -50,6 +62,8 @@ export const DEFAULT_NOTE_OPTIONS: NoteOptions = {
   minProb: 0.6,
   minRms: 0.001,
   minPeakRms: 0.004,
+  floorFactor: 2,
+  minMeanProb: 0.7,
   minNoteSec: 0.1,
   gapSec: 0.03,
   splitSemitones: 0.7,
@@ -57,6 +71,18 @@ export const DEFAULT_NOTE_OPTIONS: NoteOptions = {
   glideSlope: 30,
   trim: 0.2,
   fragment: { tiers: [[0.1, 4], [0.2, 2], [0.35, 1.2]], minHostSec: 0.4, ratio: 1.5, adjacentSec: 0.12 },
+}
+
+/** El `p` (0..1) más bajo de los valores. */
+export function lowPercentile(v: ArrayLike<number>, p: number): number {
+  const a = Array.from(v).sort((x, y) => x - y)
+  return a.length ? a[Math.min(a.length - 1, Math.floor(a.length * p))]! : 0
+}
+
+/** El valor en el percentil `p` (0..1) por arriba: `0.8` es el que deja por debajo al 80 %. */
+const highPercentile = (v: number[], p: number): number => {
+  const a = [...v].sort((x, y) => x - y)
+  return a.length ? a[Math.min(a.length - 1, Math.floor(a.length * p))]! : 0
 }
 
 const median = (v: number[]): number => {
@@ -159,6 +185,9 @@ export function segmentNotes(t: PitchTrack, onsets: readonly number[] = [], opti
 
   // altura y límites de cada nota; cada onset de energía se reparte entre los tramos (el primero que lo alcanza)
   const claimed = new Set<number>()
+  // tope del piso: si no hay momentos de solo fondo (voz continua), el 5 % más bajo sería la propia voz
+  const floor = Math.min(o.floor ?? lowPercentile(t.rms, 0.05), FLOOR_CAP)
+  const minPeak = Math.max(o.minPeakRms, o.floorFactor * floor)
   interface Raw extends Note {
     /** tiene su propio ataque de energía */
     onset: number | null
@@ -168,7 +197,9 @@ export function segmentNotes(t: PitchTrack, onsets: readonly number[] = [], opti
     const frames = Array.from({ length: b - a + 1 }, (_, k) => a + k).filter((k) => voiced[k])
     const dur = (b - a + 1) * dt
     if (dur < o.minNoteSec || frames.length < 2) continue
-    if (Math.max(...frames.map((k) => t.rms[k]!)) < o.minPeakRms) continue
+    // pico robusto (percentil 80): un frame del borde que ya mezcla otra voz más fuerte no cuenta
+    if (highPercentile(frames.map((k) => t.rms[k]!), 0.8) < minPeak) continue
+    if (frames.reduce((a, k) => a + t.prob[k]!, 0) / frames.length < o.minMeanProb) continue
     const cut = Math.floor(frames.length * o.trim)
     const core = frames.slice(cut, frames.length - cut)
     const midi = median((core.length ? core : frames).map((k) => t.midi[k]!))
