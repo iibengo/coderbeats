@@ -24,9 +24,5 @@ export const KITS: Record<KitId, Kit> = {
 export const KIT_ORDER: readonly KitId[] = ['909', '808', 'acoustic']
 
 export const RECORD_BPM = 90
-export const STEPS_PER_BAR = 16
-export const RECORD_BARS = 4
 export const TAKES_PER_INSTRUMENT = 5
 
-export const sixteenthSeconds = (bpm: number): number => 60 / bpm / 4
-export const barSeconds = (bpm: number): number => (60 / bpm) * 4

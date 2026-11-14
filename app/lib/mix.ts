@@ -3,8 +3,6 @@ import type { Instrument } from './types'
 
 /** Balance fijo por instrumento, en dB. */
 export const INSTRUMENT_BALANCE_DB: Record<Instrument, number> = { bd: 0, sd: -1, hh: -6 }
-/** El fondo va por debajo de la batería. */
-export const BACKGROUND_DB = -4
 
 export const dbToGain = (db: number): number => 10 ** (db / 20)
 
