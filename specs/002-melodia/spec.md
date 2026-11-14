@@ -106,7 +106,7 @@ Pasos en orden (`lib/melodyAssist.ts`, puro y testeado):
 **Sin ayuda** (respetar tus notas y tu ritmo):
 - Sin escala ni cuantización a la rejilla; solo el registro.
 - Altura redondeada al **semitono** más cercano (decidido; los microtonos de `note(60.27)` suenan desafinados, que es justo lo que "sin ayuda" quiere evitar). Es una constante por si se cambia.
-- **Inicio**: `.nudge()` **no vale para sintes** (en superdough 1.3 solo lo aplica el sampler, y la 002 lo suponía; ver §15.1). El inicio se redondea a una **rejilla fina** (un cuarto de semicorchea, unos 30 ms a 124 bpm) escrita en la mini-notación, sin `.nudge()`. La fase 0 comprueba si `.late()` con patrón sirve mejor; hasta entonces, la rejilla fina. Duración redondeada a esa rejilla.
+- **Inicio**: `.nudge()` **no vale para sintes** (en superdough 1.3 solo lo aplica el sampler, y la 002 lo suponía; ver §15.1). El inicio se redondea a una **rejilla fina** (un cuarto de semicorchea, unos 30 ms a 124 bpm) escrita en la mini-notación, sin `.nudge()`. **Medido en el laboratorio (2026-11-14, Chrome):** `.nudge(0.25)` sobre un sinte no cambia nada (las dos capas suenan a la vez) y `.late(0.125)` sí desplaza el patrón 0,25 s. Como `.late()` mueve capas enteras y no notas sueltas, se mantiene la rejilla fina; `.late()` queda como opción si hiciera falta mover una capa entera. Duración redondeada a esa rejilla.
 
 **Completar** (sustituye o completa, §3.4): la melodía es **monofónica**. Con "completa", una nota nueva solo entra en huecos libres: si empieza dentro de una existente se descarta; si empieza en un hueco, se recorta contra la siguiente. Con "sustituye", la frase nueva reemplaza al loop entero.
 
@@ -315,7 +315,7 @@ Resueltas con la spec 003: sin botón "♪" (la melodía es un instrumento más)
 
 Lo que cambió respecto al borrador del 2026-11-13, y por qué.
 
-1. **`.nudge()` no vale para sintes.** En `node_modules/superdough` solo `sampler.mjs` lo aplica; la 002 lo usaba para el inicio exacto sin ayuda (§5, criterio 3). Ahora, rejilla fina en la mini-notación; la fase 0 prueba `.late()`.
+1. **`.nudge()` no vale para sintes.** En `node_modules/superdough` solo `sampler.mjs` lo aplica; la 002 lo usaba para el inicio exacto sin ayuda (§5, criterio 3). Ahora, rejilla fina en la mini-notación. Medido en el laboratorio: `.nudge()` no tiene efecto en sintes y `.late()` sí (mueve patrones enteros, no notas sueltas).
 2. **YIN primero, pYIN solo si hace falta, y sin essentia.js** (§4.1): menos código y menos CPU en el worker; la decisión sale de tus tomas.
 3. **Datos** (§8.1): `FreeLoop.instrument` pasa a `LoopInstrument` (afecta a ~90 usos: kits, demos, mezcla, carriles, bolas y `loopEdit`); el sinte es un ajuste de canción y no un campo del loop; la persistencia es `coderbeats:song:v1` y la biblioteca; la validación estricta de `isFreeLoop` y `isSong` se amplía con `midi` y `dur`, con el nombre de nota sacado de una tabla.
 4. **Notas que cruzan compás:** se recortan en la línea de compás (§5).

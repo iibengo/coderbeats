@@ -443,10 +443,13 @@ onBeforeUnmount(() => {
 })
 
 // ── prueba de Strudel: ¿.nudge() y .late() sirven en sintes? ─────────────────────
-const nudgeRows = ref<{ name: string; delayMs: number; phaseMs: number; n: number }[]>([])
+const nudgeRows = ref<{ name: string; ioiMs: number; n: number }[]>([])
 const nudgeVerdict = ref('')
 const nudgeBusy = ref(false)
 
+// Se toca una capa de 4 notas por ciclo (una cada 0,5 s a 120 bpm) y, encima, la misma capa con .nudge() o .late()
+// de 0,25 s. Si el efecto funciona, las notas caen cada 0,25 s; si no, las dos capas suenan a la vez y se
+// siguen oyendo cada 0,5 s. Se compara dentro de una misma evaluación (entre evaluaciones la fase del ciclo cambia).
 async function nudgeTest() {
   if (!ctx) return
   nudgeBusy.value = true
@@ -458,8 +461,6 @@ async function nudgeTest() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const S: any = await import('@strudel/web')
     S.setAudioContext(c)
-    const trig: number[] = []
-    ;(window as unknown as Record<string, unknown>).__labTrig = (t: number) => trig.push(t)
     await S.initAudio()
     await S.initStrudel({})
     const out: AudioNode = S.getSuperdoughAudioController().output.destinationGain
@@ -475,22 +476,19 @@ async function nudgeTest() {
       if (d.type === 'chunk') chunks.push({ frame: d.frame!, data: d.data! })
       if (d.type === 'stopped') done?.()
     }
+    const layer = 'note("c4*4").s("triangle").attack(0.002).decay(0.08).sustain(0).release(0.02)'
     const cases = [
-      { name: 'sin nada', fx: '' },
-      { name: '.nudge(0.25) · 0,25 s', fx: '.nudge(0.25)' },
-      { name: '.late(0.125) · 0,25 s', fx: '.late(0.125)' },
+      { name: 'una capa (referencia)', code: layer },
+      { name: 'capa + otra con .nudge(0.25)', code: `stack(${layer}, ${layer}.nudge(0.25))` },
+      { name: 'capa + otra con .late(0.125) (= 0,25 s)', code: `stack(${layer}, ${layer}.late(0.125))` },
     ]
     const rows: typeof nudgeRows.value = []
     for (const k of cases) {
-      trig.length = 0
-      chunks.length = 0
-      // 120 bpm: un ciclo = 2 s (como la app); 4 notas por ciclo = una cada 0,5 s
-      await S.evaluate(`setcpm(120/4)\nnote("c4*4").s("triangle").attack(0.002).decay(0.08).sustain(0).release(0.02)${k.fx}.onTrigger((h, ct, cps, t) => window.__labTrig(t), false)`)
+      await S.evaluate(`setcpm(120/4)\n${k.code}`)
       await wait(1200)
       chunks.length = 0
-      trig.length = 0
       tap.port.postMessage('start')
-      await wait(3000)
+      await wait(4000)
       await new Promise<void>((r) => {
         done = r
         tap.port.postMessage('stop')
@@ -501,28 +499,14 @@ async function nudgeTest() {
       if (!first || !last) continue
       const buf = new Float32Array(last.frame - first.frame + last.data.length)
       for (const ch of chunks) buf.set(ch.data, ch.frame - first.frame)
-      const t0 = first.frame / c.sampleRate
-      const heard = detectOnsets(buf, c.sampleRate).map((o) => o.time + t0)
-      const med = (v: number[]) => [...v].sort((a, b) => a - b)[v.length >> 1] ?? Number.NaN
-      const delays = trig
-        .filter((t) => t > t0 + 0.2 && t < t0 + 2.5)
-        .map((t) => {
-          const next = heard.filter((h) => h >= t - 0.01).sort((a, b) => a - b)[0]
-          return next === undefined ? Number.NaN : next - t
-        })
-        .filter((d) => !Number.isNaN(d))
-      const phases = heard.filter((h) => h > t0 + 0.2 && h < t0 + 2.5).map((h) => ((h % 0.5) + 0.5) % 0.5)
-      rows.push({ name: k.name, delayMs: Math.round(med(delays) * 1000), phaseMs: Math.round(med(phases) * 1000), n: delays.length })
+      const heard = detectOnsets(buf, c.sampleRate, { minGap: 0.08 }).map((o) => o.time).sort((a, b) => a - b)
+      const iois = heard.slice(1).map((t, i) => t - heard[i]!).sort((a, b) => a - b)
+      rows.push({ name: k.name, ioiMs: Math.round((iois[iois.length >> 1] ?? Number.NaN) * 1000), n: heard.length })
       nudgeRows.value = [...rows]
     }
-    const base = rows[0]
-    const nudge = rows[1]
-    const late = rows[2]
-    if (base && nudge && late) {
-      const nudgeWorks = nudge.delayMs - base.delayMs > 150
-      const lateWorks = Math.abs((((late.phaseMs - base.phaseMs) % 500) + 500) % 500 - 250) < 40
-      nudgeVerdict.value = `.nudge() en sintes: ${nudgeWorks ? 'SÍ retrasa el sonido' : 'NO tiene efecto'} · .late(): ${lateWorks ? 'SÍ desplaza el patrón (usable)' : 'no se ve el desplazamiento esperado'}`
-    }
+    const works = (r?: { ioiMs: number }) => !!r && r.ioiMs > 200 && r.ioiMs < 300
+    if (rows.length === 3)
+      nudgeVerdict.value = `.nudge() en sintes: ${works(rows[1]) ? 'SÍ funciona' : 'NO tiene efecto'} · .late(): ${works(rows[2]) ? 'SÍ desplaza el patrón (usable)' : 'NO se ve el desplazamiento'}`
   } catch (e) {
     nudgeVerdict.value = `Falló la prueba: ${e instanceof Error ? e.message : String(e)}`
   } finally {
@@ -660,16 +644,16 @@ async function nudgeTest() {
         <section class="space-y-2 rounded border border-neutral-800 p-3 text-sm">
           <h2 class="font-medium">Strudel: ¿sirven <code>.nudge()</code> y <code>.late()</code> en sintes?</h2>
           <p class="text-xs text-neutral-400">
-            Toca 4 notas por ciclo con un sinte (suena ~10 s en total), graba la salida y mide cuándo suena cada nota respecto a cuándo
-            Strudel dice que la dispara.
+            Toca una capa de 4 notas por ciclo con un sinte y, encima, la misma con el efecto (3 pasadas de ~5 s). Graba la salida y mide el
+            intervalo entre notas: 0,25 s si el efecto funciona.
           </p>
           <button class="rounded border border-neutral-700 px-2 py-1 disabled:opacity-40" :disabled="nudgeBusy" @click="nudgeTest">
             {{ nudgeBusy ? 'Probando…' : 'Probar' }}
           </button>
           <table v-if="nudgeRows.length" class="text-xs font-mono">
-            <thead class="text-neutral-500"><tr><th class="pr-4 text-left">caso</th><th class="pr-4 text-left">retardo tras el disparo</th><th class="pr-4 text-left">fase en el ciclo (mod 0,5 s)</th><th class="text-left">notas</th></tr></thead>
+            <thead class="text-neutral-500"><tr><th class="pr-4 text-left">caso</th><th class="pr-4 text-left">intervalo mediano entre notas (250 = funciona, 500 = no)</th><th class="text-left">notas</th></tr></thead>
             <tbody>
-              <tr v-for="r in nudgeRows" :key="r.name"><td class="pr-4">{{ r.name }}</td><td class="pr-4">{{ r.delayMs }} ms</td><td class="pr-4">{{ r.phaseMs }} ms</td><td>{{ r.n }}</td></tr>
+              <tr v-for="r in nudgeRows" :key="r.name"><td class="pr-4">{{ r.name }}</td><td class="pr-4">{{ r.ioiMs }} ms</td><td>{{ r.n }}</td></tr>
             </tbody>
           </table>
           <p v-if="nudgeVerdict" class="text-sm text-[#F496BC]">{{ nudgeVerdict }}</p>
