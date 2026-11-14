@@ -120,6 +120,8 @@ export interface AroFrame {
   geo: DropGeo
   weights: Weights
   playing: boolean
+  /** suena el reloj pero no esta célula (se mira otra cosa): sin aguja ni estela */
+  idle?: boolean
   /** fase del compás que se oye, 0..1 */
   phase: number
   dots: AroDot[]
@@ -1170,7 +1172,7 @@ export class AroCanvas {
     const head = stepAngle(f.phase * 16)
 
     // estela de la aguja: un abanico muy tenue detrás de ella (E3.4)
-    if (f.playing && !f.reduced && 'createConicGradient' in x) {
+    if (f.playing && !f.idle && !f.reduced && 'createConicGradient' in x) {
       const disc = new Path2D()
       this.loopPath(disc, 1, false)
       this.loopPath(disc, 0, true)
@@ -1373,7 +1375,7 @@ export class AroCanvas {
     }
 
     // aguja: del centro al borde
-    if (f.playing) {
+    if (f.playing && !f.idle) {
       const [ix, iy] = this.at(head, 0, 0)
       const [hx, hy] = this.at(head, 1, 0)
       x.strokeStyle = 'rgba(255,255,255,0.22)'

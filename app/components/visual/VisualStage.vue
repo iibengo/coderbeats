@@ -947,8 +947,9 @@ function tick() {
       wall: t,
       ...scene,
       weights,
-      // en la colonia, la que se mira sin sonar (fijada, o de un grupo apagado) no tiene aguja ni estela: no parece tocar
-      playing: playing.value && (!colony.value || !!plan || engine.groupHeads().some((h) => h.cellId === engine.viewCellId.value)),
+      playing: playing.value,
+      // la que se mira sin sonar (fijada, o de un grupo apagado) no lleva aguja ni estela, ni lejos ni cerca
+      idle: playing.value && !plan && !engine.groupHeads().some((h) => h.cellId === engine.viewCellId.value),
       phase: clock.barPhase,
       dots: ringDots.value,
       live: liveDot(),
