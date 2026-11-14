@@ -1,75 +1,39 @@
-# Nuxt Minimal Starter
+# coderbeats
 
-Look at the [Nuxt documentation](https://nuxt.com/docs/getting-started/introduction) to learn more.
+Un instrumento para jugar con la voz: haces beatbox (bum, pff, ts) y coderbeats lo convierte en batería que suena en bucle y en **código [Strudel](https://strudel.cc)** que puedes copiar y pegar. Todo corre en el navegador: el micrófono se analiza en el dispositivo y no se envía nada a ningún servidor.
 
-## Setup
+- **Escucha continua**: graba frases de beatbox, las cuantiza al compás y las deja como loops (bombo, caja, platillo).
+- **Células y canción**: cada célula es un aro con sus loops, su bajo y sus acordes; varias células, una tras otra, forman una canción. Hay grupos que suenan en paralelo.
+- **Fondo y efectos**: bajo y acordes por estilo (hip hop 90, house, drum and bass), filtro, espacio y calor.
+- **Código = sonido**: el código mostrado, pegado en strudel.cc, suena igual que en coderbeats.
+- **Mis canciones**: se guardan en el navegador (localStorage), en tu dispositivo.
+- Funciona como PWA, pensada también para móvil.
 
-Make sure to install dependencies:
+Las especificaciones están en [`specs/`](specs/).
 
-```bash
-# npm
-npm install
+## Cómo se construye
 
-# pnpm
-pnpm install
-
-# yarn
-yarn install
-
-# bun
-bun install
-```
-
-## Development Server
-
-Start the development server on `http://localhost:3000`:
+Necesitas Node.js y npm.
 
 ```bash
-# npm
-npm run dev
-
-# pnpm
-pnpm dev
-
-# yarn
-yarn dev
-
-# bun
-bun run dev
+npm install          # instala dependencias (y prepara Nuxt)
+npm run dev          # servidor de desarrollo en http://localhost:3000 (incluye /spike, el banco de pruebas de Strudel)
+npm run dev:phone    # igual, accesible desde el móvil por HTTPS (el micrófono lo exige, salvo en localhost)
+npm test             # tests unitarios (Vitest)
+npm run test:coverage
+npm run typecheck
+npm run build        # build de producción (.output/); `npm run preview` para probarlo
 ```
 
-## Production
+Stack: [Nuxt](https://nuxt.com) 4, Vue 3, Tailwind, Web Audio y [Strudel](https://strudel.cc) (`@strudel/web`).
 
-Build the application for production:
+## Licencia
 
-```bash
-# npm
-npm run build
+coderbeats es software libre bajo la **GNU Affero General Public License v3.0 o posterior** (AGPL-3.0-or-later). Mira el archivo [`LICENSE`](LICENSE). Si ofreces una versión modificada como servicio en red, la AGPL te obliga a ofrecer a sus usuarios el código fuente correspondiente.
 
-# pnpm
-pnpm build
+## Créditos
 
-# yarn
-yarn build
-
-# bun
-bun run build
-```
-
-Locally preview production build:
-
-```bash
-# npm
-npm run preview
-
-# pnpm
-pnpm preview
-
-# yarn
-yarn preview
-
-# bun
-bun run preview
-```
-
-Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
+- **[Strudel](https://strudel.cc)** (`@strudel/web`, AGPL-3.0-or-later): el motor de patrones y de audio. coderbeats genera y evalúa código Strudel; gracias al proyecto Strudel y a TidalCycles, de donde viene.
+- **[Meyda](https://meyda.js.org)** (MIT): extracción de características de audio para clasificar los sonidos de la voz.
+- **Samples**: ver [`public/samples/CREDITS.md`](public/samples/CREDITS.md) (tidal-drum-machines y uzu-drumkit, con sus licencias y condiciones).
+- Nuxt, Vue, Tailwind y el resto de dependencias, con sus respectivas licencias (ver `package.json`).
