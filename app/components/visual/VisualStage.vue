@@ -175,16 +175,18 @@ const extrasStyle = computed(() => {
 })
 /** "↶ deshacer": a la altura de la fila de bolas; en la colonia, a la izquierda de "◎ centrar" si está */
 const undoStyle = computed(() => {
-  const shift = colony.value && panned.value ? 56 : 0
+  const shift = showFollow.value ? 56 : 0
   const x = compact.value ? sideX.value.left : view.w / 2 - shift
   // cerca, un poco por encima de las bolas para no taparlas
   const y = compact.value ? view.h / 2 + 44 : view.h - ROW_FROM_BOTTOM - (colony.value ? 0 : 40)
   return { left: `${x}px`, top: `${y}px`, transform: 'translate(-50%, -50%)' }
 })
-/** "◎ centrar": donde estaría la fila de bolas (que en la colonia se oculta) */
+/** "◎ centrar": tras mover el mapa en la colonia, o dentro de una célula que no suena (enmienda 3) */
+const showFollow = computed(() => (colony.value && panned.value) || engine.viewAway.value)
 const followStyle = computed(() => {
   const x = compact.value ? sideX.value.left : view.w / 2 + (engine.undoInfo.value ? 62 : 0)
-  const y = compact.value ? view.h / 2 : view.h - ROW_FROM_BOTTOM
+  // cerca, un poco por encima de las bolas para no taparlas
+  const y = compact.value ? view.h / 2 : view.h - ROW_FROM_BOTTOM - (colony.value ? 0 : 40)
   return { left: `${x}px`, top: `${y}px`, transform: 'translate(-50%, -50%)' }
 })
 /** posición de cada bola en la fila, por orden de instrumento (bombo, caja, platillo) */
@@ -1424,16 +1426,29 @@ function tapWater(x: number, y: number) {
  */
 function tapCell(id: number) {
   const now = performance.now()
-  const inGroup = engine.groupOf(id) !== MAIN
   if (isDoubleTap(lastTap, id, now)) {
     lastTap = null
-    // el doble toque solo entra; en una célula de un grupo, entrar es ver su aro
-    if (inGroup) engine.enterCell(id)
+    if (tapTimer) clearTimeout(tapTimer)
+    tapTimer = null
+    // el doble toque entra a editarla sin cambiar lo que suena (enmienda 3): el primer toque no llegó a hacer nada
+    engine.enterCell(id)
     zoomRel = nearRel
     panned.value = false
     return
   }
   lastTap = { id, t: now }
+  // el toque espera lo que dura un doble toque para saber si lo es; el cambio cae en una línea de compás, así que no se nota
+  if (tapTimer) clearTimeout(tapTimer)
+  tapTimer = setTimeout(() => {
+    tapTimer = null
+    singleTapCell(id)
+  }, DOUBLE_TAP_MS)
+}
+let tapTimer: ReturnType<typeof setTimeout> | null = null
+
+/** Un toque en una célula: que suene (§4.1 y §16.4). */
+function singleTapCell(id: number) {
+  const inGroup = engine.groupOf(id) !== MAIN
   // una célula de un grupo en paralelo (§16.4): apagado, lo enciende por ella; encendido, en la que suena lo apaga y en otra salta
   if (inGroup) return engine.tapGroupCell(id)
   // tocar otra vez la que está en bucle lo suelta: la canción sigue (§4.1)
@@ -1630,12 +1645,12 @@ defineExpose({ rendererName, layoutInfo })
 
     <!-- colonia: tras mover el mapa, "◎ centrar" devuelve la cámara a la célula que suena (spec 005, §7.1) -->
     <button
-      v-if="colony && panned"
+      v-if="showFollow"
       class="follow-btn absolute"
       :style="followStyle"
       aria-label="centrar la cámara en la célula que suena"
       @pointerdown.stop
-      @click="panned = false"
+      @click="((panned = false), engine.followSong())"
     >
       ◎ centrar
     </button>

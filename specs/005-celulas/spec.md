@@ -701,3 +701,17 @@ Decisiones tomadas al programar (a revisar):
 7. **«Apagar extras»** está a la izquierda de Play, solo mientras haya algún grupo encendido.
 8. **Con más de 8 vueltas** se ve «5/16» en la etiqueta y en la chapa, no puntitos.
 9. **Deshacer un borrado** devuelve la célula a su grupo y su estado; si el grupo ya no existe, vuelve como un grupo nuevo de una célula.
+
+## 18. Enmienda 3 · entrar a editar sin cambiar lo que suena (2026-11-14)
+
+Motivo: en la colonia, acercarse a una célula que no suena la ponía a sonar (el primer toque) y la cámara volvía a la que suena.
+
+1. **Un toque** = que suene (como antes: la de la canción, en bucle; la de un grupo, lo enciende o salta).
+2. **Doble toque** = entrar a editarla **sin cambiar lo que suena**. Para que el primer toque no llegue a hacer nada, el toque espera lo que dura un doble toque (300 ms) antes de actuar; el cambio cae en una línea de compás, así que no se nota. Entrar en la célula que ya suena es seguir a la canción.
+3. **Dentro de una célula que no suena** (de la canción o de un grupo), la vista y la cámara no siguen a la canción. Sale «◎ centrar» (también cerca, no solo tras mover el mapa), que devuelve la vista a la célula que suena y la vuelve a seguir. Si la canción llega a la célula que se ve, la vista vuelve a seguirla sola; viajar a otra célula con un toque también la suelta.
+4. **Grabar en una célula que no suena**: el loop nace en la célula que se ve. Una de un grupo enciende su grupo sola (§16). Una de la canción **no suena hasta que la canción llegue a ella** (o se toque para que suene); nace alineada con su primer compás.
+
+Problemas que veo con el punto 4 (a revisar):
+- En una célula de la canción que no suena, lo que grabas no se oye hasta que llega su turno; solo ves el aro. Si se quiere oírlo, hay que tocarla una vez (suena en bucle) o usar el bucle.
+- Mientras se ve una célula que no suena no hay chapa de vueltas ni transiciones de agua de la que suena, y la colonia no muestra su halo de progreso.
+- La canción no se detiene a esperar: si llega a la célula mientras se graba, la vista pasa a seguirla.

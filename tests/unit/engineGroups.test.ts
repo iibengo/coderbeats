@@ -171,4 +171,21 @@ describe('grupos en paralelo en el motor', () => {
     await e.loadDemo()
     expect(e.viewIsFree.value).toBe(false)
   })
+
+  it('entrar (doble toque) en una célula: parado solo se ve; en una de un grupo no cambia nada de lo que suena; "centrar" vuelve', () => {
+    const e = fresh(demoSong('dnb')!)
+    const g = e.addGroupCell()!
+    e.tapGroupCell(g)
+    e.enterCell(3)
+    expect(e.viewCellId.value).toBe(3)
+    expect(e.viewAway.value).toBe(false)
+    expect(e.song.value.groups[0]!.on).toBe(true)
+    e.enterCell(g)
+    expect(e.viewCellId.value).toBe(g)
+    expect(e.viewAway.value).toBe(true)
+    expect(e.song.value.groups[0]!.on).toBe(true) // entrar no cambia si suena
+    e.followSong()
+    expect(e.viewCellId.value).toBe(1)
+    expect(e.viewAway.value).toBe(false)
+  })
 })

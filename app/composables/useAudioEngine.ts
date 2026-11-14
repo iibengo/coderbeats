@@ -394,7 +394,9 @@ function onPulse(cycle: number, t: number) {
   }
   later(() => {
     // la vista sigue a la canción, salvo que se esté en una célula de un grupo en paralelo (a menos que se haya viajado a propósito)
-    if (entered && (consumed || !inParallel(song.value, viewCellId.value))) showCell(entered.cellId, entered.startBar)
+    // la canción llega a la célula que se estaba viendo aparte: vuelve a seguirla (enmienda 3)
+    if (pinned.value && entered && entered.cellId === viewCellId.value) pinned.value = false
+    if (entered && (consumed || !viewAway())) showCell(entered.cellId, entered.startBar)
     // en una célula de un grupo, el compás que se ve cuenta desde que esa célula empezó a sonar
     const vgp = groupPlays.get(groupIdOf(song.value, viewCellId.value) ?? MAIN)
     if (vgp && vgp.play.cursor.cellId === viewCellId.value) viewStartBar = vgp.play.cursor.startBar
@@ -509,11 +511,21 @@ function startGroupPlays() {
 }
 
 /**
+ * Se entró a editar una célula de la canción que no suena (doble toque, enmienda 3): la vista no sigue a la
+ * canción hasta que se toque "◎ centrar", se viaje a otra célula o la canción llegue a ella.
+ */
+const pinned = ref(false)
+
+/** ¿Se ve algo que no es lo que suena en la canción? Una célula de un grupo en paralelo, o una de la canción que se entró a editar. */
+const viewAway = (): boolean =>
+  inParallel(song.value, viewCellId.value) || (pinned.value && multi() && cursor !== null && cursor.cellId !== viewCellId.value)
+
+/**
  * Los loops y las partes del fondo de la célula de la canción en el modo de una sola célula: la que se ve,
  * salvo que se vea una de un grupo en paralelo (que suena aparte). Con varias células mandan las de cada una (§4.2).
  */
 function songCellNow(): { loops: FreeLoop[]; parts: Parts } {
-  if (!inParallel(song.value, viewCellId.value)) return { loops: loops.value.loops, parts: bgManual.value }
+  if (!viewAway()) return { loops: loops.value.loops, parts: bgManual.value }
   const s = liveSong()
   const c = cellById(s, cursor?.cellId ?? s.order[0]!) ?? cellById(s, s.order[0]!)!
   return { loops: c.loops, parts: c.parts }
@@ -608,7 +620,8 @@ function stopExtras() {
 function birthCellStart(bornAt: number): number {
   const id = viewCellId.value
   const gid = groupIdOf(song.value, id)
-  if (gid === null || gid === MAIN) return cursor?.startBar ?? 0
+  // una célula de la canción que no suena: su loop nace alineado con su primer compás
+  if (gid === null || gid === MAIN) return cursor && cursor.cellId !== id ? bornAt : (cursor?.startBar ?? 0)
   let gp = groupPlays.get(gid)
   if (!isRunning(gp)) {
     setGroupOn(gid, true, id)
@@ -859,7 +872,7 @@ function onWorkerMessage(m: FromWorker) {
   if (isTooQuiet(m.vol)) return log('unknown', `flojo: descartado (${m.instrument} ${(m.confidence * 100).toFixed(0)}%)${fmtVolume(m.vol)}`, uiMs)
   if (!playing.value || !tracker) return log('stopped', `${m.instrument} sin loop en marcha`, uiMs)
   // con varias células, en estado canción no se graba; en bucle, sí (spec 005, §4.4)
-  if (multi() && !loop && !inParallel(song.value, viewCellId.value)) return log('unknown', `ignorado: canción avanzando (${m.instrument} ${(m.confidence * 100).toFixed(0)}%)`, uiMs)
+  if (multi() && !loop && !viewAway()) return log('unknown', `ignorado: canción avanzando (${m.instrument} ${(m.confidence * 100).toFixed(0)}%)`, uiMs)
   log('hit', `${m.instrument} ${(m.confidence * 100).toFixed(0)}%${fmtVolume(m.vol)}`, uiMs)
   const gs = tracker.globalStep(m.time - latencySec)
   const heard: VisualHit = {
@@ -1115,6 +1128,7 @@ export function useAudioEngine() {
     cursor = null
     sweep = 0
     groupPlays.clear()
+    pinned.value = false
     loop = false
     jump = null
     viewJump = null
@@ -1314,6 +1328,7 @@ export function useAudioEngine() {
     // lo guardado antes de los grupos se migra (una libre → un grupo de una célula; una suelta, uno apagado)
     const next = normalizeSong(withValidBpm(raw))
     groupPlays.clear()
+    pinned.value = false
     const first = cellById(next, next.order[0]!)!
     song.value = next
     viewCellId.value = first.id
@@ -1351,7 +1366,7 @@ export function useAudioEngine() {
    */
   async function loadDemo() {
     // la demo es de la canción: si se ve una célula de un grupo, se vuelve a la primera
-    if (inParallel(song.value, viewCellId.value)) showCell(song.value.order[0]!, 0)
+    if (viewAway()) showCell(song.value.order[0]!, 0)
     // canción completa del estilo (spec 005), si la tiene
     const demo = demoSong(style.value)
     if (demo) {
@@ -1680,15 +1695,42 @@ export function useAudioEngine() {
   }
 
   /**
-   * Entrar en una célula de un grupo en paralelo (se ve su aro, sin tocar lo que suena): doble toque en la colonia o
-   * el marcador del borde. Mientras se ve, su grupo se queda en ella (§16.2).
+   * Entrar en una célula a editarla **sin cambiar lo que suena** (doble toque en la colonia o marcador del borde,
+   * enmienda 3). Una de un grupo en paralelo: su grupo se queda en ella mientras se ve (§16.2). Una de la canción que
+   * no suena: la vista no sigue a la canción hasta "◎ centrar". Sonando, entrar en la que suena es volver a seguirla.
    */
   function enterCell(id: number) {
+    if (!cellById(song.value, id) || id === viewCellId.value) return
     const gid = groupIdOf(song.value, id)
-    if (gid === null || gid === MAIN || id === viewCellId.value) return
-    const gp = groupPlays.get(gid)
-    showCell(id, gp && gp.play.cursor.cellId === id ? gp.play.cursor.startBar : 0)
+    if (gid !== null && gid !== MAIN) {
+      pinned.value = false
+      const gp = groupPlays.get(gid)
+      showCell(id, gp && gp.play.cursor.cellId === id ? gp.play.cursor.startBar : 0)
+      reevaluate()
+      return
+    }
+    if (!playing.value || !cursor || !multi()) {
+      pinned.value = false
+      showCell(id, 0)
+      return
+    }
+    if (id === cursor.cellId) return followSong()
+    pinned.value = true
+    showCell(id, Math.max(0, lastPulseCycle))
+    syncLoopUi()
     reevaluate()
+    updateBackground()
+  }
+
+  /** "◎ centrar": la vista vuelve a la célula que suena en la canción y la sigue. */
+  function followSong() {
+    pinned.value = false
+    if (playing.value && cursor) {
+      if (viewCellId.value !== cursor.cellId) showCell(cursor.cellId, cursor.startBar)
+    } else if (inParallel(song.value, viewCellId.value)) showCell(song.value.order[0]!, 0)
+    syncLoopUi()
+    reevaluate()
+    updateBackground()
   }
 
   /** Crea una célula libre (⋯ → "añadir célula libre"): un grupo nuevo de una célula, apagado y vacío; entra en ella para llenarla. */
@@ -1759,8 +1801,11 @@ export function useAudioEngine() {
       if (id !== viewCellId.value) showCell(id, 0)
       return
     }
-    // si se veía una célula de un grupo y se toca la que suena, la vista vuelve a ella
-    if (!jump && id === cursor.cellId && inParallel(song.value, viewCellId.value)) showCell(id, cursor.startBar)
+    // si se veía algo aparte y se toca la que suena, la vista vuelve a ella; tocar otra, también (para que no haya dos "ahora")
+    if (pinned.value || (!jump && id === cursor.cellId && inParallel(song.value, viewCellId.value))) {
+      pinned.value = false
+      if (viewCellId.value !== cursor.cellId) showCell(cursor.cellId, cursor.startBar)
+    }
     if (!jump && id === cursor.cellId) return loopHere()
     const end = endBar(liveSong(), curPlay())
     jump = { cellId: id, startBar: jump ? jump.startBar : Math.min(jumpBar(), end), loop: true }
@@ -1775,7 +1820,7 @@ export function useAudioEngine() {
    */
   function cellPlan(): { cur: Cell; start: number; end: number; next: Cell; prev: Cell | null; loop: boolean } | null {
     // con una célula de un grupo a la vista no hay transiciones de la canción ni chapa de vueltas
-    if (!playing.value || !multi() || inParallel(song.value, viewCellId.value)) return null
+    if (!playing.value || !multi() || viewAway()) return null
     const s = liveSong()
     const cur = cellById(s, viewCellId.value)
     const next = cur && cellById(s, nextInOrder(s, cur.id))
@@ -1899,6 +1944,9 @@ export function useAudioEngine() {
     openSaved,
     // grupos en paralelo (§16)
     viewIsFree: computed(() => inParallel(song.value, viewCellId.value)),
+    /** se ve algo que no es lo que suena en la canción (enmienda 3): sale "◎ centrar" */
+    viewAway: computed(() => inParallel(song.value, viewCellId.value) || (pinned.value && playing.value)),
+    followSong,
     viewGroup: computed(() => groupIdOf(song.value, viewCellId.value) ?? MAIN),
     viewGroupOn: computed(() => groupOn(song.value, groupIdOf(song.value, viewCellId.value) ?? MAIN)),
     extrasOn: computed(() => song.value.groups.some((g) => g.on)),
