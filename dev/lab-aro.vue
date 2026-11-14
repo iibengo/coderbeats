@@ -7,6 +7,7 @@ import VisualStage from '~/components/visual/VisualStage.vue'
 
 const engine = useAudioEngine()
 const query = useRoute().query
+const stage = ref<InstanceType<typeof VisualStage> | null>(null)
 const drum = (id: number, instrument: 'bd' | 'sd' | 'hh', pos: number[]): FreeLoop => ({
   id, instrument, bars: 1, phaseBar: 0, hits: pos.map((p) => ({ pos: p, strength: 0.8 })), muted: false, bornAt: 0, fromTemplate: false,
 })
@@ -21,6 +22,8 @@ onMounted(() => {
   const song: Song = { ...s, cells: [{ ...s.cells[0]!, loops, parts: { bass: false, chords: false } }], nextLoopId: 10 }
   engine.setSong(song)
   engine.setMelody(true)
+  // para probar los gestos desde fuera (pruebas con Chrome)
+  Object.assign(window, { __engine: engine, __stage: stage.value })
   // ?live=60.2 simula tu voz a esa altura (MIDI) con el aro "sonando" (sin audio: solo para ver el dibujo)
   if (query.live !== undefined) {
     engine.playing.value = true
@@ -36,5 +39,5 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="fixed inset-0 bg-[#0B0B0F]"><VisualStage /></div>
+  <div class="fixed inset-0 bg-[#0B0B0F]"><VisualStage ref="stage" /></div>
 </template>

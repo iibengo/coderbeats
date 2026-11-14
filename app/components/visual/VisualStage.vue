@@ -61,8 +61,9 @@ import { dragValue, lockAxis, type Axis } from '~/lib/gestures'
 import { allArmed } from '~/lib/lanes'
 import { approachTilt, followBase, parallaxOffset, tiltTarget, toFront, type AroView, type Tilt } from '~/lib/aro/view'
 import { addHit, moveHit, removeHit, type EditOptions } from '~/lib/loopEdit'
+import { moveMelNote, resizeMelNote, snapMelMidi, snapMelStep, type MelEditOptions } from '~/lib/melodyEdit'
 import { STYLE_MUSIC } from '~/lib/styles'
-import { fitToScale, midiToFrac, rangeOf, scaleNotes } from '~/lib/melodyView'
+import { fitToScale, fracToMidi, midiToFrac, rangeOf, scaleNotes } from '~/lib/melodyView'
 import { VOICE_HEX, type Voice } from '~/lib/palette'
 import { INSTRUMENTS } from '~/lib/constants'
 import type { Instrument } from '~/lib/types'
@@ -935,6 +936,7 @@ function tick() {
       phase: clock.barPhase,
       dots: ringDots.value,
       live: liveDot(),
+      melGhost: melGhost(),
       melGuides: melGuides.value,
       phraseDots: phraseDots.value,
       highlight: highlight.value,
@@ -1089,6 +1091,10 @@ const drag = ref<{ axis: Axis; x: number; y: number } | null>(null)
 
 type Gesture =
   | { kind: 'aro-drag'; id: number; dot: AroDot }
+  /** estirar o encoger el arco de una nota de la melodía, desde su extremo final (spec 002, F2) */
+  | { kind: 'aro-stretch'; id: number; dot: AroDot }
+  /** el final de una nota toca el inicio de la siguiente: según hacia dónde se arrastre, se estira la una o se mueve la otra */
+  | { kind: 'aro-pending'; id: number; x0: number; y0: number; dot: AroDot; stretch: AroDot }
   | { kind: 'colony'; id: number; x0: number; y0: number; t: number; moved: boolean; lx: number; ly: number; cellId: number | null; grab: Point; held: boolean; handleId: number | null; labelId: number | null; threadTo: number | null }
   | {
       kind: 'aro-tap'
@@ -1118,6 +1124,9 @@ type Gesture =
 let gesture: Gesture | null = null
 
 const isDrum = (v: Voice | null): v is Instrument => v === 'bd' || v === 'sd' || v === 'hh'
+const melOptions = (): MelEditOptions => ({ assist: engine.assist.value, style: style.value })
+/** registro (MIDI) de la melodía de un loop: el de su sinte */
+const melRangeOf = (loopId: number) => rangeOf(loops.value.loops.find((l) => l.id === loopId)?.synth ?? STYLE_MUSIC[style.value].synth)
 const editOptions = (): EditOptions => ({ assist: engine.assist.value, quantizeEvery: STYLES[style.value].quantizeEvery })
 
 function twoPoints() {
@@ -1133,6 +1142,15 @@ function bounceBack(dot: AroDot, x: number, y: number) {
 }
 
 function cancelAroDrag() {
+  if (gesture?.kind === 'aro-pending') {
+    editBar.value = null
+    return
+  }
+  if (gesture?.kind === 'aro-stretch') {
+    aro?.setStretch(null)
+    editBar.value = null
+    return
+  }
   if (gesture?.kind !== 'aro-drag') return
   const p = pointers.get(gesture.id)
   bounceBack(gesture.dot, p?.x ?? 0, p?.y ?? 0)
@@ -1146,6 +1164,16 @@ function dropDot(dot: AroDot, x: number, y: number) {
   const o = editOptions()
   const act = dropAction(dot.voice, w.u, w.voice)
   if (act.kind === 'bounce') return bounceBack(dot, x, y)
+  // una nota de la melodía: cambia de momento y de altura dentro de su franja (spec 002, F2)
+  if (dot.voice === 'mel' && act.kind === 'move') {
+    const frac = aro.melFracAt(w.u)
+    if (frac === null) return bounceBack(dot, x, y)
+    const r = moveMelNote(loops.value, dot.loopId, dot.pos, w.step, fracToMidi(frac, melRangeOf(dot.loopId)), shownBar(), melOptions())
+    if (!r) return bounceBack(dot, x, y)
+    engine.editLoops(r.state)
+    aro.settle(dotKey(r.hit.loopId, r.hit.pos), w.th, Math.min(1, w.u))
+    return
+  }
   // al centro: se borra con una salpicadura
   if (act.kind === 'delete') {
     aro.setDrag(null)
@@ -1159,6 +1187,61 @@ function dropDot(dot: AroDot, x: number, y: number) {
   if (!r) return bounceBack(dot, x, y)
   engine.editLoops(r.state)
   aro.settle(dotKey(r.hit.loopId, r.hit.pos), w.th, Math.min(1, w.u))
+}
+
+/**
+ * Dos cosas bajo el dedo (el final de una nota y el inicio de la siguiente): al empezar a moverse, hacia atrás por el
+ * arco encoge la nota anterior y cualquier otra cosa mueve la que empieza ahí.
+ */
+function resolvePending(gs: Extract<Gesture, { kind: 'aro-pending' }>, x: number, y: number) {
+  const dx = x - gs.x0
+  const dy = y - gs.y0
+  if (Math.hypot(dx, dy) < 6) return
+  const c = aro?.centerPx()
+  let toStretch = false
+  if (c) {
+    const rx = gs.x0 - c.x
+    const ry = gs.y0 - c.y
+    const r = Math.hypot(rx, ry) || 1
+    const ur = { x: rx / r, y: ry / r }
+    // tangente en el sentido del tiempo (el ángulo crece con el paso)
+    const tang = dx * -ur.y + dy * ur.x
+    const rad = dx * ur.x + dy * ur.y
+    toStretch = tang < 0 && Math.abs(tang) > Math.abs(rad)
+  }
+  if (toStretch) {
+    gesture = { kind: 'aro-stretch', id: gs.id, dot: gs.stretch }
+    aro?.setStretch(gs.stretch.key, aro.where(x, y).th)
+  } else {
+    gesture = { kind: 'aro-drag', id: gs.id, dot: gs.dot }
+    aro?.setDrag(gs.dot.key, x, y)
+  }
+}
+
+/** Soltar el extremo de un arco de melodía: la nota dura hasta ahí (a la rejilla). */
+function dropStretch(dot: AroDot, x: number, y: number) {
+  if (!aro) return
+  aro.setStretch(null)
+  const w = aro.where(x, y)
+  // de la nota hasta el dedo, hacia delante en el compás (el extremo no puede quedar detrás del inicio)
+  const dur = (((w.step - dot.step) % 16) + 16) % 16
+  if (dur < 0.1) return
+  const r = resizeMelNote(loops.value, dot.loopId, dot.pos, dur, melOptions())
+  if (r) engine.editLoops(r.state)
+}
+
+/** Dónde caería la nota de la melodía que se arrastra: el paso y la nota de la escala ya imantados (el fantasma). */
+function melGhost(): { step: number; frac: number } | null {
+  const gs = gesture
+  if (gs?.kind !== 'aro-drag' || gs.dot.voice !== 'mel' || !aro) return null
+  const p = pointers.get(gs.id)
+  if (!p) return null
+  const w = aro.where(p.x, p.y)
+  const frac = aro.melFracAt(w.u)
+  if (frac === null || w.voice !== 'mel') return null
+  const range = melRangeOf(gs.dot.loopId)
+  const o = melOptions()
+  return { step: snapMelStep(w.step, o), frac: midiToFrac(snapMelMidi(fracToMidi(frac, range), o), range) }
 }
 
 /** Tocar una franja vacía de batería: crea un golpe ahí, ya imantado. */
@@ -1231,7 +1314,22 @@ function onDown(e: PointerEvent) {
     gesture = { kind: 'colony', id: e.pointerId, x0: x, y0: y, t: performance.now(), moved: false, lx: x, ly: y, cellId, grab: grabOffset(cellId, x, y), held: false, handleId, labelId, threadTo }
     return
   }
-  const dot = aro?.pick(x, y)
+  // el extremo de un arco de melodía: estirar o encoger su duración (spec 002, F2)
+  const edit = aro?.pickEdit(x, y)
+  if (edit?.kind === 'stretch') {
+    editBar.value = shownBar()
+    armLoop()
+    gesture = { kind: 'aro-stretch', id: e.pointerId, dot: edit.dot }
+    aro!.setStretch(edit.dot.key, aro!.where(x, y).th)
+    return
+  }
+  if (edit?.kind === 'pending') {
+    editBar.value = shownBar()
+    armLoop()
+    gesture = { kind: 'aro-pending', id: e.pointerId, x0: x, y0: y, dot: edit.dot, stretch: edit.stretch }
+    return
+  }
+  const dot = edit?.kind === 'move' ? edit.dot : aro?.pick(x, y)
   if (dot) {
     editBar.value = shownBar()
     armLoop()
@@ -1258,6 +1356,8 @@ function onMove(e: PointerEvent) {
   const gs = gesture
   if (!gs) return
   if (gs.kind === 'aro-drag' && gs.id === e.pointerId) aro?.setDrag(gs.dot.key, p.x, p.y)
+  else if (gs.kind === 'aro-stretch' && gs.id === e.pointerId) aro?.setStretch(gs.dot.key, aro.where(p.x, p.y).th)
+  else if (gs.kind === 'aro-pending' && gs.id === e.pointerId) resolvePending(gs, p.x, p.y)
   else if (gs.kind === 'aro-tap' && gs.id === e.pointerId) {
     if (Math.hypot(p.x - gs.x0, p.y - gs.y0) > MOVE_PX) gs.moved = true
   } else if (gs.kind === 'colony' && gs.id === e.pointerId) {
@@ -1530,13 +1630,22 @@ function applyFx(axis: Axis, filter: number, space: number, dx: number, dy: numb
 function onUp(e: PointerEvent, cancelled = false) {
   const p = pointers.get(e.pointerId)
   const gs = gesture
-  if ((gs?.kind === 'aro-drag' || gs?.kind === 'aro-tap') && gs.id === e.pointerId) {
+  if ((gs?.kind === 'aro-drag' || gs?.kind === 'aro-tap' || gs?.kind === 'aro-stretch' || gs?.kind === 'aro-pending') && gs.id === e.pointerId) {
     if (cancelled || pointers.size > 1) disarmLoop()
     else loopNow()
   }
   if (gs?.kind === 'aro-drag' && gs.id === e.pointerId) {
     if (cancelled || !p) cancelAroDrag()
     else dropDot(gs.dot, p.x, p.y)
+    editBar.value = null
+    gesture = null
+  } else if (gs?.kind === 'aro-pending' && gs.id === e.pointerId) {
+    // lo tocó sin arrastrar: no cambia nada
+    editBar.value = null
+    gesture = null
+  } else if (gs?.kind === 'aro-stretch' && gs.id === e.pointerId) {
+    if (cancelled || !p) cancelAroDrag()
+    else dropStretch(gs.dot, p.x, p.y)
     editBar.value = null
     gesture = null
   } else if (gs?.kind === 'aro-tap' && gs.id === e.pointerId) {
@@ -1587,7 +1696,7 @@ const layoutInfo = () => {
     }),
   ].join(' · ')
 }
-defineExpose({ rendererName, layoutInfo })
+defineExpose({ rendererName, layoutInfo, debugDots: () => aro?.debugDots() ?? [], aroWhere: (x: number, y: number) => aro?.where(x, y) })
 </script>
 
 <template>

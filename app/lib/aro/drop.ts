@@ -18,6 +18,8 @@ export function dropAction(from: Voice, u: number, band: Voice | null): DropActi
   if (from === 'bass') return { kind: 'bounce' }
   // al centro: se borra
   if (u < 0) return { kind: 'delete' }
+  // la melodía solo se mueve dentro de su franja (momento y altura); en otra, vuelve (spec 002, F2)
+  if (from === 'mel') return band === 'mel' ? { kind: 'move', to: 'mel' } : { kind: 'bounce' }
   // fuera de la gota: con el imán a la franja más cercana, la de fuera (platillo)
   const to = u >= 1 ? 'hh' : band
   if (!isDrum(from) || !isDrum(to)) return { kind: 'bounce' }

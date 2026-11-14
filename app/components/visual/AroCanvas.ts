@@ -135,6 +135,8 @@ export interface AroFrame {
   guide: GuideOptions
   /** sugerencias del estilo en las franjas de batería vacías */
   suggestions: GuideSpot[]
+  /** al arrastrar una nota de la melodía: dónde caería (paso y altura 0..1 en el registro, ya imantados) */
+  melGhost?: { step: number; frac: number } | null
   /** punto de altura en vivo (spec 002, F2): su posición 0..1 en la franja y si encaja en la escala; null = sin voz */
   live?: { frac: number; fit: boolean } | null
   /** franja de la melodía: posiciones 0..1 de las notas de la escala del estilo (guías muy tenues) */
@@ -197,6 +199,8 @@ const TRAIL_SPAN = Math.PI / 2
 const TRAIL_ALPHA = 0.015
 /** silenciados: rellenos pero apagados (E3.2) */
 const MUTED_ALPHA = 0.22
+/** distancia máxima del dedo al extremo de un arco de melodía para estirarlo (px) */
+const STRETCH_PX = 16
 /** distancia máxima del dedo a un golpe para cogerlo (px) */
 const PICK_PX = 26
 /** muelle del imán: tirón y amortiguación por frame de 60 Hz (como el boceto) */
@@ -253,6 +257,8 @@ export class AroCanvas {
   private pops: { x: number; y: number; voice: Voice; born: number }[] = []
   private lastNow = 0
   /** punto de altura en vivo: posición suavizada, opacidad, estela y último destello */
+  /** nota de la melodía cuyo arco se estira: su clave y el ángulo donde está el dedo */
+  private stretch: { key: string; th: number } | null = null
   private liveS = { frac: 0.5, alpha: 0, fit: false, flash: -1e9, trail: [] as { th: number; u: number; t: number }[] }
   /** vista del último frame: los toques (pantalla) se traducen a la posición de frente */
   private view: AroView = FRONT
@@ -338,6 +344,87 @@ export class AroCanvas {
       }
     }
     return best
+  }
+
+  /** Posición 0..1 en el registro de la melodía de una altura radial `u` (0 = grave, 1 = agudo), o null si la franja no se ve. */
+  melFracAt(u: number): number | null {
+    const L = this.last
+    if (!L || !this.weights || this.weights.mel < 0.5) return null
+    const { a, b } = L.layout.mel
+    const t = (u - a) / Math.max(1e-6, b - a)
+    return Math.min(1, Math.max(0, (t - MEL_MARGIN) / (1 - 2 * MEL_MARGIN)))
+  }
+
+  /** Largo en píxeles de un arco de nota (cuerda entre sus extremos) y la posición de su extremo. */
+  private arcEnd(d: AroDot, L: NonNullable<AroCanvas['last']>): { x: number; y: number; len: number } {
+    const u = this.dotU(d, L.layout)
+    const { a0, a1 } = noteArc(angleStep(stepAngle(d.step)), d.dur ?? 1)
+    const [x0, y0] = this.at(a0, u)
+    const [x1, y1] = this.at(a1, u)
+    return { x: x1, y: y1, len: Math.hypot(x1 - x0, y1 - y0) }
+  }
+
+  /** La nota de la melodía cuyo extremo final (el asa de estirar) está bajo el dedo: a menos de 16 px y con el arco largo (≥ 28 px). */
+  pickStretch(px: number, py: number): AroDot | null {
+    const L = this.last
+    if (!L || !this.weights || this.weights.mel < 0.5) return null
+    ;[px, py] = toFront(px, py, this.view, L.geo.cx, L.geo.cy)
+    let best: AroDot | null = null
+    let bd = STRETCH_PX
+    for (const d of L.dots) {
+      if (d.voice !== 'mel' || !d.dur) continue
+      const e = this.arcEnd(d, L)
+      if (e.len < 28) continue
+      const dd = Math.hypot(e.x - px, e.y - py)
+      if (dd < bd) {
+        bd = dd
+        best = d
+      }
+    }
+    return best
+  }
+
+  /** Solo desarrollo y pruebas: dónde (px de pantalla) está cada golpe de las franjas visibles y el extremo de su arco. */
+  debugDots(): { key: string; voice: Voice; pos: number; x: number; y: number; ex: number; ey: number; len: number }[] {
+    const L = this.last
+    if (!L) return []
+    return L.dots.map((d) => {
+      const u = this.dotU(d, L.layout)
+      const [x, y] = toScreen(...this.at(stepAngle(d.step), u), this.view, L.geo.cx, L.geo.cy)
+      const e = this.arcEnd(d, L)
+      const [ex, ey] = toScreen(e.x, e.y, this.view, L.geo.cx, L.geo.cy)
+      return { key: d.key, voice: d.voice, pos: d.pos, x, y, ex, ey, len: e.len }
+    })
+  }
+
+  /** Centro del aro en pantalla (px). */
+  centerPx(): { x: number; y: number } | null {
+    return this.last ? { x: this.last.geo.cx, y: this.last.geo.cy } : null
+  }
+
+  /**
+   * Qué hay bajo el dedo para editar (spec 002, F2): un golpe (moverlo), el extremo de un arco (estirarlo) o las dos cosas
+   * a la vez (el final de una nota toca el inicio de la siguiente: legato). En ese caso `pending` y el gesto decide.
+   */
+  pickEdit(px: number, py: number): { kind: 'move'; dot: AroDot } | { kind: 'stretch'; dot: AroDot } | { kind: 'pending'; dot: AroDot; stretch: AroDot } | null {
+    const dot = this.pick(px, py)
+    const stretch = this.pickStretch(px, py)
+    if (stretch && !dot) return { kind: 'stretch', dot: stretch }
+    if (!stretch || !dot) return dot ? { kind: 'move', dot } : null
+    if (stretch === dot) return { kind: 'move', dot }
+    const L = this.last!
+    const [fx, fy] = toFront(px, py, this.view, L.geo.cx, L.geo.cy)
+    const e = this.arcEnd(stretch, L)
+    const [dx, dy] = this.at(stepAngle(dot.step), this.dotU(dot, L.layout))
+    const dEnd = Math.hypot(e.x - fx, e.y - fy)
+    const dDot = Math.hypot(dx - fx, dy - fy)
+    if (Math.abs(dEnd - dDot) < 6) return { kind: 'pending', dot, stretch }
+    return dEnd < dDot ? { kind: 'stretch', dot: stretch } : { kind: 'move', dot }
+  }
+
+  /** Estira el arco de una nota hasta el ángulo `th` (se dibuja mientras se arrastra). `null` lo suelta. */
+  setStretch(key: string | null, th = 0) {
+    this.stretch = key === null ? null : { key, th }
   }
 
   /** Sugerencia del estilo más cercana a (px, py), a menos de 26 px (E3.3). */
@@ -1118,6 +1205,17 @@ export class AroCanvas {
     // punto de altura en vivo: sube y baja en la franja de la melodía, por donde pasa la aguja
     this.drawLive(f, layout, head, now, frames)
 
+    // al arrastrar una nota de la melodía: un círculo hueco donde caerá (paso y nota de la escala ya imantados)
+    if (f.melGhost && f.weights.mel >= 0.5) {
+      const { a, b } = layout.mel
+      const [gx, gy] = this.at(stepAngle(f.melGhost.step), a + (b - a) * (MEL_MARGIN + (1 - 2 * MEL_MARGIN) * f.melGhost.frac))
+      x.strokeStyle = `rgba(${VOICE_RGB_CSS.mel},0.5)`
+      x.lineWidth = 1.2
+      x.beginPath()
+      x.arc(gx, gy, DOT_R.mel + 2, 0, TAU)
+      x.stroke()
+    }
+
     // golpes: puntos; el bajo, rayita con el arco de su duración
     let dragged: { d: AroDot; px: number; py: number; r: number } | null = null
     for (const d of f.dots) {
@@ -1170,7 +1268,12 @@ export class AroCanvas {
           const p = lit ? (now - lit.t) / Math.max(0.05, lit.sec) : 1
           if (lit && p >= 1) this.arcsLit.delete(d.key)
           const glow = p < 1 ? 1 - p : 0
-          const { a0, a1 } = noteArc(angleStep(th), d.dur)
+          let { a0, a1 } = noteArc(angleStep(th), d.dur)
+          if (this.stretch?.key === d.key) {
+            // se está estirando: el arco llega hasta el dedo (de 1/4 de paso a casi el compás entero)
+            const len = Math.min(15.5, Math.max(0.25, (((angleStep(this.stretch.th) - d.step) % 16) + 16) % 16))
+            a1 = a0 + (len / 16) * TAU
+          }
           x.strokeStyle = `rgba(${col},${(0.28 + 0.6 * glow) * (faded ? 0.25 : 1) * (d.muted ? 0.4 : 1) * wt})`
           x.lineWidth = (d.voice === 'mel' ? 3 : 2) + 1.5 * glow
           x.lineCap = 'round'
@@ -1178,6 +1281,18 @@ export class AroCanvas {
           this.arcPath(u, a0, a1)
           x.stroke()
           x.lineCap = 'butt'
+        }
+        // el asa para estirar el arco: un aro pequeño en su extremo (solo si el arco es largo)
+        if (d.voice === 'mel' && d.dur && wt >= 0.5 && !isDrag) {
+          const e = this.arcEnd(d, this.last!)
+          if (e.len >= 28 || this.stretch?.key === d.key) {
+            const [hx, hy] = this.stretch?.key === d.key ? this.at(this.stretch.th, u) : [e.x, e.y]
+            x.strokeStyle = `rgba(${col},${this.stretch?.key === d.key ? 0.95 : 0.5 * (faded ? 0.25 : 1)})`
+            x.lineWidth = 1.2
+            x.beginPath()
+            x.arc(hx, hy, this.stretch?.key === d.key ? 5 : 3, 0, TAU)
+            x.stroke()
+          }
         }
         if (d.voice === 'bass') {
           x.save()

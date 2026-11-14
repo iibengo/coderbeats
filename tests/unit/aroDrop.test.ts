@@ -14,6 +14,13 @@ describe('dropAction (E1.4, E2.2)', () => {
     expect(dropAction('bd', 0.3, 'bass')).toEqual({ kind: 'bounce' })
     expect(dropAction('hh', 0.7, 'mel')).toEqual({ kind: 'bounce' })
   })
+  it('la melodía se mueve dentro de su franja, se borra en el centro y en otra franja o fuera vuelve (spec 002, F2)', () => {
+    expect(dropAction('mel', 0.6, 'mel')).toEqual({ kind: 'move', to: 'mel' })
+    expect(dropAction('mel', -0.1, null)).toEqual({ kind: 'delete' })
+    expect(dropAction('mel', 0.3, 'bd')).toEqual({ kind: 'bounce' })
+    expect(dropAction('mel', 1.4, null)).toEqual({ kind: 'bounce' })
+    expect(dropAction('mel', 0.5, null)).toEqual({ kind: 'bounce' })
+  })
   it('el bajo solo se ve (E1.4): siempre vuelve a su sitio', () => {
     expect(dropAction('bass', 1.4, null)).toEqual({ kind: 'bounce' })
     expect(dropAction('bass', -0.1, null)).toEqual({ kind: 'bounce' })
