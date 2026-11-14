@@ -1,5 +1,6 @@
 import type { BassPattern } from './bass'
 import type { Instrument, StyleId } from './types'
+import type { MelodySynth } from './melody'
 
 /** 16 pesos (0..1) por paso: cuánto "atrae" cada paso a un golpe de ese instrumento. */
 export type Prior = number[]
@@ -15,6 +16,12 @@ export interface StyleMusic {
    * `.orbit(3)` a los acordes; lo que va en `chords` entra y sale con ellos.
    */
   background: { bass: BassPattern; chords: string[] }
+  /** escala del estilo (spec 002, §5): clases de altura (0 = do … 11 = si) */
+  scale: readonly number[]
+  /** notas del acorde de cada compás del fondo (clases de altura; se repite): desempata la escala */
+  chordTones: readonly (readonly number[])[]
+  /** sinte por defecto de la melodía (spec 002, §6) */
+  synth: MelodySynth
 }
 
 /** Construye un prior: `base` en todos los pasos y los pesos indicados en algunos. */
@@ -48,6 +55,13 @@ export const STYLE_MUSIC: Record<StyleId, StyleMusic> = {
       },
       chords: ['note("<[a3,c4,e4,g4] [d3,f3,a3,c4]>").s("triangle").lpf(2000).room(0.4).gain(0.22)'],
     },
+    // la menor: A B C D E F G
+    scale: [9, 11, 0, 2, 4, 5, 7],
+    chordTones: [
+      [9, 0, 4, 7],
+      [2, 5, 9, 0],
+    ],
+    synth: 'piano',
   },
   house: {
     key: 'fa menor',
@@ -77,6 +91,13 @@ export const STYLE_MUSIC: Record<StyleId, StyleMusic> = {
         'note("<[f3,ab3,c4,eb4] [bb2,db3,f3,ab3]>").struct("~ x ~ x").s("supersaw").decay(0.2).sustain(0).room(0.3).gain(0.22)',
       ],
     },
+    // fa menor: F G Ab Bb C Db Eb
+    scale: [5, 7, 8, 10, 0, 1, 3],
+    chordTones: [
+      [5, 8, 0, 3],
+      [10, 1, 5, 8],
+    ],
+    synth: 'lead',
   },
   dnb: {
     key: 're menor',
@@ -104,6 +125,15 @@ export const STYLE_MUSIC: Record<StyleId, StyleMusic> = {
         's("[~ oh]*4").gain(0.25)',
       ],
     },
+    // re menor: D E F G A Bb C
+    scale: [2, 4, 5, 7, 9, 10, 0],
+    chordTones: [
+      [2, 5, 9],
+      [2, 5, 9],
+      [5, 9, 0],
+      [0, 4, 7],
+    ],
+    synth: 'pad',
   },
 }
 
