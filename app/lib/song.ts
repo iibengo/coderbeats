@@ -44,7 +44,7 @@ export interface SongState {
 }
 
 /** Lo que necesita el generador de cada célula. */
-export type CellCode = Pick<Cell, 'id' | 'name' | 'loops' | 'parts' | 'turns'>
+export type CellCode = Pick<Cell, 'id' | 'name' | 'loops' | 'parts' | 'turns' | 'lpf'>
 
 /**
  * - display: el código que se enseña y se copia (valores fijos, sin metrónomo ni ganchos).
@@ -179,6 +179,24 @@ function backgroundLines(st: SongState, bass: boolean, chords: boolean, engine: 
   return out
 }
 
+/**
+ * El filtro paso bajo por vuelta de una célula (spec 008, §5) como código: `.lpf("<a b c d>")`, un valor por vuelta, o
+ * `.lpf(v)` si es el mismo. En el código mostrado (`arrange`) cada sección empieza en su ciclo 0 y va tal cual; en el
+ * motor los ciclos son los compases globales, así que el patrón se rota al compás `from` en el que empieza la célula
+ * (la vuelta 1 de la célula usa el primer valor). Los números se redondean y se acotan: nada leído se escribe tal cual.
+ */
+export function cellLpf(cell: Pick<Cell, 'lpf' | 'turns'>, mode: SongMode, from = 0): string {
+  const raw = cell.lpf
+  if (!Array.isArray(raw) || !raw.length) return ''
+  const turns = Math.max(1, Math.min(32, Math.round(safeNum(cell.turns))))
+  const hz = (v: unknown) => Math.round(Math.min(20000, Math.max(60, safeNum(v))))
+  const vals = Array.from({ length: turns }, (_, i) => hz(raw[Math.min(i, raw.length - 1)]))
+  if (vals.every((v) => v === vals[0])) return `.lpf(${vals[0]})`
+  const shift = Math.round(safeNum(from))
+  const items = mode === 'engine' ? vals.map((_, k) => vals[mod(k - shift, turns)]!) : vals
+  return `.lpf("<${items.join(' ')}>")`
+}
+
 const cellLabel = (c: Pick<Cell, 'id' | 'name'>) => safeLabel(c.name) || `célula ${safeNum(c.id)}`
 
 /**
@@ -200,7 +218,7 @@ function groupLines(st: SongState, mode: SongMode, duck: boolean, ind: string): 
         if (!inner.length) continue
         const range = seg.to === null ? `h.whole.begin >= ${safeNum(seg.from)}` : `h.whole.begin >= ${safeNum(seg.from)} && h.whole.begin < ${safeNum(seg.to)}`
         out.push(`${ind}// grupo ${safeNum(item.id)} · ${cellLabel(cell)} · compases ${safeNum(seg.from)}–${seg.to === null ? '…' : safeNum(seg.to) - 1}`)
-        out.push(`${ind}stack(`, ...inner, `${ind}).filterHaps((h) => ${range}),`)
+        out.push(`${ind}stack(`, ...inner, `${ind})${cellLpf(cell, mode, safeNum(seg.from))}.filterHaps((h) => ${range}),`)
       }
       continue
     }
@@ -217,7 +235,7 @@ function groupLines(st: SongState, mode: SongMode, duck: boolean, ind: string): 
       const lines = loopsLines(cell.loops, st, mode, duck, ind + IND + IND, 0)
       out.push(`${ind}${IND}// ${cellLabel(cell)} · ${safeNum(cell.turns)} vuelta${safeNum(cell.turns) === 1 ? '' : 's'}`)
       if (!lines.length) out.push(`${ind}${IND}[${safeNum(cell.turns)}, silence],`)
-      else out.push(`${ind}${IND}[${safeNum(cell.turns)}, stack(`, ...lines, `${ind}${IND})],`)
+      else out.push(`${ind}${IND}[${safeNum(cell.turns)}, stack(`, ...lines, `${ind}${IND})${cellLpf(cell, 'display')}],`)
     }
     out.push(`${ind}),`)
   }
@@ -256,7 +274,7 @@ export function songCode(st: SongState, mode: SongMode = 'display'): string {
       if (!inner.length) continue
       const range = seg.to === null ? `h.whole.begin >= ${safeNum(seg.from)}` : `h.whole.begin >= ${safeNum(seg.from)} && h.whole.begin < ${safeNum(seg.to)}`
       out.push(`${IND}// ${cellLabel(cell)} · compases ${safeNum(seg.from)}–${seg.to === null ? '…' : safeNum(seg.to) - 1}`)
-      out.push(`${IND}stack(`, ...inner, `${IND}).filterHaps((h) => ${range}),`)
+      out.push(`${IND}stack(`, ...inner, `${IND})${cellLpf(cell, mode, safeNum(seg.from))}.filterHaps((h) => ${range}),`)
     }
   } else if (st.loops.length) {
     out.push(`${IND}// tus loops`)
@@ -294,7 +312,7 @@ function songArrangeCode(st: SongState): string {
     const lines = [...backgroundLines(st, bass, chords, false, ind), ...loopsLines(cell.loops, st, 'display', bass || chords, ind)]
     out.push(`${IND}// ${cellLabel(cell)} · ${safeNum(cell.turns)} vuelta${safeNum(cell.turns) === 1 ? '' : 's'}`)
     if (!lines.length) out.push(`${IND}[${safeNum(cell.turns)}, silence],`)
-    else out.push(`${IND}[${safeNum(cell.turns)}, stack(`, ...lines, `${IND})],`)
+    else out.push(`${IND}[${safeNum(cell.turns)}, stack(`, ...lines, `${IND})${cellLpf(cell, 'display')}],`)
   }
   const djf = filterDjf(st.fx.filter)
   if (freeBlock.length) {

@@ -27,6 +27,11 @@ export interface Cell {
   parts: Parts
   /** compases que suena antes de pasar a la siguiente */
   turns: Turns
+  /**
+   * Filtro paso bajo (Hz) de cada vuelta de la célula (spec 008, §5): sube o baja a saltos, una vez por compás. Si hay
+   * menos valores que vueltas, vale el último. Sin él, el filtro de siempre.
+   */
+  lpf?: number[]
   /** posición en el mapa (unidades = radio de una gota) y profundidad 0..1 (0 = delante) */
   at: { x: number; y: number; depth: number }
 }
@@ -236,10 +241,14 @@ const isCell = (x: unknown): x is Cell => {
   if (!TURNS.includes(x.turns as Turns)) return false
   const parts = x.parts
   if (!isObj(parts) || typeof parts.bass !== 'boolean' || typeof parts.chords !== 'boolean') return false
+  if (x.lpf !== undefined && !isLpf(x.lpf)) return false
   const at = x.at
   if (!isObj(at) || !isNum(at.x) || !isNum(at.y) || !isNum(at.depth)) return false
   return Array.isArray(x.loops) && x.loops.every(isFreeLoop)
 }
+
+/** Filtro por vuelta: de 1 a 32 números finitos entre 60 y 20 000 Hz. */
+const isLpf = (v: unknown): boolean => Array.isArray(v) && v.length >= 1 && v.length <= 32 && v.every((n) => isNum(n) && n >= 60 && n <= 20000)
 
 const isIdList = (v: unknown): boolean => Array.isArray(v) && v.every(isNum)
 
