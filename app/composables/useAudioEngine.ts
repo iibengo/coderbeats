@@ -217,6 +217,8 @@ const melodyActive = computed(() => melodyOn.value && !melodyBlocked.value)
 const kit = ref<KitId>('electro')
 /** el modo (spec 011): Jugar o Componer. Solo es una vista: no toca la canción ni lo que suena */
 const mode = ref<Mode>(DEFAULT_MODE)
+/** cuenta las veces que se pide repetir el primer minuto guiado (spec 011, §12.2); la gota lo vigila */
+const guideNonce = ref(0)
 const style = ref<StyleId>('hiphop90')
 const assist = ref(true)
 const metronome = ref(true)
@@ -2206,6 +2208,19 @@ export function useAudioEngine() {
     playing,
     kit,
     mode,
+    guideNonce,
+    /** Repite el primer minuto guiado: la próxima vez que suene, sin loops, vuelve a guiar. */
+    restartGuide: () => {
+      guideNonce.value++
+    },
+    /** El fondo (bajo y acordes) encendido para el paso «Escucha» de la guía: suena el fondo del estilo y la gota espera. */
+    guideBackground: () => {
+      if (bgMode.value === 'off') setBackgroundMode(lastBgMode.value)
+      if (bgMode.value === 'manual' && !(bgManual.value.bass && bgManual.value.chords)) {
+        bgManual.value = { ...bgManual.value, bass: true, chords: true }
+        updateBackground()
+      }
+    },
     setMode: (m: Mode) => {
       if (mode.value !== m) log('cell', `modo: ${m}`)
       mode.value = m

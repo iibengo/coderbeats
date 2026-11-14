@@ -48,6 +48,7 @@ import {
 import { Drift, GLIDE_TAU, glideEnd, linkedIds, releaseVelocity, type Sample } from '~/lib/aro/drift'
 import { readJson, writeJson } from '~/lib/storage'
 import { cellStrip, MODE_HINT, type Mode } from '~/lib/modes'
+import { advanceGuide, GUIDE_DONE, GUIDE_START, guideLine, guideVisible, type GuideState } from '~/lib/firstMinute'
 import CellStrip from '../CellStrip.vue'
 import { edgeMarkers } from '~/lib/aro/markers'
 import { transitionAt } from '~/lib/aro/transition'
@@ -386,6 +387,7 @@ function onEngineVisual(h: Parameters<Parameters<typeof engine.onVisual>[0]>[0])
   const gg = geo ?? targetGeo()
   const g = { x: gg.cx, y: gg.cy }
   if (h.kind === 'heard' && h.instrument !== 'bass' && h.instrument !== 'chords') {
+    guideHeard++
     const p = aro?.pointOf(h.instrument, h.step ?? 0) ?? { x: g.x, y: g.y }
     theme.hit({ kind: 'heard', time: h.time, loopId: null, instrument: h.instrument, x: p.x, y: p.y, strength: h.strength * soft() })
     return
@@ -955,6 +957,11 @@ function tick() {
   if (aro) {
     weights = stepWeights(weights, targetWeights.value, dt, reduced)
     const zEff = geo!.R / (Math.min(geo!.free.x1 - geo!.free.x0, geo!.free.y1 - geo!.free.y0) / 2)
+    // el primer minuto guiado (spec 011, §12.2): en Jugar y sin loops; solo mira, no toca la canción
+    if (guide.value.step !== 'done' && mode.value === 'jugar') {
+      const ls = engine.loops.value.loops
+      guideTo(advanceGuide(guide.value, { bar: Math.floor(clock.bar), playing: playing.value, drumLoops: ls.filter((l) => l.instrument !== 'mel').length, melLoops: ls.filter((l) => l.instrument === 'mel').length, heard: guideHeard }))
+    }
     // al arrancar en Componer (preferencia guardada), el mapa se ajusta a todas las células (spec 011)
     if (fitPending && view.w > 0) {
       fitPending = false
@@ -1658,6 +1665,34 @@ let fitPending = true
 /** El aviso de la primera vez (por dispositivo) al pasar a cada modo con el pellizco (spec 011, §4.2). */
 const HINT_KEY = 'coderbeats:mode-hints:v1'
 const modeHint = ref('')
+
+// ── el primer minuto guiado (spec 011, §12.2): solo texto, una frase a la vez; se ve una vez por dispositivo ──
+const GUIDE_KEY = 'coderbeats:guide:v1'
+const guideDone = () => !!readJson(GUIDE_KEY, (x): x is { done: true } => !!x && (x as { done?: unknown }).done === true)
+const guide = ref<GuideState>(guideDone() ? GUIDE_DONE : GUIDE_START)
+/** golpes que el micro ha oído desde que empezó la guía */
+let guideHeard = 0
+const guideText = computed(() => (mode.value === 'jugar' && guideVisible(guide.value) ? guideLine(guide.value.step, engine.melodyOn.value) : ''))
+function guideTo(next: GuideState) {
+  if (next === guide.value) return
+  const was = guide.value.step
+  guide.value = next
+  if (was === 'wait' && next.step === 'listen') {
+    guideHeard = 0
+    engine.guideBackground() // «Escucha»: suena el fondo y la gota espera
+  }
+  if (next.step === 'done') writeJson(GUIDE_KEY, { done: true })
+}
+/** un toque en la frase la salta */
+const skipGuide = () => guideTo(GUIDE_DONE)
+watch(engine.guideNonce, () => {
+  try {
+    localStorage.removeItem(GUIDE_KEY)
+  } catch {
+    /* sin almacenamiento: solo esta sesión */
+  }
+  guide.value = GUIDE_START
+})
 let hintTimer: ReturnType<typeof setTimeout> | null = null
 function showModeHint(m: Mode) {
   const seen = readJson(HINT_KEY, (x): x is Mode[] => Array.isArray(x)) ?? []
@@ -1957,6 +1992,18 @@ defineExpose({ switchMode, openOrgan: (x: number, y: number) => (organ.value = {
     </button>
 
     <slot />
+    <button
+      v-if="guideText"
+      class="guide-line absolute left-1/2 -translate-x-1/2 rounded-full bg-black/45 px-5 py-2 text-sm text-white/85 backdrop-blur"
+      style="bottom: calc(max(0.5rem, env(safe-area-inset-bottom)) + 150px)"
+      aria-live="polite"
+      aria-label="guía: toca para saltarla"
+      @pointerdown.stop
+      @click="skipGuide"
+    >
+      {{ guideText }}
+    </button>
+
     <div v-if="modeHint" class="mode-hint pointer-events-none absolute left-1/2 -translate-x-1/2 rounded-full bg-black/60 px-4 py-2 text-xs text-white/80 backdrop-blur" style="top: calc(max(0.5rem, env(safe-area-inset-top)) + 96px)" role="status">{{ modeHint }}</div>
 
     <MelodyOrgan v-if="organ" :origin="organ" @close="organ = null" />

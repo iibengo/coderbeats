@@ -264,6 +264,10 @@ watch(open, (o) => {
             <button class="flex-1 rounded-full border border-white/15 py-2" @click="loadDemo">Cargar demo</button>
           </div>
           <div class="flex items-center gap-3">
+            <button class="shrink-0 rounded-full border border-white/15 px-4 py-2" @click="engine.restartGuide(); open = false">Repetir la guía</button>
+            <span class="text-xs text-neutral-500">el primer minuto: bum · pff · ts, y tus golpes aparecen (con la canción vacía).</span>
+          </div>
+          <div class="flex items-center gap-3">
             <button class="shrink-0 rounded-full border border-white/15 px-4 py-2" @click="addFree">Añadir célula libre</button>
             <span class="text-xs text-neutral-500">
               Un grupo de una célula que suena en paralelo a la canción. En el mapa, un toque lo enciende o lo apaga.
