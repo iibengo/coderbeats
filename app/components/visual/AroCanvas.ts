@@ -124,6 +124,8 @@ export interface AroFrame {
   idle?: boolean
   /** agua y estela más suaves, 0..1 (Jugar, spec 011 §12.1): 0 = como siempre; el agua pasa a ser una textura de fondo y los golpes y la aguja se leen primero */
   calm?: number
+  /** la recompensa (spec 011, §12.3): la luz barre el disco con la aguja una vuelta (`sweep` 0..1) y se apaga; null = nada */
+  reward?: { sweep: number; glow: number } | null
   /** fase del compás que se oye, 0..1 */
   phase: number
   dots: AroDot[]
@@ -1169,6 +1171,25 @@ export class AroCanvas {
         x.fill()
       }
       x.restore()
+    }
+
+    // recompensa: todos los carriles tienen algo → el disco entero se enciende una vuelta (una cuña de luz que sigue a la aguja)
+    if (f.reward && f.reward.glow > 0.01) {
+      const start = stepAngle(0)
+      const sweep = f.reduced ? 1 : f.reward.sweep
+      for (const v of Object.keys(ringPath) as Voice[]) {
+        x.save()
+        x.clip(ringPath[v]!)
+        x.fillStyle = `rgba(${VOICE_RGB_CSS[v]},${0.34 * f.reward.glow})`
+        x.beginPath()
+        if (sweep >= 0.999) x.arc(geo.cx, geo.cy, this.w + this.h, 0, TAU)
+        else {
+          x.moveTo(geo.cx, geo.cy)
+          x.arc(geo.cx, geo.cy, this.w + this.h, start, start + sweep * TAU)
+        }
+        x.fill()
+        x.restore()
+      }
     }
 
     const head = stepAngle(f.phase * 16)

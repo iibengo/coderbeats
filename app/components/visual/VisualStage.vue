@@ -48,6 +48,7 @@ import {
 import { Drift, GLIDE_TAU, glideEnd, linkedIds, releaseVelocity, type Sample } from '~/lib/aro/drift'
 import { readJson, writeJson } from '~/lib/storage'
 import { cellStrip, MODE_HINT, type Mode } from '~/lib/modes'
+import { allLanesFilled, rewardFrame } from '~/lib/reward'
 import { advanceGuide, GUIDE_DONE, GUIDE_START, guideLine, guideVisible, type GuideState } from '~/lib/firstMinute'
 import CellStrip from '../CellStrip.vue'
 import { edgeMarkers } from '~/lib/aro/markers'
@@ -995,6 +996,7 @@ function tick() {
       weights,
       playing: playing.value,
       calm: CALM_JUGAR * (mode.value === 'jugar' ? 1 : 0),
+      reward: updateReward(clock.bar + clock.barPhase),
       // la que se mira sin sonar (fijada, o de un grupo apagado) no lleva aguja ni estela, ni lejos ni cerca
       idle: playing.value && !plan && !engine.groupHeads().some((h) => h.cellId === engine.viewCellId.value),
       phase: clock.barPhase,
@@ -1683,6 +1685,29 @@ function guideTo(next: GuideState) {
   }
   if (next.step === 'done') writeJson(GUIDE_KEY, { done: true })
 }
+// ── la recompensa (spec 011, §12.3): con todos los carriles llenos, el disco se enciende una vuelta; una vez por canción y sesión ──
+let rewardArmed = true
+/** compás (con fracción) en el que empieza el destello: la línea de compás siguiente, para que la luz parta con la aguja; null = no hay */
+let rewardStart: number | null = null
+function updateReward(pos: number): { sweep: number; glow: number } | null {
+  if (mode.value !== 'jugar' || !playing.value) {
+    // si se para o se cambia de modo a medias, el destello no se ve y se podrá ganar otra vez
+    if (rewardStart !== null) rewardArmed = true
+    rewardStart = null
+    return null
+  }
+  const ls = engine.loops.value.loops
+  if (ls.length === 0) rewardArmed = true // canción vacía o nueva: puede volver a ganarse
+  if (rewardArmed && rewardStart === null && playing.value && allLanesFilled(ls, engine.melodyOn.value)) {
+    rewardArmed = false
+    rewardStart = Math.ceil(pos)
+  }
+  if (rewardStart === null) return null
+  const f = rewardFrame(pos - rewardStart)
+  if (!f && pos - rewardStart > 1) rewardStart = null
+  return f
+}
+
 /** un toque en la frase la salta */
 const skipGuide = () => guideTo(GUIDE_DONE)
 watch(engine.guideNonce, () => {
