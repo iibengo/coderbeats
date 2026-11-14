@@ -316,8 +316,43 @@ que luego se puede retocar en Componer. *Nota:* la decisión 4 («Jugar no crea 
 
 ## 13. Más adelante (no ahora)
 
-- **Modo «Escenario»**: solo mirar y grabar (el disco en perspectiva tipo LED, estela, encendido en el drop).
+- **Modo «Escenario»**: para **mirar, grabar y tocar golpes de efecto en directo** (§13.1). Además, el disco en perspectiva tipo LED, la estela y el encendido en el drop.
 - Como gestos o efectos **dentro** de los modos: **dibujar una melodía con el dedo** en el Órgano, la **calibración como mini-juego** (tipo espiral), el **árbol de estilos** como selector, **formas efímeras** al sonar.
+
+### 13.1 Escenario: golpes de efecto en directo (idea, 2026-11-15; sin programar)
+
+**La idea.** Un modo donde **toda la pantalla es para tocar**: tocar **zonas del fondo** dispara **impactos grandes** (crash, bombo gigante, boom grave y quizá un barrido), y cada golpe lanza una **onda de color que cruza el fondo negro**.
+Es el contrario de Jugar (una gota pequeña y concentrada): aquí **no hay gota**, hay un **escenario**.
+
+| Zona (propuesta) | Golpe | Cómo suena | Onda de color |
+|---|---|---|---|
+| **Abajo, ancha** | **Bombo gigante** | el bombo del kit **una octava más grave**, con saturación y un seno de sub; **afinado a la raíz del acorde** (`kickTune` del estilo) | **rosa** (`bd`, `#F496BC`) |
+| **Centro** | **Boom grave** | un seno de 35–50 Hz con caída de tono y cola larga | **lila** (`sd`, `#B9A6F2`) |
+| **Arriba** | **Crash** | el sinte `crash` de 008 §12 (ruido blanco, ataque inmediato, cola larga) | **azul** (`hh`, `#8ECFF2`) |
+| **Lados (arrastrar)** | **Barrido** | ruido con filtro que sube (el riser de 008 §11) mientras se arrastra | **azul → lila** |
+
+**Color.** Salen de **la paleta única** (`palette.ts`, 003 E1.2): rosa, lila y azul son los de bombo, caja y platillo, así que el escenario **se lee con los mismos colores que la gota**. La onda reutiliza **el agua** (`theme.hit`, con más amplitud y un alcance de pantalla entera).
+
+**Se afina al estilo** (como las sugerencias, 012 §3.2b): el bombo y el boom van a **la raíz del acorde del compás** (`kickTune`), el barrido dura **un número de compases al tempo del estilo**, y el crash entra **al tiempo** (a la siguiente semicorchea si «cuantizar» está activo, o al instante si no).
+
+**Grabar lo tocado como capa de efectos de la célula.** Un botón **«grabar efectos»** (como el «grabar canción» de §14.1): mientras suena, los golpes **se apuntan por paso**; al terminar pasan a la célula que se ve como **una capa de efectos**. Con el modelo de hoy, **cada tipo de golpe es un loop de melodía con su sinte** (`crash` ya existe; faltarían `boom`, `impacto` y `barrido`, como se hizo con `riser` y `crash`), **cuantizado a la rejilla** y de **4 compases** como mucho. No hace falta ningún campo nuevo en `Song`.
+
+**Por qué solo aquí, y no en Componer ni en Jugar.** En **Componer**, tocar el agua **crea una célula** (005 §7.1), así que el fondo ya tiene otro significado; en **Jugar**, fuera de la gota un dedo no hace nada (003 E1.5), y ahí está bien. **Escenario es el único modo donde el fondo dispara sonidos.**
+
+**Cuántos modos.** Es el **tercero** (Jugar, Componer, Escenario): la decisión 1 de §10 dijo «como mucho 2–3». Alternativa si no se quiere un tercero en el selector: **un botón «Escenario» dentro de Jugar** que cambia la pantalla, sin tocar el selector.
+
+**Riesgos y cosas a vigilar:**
+- **Latencia al tocar**: un impacto tiene que sonar **al instante** (sin esperar a la rejilla); para grabar se cuantiza **después**.
+- **Fuga al micro**: son sonidos **muy graves y fuertes**; con la «melodía con la voz» activada, el micro los oye. Los arreglos F1/F2 de la 012 §2.3 deben estar hechos, y los golpes se registran en el `EchoGate` (`addOutput`) para que no cuenten como golpes de voz.
+- **Volumen y bombeo**: tres bombos gigantes seguidos hacen trabajar al limitador y al compresor de pegamento (010 §12); se prueba con el mismo test de no-bombeo.
+- **Luz**: las ondas de color son **grandes**; sin destellos bruscos repetidos (fotosensibilidad) y con **movimiento reducido** se ven como un cambio de brillo suave.
+- **Toques sin querer**: el fondo entero dispara, así que un **zona muerta** alrededor de los botones y un tope de golpes por segundo.
+
+**Cómo se probaría** (cuando se haga): `fxAt(x, y, w, h) → golpe` como función pura (las zonas); los golpes como código Strudel evaluado en Node (el boom y el bombo **en la nota de la raíz**); la conversión «golpes con tiempo → loops de melodía por paso» como función pura; y a mano en el móvil, **de dedo y de oído**.
+
+**Fases (propuesta):** (1) los sonidos (`boom`, `impacto`, `barrido`) como sintes con sus tests; (2) el modo con las zonas y la onda de color, sin grabar; (3) grabar como capa de efectos; (4) el afinado al estilo y a la raíz.
+
+**Preguntas abiertas:** ¿tercer modo o botón dentro de Jugar? · ¿el barrido se arrastra o se mantiene? · ¿«cuantizar» activado por defecto al grabar? · ¿cuántos golpes caben (4 zonas, 6…)?
 
 ## 15. Lo implementado (2026-11-14) y dónde está
 
