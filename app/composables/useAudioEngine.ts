@@ -1700,7 +1700,9 @@ export function useAudioEngine() {
    * no suena: la vista no sigue a la canción hasta "◎ centrar". Sonando, entrar en la que suena es volver a seguirla.
    */
   function enterCell(id: number) {
-    if (!cellById(song.value, id) || id === viewCellId.value) return
+    if (!cellById(song.value, id)) return
+    // la que se ve y suena: doble toque = fijar la vista en ella (la canción sigue y la vista no)
+    if (id === viewCellId.value) return pinView()
     const gid = groupIdOf(song.value, id)
     if (gid !== null && gid !== MAIN) {
       pinned.value = false
@@ -1720,6 +1722,13 @@ export function useAudioEngine() {
     syncLoopUi()
     reevaluate()
     updateBackground()
+  }
+
+  /** Fija la vista en la célula que se ve y suena: la canción cambia de célula y la cámara se queda (enmienda 3). */
+  function pinView() {
+    if (!playing.value || !cursor || !multi() || cursor.cellId !== viewCellId.value) return
+    pinned.value = true
+    log('cell', `vista fijada en la célula ${viewCellId.value}`)
   }
 
   /** "◎ centrar": la vista vuelve a la célula que suena en la canción y la sigue. */
@@ -1947,6 +1956,7 @@ export function useAudioEngine() {
     /** se ve algo que no es lo que suena en la canción (enmienda 3): sale "◎ centrar" */
     viewAway: computed(() => inParallel(song.value, viewCellId.value) || (pinned.value && playing.value)),
     followSong,
+    pinView,
     viewGroup: computed(() => groupIdOf(song.value, viewCellId.value) ?? MAIN),
     viewGroupOn: computed(() => groupOn(song.value, groupIdOf(song.value, viewCellId.value) ?? MAIN)),
     extrasOn: computed(() => song.value.groups.some((g) => g.on)),

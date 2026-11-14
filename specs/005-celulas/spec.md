@@ -715,3 +715,4 @@ Problemas que veo con el punto 4 (a revisar):
 - En una célula de la canción que no suena, lo que grabas no se oye hasta que llega su turno; solo ves el aro. Si se quiere oírlo, hay que tocarla una vez (suena en bucle) o usar el bucle.
 - Mientras se ve una célula que no suena no hay chapa de vueltas ni transiciones de agua de la que suena, y la colonia no muestra su halo de progreso.
 - La canción no se detiene a esperar: si llega a la célula mientras se graba, la vista pasa a seguirla.
+5. **Fijar la vista** en la célula que suena: doble toque sobre ella (o el botón «⌖ fijar vista», con la canción sonando y varias células). La canción sigue cambiando de célula y suena el cambio, pero la vista y la cámara se quedan; sale «◎ centrar» para volver a seguirla.

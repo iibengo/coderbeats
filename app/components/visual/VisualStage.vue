@@ -1655,6 +1655,18 @@ defineExpose({ rendererName, layoutInfo })
       ◎ centrar
     </button>
 
+    <!-- sonando una canción de varias células: fijar la vista en la que se ve; la canción cambia y la cámara se queda -->
+    <button
+      v-if="engine.playing.value && engine.multi.value && !showFollow && !engine.viewIsFree.value"
+      class="follow-btn absolute"
+      :style="followStyle"
+      aria-label="fijar la vista en esta célula: la canción cambia de célula y la cámara se queda"
+      @pointerdown.stop
+      @click="engine.pinView()"
+    >
+      ⌖ fijar vista
+    </button>
+
     <!-- deshacer lo último que se borró (una célula o "Borrar todo"), unos 8 s (spec 005, §7.1) -->
     <button
       v-if="engine.undoInfo.value"
