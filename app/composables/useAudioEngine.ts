@@ -82,6 +82,7 @@ import { effectiveBpm, TEMPO_TAPS, TEMPO_TIMEOUT_MS, tempoFromTaps } from '~/lib
 import { detectOnsets, minGapForCell } from '~/lib/onsets'
 import { PhraseTracker, type ClosedPhrase, type LoopLength, type PhraseSnapshot } from '~/lib/phrases'
 import { ENGINE_GLOBAL, songCode, type SongFx, type SongState } from '~/lib/song'
+import { WOW_PRELUDE } from '~/lib/wowPrelude'
 import type { CalibrationSample, Instrument, KitId, Norm, StyleId } from '~/lib/types'
 import { allLanes, toggleLane as toggleLaneSet, type Lanes } from '~/lib/lanes'
 import { fmtVolume, isTooQuiet } from '~/lib/volume'
@@ -152,6 +153,8 @@ let stream: MediaStream | null = null
 let capture: AudioWorkletNode | null = null
 let worker: Worker | null = null
 let masterIn: GainNode | null = null
+/** el wowo en el motor (spec 008, §9): enganche del código evaluado y compuertas de cada célula con wowo */
+let wowDisarm: (() => void) | null = null
 let chunks: { frame: number; data: Float32Array }[] = []
 let onStopped: (() => void) | null = null
 let clock: Clock | null = null
@@ -754,7 +757,8 @@ function reevaluate() {
   queueMicrotask(async () => {
     evalQueued = false
     try {
-      await S!.evaluate(songCode(songState(), 'engine'), playing.value)
+      armWowo()
+      await S!.evaluate(WOW_PRELUDE + '\n' + songCode(songState(), 'engine'), playing.value)
     } catch (e) {
       log('error', `evaluate: ${e instanceof Error ? e.message : String(e)}`)
     }
@@ -775,6 +779,97 @@ function setupBackgroundNodes() {
     orbit.output.connect(lp).connect(gain)
     controller.output.connectToDestination(gain)
     bgNodes[part] = { lp, gain }
+  }
+}
+
+/** Un cambio del wowo que llega del código: el bus (la célula), su wowo, el compás global en el que empieza y el `lpf`. */
+interface WowChange {
+  bus: number
+  wow: { lpq: number; lpenv: number; lpa: number; lpd: number }
+  bar: number
+  value: number
+}
+
+/**
+ * El wowo en el motor (spec 008, §9). El código evaluado llama a `__cbWowo(cambios)` desde `wowPlan` (ver
+ * `WOW_PRELUDE` en `~/lib/song`), pero **solo si la canción tiene wowo**. Aquí, por cada célula con wowo, una
+ * compuerta en su bus (`controller.getBus`, el `bus` del código: `controller.getBus`, vacío para el resto): un
+ * `BiquadFilterNode` que arranca en bypass (abierto) y, en cada compás en el que cambia el filtro (por el reloj del
+ * transport, `cps` del scheduler y el compás global del pulso), programa el `lpf` de esa vuelta con la envolvente del
+ * wowo delante. La compuerta se planifica unos compases por delante para que el cambio llegue justo en la línea de
+ * compás. Todo lo de la canción de siempre (sin wowo) no toca ningún nodo.
+ */
+function armWowo() {
+  wowDisarm?.()
+  wowDisarm = null
+  const controller = S!.getSuperdoughAudioController() as unknown as {
+    audioContext: AudioContext
+    cps: number
+    getBus(n: number): AudioNode
+  }
+  const g = globalThis as Record<string, unknown>
+  g.__cbWowo = (changes: WowChange[]) => {
+    g.__cbWowo = null
+    if (!changes.length || !ctx) return
+    wowDisarm = mountWowo(controller, changes)
+  }
+}
+
+/**
+ * Monta las compuertas del wowo y devuelve cómo desmontarlas. El reloj: `barSec` = 4 / `cps` (un compás = 1 ciclo de
+ * Strudel) y el compás global sale del pulso (`lastPulseCycle`/`clock`), que el motor ya lleva para las visuales.
+ */
+function mountWowo(
+  controller: { audioContext: AudioContext; cps: number; getBus(n: number): AudioNode },
+  changes: WowChange[],
+): () => void {
+  const ac = controller.audioContext
+  const destination = (S!.getSuperdoughAudioController() as unknown as { output: { destinationGain: AudioNode } }).output.destinationGain
+  const byBus = new Map<number, WowChange[]>()
+  for (const c of changes) byBus.set(c.bus, [...(byBus.get(c.bus) ?? []), c])
+  const gates: { bus: number; node: BiquadFilterNode; out: StereoPannerNode; plan: WowChange[] }[] = []
+  for (const [bus, plan] of byBus) {
+    const node = new BiquadFilterNode(ac, { type: 'lowpass', frequency: 20000, Q: 1 })
+    // la compuerta va en serie en el bus de la célula: todo lo suyo la atraviesa y luego va al mismo sitio que el bus
+    // (la salida de superdough, que ya lleva el limitador maestro del motor), sin tocar el resto de la cadena
+    const out = new StereoPannerNode(ac)
+    controller.getBus(bus).connect(node).connect(out)
+    ;(S!.getSuperdoughAudioController() as unknown as { output: { connectToDestination(n: AudioNode): void } }).output.connectToDestination(out)
+    gates.push({ bus, node, out, plan: plan.sort((a, b) => a.bar - b.bar) })
+  }
+  // cada compás, planifica el siguiente cambio de cada compuerta (unos compases de antelación)
+  const timers: ReturnType<typeof setInterval>[] = []
+  for (const gate of gates) {
+    const barSec = () => 4 / Math.max(0.01, controller.cps)
+    const applied = new Set<number>()
+    const apply = () => {
+      const now = ac.currentTime
+      // compás global que suena: del reloj de pulsos del motor, o 0 si aún no hay
+      const base = clock ? clock.cycle - (now - clock.time) / Math.max(0.01, clock.barSec) : 0
+      for (const c of gate.plan) {
+        if (applied.has(c.bar) || c.bar < base - 0.01) continue
+        const at = now + 0.02 + (c.bar - base) * barSec()
+        if (at > now + barSec() * 2) continue
+        applied.add(c.bar)
+        const f = gate.node.frequency
+        f.cancelScheduledValues(at)
+        f.setValueAtTime(c.value, at)
+        f.exponentialRampToValueAtTime(Math.min(20000, Math.max(60, c.value * 2 ** c.wow.lpenv)), at + Math.max(0.002, c.wow.lpa))
+        f.exponentialRampToValueAtTime(Math.max(20, c.value), at + Math.max(0.002, c.wow.lpa) + Math.max(0.01, c.wow.lpd))
+        gate.node.Q.setValueAtTime(c.wow.lpq, at)
+      }
+    }
+    apply()
+    timers.push(setInterval(apply, 120))
+  }
+  return () => {
+    for (const t of timers) clearInterval(t)
+    // fuera sin cortar el sonido: el bus pasa a ir directo (si se recarga, la compuerta nueva se pone delante)
+    for (const gate of gates) {
+      controller.getBus(gate.bus).disconnect(gate.node)
+      gate.node.disconnect()
+      gate.out.disconnect()
+    }
   }
 }
 
@@ -1239,7 +1334,8 @@ export function useAudioEngine() {
     capture?.port.postMessage('stream-on')
     playing.value = true
     try {
-      await S.evaluate(songCode(songState(), 'engine'), true)
+      armWowo()
+      await S.evaluate(WOW_PRELUDE + '\n' + songCode(songState(), 'engine'), true)
     } catch (e) {
       log('error', `evaluate: ${e instanceof Error ? e.message : String(e)}`)
     }
@@ -1267,6 +1363,8 @@ export function useAudioEngine() {
     viewJump = null
     syncLoopUi()
     dropActive = false
+  wowDisarm?.()
+  wowDisarm = null
     dropping.value = false
     plannedParts = { ...NO_PARTS }
     bgParts.value = { ...NO_PARTS }
@@ -1431,6 +1529,8 @@ export function useAudioEngine() {
     const release = barTime(nextBarLine()) - 0.15
     later(() => {
       dropActive = false
+  wowDisarm?.()
+  wowDisarm = null
       dropping.value = false
       syncFx()
     }, (release - ctx.currentTime) * 1000)

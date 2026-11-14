@@ -81,10 +81,13 @@ describe('en la canción', () => {
     expect(code).toContain('.lpf("<2000 6000 500 900>").filterHaps((h) => h.whole.begin >= 2 && h.whole.begin < 6)')
   })
 
-  it('una célula sin filtro no cambia el código de siempre', () => {
+  it('una célula sin filtro no cambia el código de siempre (el motor pone el lpf abierto para la marca del wowo)', () => {
     const plain = songOf(cell(1, 2), cell(2, 4))
     // (el fondo del dembow lleva su propio lpf dentro de sus líneas; lo que no debe haber es un lpf tras el stack de la célula)
     expect(songCode(state(plain), 'display')).not.toMatch(/\n\s*\)\.lpf\(/)
-    expect(songCode(state(plain, [{ cellId: 2, from: 2, to: 6 }]), 'engine')).not.toMatch(/\n\s*\)\.lpf\(/)
+    // en el motor, el `lpf(20000)` es el filtro abierto con el que superdough ya suena: no cambia nada por sí solo
+    const engine = songCode(state(plain, [{ cellId: 2, from: 2, to: 6 }]), 'engine')
+    expect(engine).toContain(').lpf(20000).filterHaps((h) => h.whole.begin >= 2 && h.whole.begin < 6)')
+    expect(engine).not.toMatch(/lpq|lpenv/)
   })
 })

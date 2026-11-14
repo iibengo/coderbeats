@@ -9,6 +9,7 @@ import { anyPart, type BackgroundMode, type Parts } from './background'
 import { bassCode } from './bass'
 import { melodyMini, SYNTH_SOUND, type MelodySynth } from './melody'
 import type { Cell, Segment } from './cells'
+import { wowCode, wowControls } from './wow'
 
 export interface SongFx {
   /** 0..1 (1 = abierto) */
@@ -44,7 +45,7 @@ export interface SongState {
 }
 
 /** Lo que necesita el generador de cada célula. */
-export type CellCode = Pick<Cell, 'id' | 'name' | 'loops' | 'parts' | 'turns' | 'lpf' | 'groupOn' | 'groupOff'>
+export type CellCode = Pick<Cell, 'id' | 'name' | 'loops' | 'parts' | 'turns' | 'lpf' | 'wow' | 'groupOn' | 'groupOff'>
 
 /**
  * - display: el código que se enseña y se copia (valores fijos, sin metrónomo ni ganchos).
@@ -55,6 +56,8 @@ export type SongMode = 'display' | 'engine'
 
 /** Nombre global con el que el motor expone valores y callbacks al código evaluado. */
 export const ENGINE_GLOBAL = '__cb'
+
+
 
 const mod = (a: number, n: number) => ((a % n) + n) % n
 /**
@@ -72,6 +75,20 @@ export const MELODY_ORBIT = 5
 const duckWith = (orbits: string) => `.duckorbit("${orbits}").duckdepth(0.6).duckattack(0.15)`
 /** Sidechain del bombo sobre el bajo y los acordes; con melodía en el mismo bloque, también sobre ella. */
 export const DUCK = duckWith('2:3')
+
+/**
+ * El `lpf` del motor de una célula que no tiene el suyo: el filtro abierto (20000 Hz), el de por defecto de superdough,
+ * para tener algo a lo que ponerle la marca del wowo. Sin cambio del valor no se aplica el wowo: no cambia el sonido.
+ */
+const plainEngineLpf = '.lpf(20000)'
+
+/**
+ * En el motor, una célula que solo tiene el wowo (sin `lpf`) también tiene que acotarse a sus compases: sin `lpf` no
+ * hay `.lpf("<…>")` para agarrarse, así que se pone el de siempre (`lpf` = 20000, el de por defecto de superdough) y el
+ * wowo se lo pone encima desde el color (spec 008, §9).
+ */
+const plainLpf = (lpf: string) => lpf || plainEngineLpf
+
 
 /** Tokens de s() y de nudge() (rotados a la fase global) de un loop. */
 export function loopTokens(
@@ -185,7 +202,7 @@ function backgroundLines(st: SongState, bass: boolean, chords: boolean, engine: 
  * motor los ciclos son los compases globales, así que el patrón se rota al compás `from` en el que empieza la célula
  * (la vuelta 1 de la célula usa el primer valor). Los números se redondean y se acotan: nada leído se escribe tal cual.
  */
-export function cellLpf(cell: Pick<Cell, 'lpf' | 'turns'>, mode: SongMode, from = 0): string {
+export function cellLpf(cell: Pick<Cell, 'turns'> & { lpf?: number[] }, mode: SongMode, from = 0): string {
   const raw = cell.lpf
   if (!Array.isArray(raw) || !raw.length) return ''
   const turns = Math.max(1, Math.min(32, Math.round(safeNum(cell.turns))))
@@ -196,6 +213,72 @@ export function cellLpf(cell: Pick<Cell, 'lpf' | 'turns'>, mode: SongMode, from 
   const items = mode === 'engine' ? vals.map((_, k) => vals[mod(k - shift, turns)]!) : vals
   return `.lpf("<${items.join(' ')}>")`
 }
+
+
+/**
+ * La cola de una célula, después del `stack` de sus loops, en una sola función para que las tres ramas (canción
+ * mostrada, ventana del motor y grupos) no se separen:
+ * - **código mostrado** (`'display'`): el filtro por vuelta y, detrás, el wowo si la célula lo tiene (spec 008, §9);
+ * - **motor** (`'engine'`): lo mismo (con el `lpf` de siempre si la célula solo tiene wowo, ver `plainLpf`) y, si tiene
+ *   wowo, la marca `color("w<id>")` (el id de la célula) con la que `wowLines` pone en sus haps el filtro de cada vuelta; el
+ *   `filterHaps` que la acota a sus compases lo pone quien la conoce. Sin wowo, el código de siempre.
+ */
+export function cellTail(cell: CellCode, mode: SongMode, from = 0): string {
+  const wow = wowCode(cell.wow)
+  if (mode !== 'engine') return `${cellLpf(cell, 'display')}${wow}`
+  const lpf = plainLpf(cellLpf(cell, 'engine', from))
+  return wow ? `${lpf}${wow}.color("w${safeNum(cell.id)}")` : lpf
+}
+
+/** El `lpf` de cada vuelta de una célula (el suyo, o el de siempre: 20000), redondeado y acotado como en `cellLpf`. */
+function lpfTurns(cell: Pick<Cell, 'turns'> & { lpf?: number[] }): number[] {
+  const turns = Math.max(1, Math.min(32, Math.round(safeNum(cell.turns))))
+  const raw = Array.isArray(cell.lpf) && cell.lpf.length ? cell.lpf : [20000]
+  return Array.from({ length: turns }, (_, i) => {
+    const v = safeNum(raw[Math.min(i, raw.length - 1)])
+    return Math.round(Math.min(20000, Math.max(60, v || 20000)))
+  })
+}
+
+/** Las cuatro células con wowo que admite el motor, con su color: el de su orden **en la lista** (el que lleva en `cellTail`). */
+const WOW_MAX = 4
+const wowCells = (list: readonly CellCode[]) =>
+  list
+    .map((c, k) => ({ c, k }))
+    .filter(({ c, k }) => k < WOW_MAX && !!wowCode(c.wow))
+    .slice(0, WOW_MAX)
+
+/**
+ * El wowo en el motor (spec 008, §9). El filtro de una célula con wowo no puede ir "dentro" de los haps de su `stack`
+ * (con `filterHaps` el hap nace sin color; y un color en el hap no se toca con el tiempo), así que va **por compás**:
+ * cada célula con wowo lleva sus haps con su `color("w<id>")` (ver `cellTail`) y esta línea, `wowPlan`, le da al motor
+ * (`wowPlan` del motor, ver `ENGINE_GLOBAL`) el wowo de cada una (`wow`: los controles de superdough; `lpf`: el de cada
+ * vuelta) y la marca por compás (`marks`: el color que suena y cuántos compases dura, `~` si la célula no tiene wowo).
+ * Con eso, el motor pone en el `ctx` de ese color el `lpf` de la vuelta con la envolvente del wowo delante, **solo
+ * cuando cambia**: la vuelta es `(compás − inicio) mod vueltas` (en el motor el código empieza en el compás 0).
+ */
+function wowLines(st: SongState, mode: SongMode): string[] {
+  if (mode !== 'engine' || !st.cells) return []
+  const { list, order } = st.cells
+  const marked = wowCells(list)
+  if (!marked.length) return []
+  const withWow = new Set(marked.map(({ c }) => c.id))
+  const marks = order.map((id) => {
+    const cell = list.find((c) => c.id === id)
+    const turns = Math.max(1, Math.min(32, Math.round(safeNum(cell?.turns))))
+    return `${withWow.has(id) ? safeNum(id) : '~'}@${turns}`
+  })
+  const plan = marked.map(({ c }) => ({ bus: safeNum(c.id), wow: wowControls(c.wow), lpf: lpfTurns(c) }))
+  // una llave en el nombre (un `<-` de la mini-notación) es un error de sintaxis del código evaluado o de una nota: nada se escribe sin pasar por aquí
+  const json = (v: unknown) => JSON.stringify(v).replace(/</g, '\\u003c')
+  // (el motor no deja llamar a una función que no es de Strudel: `wowPlan` la crea el preludio que se evalúa delante,
+  //  ver `WOW_PRELUDE` de `wowPrelude.ts`; por eso aquí va un comentario y no la llamada)
+  return [
+    `${IND}// wowo (spec 008 §9): el wowo de cada célula, por compás, va en el preludio del motor (wowPlan); esto es su plan`,
+    `${IND}// ${json(plan)} · ${json(marks.join(' '))}`,
+  ]
+}
+
 
 /**
  * Cuándo suena un grupo en paralelo dentro de la vuelta de la canción, según los disparadores de sus células (spec 005,
@@ -241,7 +324,7 @@ function groupLines(st: SongState, mode: SongMode, duck: boolean, ind: string): 
         if (!inner.length) continue
         const range = seg.to === null ? `h.whole.begin >= ${safeNum(seg.from)}` : `h.whole.begin >= ${safeNum(seg.from)} && h.whole.begin < ${safeNum(seg.to)}`
         out.push(`${ind}// grupo ${safeNum(item.id)} · ${cellLabel(cell)} · compases ${safeNum(seg.from)}–${seg.to === null ? '…' : safeNum(seg.to) - 1}`)
-        out.push(`${ind}stack(`, ...inner, `${ind})${cellLpf(cell, mode, safeNum(seg.from))}.filterHaps((h) => ${range}),`)
+        out.push(`${ind}stack(`, ...inner, `${ind})${cellTail(cell, mode, safeNum(seg.from))}.filterHaps((h) => ${range}),`)
       }
       continue
     }
@@ -264,7 +347,7 @@ function groupLines(st: SongState, mode: SongMode, duck: boolean, ind: string): 
       const lines = loopsLines(cell.loops, st, mode, duck, ind + IND + IND, 0)
       out.push(`${ind}${IND}// ${cellLabel(cell)} · ${turns} vuelta${turns === 1 ? '' : 's'}`)
       if (!lines.length) out.push(`${ind}${IND}[${turns}, silence],`)
-      else out.push(`${ind}${IND}[${turns}, stack(`, ...lines, `${ind}${IND})${cellLpf(cell, 'display')}],`)
+      else out.push(`${ind}${IND}[${turns}, stack(`, ...lines, `${ind}${IND})${cellTail(cell, 'display')}],`)
       left -= turns
       if (!sched && k + 1 >= cells.length) break
     }
@@ -306,7 +389,7 @@ export function songCode(st: SongState, mode: SongMode = 'display'): string {
       if (!inner.length) continue
       const range = seg.to === null ? `h.whole.begin >= ${safeNum(seg.from)}` : `h.whole.begin >= ${safeNum(seg.from)} && h.whole.begin < ${safeNum(seg.to)}`
       out.push(`${IND}// ${cellLabel(cell)} · compases ${safeNum(seg.from)}–${seg.to === null ? '…' : safeNum(seg.to) - 1}`)
-      out.push(`${IND}stack(`, ...inner, `${IND})${cellLpf(cell, mode, safeNum(seg.from))}.filterHaps((h) => ${range}),`)
+      out.push(`${IND}stack(`, ...inner, `${IND})${cellTail(cell, mode, safeNum(seg.from))}.filterHaps((h) => ${range}),`)
     }
   } else if (st.loops.length) {
     out.push(`${IND}// tus loops`)
@@ -314,6 +397,7 @@ export function songCode(st: SongState, mode: SongMode = 'display'): string {
   }
   const extra = groupLines(st, mode, duck, IND)
   out.push(...extra)
+  if (multi) out.push(...wowLines(st, mode))
   if (!showBass && !showChords && !st.loops.length && !extra.length && !engine && !multi) out.push(`${IND}silence,`)
 
   const djf = filterDjf(st.fx.filter)
@@ -344,7 +428,7 @@ function songArrangeCode(st: SongState): string {
     const lines = [...backgroundLines(st, bass, chords, false, ind), ...loopsLines(cell.loops, st, 'display', bass || chords, ind)]
     out.push(`${IND}// ${cellLabel(cell)} · ${safeNum(cell.turns)} vuelta${safeNum(cell.turns) === 1 ? '' : 's'}`)
     if (!lines.length) out.push(`${IND}[${safeNum(cell.turns)}, silence],`)
-    else out.push(`${IND}[${safeNum(cell.turns)}, stack(`, ...lines, `${IND})${cellLpf(cell, 'display')}],`)
+    else out.push(`${IND}[${safeNum(cell.turns)}, stack(`, ...lines, `${IND})${cellTail(cell, 'display')}],`)
   }
   const djf = filterDjf(st.fx.filter)
   if (freeBlock.length) {
