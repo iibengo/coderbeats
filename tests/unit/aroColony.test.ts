@@ -216,9 +216,9 @@ describe('colonia: mover células y doble toque', () => {
     expect(clampToRect({ x: 100, y: 100 }, free)).toEqual({ x: 100, y: 100 })
   })
 
-  it('doble toque: misma célula y a menos de 300 ms', () => {
+  it('doble toque: misma célula y a menos de 400 ms', () => {
     expect(isDoubleTap({ id: 2, t: 1000 }, 2, 1200)).toBe(true)
-    expect(isDoubleTap({ id: 2, t: 1000 }, 2, 1300)).toBe(false)
+    expect(isDoubleTap({ id: 2, t: 1000 }, 2, 1400)).toBe(false)
     expect(isDoubleTap({ id: 2, t: 1000 }, 3, 1100)).toBe(false)
     expect(isDoubleTap(null, 2, 1100)).toBe(false)
   })

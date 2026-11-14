@@ -190,7 +190,7 @@ export const clampToRect = (p: Point, r: Rect): Point => ({
 })
 
 /** el segundo toque de un doble toque: sobre la misma célula y a menos de este tiempo del anterior (ms) */
-export const DOUBLE_TAP_MS = 300
+export const DOUBLE_TAP_MS = 400
 
 export function isDoubleTap(prev: { id: number; t: number } | null, id: number, now: number, windowMs = DOUBLE_TAP_MS): boolean {
   return !!prev && prev.id === id && now - prev.t >= 0 && now - prev.t < windowMs

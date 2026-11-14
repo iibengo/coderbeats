@@ -947,7 +947,8 @@ function tick() {
       wall: t,
       ...scene,
       weights,
-      playing: playing.value,
+      // en la colonia, la que se mira sin sonar (fijada, o de un grupo apagado) no tiene aguja ni estela: no parece tocar
+      playing: playing.value && (!colony.value || !!plan || engine.groupHeads().some((h) => h.cellId === engine.viewCellId.value)),
       phase: clock.barPhase,
       dots: ringDots.value,
       live: liveDot(),
