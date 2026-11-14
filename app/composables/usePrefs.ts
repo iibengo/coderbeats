@@ -2,6 +2,7 @@ import type { BackgroundMode, Parts } from '~/lib/background'
 import { isSong, songFromLoops, storableSong } from '~/lib/cells'
 import type { LoopsState } from '~/lib/freeLoops'
 import { restoreImageDelay } from '~/lib/imageDelay'
+import { readJson, writeJson } from '~/lib/storage'
 import { migrateRepeatMode } from '~/lib/prefsMigration'
 import { isStoredPrefs } from '~/lib/prefsGuard'
 import type { LoopLength } from '~/lib/phrases'
@@ -35,24 +36,6 @@ export interface StudioPrefs {
   imageFineMs?: number
 }
 
-function read<T>(key: string, valid: (x: unknown) => x is T): T | null {
-  try {
-    const raw = localStorage.getItem(key)
-    const v: unknown = raw ? JSON.parse(raw) : null
-    return valid(v) ? v : null
-  } catch {
-    return null
-  }
-}
-
-function write(key: string, value: unknown) {
-  try {
-    localStorage.setItem(key, JSON.stringify(value))
-  } catch {
-    // sin almacenamiento (modo privado): solo vale para esta sesión
-  }
-}
-
 const isPrefs = (x: unknown): x is StudioPrefs => isStoredPrefs(x)
 const isLoops = (x: unknown): x is LoopsState =>
   !!x && typeof x === 'object' && Array.isArray((x as LoopsState).loops) && typeof (x as LoopsState).nextId === 'number'
@@ -65,7 +48,7 @@ export function usePrefs() {
   const engine = useAudioEngine()
 
   function load() {
-    const p = read(PREFS_KEY, isPrefs)
+    const p = readJson(PREFS_KEY, isPrefs)
     if (p) {
       engine.kit.value = p.kit
       engine.style.value = p.style
@@ -82,13 +65,13 @@ export function usePrefs() {
       // los bajos editados de antes de E3.8 se borran: vuelve el de cada estilo (spec 003, E1.4)
       if ('bassEdits' in p) {
         const { bassEdits: _old, ...rest } = p as StudioPrefs & { bassEdits?: unknown }
-        write(PREFS_KEY, rest)
+        writeJson(PREFS_KEY, rest)
       }
     }
     if (engine.loops.value.loops.length) return
-    const song = read(SONG_KEY, isSong)
+    const song = readJson(SONG_KEY, isSong)
     if (song) return engine.setSong(song)
-    const l = read(LOOPS_KEY, isLoops)
+    const l = readJson(LOOPS_KEY, isLoops)
     if (l) engine.setSong(songFromLoops(l, p?.bgManual))
   }
 
@@ -113,10 +96,10 @@ export function usePrefs() {
           imageAuto: engine.imageAuto.value,
           imageFineMs: engine.imageFineMs.value,
         }) satisfies StudioPrefs,
-      (p) => write(PREFS_KEY, p),
+      (p) => writeJson(PREFS_KEY, p),
       { deep: true },
     )
-    watch([engine.song, engine.loops, engine.bgManual], () => write(SONG_KEY, storableSong(engine.liveSong())))
+    watch([engine.song, engine.loops, engine.bgManual], () => writeJson(SONG_KEY, storableSong(engine.liveSong())))
   }
 
   return { load, startSaving }

@@ -1,4 +1,5 @@
 import { ref } from 'vue'
+import { readJson, writeJson } from '~/lib/storage'
 import type { Tilt } from '~/lib/aro/view'
 
 /**
@@ -52,12 +53,11 @@ async function start(): Promise<boolean> {
   return true
 }
 
+const isMotionPref = (x: unknown): x is { enabled?: unknown } => !!x && typeof x === 'object'
+
 function save() {
-  try {
-    localStorage.setItem(KEY, JSON.stringify({ enabled: enabled.value }))
-  } catch {
-    // sin almacenamiento: solo esta sesión
-  }
+  // sin almacenamiento: solo esta sesión
+  writeJson(KEY, { enabled: enabled.value })
 }
 
 export function useAroMotion() {
@@ -67,11 +67,7 @@ export function useAroMotion() {
 
   if (import.meta.client && !loaded) {
     loaded = true
-    try {
-      enabled.value = !!(JSON.parse(localStorage.getItem(KEY) ?? 'null') as { enabled?: boolean } | null)?.enabled
-    } catch {
-      enabled.value = false
-    }
+    enabled.value = readJson(KEY, isMotionPref)?.enabled === true
     if (enabled.value && available()) {
       const DOE = window.DeviceOrientationEvent as IOSOrientation
       if (typeof DOE.requestPermission === 'function') needsPermission = true

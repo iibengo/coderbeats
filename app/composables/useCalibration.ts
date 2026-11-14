@@ -1,6 +1,7 @@
 import { computed, shallowRef } from 'vue'
 import { computeNorm, KnnClassifier } from '~/lib/classifier'
 import { toVector } from '~/lib/features'
+import { readJson, writeJson } from '~/lib/storage'
 import type { CalibrationData, CalibrationSample, LatencyCalibration } from '~/lib/types'
 
 const KEY = 'coderbeats:calibration:v1'
@@ -18,26 +19,15 @@ function isCalibration(x: unknown): x is CalibrationData {
   )
 }
 
-function read(): CalibrationData | null {
-  try {
-    const raw = localStorage.getItem(KEY)
-    const parsed: unknown = raw ? JSON.parse(raw) : null
-    return isCalibration(parsed) ? parsed : null
-  } catch {
-    return null
-  }
-}
+const read = (): CalibrationData | null => readJson(KEY, isCalibration)
 
 const data = shallowRef<CalibrationData | null>(null)
 let loaded = false
 
 function write(next: CalibrationData) {
   data.value = next
-  try {
-    localStorage.setItem(KEY, JSON.stringify(next))
-  } catch {
-    // sin almacenamiento (modo privado): la calibración vale solo para esta sesión
-  }
+  // sin almacenamiento (modo privado): la calibración vale solo para esta sesión
+  writeJson(KEY, next)
 }
 
 export function useCalibration() {

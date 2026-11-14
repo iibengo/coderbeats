@@ -1,4 +1,5 @@
 import { shallowRef, ref } from 'vue'
+import { hasStorage, readText, removeKey, writeText } from '~/lib/storage'
 import {
   emptyLibrary,
   LIBRARY_BROKEN_KEY,
@@ -30,36 +31,28 @@ let loaded = false
 /** el texto roto que se leyó: hay que guardarlo aparte antes de escribir encima */
 let brokenText: string | null = null
 
-function readKey(key: string): string | null {
-  try {
-    return localStorage.getItem(key)
-  } catch {
-    return null
-  }
-}
-
 /** Lee la lista (una sola vez). Leer nunca borra nada. */
 function load() {
-  if (loaded || typeof localStorage === 'undefined') return
+  if (loaded || !hasStorage()) return
   loaded = true
-  const text = readKey(LIBRARY_KEY)
+  const text = readText(LIBRARY_KEY)
   const parsed = parseLibrary(text)
   lib.value = parsed
   brokenText = parsed.broken ? text : null
-  currentId.value = readKey(LIBRARY_CURRENT_KEY)
+  currentId.value = readText(LIBRARY_CURRENT_KEY)
 }
 
 /** Escribe la lista. Devuelve false (y deja `error`) si no se puede, sin perder lo que había. */
 function persist(next: Library): boolean {
-  try {
-    if (brokenText !== null) {
-      // antes de escribir encima de un texto que no se pudo leer, una copia aparte
-      const key = readKey(LIBRARY_BROKEN_KEY) === null ? LIBRARY_BROKEN_KEY : `${LIBRARY_BROKEN_KEY}:${Date.now()}`
-      localStorage.setItem(key, brokenText)
-      brokenText = null
-    }
-    localStorage.setItem(LIBRARY_KEY, serializeLibrary(next))
-  } catch {
+  let ok = true
+  if (brokenText !== null) {
+    // antes de escribir encima de un texto que no se pudo leer, una copia aparte
+    const key = readText(LIBRARY_BROKEN_KEY) === null ? LIBRARY_BROKEN_KEY : `${LIBRARY_BROKEN_KEY}:${Date.now()}`
+    ok = writeText(key, brokenText)
+    if (ok) brokenText = null
+  }
+  ok = ok && writeText(LIBRARY_KEY, serializeLibrary(next))
+  if (!ok) {
     error.value = 'No se ha podido guardar: el navegador no deja escribir (¿almacenamiento lleno o modo privado?).'
     return false
   }
@@ -71,12 +64,9 @@ function persist(next: Library): boolean {
 /** Recuerda (o olvida) de qué guardada viene lo de ahora. */
 function setCurrent(id: string | null) {
   currentId.value = id
-  try {
-    if (id) localStorage.setItem(LIBRARY_CURRENT_KEY, id)
-    else localStorage.removeItem(LIBRARY_CURRENT_KEY)
-  } catch {
-    // sin almacenamiento: solo vale esta sesión
-  }
+  // sin almacenamiento: solo vale esta sesión
+  if (id) writeText(LIBRARY_CURRENT_KEY, id)
+  else removeKey(LIBRARY_CURRENT_KEY)
 }
 
 /** Renombra una guardada. */

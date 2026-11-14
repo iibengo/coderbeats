@@ -47,6 +47,7 @@ import {
   type ThreadSeg,
 } from '~/lib/aro/colony'
 import { Drift, GLIDE_TAU, glideEnd, linkedIds, releaseVelocity, type Sample } from '~/lib/aro/drift'
+import { readJson, writeJson } from '~/lib/storage'
 import { edgeMarkers } from '~/lib/aro/markers'
 import { transitionAt } from '~/lib/aro/transition'
 import { clampZoom, contourPoints, dropLayout, freeRect, lerpGeo, moveGeo, pinchZoom, scaleGeo, stretchOf, wheelZoom, zoomLimits, type Insets } from '~/lib/aro/zoom'
@@ -132,19 +133,13 @@ function setZoom(z: number) {
   // el zoom de la colonia no se guarda (spec 005, decisión 13): solo el de cerca
   if (zoomRel * limits.value.initial < limits.value.min - 1e-6) return
   nearRel = zoomRel
-  try {
-    localStorage.setItem(ZOOM_KEY, JSON.stringify({ zoomRel }))
-  } catch {
-    // sin almacenamiento: solo para esta sesión
-  }
+  // sin almacenamiento: solo para esta sesión
+  writeJson(ZOOM_KEY, { zoomRel })
 }
 function loadZoom() {
-  try {
-    const v = JSON.parse(localStorage.getItem(ZOOM_KEY) ?? 'null') as { zoomRel?: number } | null
-    if (v && typeof v.zoomRel === 'number' && Number.isFinite(v.zoomRel)) nearRel = zoomRel = v.zoomRel
-  } catch {
-    // sin almacenamiento o dato roto: zoom inicial
-  }
+  // sin almacenamiento o dato roto: zoom inicial
+  const v = readJson(ZOOM_KEY, (x): x is { zoomRel: number } => !!x && typeof (x as { zoomRel?: unknown }).zoomRel === 'number' && Number.isFinite((x as { zoomRel: number }).zoomRel))
+  if (v) nearRel = zoomRel = v.zoomRel
 }
 /** geometría de la gota que se dibuja: se acerca a la de destino en cada frame (sin saltos) */
 let geo: DropGeo | null = null
