@@ -900,3 +900,8 @@ Puro, en `lib/cells.ts`: `mergeCells(song, aId, bId): { song: Song; dropped: { n
 **Interfaz.** Un marcador pequeño en la colonia, en las células que encienden (▶) o apagan (■) un grupo. Sin interfaz para editarlos todavía (los trae la canción: p. ej. los remixes).
 
 **Decisiones a revisar.** (a) Dar Play desde otra célula no aplica los disparadores de las anteriores (el grupo no suena aunque «le tocara»). (b) Mientras se ve una célula del grupo que se reinicia, el grupo se queda en ella (como con Play). (c) Un editor para poner y quitar disparadores desde la interfaz.
+
+## 23. Enmienda 7 · copia con variación (2026-11-15, solo spec)
+
+Al copiar una célula (arrastrar el asa a agua vacía, §15), la copia puede salir con una **variación propuesta** (más energía, menos energía, variar la melodía, redoble de caja), marcada y **bajo el control de la persona**: tocarla = aceptar, «↻ otra» = otra variación,
+y nunca se pierde nada (es una célula suelta, con «↶ deshacer»). El detalle (qué hace cada variación, las funciones puras, los chips) está en la **spec 012 §5**; las variaciones también son la base de «Convertir en canción» (011 §14.2).

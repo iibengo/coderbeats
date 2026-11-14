@@ -288,6 +288,9 @@ que luego se puede retocar en Componer. *Nota:* la decisión 4 («Jugar no crea 
 
 ### 14.2 «Convertir en canción»
 
+> **Actualización (2026-11-15):** la conversión **no tiene lógica propia**: es una **receta de las variaciones** de la **spec 012 §5–§6** (intro = menos energía, subida = sin bombo + redoble + filtro que se abre, drop = la original, final = acordes que se apagan),
+> y puede aceptar una **melodía sugerida** (012 §3) para que el Drop la lleve. Por eso las variaciones (012 S4) y la sugerida (012 S2–S3) se hacen **antes** (fases 8 y 9 de §11 pasan a depender de ellas).
+
 - **Qué hace la persona:** con **un loop** (una sola célula) en Jugar, un botón **«Convertir en canción»** (en el estado de una célula con algo, junto a Play o en ⋯) crea **la estructura completa del estilo**.
 - **La plantilla** (una por estilo, datos puros, `lib/songTemplates.ts`), a partir de las capas de la célula:
 
@@ -308,7 +311,7 @@ que luego se puede retocar en Componer. *Nota:* la decisión 4 («Jugar no crea 
 
 - Es una **función pura** (`loops → células`), muy fácil de probar y de afinar con los remixes como referencia, **sin ninguna interfaz nueva más allá de un botón**.
 - Da **un resultado entero con un toque**, la mejor primera impresión («mi loop ya es una canción») y cubre justo el salto que hoy asusta (de una gota a una canción).
-- **14.1 la necesita**: el convertidor de «línea de tiempo de capas → células» **es la misma idea** (partir por tramos y nombrar), así que 14.2 deja hecho el 70 % de 14.1 (nombrar partes, redondear vueltas, aplicar `lpf`).
+- **Orden actualizado (012 §8):** primero las variaciones (S4), luego la conversión (S6) sobre ellas. **14.1 la necesita**: el convertidor de «línea de tiempo de capas → células» **es la misma idea** (partir por tramos y nombrar), así que 14.2 deja hecho el 70 % de 14.1 (nombrar partes, redondear vueltas, aplicar `lpf`).
 - 14.1 sí requiere **interfaz nueva** (grabar, contador, el toque en vivo con cuantizado por compás) y mucho más ajuste de dedo. Se hace **después**, sobre lo que ya funciona.
 
 ## 13. Más adelante (no ahora)
