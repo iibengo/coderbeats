@@ -24,7 +24,7 @@ const song = (cellOver: Partial<Cell> = {}, loopOver: Partial<FreeLoop> = {}): S
 const state = (song: Song): SongState => ({
   loops: song.cells[0]!.loops,
   style: 'dnb',
-  kit: '909',
+  kit: 'electro',
   background: { mode: 'off', parts: { bass: false, chords: false } },
   metronome: false,
   fx: { filter: 1, space: 0, warmth: 0 },
@@ -126,7 +126,7 @@ describe('defensa en song.ts aunque la validación fallara', () => {
 })
 
 describe('biblioteca y ajustes: claves del prototipo', () => {
-  const snap = (o: object = {}) => ({ style: 'dnb' as const, kit: '909' as const, bgMode: 'manual' as const, fx: { filter: 1, space: 0, warmth: 0 }, song: emptySong(), ...o })
+  const snap = (o: object = {}) => ({ style: 'dnb' as const, kit: 'electro' as const, bgMode: 'manual' as const, fx: { filter: 1, space: 0, warmth: 0 }, song: emptySong(), ...o })
   const saved = makeSaved(snap(), 'a', 'A', new Date(2026, 0, 1))
 
   it('kit y estilo "toString", "constructor" o "__proto__" no valen', () => {
@@ -149,7 +149,7 @@ describe('biblioteca y ajustes: claves del prototipo', () => {
 
   it('isStoredPrefs', () => {
     const ok = {
-      version: 1, kit: '909', style: 'dnb', assist: true, metronome: false, bgMode: 'manual', phraseMode: 'bar',
+      version: 1, kit: 'electro', style: 'dnb', assist: true, metronome: false, bgMode: 'manual', phraseMode: 'bar',
       repeatMode: 'complete', phraseCloseBeats: 2, maxPhraseBars: 4, fx: { filter: 1, space: 0, warmth: 0 },
     }
     expect(isStoredPrefs(ok)).toBe(true)

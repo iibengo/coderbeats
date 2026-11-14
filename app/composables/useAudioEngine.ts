@@ -1,6 +1,6 @@
 import { computed, reactive, ref, shallowRef } from 'vue'
 import { NO_PARTS, PART_ORBIT, planTransitions, targetParts, type BackgroundMode, type Part, type Parts } from '~/lib/background'
-import { KIT_ORDER, KITS, STYLES } from '~/lib/constants'
+import { KIT_ORDER, KITS, kitFromSaved, STYLES } from '~/lib/constants'
 import { MELODY_DECISION_SEC } from '~/lib/liveMelody'
 import type { MelodySynth } from '~/lib/melody'
 import { melodyOfPhrase } from '~/lib/melodyAssist'
@@ -212,7 +212,7 @@ const playing = ref(false)
 const melodyOn = ref(false)
 const melodyBlocked = computed(() => !!echo.value?.bleed)
 const melodyActive = computed(() => melodyOn.value && !melodyBlocked.value)
-const kit = ref<KitId>('909')
+const kit = ref<KitId>('electro')
 const style = ref<StyleId>('hiphop90')
 const assist = ref(true)
 const metronome = ref(true)
@@ -1156,9 +1156,9 @@ export function useAudioEngine() {
           for (const k of KIT_ORDER)
             for (const inst of ['bd', 'sd', 'hh'] as const) {
               const idx = KITS[k].sampleIndex[inst]
-              map[`${KITS[k].strudelBank}_${inst}`] = Array.from({ length: idx + 1 }, () => `${k}/${inst}.wav`)
+              map[KITS[k].strudelBank ? `${KITS[k].strudelBank}_${inst}` : inst] = Array.from({ length: idx + 1 }, () => `${k}/${inst}.wav`)
             }
-          // sonidos por defecto (sin .bank()), como en strudel.cc: el oh del fondo de dnb (§16.15)
+          // sonidos por defecto (sin .bank()), como en strudel.cc: el kit «Electrónico» (arriba) y el oh del fondo de dnb (§16.15)
           map.oh = ['default/oh.wav']
           const g = globalThis as unknown as { samples: (m: object, base: string) => Promise<void> }
           await g.samples(map, `${location.origin}${base}samples/`)
@@ -1548,7 +1548,7 @@ export function useAudioEngine() {
    */
   async function openSaved(saved: SavedSong) {
     style.value = saved.style
-    kit.value = saved.kit
+    kit.value = kitFromSaved(saved.kit) ?? 'electro'
     bgMode.value = saved.bgMode
     if (saved.bgMode !== 'off') lastBgMode.value = saved.bgMode
     setFx(saved.fx)

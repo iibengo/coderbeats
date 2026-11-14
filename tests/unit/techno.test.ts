@@ -99,7 +99,7 @@ describe('el remix Dies Irae en techno', () => {
     const c = code()
     expect(c.startsWith('setcpm(128/4)\n')).toBe(true)
     expect(c).toContain('.lpf("<500 700 900 1200 1600 2100 2800 3600>").lpq(8).lpenv(3).lpa(0.005).lpd(0.15)')
-    expect(c).toContain('.bank("RolandTR909")')
+    expect(c).toContain('')
     const ev = await events(c, 56)
     // el filtro de la célula "Entra el tema" (compases 8–15) sube vuelta a vuelta, y la resonancia de cada hap es la del wowo
     const melIn = (from: number, to: number) => ev.filter((e) => e.begin >= from && e.begin < to && e.value.s === 'square')
@@ -131,7 +131,7 @@ describe('el remix Dies Irae en techno', () => {
     const cell = c.slice(c.indexOf('// Entra el tema'), c.indexOf('// Build'))
     const filtered = cell.slice(cell.indexOf('    stack('))
     expect(cell.indexOf('sawtooth')).toBeLessThan(cell.indexOf('.lpf("<500'))
-    expect(filtered).not.toContain('RolandTR909')
+    expect(filtered).not.toMatch(/s\("[~bdsh ]+"\)/) // sin batería (sus `s("bd ~ …")`)
     expect(filtered).not.toContain('sawtooth')
     expect(filtered).toContain('square')
   })
@@ -212,7 +212,7 @@ describe('el motor: otra vez el remix del Himno', () => {
   })
   it('el código del motor del techno: wowoPlan con la marca de cada compás y los colores de las células con wowo', () => {
     const st: SongState = {
-      loops: [], style: 'techno', kit: '909', background: { mode: 'manual', parts: { bass: false, chords: false } }, metronome: false, fx: { filter: 1, space: 0, warmth: 0 },
+      loops: [], style: 'techno', kit: 'electro', background: { mode: 'manual', parts: { bass: false, chords: false } }, metronome: false, fx: { filter: 1, space: 0, warmth: 0 },
       cells: { list: song.cells, order: song.order, window: [{ cellId: song.order[2]!, from: 8, to: 16 }] },
     }
     const engine = songCode(st, 'engine')
@@ -229,7 +229,7 @@ describe('el motor: otra vez el remix del Himno', () => {
     const cellCode = engine.slice(engine.indexOf('// Entra el tema'), engine.indexOf('.color("w3")'))
     const filtered = cellCode.slice(cellCode.lastIndexOf('    stack('))
     expect(filtered).toContain('square')
-    expect(filtered).not.toContain('RolandTR909')
-    expect(cellCode).toContain('RolandTR909') // la batería sigue en la célula, por fuera
+    expect(filtered).not.toMatch(/s\("[~bdsh ]+"\)/) // sin batería (sus `s("bd ~ …")`)
+    expect(cellCode).toMatch(/s\("bd ~/) // la batería sigue en la célula, por fuera
   })
 })

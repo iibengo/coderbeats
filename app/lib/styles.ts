@@ -179,7 +179,7 @@ export const STYLE_MUSIC: Record<StyleId, StyleMusic> = {
     ],
     synth: 'lead',
   },
-  // techno (2026-11-14, spec 008 §9): 128 bpm, do menor, kit 909. Bombo 4×4, caja (palmada) en 2 y 4, open hat a
+  // techno (2026-11-14, spec 008 §9): 128 bpm, do menor, kit «Electrónico» (antes 909, spec 010). Bombo 4×4, caja (palmada) en 2 y 4, open hat a
   // contratiempo; el bajo, a corcheas, el pulso que no para. La melodía va a semicorcheas con las notas repetidas
   // apagadas (una nota = un golpe), para que el lead de una célula con wowo pase por el filtro golpe a golpe.
   techno: {
@@ -204,7 +204,8 @@ export const STYLE_MUSIC: Record<StyleId, StyleMusic> = {
       chords: ['note("<[c3,eb3,g3] [ab2,c3,eb3] [bb2,d3,f3] [g2,bb2,d3]>").s("supersaw").attack(0.02).release(0.3).lpf(1800).room(0.5).gain(0.25)'],
     },
     // do menor: C D Eb F G Ab Bb
-    // el bombo, afinado a la raíz de cada acorde del fondo (Cm A♭ B♭ Gm), uno por compás: el drop "cae" sobre ellos
+    // el bombo, afinado a la raíz de cada acorde del fondo (Cm A♭ B♭ Gm), uno por compás: el drop "cae" sobre ellos.
+    // El bombo del kit «Electrónico» (bd 0 de uzu-drumkit) suena a ≈63 Hz (≈ do, medido a mano): c3 no lo mueve y las demás notas lo bajan a las raíces.
     kickTune: '<c3 ab2 bb2 g2>',
     scale: [0, 2, 3, 5, 7, 8, 10],
     chordTones: [

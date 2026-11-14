@@ -1,4 +1,4 @@
-import { KITS, STYLES } from './constants'
+import { kitFromSaved, STYLES } from './constants'
 
 const BG_MODES = ['manual', 'progressive', 'full', 'off']
 const unit = (v: unknown): boolean => typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 1
@@ -14,8 +14,7 @@ export function isStoredPrefs(x: unknown): boolean {
   const fx = p.fx as Record<string, unknown> | null
   return (
     p.version === 1 &&
-    typeof p.kit === 'string' &&
-    Object.hasOwn(KITS, p.kit) &&
+    kitFromSaved(p.kit) !== null &&
     typeof p.style === 'string' &&
     Object.hasOwn(STYLES, p.style) &&
     typeof p.assist === 'boolean' &&

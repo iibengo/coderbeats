@@ -60,7 +60,7 @@ const loop = (instrument: Instrument, pos: number[], o: Partial<FreeLoop> = {}):
 const base = (o: Partial<SongState> = {}): SongState => ({
   loops: [],
   style: 'dnb',
-  kit: '909',
+  kit: 'electro',
   background: { mode: 'manual', parts: { bass: false, chords: false } },
   metronome: false,
   fx: { filter: 1, space: 0, warmth: 0 },

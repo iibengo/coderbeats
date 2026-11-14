@@ -1,32 +1,21 @@
 # Créditos de los samples
 
-Todos los samples vienen del repositorio **tidal-drum-machines** de ritchse (geikha):
-https://github.com/ritchse/tidal-drum-machines
+Todos los samples de la app tienen **licencia clara** (spec 010). Cada archivo de `public/samples/<kit>/` figura aquí con su
+origen; un test lo comprueba. Los kits `909` y `acoustic` venían de `tidal-drum-machines` (ritchse), que **no declara
+licencia**, y se **retiraron** (fase 1): el 909 lo sustituye «Electrónico» y el acústico ya no está.
 
-> **Estado (spec 010, fase 0):** el repositorio **no declara licencia**. Los kits `909` y `acoustic` de abajo **no tienen
-> licencia clara** y se sustituyen en las fases 1 y 2 de la spec 010 (el 909 por uzu-drumkit; el acústico se retira). El
-> **kit 808 sí es de licencia clara**: ver el apartado siguiente.
+## Sonido por defecto (sin `.bank()`), como en strudel.cc · kit «Electrónico»
 
-| Archivo | Origen (`machines/…`) |
-|---|---|
-| `909/bd.wav` | `RolandTR909/rolandtr909-bd/Bassdrum-01.wav` |
-| `909/sd.wav` | `RolandTR909/rolandtr909-sd/sd01.wav` |
-| `909/hh.wav` | `RolandTR909/rolandtr909-hh/hh01.wav` |
-| `808/bd.wav` | `RolandTR808/rolandtr808-bd/BD0010.WAV` |
-| `808/sd.wav` | `RolandTR808/rolandtr808-sd/SD0010.WAV` |
-| `808/hh.wav` | `RolandTR808/rolandtr808-hh/CH.WAV` |
-| `acoustic/bd.wav` | `AkaiMPC60/akaimpc60-bd/0 Bassdrum.wav` |
-| `acoustic/sd.wav` | `AkaiMPC60/akaimpc60-sd/Snare 1.wav` |
-| `acoustic/hh.wav` | `AkaiMPC60/akaimpc60-hh/Closed Hat.wav` |
+Del repositorio **uzu-drumkit** de tidalcycles (licencia **Unlicense**, dominio público), el kit de batería por defecto de
+strudel.cc: https://github.com/tidalcycles/uzu-drumkit. Los samples son de **Switch Angel** y **Mot4i** (los nombra el
+README del repositorio; el LICENSE cubre todo el repo); los `misc`, de Switch Angel y Ludens.
 
-## Sonido por defecto (sin `.bank()`), como en strudel.cc
-
-Del repositorio **uzu-drumkit** de tidalcycles (licencia **Unlicense**, dominio público):
-https://github.com/tidalcycles/uzu-drumkit
-
-| Archivo | Origen |
-|---|---|
-| `default/oh.wav` | `oh/10_oh_switchangel.wav` (índice 0 de `oh` en strudel.cc) |
+| Archivo | Origen (`strudel.json` de uzu-drumkit) | Índice en strudel.cc |
+|---|---|---|
+| `electro/bd.wav` | `bd/10_bd_switchangel.wav` | `s("bd").n(0)` |
+| `electro/sd.wav` | `sd/11_sd_switchangel_3.wav` | `s("sd").n(1)` |
+| `electro/hh.wav` | `hh/13_hh_switchangel.wav` | `s("hh").n(3)` |
+| `default/oh.wav` | `oh/10_oh_switchangel.wav` | `s("oh").n(0)` |
 
 ## Kit 808 · Michael Fischer (CC0)
 

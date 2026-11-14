@@ -1,5 +1,6 @@
 import type { BackgroundMode, Parts } from '~/lib/background'
 import { isSong, songFromLoops, storableSong } from '~/lib/cells'
+import { kitFromSaved } from '~/lib/constants'
 import type { LoopsState } from '~/lib/freeLoops'
 import { restoreImageDelay } from '~/lib/imageDelay'
 import { readJson, writeJson } from '~/lib/storage'
@@ -52,7 +53,7 @@ export function usePrefs() {
   function load() {
     const p = readJson(PREFS_KEY, isPrefs)
     if (p) {
-      engine.kit.value = p.kit
+      engine.kit.value = kitFromSaved(p.kit) ?? 'electro'
       engine.style.value = p.style
       engine.setAssist(p.assist)
       engine.metronome.value = p.metronome && !engine.echo.value?.bleed

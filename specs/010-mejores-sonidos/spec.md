@@ -1,6 +1,8 @@
 # 010 · Mejores sonidos: samples con licencia clara, sintes más ricos y cadena master
 
-> Estado: **propuesta, sin programar** (2026-11-14). Hay que decidir las opciones de §7 antes de tocar código.
+> Estado: **decidido y en marcha** (2026-11-14). Decisiones: Electrónico = uzu-drumkit (el 909 sintetizado, más adelante si hace
+> falta pegada); Vinilo con repo público de kits; Acústico retirado; master único «cálido» (sin opción); sintes solo como variantes
+> opcionales (el sonido por defecto no cambia hasta que se elija de oído). Fases hechas: 0 (CREDITS), 1 (Electrónico).
 > Parte de: spec 001 §14.1 (hoja de ruta: «mejores sonidos»), 008 §9–§11 (techno, wowo, riser), 009 (wowo en el motor).
 > Las comprobaciones de licencias y tamaños de §2 se hicieron el 2026-11-14 mirando los repositorios, no de memoria.
 

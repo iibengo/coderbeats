@@ -23,7 +23,7 @@ import {
 } from '../../app/lib/library'
 
 const fx = { filter: 1, space: 0.2, warmth: 0 }
-const snap = (o: Partial<SongSnapshot> = {}): SongSnapshot => ({ style: 'dnb', kit: '909', bgMode: 'manual', fx, song: demoSong('dnb')!, ...o })
+const snap = (o: Partial<SongSnapshot> = {}): SongSnapshot => ({ style: 'dnb', kit: 'electro', bgMode: 'manual', fx, song: demoSong('dnb')!, ...o })
 const at = (h: number, m = 0) => new Date(2026, 10, 14, h, m)
 
 describe('nombres', () => {

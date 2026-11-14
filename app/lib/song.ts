@@ -141,7 +141,7 @@ function loopLine(
   } else {
     const kit = KITS[st.kit]
     const { s, nudge } = loopTokens(src, stepSeconds)
-    line = `s("${tokensToMini(s)}").bank("${kit.strudelBank}")`
+    line = `s("${tokensToMini(s)}")${kit.strudelBank ? `.bank("${kit.strudelBank}")` : ''}`
     const n = kit.sampleIndex[loop.instrument]
     if (n !== 0) line += `.n(${n})`
     if (nudge) line += `.nudge("${tokensToMini(nudge)}")`

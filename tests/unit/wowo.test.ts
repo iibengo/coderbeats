@@ -32,7 +32,7 @@ describe('el preludio del wowo (spec 008, §9)', () => {
     const song = cellsOf('dies-irae-techno')
     const engine = songCode(
       {
-        loops: [], style: 'techno', kit: '909', background: { mode: 'manual', parts: { bass: false, chords: false } }, metronome: false,
+        loops: [], style: 'techno', kit: 'electro', background: { mode: 'manual', parts: { bass: false, chords: false } }, metronome: false,
         fx: { filter: 1, space: 0, warmth: 0 }, cells: { list: song.cells, order: song.order, window: [] },
       } satisfies SongState,
       'engine',

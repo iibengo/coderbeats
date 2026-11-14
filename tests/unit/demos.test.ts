@@ -22,14 +22,14 @@ describe('demos', () => {
     const code = songCode({
       loops: demoState('dnb', 1, 0).loops,
       style: 'dnb',
-      kit: '909',
+      kit: 'electro',
       background: { mode: 'manual', parts: { bass: true, chords: true } },
       metronome: false,
       fx: { filter: 1, space: 0, warmth: 0 },
     })
-    expect(code).toContain('s("bd ~ ~ ~ ~ ~ ~ ~ ~ ~ bd ~ ~ ~ ~ ~").bank("RolandTR909")')
-    expect(code).toContain('s("~ ~ ~ ~ sd ~ ~ ~ ~ ~ ~ ~ sd ~ ~ ~").bank("RolandTR909").n(1)')
-    expect(code).toContain(`s("${Array(16).fill('hh').join(' ')}").bank("RolandTR909")`)
+    expect(code).toContain('s("bd ~ ~ ~ ~ ~ ~ ~ ~ ~ bd ~ ~ ~ ~ ~")')
+    expect(code).toContain('s("~ ~ ~ ~ sd ~ ~ ~ ~ ~ ~ ~ sd ~ ~ ~").n(1)')
+    expect(code).toContain(`s("${Array(16).fill('hh').join(' ')}")`)
     expect(code).toContain('note("<d1 d1 f1 c1>").s("sawtooth").lpf(400).distort(0.3).orbit(2)')
     expect(code).toContain('s("[~ oh]*4").gain(0.25).orbit(3)')
   })

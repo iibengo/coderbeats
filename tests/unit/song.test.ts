@@ -19,7 +19,7 @@ const loop = (instrument: Instrument, pos: number[], o: Partial<FreeLoop> = {}):
 const state = (o: Partial<SongState> = {}): SongState => ({
   loops: [],
   style: 'dnb',
-  kit: '909',
+  kit: 'electro',
   background: { mode: 'off', parts: { bass: false, chords: false } },
   metronome: false,
   fx: { filter: 1, space: 0, warmth: 0 },
@@ -57,8 +57,8 @@ describe('songCode', () => {
         'setcpm(174/4)',
         'stack(',
         '  // tus loops',
-        '  s("bd ~ ~ ~ ~ ~ ~ ~ ~ ~ bd ~ ~ ~ ~ ~").bank("RolandTR909").gain(0.71),',
-        '  s("~ ~ ~ ~ sd ~ ~ ~ ~ ~ ~ ~ sd ~ ~ ~").bank("RolandTR909").n(1).gain(0.63),',
+        '  s("bd ~ ~ ~ ~ ~ ~ ~ ~ ~ bd ~ ~ ~ ~ ~").gain(0.71),',
+        '  s("~ ~ ~ ~ sd ~ ~ ~ ~ ~ ~ ~ sd ~ ~ ~").n(1).gain(0.63),',
         ')',
       ].join('\n'),
     )

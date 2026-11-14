@@ -24,7 +24,7 @@ describe('la lista de remixes', () => {
     expect(remix).toMatchObject({ title: 'Himno de la alegría', composer: 'Ludwig van Beethoven', years: '1770–1827', style: 'dembow', kit: '808', key: 'Re mayor' })
     expect(remix.publicDomain).toMatch(/dominio público/)
     const techno = remixById('dies-irae-techno')!
-    expect(techno).toMatchObject({ title: 'Dies Irae', style: 'techno', kit: '909', key: 'Do menor' })
+    expect(techno).toMatchObject({ title: 'Dies Irae', style: 'techno', kit: 'electro', key: 'Do menor' })
     expect(techno.publicDomain).toMatch(/dominio público/)
     expect(new Set(REMIXES.map((r) => r.id)).size).toBe(REMIXES.length)
     expect(remixById('no existe')).toBeUndefined()

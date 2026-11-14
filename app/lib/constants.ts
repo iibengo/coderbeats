@@ -17,13 +17,27 @@ export const STYLES: Record<StyleId, Style> = {
 }
 
 export const KITS: Record<KitId, Kit> = {
-  '909': { id: '909', label: '909', strudelBank: 'RolandTR909', sampleIndex: { bd: 0, sd: 1, hh: 0 } },
+  // «Electrónico» (spec 010): el uzu-drumkit (Unlicense), el kit por defecto de strudel.cc: sin `.bank()`, solo `s("bd")`
+  // y `.n(k)`, y suena igual al copiar el código. Índices: bd 0 (10_bd_switchangel), sd 1 (11_sd_switchangel_3), hh 3 (13_hh_switchangel).
+  electro: { id: 'electro', label: 'Electrónico', strudelBank: null, sampleIndex: { bd: 0, sd: 1, hh: 3 } },
   '808': { id: '808', label: '808', strudelBank: 'RolandTR808', sampleIndex: { bd: 1, sd: 1, hh: 0 } },
-  acoustic: { id: 'acoustic', label: 'Acústico', strudelBank: 'AkaiMPC60', sampleIndex: { bd: 0, sd: 0, hh: 0 } },
 }
 
 /** Orden de la UI (las claves numéricas de un objeto se reordenan solas). */
-export const KIT_ORDER: readonly KitId[] = ['909', '808', 'acoustic']
+export const KIT_ORDER: readonly KitId[] = ['electro', '808']
+
+/**
+ * Kits que ya no existen y a cuál pasan al leerlos de lo guardado (spec 010): el `909` y el `acoustic` (samples sin licencia
+ * clara) pasan a «Electrónico». Sin esto, las canciones y los ajustes guardados con ellos dejarían de abrirse.
+ */
+const LEGACY_KITS: Readonly<Record<string, KitId>> = { '909': 'electro', acoustic: 'electro' }
+
+/** El kit de un valor guardado (de ahora o de antes), o `null` si no se conoce. */
+export function kitFromSaved(x: unknown): KitId | null {
+  if (typeof x !== 'string') return null
+  if (Object.hasOwn(KITS, x)) return x as KitId
+  return Object.hasOwn(LEGACY_KITS, x) ? LEGACY_KITS[x]! : null
+}
 
 export const RECORD_BPM = 90
 export const TAKES_PER_INSTRUMENT = 5

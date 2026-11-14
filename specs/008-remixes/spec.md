@@ -116,7 +116,7 @@ interface Cell {
 resonancia que **se abre en cada golpe** y vuelve al valor de la vuelta. Prueba de oído antes de nada: el código mostrado
 pegado en strudel.cc suena con el wowo (aprobado por el autor, 2026-11-14).
 
-**El estilo `techno`** (`styles.ts`, `constants.ts`, `demos.ts`): 128 bpm, do menor, kit 909. Bombo 4×4, palmada en 2 y
+**El estilo `techno`** (`styles.ts`, `constants.ts`, `demos.ts`): 128 bpm, do menor, kit «Electrónico» (antes 909, spec 010). Bombo 4×4, palmada en 2 y
 4, open hat a contratiempo; el **bajo a corcheas** (el pulso que no para, `c2` en todas); acordes `Cm–A♭–B♭–Gm` con
 supersaw; escala de do menor (`C D E♭ F G A♭ B♭`), la misma para la ayuda de la melodía. Tiene su demo grabable (el
 dibujo del techno) y su etiqueta en la barra de estilos.

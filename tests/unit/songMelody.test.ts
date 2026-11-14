@@ -13,7 +13,7 @@ const mel = (hits: [number, number, number][], o: Partial<FreeLoop> = {}): FreeL
   id: ++id, instrument: 'mel', bars: 1, phaseBar: 0, hits: hits.map(([pos, dur, midi]) => ({ pos, dur, midi, strength: 0.5 })), muted: false, bornAt: 0, fromTemplate: false, ...o,
 })
 const state = (loops: FreeLoop[], o: Partial<SongState> = {}): SongState => ({
-  loops, style: 'hiphop90', kit: '909', background: { mode: 'off', parts: { bass: false, chords: false } }, metronome: false, fx: { filter: 1, space: 0, warmth: 0 }, ...o,
+  loops, style: 'hiphop90', kit: 'electro', background: { mode: 'off', parts: { bass: false, chords: false } }, metronome: false, fx: { filter: 1, space: 0, warmth: 0 }, ...o,
 })
 
 describe('línea de la melodía en el código', () => {

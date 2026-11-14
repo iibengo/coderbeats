@@ -265,7 +265,7 @@ export const REMIXES: readonly Remix[] = [
     years: 's. XIII',
     publicDomain: 'Melodía gregoriana anónima, del siglo XIII, de dominio público; el arreglo (ritmo, bajo, acordes, estructura) es de coderbeats.',
     style: 'techno',
-    kit: '909',
+    kit: 'electro',
     key: 'Do menor',
     info: { cells: DIES_TECHNO.map((s) => ({ name: s.name, turns: s.turns, text: s.text })) },
     build: () => buildSong(DIES_TECHNO),

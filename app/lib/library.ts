@@ -7,7 +7,7 @@
  */
 import type { BackgroundMode } from './background'
 import { isSong, normalizeSong, songBars, storableSong, withValidBpm, type Song } from './cells'
-import { KITS, STYLES } from './constants'
+import { kitFromSaved, STYLES } from './constants'
 import type { SongFx } from './song'
 import type { KitId, StyleId } from './types'
 
@@ -92,8 +92,7 @@ export function isSavedSong(x: unknown): x is SavedSong {
   return (
     typeof o.style === 'string' &&
     Object.hasOwn(STYLES, o.style) &&
-    typeof o.kit === 'string' &&
-    Object.hasOwn(KITS, o.kit) &&
+    kitFromSaved(o.kit) !== null &&
     BG_MODES.includes(o.bgMode as BackgroundMode) &&
     !!fx &&
     typeof fx === 'object' &&

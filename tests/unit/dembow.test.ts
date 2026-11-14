@@ -136,3 +136,31 @@ describe('demo del dembow: "Cargar demo"', () => {
     for (const k of ['s', 'cutoff'] as const) expect(bassApp[k], k).toEqual(bassUser[k])
   })
 })
+
+describe('los kits (spec 010)', () => {
+  it('Electrónico (uzu-drumkit) va sin .bank(); el 808 con su banco; solo dos kits en la UI', async () => {
+    const { KIT_ORDER, KITS: K, kitFromSaved } = await import('../../app/lib/constants')
+    expect(KIT_ORDER).toEqual(['electro', '808'])
+    expect(K.electro.strudelBank).toBeNull()
+    expect(K['808'].strudelBank).toBe('RolandTR808')
+    // los índices son los del uzu-drumkit de strudel.cc (el orden de su strudel.json)
+    expect(K.electro.sampleIndex).toEqual({ bd: 0, sd: 1, hh: 3 })
+  })
+  it('los kits que ya no existen pasan a Electrónico al leer lo guardado (para que no se pierdan canciones ni ajustes)', async () => {
+    const { kitFromSaved } = await import('../../app/lib/constants')
+    expect(kitFromSaved('909')).toBe('electro')
+    expect(kitFromSaved('acoustic')).toBe('electro')
+    expect(kitFromSaved('808')).toBe('808')
+    expect(kitFromSaved('electro')).toBe('electro')
+    expect(kitFromSaved('nope')).toBeNull()
+    expect(kitFromSaved(3)).toBeNull()
+    expect(kitFromSaved('toString')).toBeNull()
+  })
+  it('los samples del kit existen y tienen su licencia en CREDITS.md', async () => {
+    const { readFileSync, readdirSync } = await import('node:fs')
+    const credits = readFileSync('public/samples/CREDITS.md', 'utf8')
+    for (const dir of readdirSync('public/samples', { withFileTypes: true }).filter((d) => d.isDirectory())) {
+      for (const f of readdirSync(`public/samples/${dir.name}`)) expect(credits, `${dir.name}/${f}`).toContain(`${dir.name}/${f}`)
+    }
+  })
+})
