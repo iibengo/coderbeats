@@ -20,6 +20,7 @@ import {
   groupIdOf,
   groupOn,
   groupSong,
+  groupTriggers,
   inParallel,
   isMulti,
   MAIN,
@@ -47,6 +48,7 @@ import {
   type Song,
 } from '~/lib/cells'
 import {
+  applyTriggers,
   groupEnd,
   groupWindow,
   holdGroup,
@@ -380,6 +382,8 @@ function onPulse(cycle: number, t: number) {
     if (next.cursor.cellId !== was.cellId || next.cursor.startBar !== was.startBar) {
       cursor = next.cursor
       entered = next.cursor
+      // entrar en otra célula (no repetirse en bucle): enciende y apaga los grupos que lleva (§22)
+      if (next.cursor.cellId !== was.cellId) applyGroupTriggers(next.cursor.cellId, next.cursor.startBar)
       if (consumed) viewJump = consumed
       const cell = cellById(song.value, next.cursor.cellId)
       log(
@@ -519,6 +523,22 @@ const jumpBarNow = (): number => Math.max(nextBarLine(), lastPulseCycle + 1)
 function startGroupPlays() {
   groupPlays.clear()
   for (const g of liveSong().groups) if (g.on && g.order.length) groupPlays.set(g.id, startGroup(g.order[0]!, 0))
+}
+
+/**
+ * Una célula de la canción empieza en la línea de compás `line`: enciende y apaga los grupos que lleva (`groupOn`,
+ * `groupOff`; spec 005, §22). Solo cambia lo que suena, no la marca "encendido" de la canción.
+ */
+function applyGroupTriggers(cellId: number, line: number) {
+  const s = liveSong()
+  const next = applyTriggers(groupPlays, s, cellId, line, viewCellId.value)
+  const cell = cellById(s, cellId)
+  const { on, off } = groupTriggers(s, cellId)
+  if (!on.length && !off.length) return
+  groupPlays.clear()
+  for (const [gid, gp] of next) groupPlays.set(gid, gp)
+  log('cell', `«${cell?.name ?? `célula ${cellId}`}» ${on.length ? `enciende el grupo ${on.join(', ')}` : ''}${on.length && off.length ? ' y ' : ''}${off.length ? `apaga el ${off.join(', ')}` : ''} (compás ${line})`)
+  reevaluate()
 }
 
 /**
@@ -1193,6 +1213,8 @@ export function useAudioEngine() {
     viewJump = null
     syncLoopUi()
     startGroupPlays()
+    // la primera célula también puede encender o apagar grupos (compás 0)
+    if (multi() && cursor) applyGroupTriggers(cursor.cellId, 0)
     syncGroupHolds()
     currentBar.value = 0
     clock = null

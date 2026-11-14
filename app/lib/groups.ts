@@ -5,7 +5,7 @@
  * pendiente) y avanza por su cuenta, siempre en línea de compás. Los avances usan las mismas funciones que la
  * canción (`stepPlay`, `windowAt`, `endBar`) sobre la canción vista desde ese grupo (`groupSong`).
  */
-import { endBar, stepPlay, windowAt, type Play, type Segment, type Song } from './cells'
+import { endBar, groupIdOf, groupSong, groupTriggers, stepPlay, windowAt, type Play, type Segment, type Song } from './cells'
 
 export interface GroupPlay {
   play: Play
@@ -103,4 +103,29 @@ export function retargetMain(oldOrder: readonly number[], newOrder: readonly num
     if (newOrder.includes(id)) return id
   }
   return newOrder[0]!
+}
+
+/**
+ * Lo que hace la célula `cellId` de la canción al empezar en la línea de compás `line` (spec 005, §22): **enciende** los
+ * grupos de `groupOn` (siempre desde su primera célula, también si ya sonaban: se reinician) y **apaga** los de
+ * `groupOff` (siguen hasta esa línea). Solo cambia lo que suena (el mapa de recorridos), no la marca "encendido" que se
+ * guarda con la canción: así, al dar Play otra vez, el grupo no arranca solo desde el compás 0.
+ * `viewCellId`: si se está viendo una célula de un grupo que se reinicia, el grupo se queda en ella mientras se ve.
+ */
+export function applyTriggers(plays: ReadonlyMap<number, GroupPlay>, song: Song, cellId: number, line: number, viewCellId?: number): Map<number, GroupPlay> {
+  const out = new Map(plays)
+  const { on, off } = groupTriggers(song, cellId)
+  for (const gid of off) {
+    const gp = out.get(gid)
+    if (gp) out.set(gid, stopGroup(gp, line))
+  }
+  for (const gid of on) {
+    const gs = groupSong(song, gid)
+    const first = gs.order[0]
+    if (first === undefined) continue
+    let gp = startGroup(first, line)
+    if (viewCellId !== undefined && groupIdOf(song, viewCellId) === gid) gp = holdGroup(gs, gp, viewCellId, line)
+    out.set(gid, gp)
+  }
+  return out
 }
