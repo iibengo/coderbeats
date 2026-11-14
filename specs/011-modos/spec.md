@@ -1,6 +1,6 @@
 # 011 · Modos: la misma canción, dos vistas
 
-> Estado: **propuesta, sin programar** (2026-11-14). Para que la decidas: §10 reúne lo que hay que elegir.
+> Estado: **decidida (2026-11-14); en implementación por fases** (§11). Las decisiones están en §10; §12 añade a Jugar la textura del agua, el primer minuto guiado y la recompensa.
 > Parte de: spec 003 (el aro), 005 (células, colonia, grupos, disparadores), 002 (melodía), 006 (Mis canciones), 008 (remixes),
 > 010 (sonidos). El inventario de §2 se hizo mirando `Studio.vue`, `VisualStage.vue`, `SettingsSheet.vue` y las specs, no de memoria.
 
@@ -206,14 +206,65 @@ La música sigue; la gota o el mapa se **transforman con una transición de agua
 - La **tira de células** (cuántos puntitos, cuál está iluminada) como función pura; los **gestos por modo** como tabla pura (qué gesto vale en cuál).
 - **Pendiente de oído y de dedo** (móvil): que Jugar se sienta simple, que el pellizco no cambie de modo sin querer, y que el doble toque de Componer a Jugar sea claro.
 
-## 10. Decisiones que hay que tomar
+## 10. Decisiones (2026-11-14)
 
-1. **¿Dos modos (Jugar / Componer) con Órgano y Código como herramientas?** (recomendado) ¿o un tercero?
-2. **Nombres:** «Jugar / Componer» u otros («Tocar / Armar», «Simple / Completo»…).
-3. **Muchas células en Jugar:** ¿la opción A (seguir la canción con tira de células, §3.6)? ¿Y qué hace **tocar un puntito**: saltar y bucle (como hoy en la colonia) o solo mirar?
-4. **El pellizco:** ¿cambia de modo (§4.2) o el zoom se queda continuo dentro de cada modo y el cambio solo se hace con el selector?
-5. **«Editando: X · ▶ seguir la canción» (§3.4)** como única fijación: ¿te parece bien que **no** exista «◎ centrar» ni «volver a la canción» aparte?
-6. **Filtro y espacio** con dos dedos también en Componer.
-7. **«Cargar demo»** a la vista en los dos modos.
-8. **¿Jugar puede crear una célula nueva** con un botón «+»? (hoy, tocar agua vacía en la colonia). Sin él, quien empieza a una célula solo la amplía tocando; con él, Jugar crece hacia Componer.
-9. **Orden de las fases** si se aprueba: (1) pref + selector + migración, (2) Jugar sin colonia (con la tira), (3) Componer = la colonia de hoy, (4) pellizco y transiciones, (5) retirar `pinned/viewAway`.
+Del autor:
+
+1. **Dos modos, Jugar y Componer**; Órgano y Código son **herramientas** (no modos).
+2. **Nombres: Jugar y Componer.**
+3. **El pellizco para alejar pasa a Componer** (con aviso la primera vez); también el selector. Pellizcar para acercar en Componer pasa a Jugar.
+4. **Jugar no crea células**: una sola célula; para crear partes, Componer (nada de «+» en Jugar).
+
+Las otras cinco, decididas por lo más simple:
+
+5. **Muchas células en Jugar: la opción A** (§3.6): la gota sigue a la canción y una **tira de células** muestra dónde va. **Tocar un puntito = ir a esa célula** (como un toque en la colonia hoy: salta en la siguiente línea de compás y queda en bucle; otro toque suelta el bucle). No hay «mantener un puntito»: para editar otra célula se va a Componer y doble toque.
+6. **Una sola fijación: «editando: X · ▶ seguir la canción»** (§3.4). En Jugar no hay «◎ centrar» ni «volver a la canción» aparte; «◎ centrar» sigue siendo del mapa de Componer.
+7. **Filtro y espacio con dos dedos: solo en Jugar**, como hoy. En Componer, dos dedos siguen siendo pellizco. (Más simple; se puede añadir después, §4.2 lo deja como opción.)
+8. **«Cargar demo» a la vista** solo donde hace falta: en el **estado vacío de Jugar** («o prueba una demo») y en ⋯, no como botón fijo.
+9. **Fases** (§11) en el orden propuesto, una por commit.
+
+## 11. Fases de la implementación
+
+| Fase | Qué | Cómo se prueba |
+|---|---|---|
+| **1** | Pref `mode` (`jugar`/`componer`), su guarda y migración; selector Jugar \| Componer en la barra; **pellizco** alejar/acercar cambia de modo; aviso la primera vez | tests de la pref y de la guarda; a mano: selector y pellizco |
+| **2** | **Jugar**: sin colonia (el zoom queda en «de cerca»), sin marcadores del borde; **tira de células**; la gota sigue a la canción; una sola chapa «editando · seguir» | test de la tira (función pura); a mano: Himno y Mozart en Jugar |
+| **3** | **Componer** = la colonia (zoom bloqueado al mapa); sin voz que grabe; **doble toque** en una célula → Jugar con esa célula («editando») | a mano: entrar y salir de una célula |
+| **4** | **Jugar, menos ruido visual**: el agua como textura suave (§12.1) | a mano |
+| **5** | **Primer minuto guiado** (§12.2) | tests de la máquina de pasos (pura); a mano: arranque con la app vacía |
+| **6** | **Recompensa** cuando todos los carriles tienen algo (§12.3) | test de la condición (pura); a mano |
+| **7** | Limpieza: retirar `pinned`/`viewAway` si ya no hacen falta; README y esta spec | tests de todo |
+
+## 12. Añadidos a Jugar (2026-11-14)
+
+### 12.1 Menos ruido visual: el agua como textura suave
+
+En Jugar la gota es el protagonista. Las **ondas del agua, la estela de la aguja y los destellos de los golpes bajan de intensidad** (más suaves y lentos, el agua como una
+textura de fondo y no como adorno que compite con los golpes); los **golpes** (los puntos) y la **aguja** se leen primero. Un ajuste de **intensidad** del agua por modo
+(Jugar: baja; Componer: la de hoy), sin tocar los datos. Se respeta «movimiento reducido». **Se afina de ojo.**
+
+### 12.2 El primer minuto guiado
+
+Para quien abre la app **sin ninguna canción** (primer arranque o «Borrar todo»), **un guion corto en Jugar**, con una sola frase a la vez, que se va solo cuando se cumple:
+
+| Paso | Qué ocurre | Se pasa al siguiente cuando… |
+|---|---|---|
+| 1 | **Suena el fondo** (bajo y acordes del estilo) y la gota espera. Frase: «Escucha» | pasa un compás |
+| 2 | Frase: **«haz bum · pff · ts»** (los tres sonidos de la calibración, con la boca) | la app oye **al menos un golpe** de cualquier carril |
+| 3 | Frase: **«en la siguiente vuelta aparecen tus golpes»**; **al cerrar el compás, los golpes salen en la gota** y suenan | pasa esa vuelta |
+| 4 | Frase: **«ahora canta»** (la melodía con la voz, si está activada; si no, **«toca la franja de la melodía»**, que abre el órgano) | se oye una nota **o** pasan 2 vueltas (no se espera nada) |
+| 5 | Fin: la guía **desaparece** y no vuelve (se guarda en el dispositivo; se puede repetir desde ⋯) | — |
+
+Reglas: **la guía nunca bloquea** (todo se puede tocar mientras se muestra; si la persona hace otra cosa, el paso se da por cumplido); **una sola frase**, pequeña, sobre el agua;
+**se puede saltar** (un toque en la frase). No toca nada de la canción: es solo texto.
+
+### 12.3 La recompensa: el disco entero se enciende una vuelta
+
+Cuando **todos los carriles tienen algo** (bombo, caja y platillo con golpes; y la melodía, si está activada), **la gota entera se enciende una vuelta** (un barrido de luz por todas
+las franjas, de la aguja una vuelta completa), con un destello suave al cerrar el compás. **Una vez por canción y sesión** (no cada vez que se vuelve a cumplir), y **solo en Jugar**.
+La condición es una **función pura** (`allLanesFilled(loops, lanes)`).
+
+## 13. Más adelante (no ahora)
+
+- **Modo «Escenario»**: solo mirar y grabar (el disco en perspectiva tipo LED, estela, encendido en el drop).
+- Como gestos o efectos **dentro** de los modos: **dibujar una melodía con el dedo** en el Órgano, la **calibración como mini-juego** (tipo espiral), el **árbol de estilos** como selector, **formas efímeras** al sonar.
