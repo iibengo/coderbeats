@@ -930,6 +930,8 @@ function tick() {
       colony.value = isColony
       // al volver a cerca, la cámara vuelve a seguir a la que suena
       if (!isColony) panned.value = false
+      // al alejarse a la colonia se suelta lo que se miraba: entrar es solo acercar, y la vista vuelve sola a la canción
+      else if (engine.viewAway.value) engine.followSong()
     }
     panBlend = approachBlend(panBlend, panned.value && isColony ? 1 : 0, dt, reduced)
     const song = engine.song.value
