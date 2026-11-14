@@ -62,6 +62,7 @@ import {
   toggleMute,
   type FreeLoop,
   type LoopEvent,
+  type LoopInstrument,
   type LoopsState,
   type RepeatMode,
 } from '~/lib/freeLoops'
@@ -116,7 +117,7 @@ export type { RepeatMode } from '~/lib/freeLoops'
 export interface VisualHit {
   kind: 'hit' | 'heard' | 'birth'
   loopId: number | null
-  instrument: Instrument | 'bass' | 'chords' | null
+  instrument: LoopInstrument | 'bass' | 'chords' | null
   time: number
   /** 0..1 */
   strength: number

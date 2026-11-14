@@ -5,6 +5,7 @@ import type { LoopLength } from './phrases'
 import type { Instrument, StyleId } from './types'
 import { isValidBpm } from './tempo'
 import { INSTRUMENTS } from './constants'
+import { isMidi } from './melody'
 
 /**
  * Células (spec 005): cada célula es un aro con sus loops, su bajo y sus acordes. Una canción es
@@ -205,21 +206,27 @@ export const withValidBpm = (s: Song): Song => (s.bpm === null || isValidBpm(s.b
 
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)
 const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v)
-const isHit = (h: unknown): boolean => isObj(h) && isNum(h.pos) && isNum(h.strength)
-const isHits = (a: unknown): boolean => Array.isArray(a) && a.every(isHit)
+const isHitOf = (instrument: unknown) => (h: unknown): boolean => {
+  if (!isObj(h) || !isNum(h.pos) || !isNum(h.strength)) return false
+  // la melodía lleva altura MIDI entera y duración; la batería, ninguna de las dos (spec 002, §8.1)
+  if (instrument === 'mel') return isMidi(h.midi) && isNum(h.dur) && h.dur > 0
+  return h.midi === undefined && h.dur === undefined
+}
+const isHits = (instrument: unknown, a: unknown): boolean => Array.isArray(a) && a.every(isHitOf(instrument))
 const isBars = (v: unknown): boolean => v === 1 || v === 2 || v === 4
 
 /**
  * ¿Es un loop con la forma exacta? Estos campos acaban escritos en el código Strudel que se evalúa, así que
- * ids y números deben ser números finitos, el instrumento uno de la lista y los compases 1, 2 o 4.
+ * ids y números deben ser números finitos, el instrumento uno de la lista (batería o `'mel'`), los compases 1, 2 o 4
+ * y, en la melodía, el MIDI un entero en rango y la duración un número positivo.
  */
 export function isFreeLoop(x: unknown): x is FreeLoop {
   if (!isObj(x)) return false
   if (!isNum(x.id) || !isNum(x.phaseBar) || !isNum(x.bornAt) || !isBars(x.bars)) return false
-  if (typeof x.instrument !== 'string' || !INSTRUMENTS.includes(x.instrument as Instrument)) return false
-  if (typeof x.muted !== 'boolean' || !isHits(x.hits)) return false
+  if (typeof x.instrument !== 'string' || !(x.instrument === 'mel' || INSTRUMENTS.includes(x.instrument as Instrument))) return false
+  if (typeof x.muted !== 'boolean' || !isHits(x.instrument, x.hits)) return false
   const prev = x.prev
-  return prev === undefined || (isObj(prev) && isHits(prev.hits) && isBars(prev.bars) && isNum(prev.phaseBar))
+  return prev === undefined || (isObj(prev) && isHits(x.instrument, prev.hits) && isBars(prev.bars) && isNum(prev.phaseBar))
 }
 
 const isCell = (x: unknown): x is Cell => {

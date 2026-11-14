@@ -65,6 +65,7 @@ import { STYLE_MUSIC } from '~/lib/styles'
 import { VOICE_HEX, type Voice } from '~/lib/palette'
 import { INSTRUMENTS } from '~/lib/constants'
 import type { Instrument } from '~/lib/types'
+import type { LoopInstrument } from '~/lib/freeLoops'
 import { DEFAULT_THEME, themeById } from '~/themes'
 import type { VisualTheme } from '~/themes/types'
 import { AroCanvas, type AroDot, type AroFrame } from './AroCanvas'
@@ -170,11 +171,10 @@ const actionsStyle = computed(() =>
     : { left: '0', right: '0', bottom: `${ACTIONS_FROM_BOTTOM - 16}px`, justifyContent: 'center' },
 )
 const hasActions = computed(() => looping.value || engine.extrasOn.value || showFollow.value || !!engine.undoInfo.value)
-/** posición de cada bola en la fila, por orden de instrumento (bombo, caja, platillo) */
+/** posición de cada bola en la fila, por orden de instrumento (bombo, caja, platillo, melodía) */
 const rowSlots = computed(() => {
-  const order = [...loops.value.loops].sort(
-    (a, b) => INSTRUMENTS.indexOf(a.instrument) - INSTRUMENTS.indexOf(b.instrument) || a.id - b.id,
-  )
+  const rank = (i: LoopInstrument) => (i === 'mel' ? INSTRUMENTS.length : INSTRUMENTS.indexOf(i))
+  const order = [...loops.value.loops].sort((a, b) => rank(a.instrument) - rank(b.instrument) || a.id - b.id)
   if (compact.value) {
     // en horizontal, en columna a la izquierda, debajo del estilo
     const top = safe.top + 120
@@ -270,7 +270,7 @@ const setBall = (p: Part) => (el: Element | ComponentPublicInstance | null) => {
   else ballEls.delete(p)
 }
 /** Latido de una bola al sonar (§16.17, punto 5): el bombo, el más fuerte; el platillo, el más ligero. */
-const PULSE_AMP: Record<Instrument | 'bass' | 'chords', number> = { bd: 0.3, sd: 0.25, hh: 0.2, bass: 0.18, chords: 0.14 }
+const PULSE_AMP: Record<LoopInstrument | 'bass' | 'chords', number> = { bd: 0.3, sd: 0.25, hh: 0.2, mel: 0.16, bass: 0.18, chords: 0.14 }
 const PULSE_MS = 220
 const pulse = (el: HTMLElement | undefined, instrument: keyof typeof PULSE_AMP) => {
   if (!el) return
@@ -1543,7 +1543,7 @@ function onUp(e: PointerEvent, cancelled = false) {
 /** iOS: sin el zoom propio de Safari con dos dedos (E1.5) */
 const noSafariZoom = (e: Event) => e.preventDefault()
 
-const fill: Record<Instrument, string> = { bd: VOICE_HEX.bd, sd: VOICE_HEX.sd, hh: VOICE_HEX.hh }
+const fill: Record<LoopInstrument, string> = { bd: VOICE_HEX.bd, sd: VOICE_HEX.sd, hh: VOICE_HEX.hh, mel: VOICE_HEX.mel }
 /** medidas reales de la ventana, para el diagnóstico (§16.18) */
 const layoutInfo = () => {
   const r = root.value?.getBoundingClientRect()

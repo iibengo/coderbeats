@@ -1,5 +1,5 @@
 import { hexToRgb, VOICE_HEX } from '~/lib/palette'
-import type { Instrument } from '~/lib/types'
+import type { LoopInstrument } from '~/lib/freeLoops'
 
 /** Lo que un tema recibe en cada frame (§16.14). */
 export interface VisualFrame {
@@ -11,7 +11,7 @@ export interface VisualFrame {
   barPhase: number
   bpm: number
   /** loops con su posición en pantalla (px CSS) */
-  loops: { id: number; instrument: Instrument; muted: boolean; x: number; y: number; size: number }[]
+  loops: { id: number; instrument: LoopInstrument; muted: boolean; x: number; y: number; size: number }[]
   fx: { filter: number; space: number; warmth: number }
   background: { bass: boolean; chords: boolean }
   reducedMotion: boolean
@@ -22,7 +22,7 @@ export interface VisualHitEvent {
   kind: 'hit' | 'heard'
   time: number
   loopId: number | null
-  instrument: Instrument | 'bass' | 'chords'
+  instrument: LoopInstrument | 'bass' | 'chords'
   x: number
   y: number
   /** 0..1 */
@@ -44,7 +44,7 @@ export interface VisualBeatEvent {
 export interface VisualBirthEvent {
   time: number
   loopId: number
-  instrument: Instrument
+  instrument: LoopInstrument
   x: number
   y: number
 }
@@ -71,10 +71,11 @@ export interface VisualTheme {
 const unit = (hex: string) => hexToRgb(hex).map((c) => c / 255) as [number, number, number]
 
 /** Colores por instrumento (§8.1), de la paleta única (spec 003, E1.2). */
-export const INSTRUMENT_RGB: Record<Instrument | 'bass' | 'chords', [number, number, number]> = {
+export const INSTRUMENT_RGB: Record<LoopInstrument | 'bass' | 'chords', [number, number, number]> = {
   bd: unit(VOICE_HEX.bd),
   sd: unit(VOICE_HEX.sd),
   hh: unit(VOICE_HEX.hh),
+  mel: unit(VOICE_HEX.mel),
   bass: [0.85, 0.85, 0.9],
   chords: [0.85, 0.85, 0.9],
 }

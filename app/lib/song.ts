@@ -7,6 +7,7 @@ import type { FreeLoop } from './freeLoops'
 import type { KitId, StyleId } from './types'
 import { anyPart, type BackgroundMode, type Parts } from './background'
 import { bassCode } from './bass'
+import { melodyMini, SYNTH_SOUND, type MelodySynth } from './melody'
 import type { Cell, Segment } from './cells'
 
 export interface SongFx {
@@ -22,6 +23,8 @@ export interface SongState {
   /** tempo de la canción (spec 005, §6); sin él, el del estilo */
   bpm?: number | null
   kit: KitId
+  /** sinte de la melodía (spec 002, §6); sin él, el del estilo */
+  melodySynth?: MelodySynth
   /** modo del fondo y partes que han entrado (o están entrando) */
   background: { mode: BackgroundMode; parts: Parts }
   metronome: boolean
@@ -64,18 +67,22 @@ export const safeLabel = (v: unknown): string => (typeof v === 'string' ? v.repl
 const round3 = (x: number) => Math.round(x * 1000) / 1000
 const IND = '  '
 
-export const DUCK = '.duckorbit("2:3").duckdepth(0.6).duckattack(0.15)'
+/** Orbit (bus) de la melodía con la voz (spec 002, §6). */
+export const MELODY_ORBIT = 5
+const duckWith = (orbits: string) => `.duckorbit("${orbits}").duckdepth(0.6).duckattack(0.15)`
+/** Sidechain del bombo sobre el bajo y los acordes; con melodía en el mismo bloque, también sobre ella. */
+export const DUCK = duckWith('2:3')
 
 /** Tokens de s() y de nudge() (rotados a la fase global) de un loop. */
 export function loopTokens(
-  loop: Pick<FreeLoop, 'bars' | 'phaseBar' | 'hits' | 'instrument'>,
+  loop: Pick<FreeLoop, 'bars' | 'phaseBar' | 'hits'> & { instrument: string },
   stepSeconds: number,
 ): { s: string[]; nudge: string[] | null } {
   const bars = safeNum(loop.bars)
   const total = bars * 16
   const slots: (string | null)[] = new Array(total).fill(null)
   const nudges: number[] = new Array(total).fill(0)
-  const instrument = INSTRUMENTS.includes(loop.instrument) ? loop.instrument : null
+  const instrument = INSTRUMENTS.includes(loop.instrument as never) ? loop.instrument : null
   for (const h of instrument ? loop.hits : []) {
     if (!Number.isFinite(h.pos)) continue
     const step = mod(Math.round(h.pos), total)
@@ -100,20 +107,30 @@ function loopLine(
   gain: number,
   stepSeconds: number,
   mode: SongMode,
-  duck: boolean,
+  /** sidechain del bombo (vacío = sin él) */
+  duck: string,
   version: 'current' | 'prev' = 'current',
   phaseOffset = 0,
 ): string {
-  const kit = KITS[st.kit]
   const base = version === 'prev' && loop.prev ? { ...loop, ...loop.prev } : loop
   const src = phaseOffset ? { ...base, phaseBar: safeNum(base.phaseBar) + safeNum(phaseOffset) } : base
-  const { s, nudge } = loopTokens(src, stepSeconds)
-  let line = `s("${tokensToMini(s)}").bank("${kit.strudelBank}")`
-  const n = kit.sampleIndex[loop.instrument]
-  if (n !== 0) line += `.n(${n})`
-  if (nudge) line += `.nudge("${tokensToMini(nudge)}")`
-  if (Math.abs(gain - 1) > 0.005) line += `.gain(${fmtGain(gain)})`
-  if (loop.instrument === 'bd' && duck) line += DUCK
+  let line: string
+  if (loop.instrument === 'mel') {
+    // melodía con la voz (spec 002): nombres de nota de una tabla, pesos numéricos; nada leído se escribe tal cual
+    const synth = st.melodySynth ?? STYLE_MUSIC[st.style].synth
+    const hits = src.hits.map((h) => ({ pos: h.pos, strength: h.strength, midi: h.midi as number, dur: h.dur as number }))
+    line = `note("${melodyMini(hits, safeNum(src.bars), safeNum(src.phaseBar))}")${SYNTH_SOUND[synth] ?? SYNTH_SOUND.piano}.orbit(${MELODY_ORBIT})`
+    if (Math.abs(gain - 1) > 0.005) line += `.gain(${fmtGain(gain)})`
+  } else {
+    const kit = KITS[st.kit]
+    const { s, nudge } = loopTokens(src, stepSeconds)
+    line = `s("${tokensToMini(s)}").bank("${kit.strudelBank}")`
+    const n = kit.sampleIndex[loop.instrument]
+    if (n !== 0) line += `.n(${n})`
+    if (nudge) line += `.nudge("${tokensToMini(nudge)}")`
+    if (Math.abs(gain - 1) > 0.005) line += `.gain(${fmtGain(gain)})`
+    if (loop.instrument === 'bd' && duck) line += duck
+  }
   if (mode === 'engine') {
     const born = safeNum(loop.bornAt)
     const cond = version === 'prev' ? `h.whole.begin < ${born}` : `h.whole.begin >= ${born}`
@@ -137,14 +154,16 @@ function drumFxOf(st: SongState, mode: SongMode): string {
  */
 function loopsLines(loops: FreeLoop[], st: SongState, mode: SongMode, duck: boolean, ind: string, phaseOffset = 0): string[] {
   if (!loops.length) return []
+  // el sidechain del bombo también empuja la melodía si hay una en este bloque (orbit 5)
+  const duckStr = duck ? (loops.some((l) => l.instrument === 'mel') ? duckWith(`2:3:${MELODY_ORBIT}`) : DUCK) : ''
   const stepSeconds = 60 / (st.bpm ?? STYLES[st.style].bpm) / 4
   const engine = mode === 'engine'
   const gains = loopGains(loops)
   const lines = loops.flatMap((l) => {
     const g = gains.get(l.id) ?? 1
-    const current = loopLine(l, st, g, stepSeconds, mode, duck, 'current', phaseOffset)
+    const current = loopLine(l, st, g, stepSeconds, mode, duckStr, 'current', phaseOffset)
     // en el motor, la versión anterior sigue sonando hasta el nacimiento de la nueva
-    return engine && l.prev ? [loopLine(l, st, g, stepSeconds, mode, duck, 'prev', phaseOffset), current] : [current]
+    return engine && l.prev ? [loopLine(l, st, g, stepSeconds, mode, duckStr, 'prev', phaseOffset), current] : [current]
   })
   const drumFx = drumFxOf(st, mode)
   if (!drumFx) return lines.map((l) => `${ind}${l},`)

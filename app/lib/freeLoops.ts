@@ -2,6 +2,9 @@ import { assistQuantize, laneGrid } from './assist'
 import type { ClosedPhrase, LoopLength } from './phrases'
 import type { Instrument, StyleId } from './types'
 
+/** Lo que suena en un loop: batería o (spec 002) la melodía con la voz. */
+export type LoopInstrument = Instrument | 'mel'
+
 export const MAX_LOOPS = 8
 
 /**
@@ -16,11 +19,15 @@ export interface LoopHit {
   /** semicorcheas desde el inicio del loop; entero con ayuda, decimal sin ella */
   pos: number
   strength: number
+  /** solo melodía: altura MIDI entera (spec 002, §8.1) */
+  midi?: number
+  /** solo melodía: duración en semicorcheas */
+  dur?: number
 }
 
 export interface FreeLoop {
   id: number
-  instrument: Instrument
+  instrument: LoopInstrument
   bars: LoopLength
   /** compás global en el que empieza; suena el compás (g - phaseBar) mod bars */
   phaseBar: number
@@ -178,7 +185,7 @@ export function addPhrase(state: LoopsState, phrase: ClosedPhrase, o: BirthOptio
   let nextId = state.nextId
   const events: LoopEvent[] = []
   const repeat = o.repeat ?? 'complete'
-  const newestOf = (inst: Instrument) =>
+  const newestOf = (inst: LoopInstrument) =>
     loops.filter((l) => l.instrument === inst).sort((a, b) => b.bornAt - a.bornAt || b.id - a.id)[0]
 
   // la rejilla de la ayuda se adapta a cada carril (E5.1)
