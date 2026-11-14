@@ -146,6 +146,9 @@ function loopLine(
     if (n !== 0) line += `.n(${n})`
     if (nudge) line += `.nudge("${tokensToMini(nudge)}")`
     if (Math.abs(gain - 1) > 0.005) line += `.gain(${fmtGain(gain)})`
+    // el bombo afinado a la raíz del acorde de cada compás, si el estilo lo pide (spec 008, §10)
+    const tune = loop.instrument === 'bd' ? STYLE_MUSIC[st.style].kickTune : undefined
+    if (tune) line += `.note("${tune}")`
     if (loop.instrument === 'bd' && duck) line += duck
   }
   if (mode === 'engine') {
@@ -169,10 +172,10 @@ function drumFxOf(st: SongState, mode: SongMode): string {
  * Líneas de unos loops con la sangría `ind` (cada una acabada en coma), dentro de un sub-stack con
  * los efectos si los hay. `phaseOffset`: compás global en el que empieza su célula (motor, spec 005).
  */
-function loopsLines(loops: FreeLoop[], st: SongState, mode: SongMode, duck: boolean, ind: string, phaseOffset = 0): string[] {
+function loopsLines(loops: FreeLoop[], st: SongState, mode: SongMode, duck: boolean, ind: string, phaseOffset = 0, withMel = false): string[] {
   if (!loops.length) return []
-  // el sidechain del bombo también empuja la melodía si hay una en este bloque (orbit 5)
-  const duckStr = duck ? (loops.some((l) => l.instrument === 'mel') ? duckWith(`2:3:${MELODY_ORBIT}`) : DUCK) : ''
+  // el sidechain del bombo también empuja la melodía si hay una en este bloque (orbit 5), o en la célula (`withMel`)
+  const duckStr = duck ? (withMel || loops.some((l) => l.instrument === 'mel') ? duckWith(`2:3:${MELODY_ORBIT}`) : DUCK) : ''
   const stepSeconds = 60 / (st.bpm ?? STYLES[st.style].bpm) / 4
   const engine = mode === 'engine'
   const gains = loopGains(loops)
@@ -185,6 +188,32 @@ function loopsLines(loops: FreeLoop[], st: SongState, mode: SongMode, duck: bool
   const drumFx = drumFxOf(st, mode)
   if (!drumFx) return lines.map((l) => `${ind}${l},`)
   return [`${ind}stack(`, ...lines.map((l) => `${ind}${IND}${l},`), `${ind})${drumFx},`]
+}
+
+/**
+ * El cuerpo de una célula: sus líneas (con la sangría `ind`) y lo que va detrás de su `stack` (`tail`, el filtro por vuelta
+ * y el wowo). El filtro de la célula y el wowo solo afectan a la **melodía** y a los acordes (`inside`, en la sangría que toque); el bajo (`outer`),
+ * el bombo, la caja y los platillos van por fuera, limpios (spec 008, §10). Sin filtro o sin nada que sacar, todo en
+ * un `stack` como siempre. Con la separación, el filtro va ya aplicado dentro y `tail` vuelve vacío.
+ */
+function cellBody(cell: CellCode, st: SongState, mode: SongMode, duck: boolean, ind: string, from: number, outer: string[] = [], inside: (i: string) => string[] = () => []): { lines: string[]; tail: string } {
+  const tail = cellTail(cell, mode, from)
+  const filtered = !!(cell.lpf && cell.lpf.length) || !!wowCode(cell.wow)
+  const clean = wowCode(cell.wow) ? cell.loops.filter((l) => l.instrument !== 'mel') : []
+  if (!filtered || (!clean.length && !outer.length)) {
+    return { lines: [...outer, ...inside(ind), ...loopsLines(cell.loops, st, mode, duck, ind, from)], tail }
+  }
+  const dirty = cell.loops.filter((l) => !clean.includes(l))
+  const withMel = dirty.some((l) => l.instrument === 'mel')
+  const lines = [
+    ...outer,
+    ...loopsLines(clean, st, mode, duck, ind, from, withMel),
+    `${ind}stack(`,
+    ...inside(ind + IND),
+    ...loopsLines(dirty, st, mode, duck, ind + IND, from),
+    `${ind})${tail},`,
+  ]
+  return { lines, tail: '' }
 }
 
 /** Líneas del fondo (bajo y acordes) que se muestran, con la sangría `ind`. */
@@ -320,11 +349,11 @@ function groupLines(st: SongState, mode: SongMode, duck: boolean, ind: string): 
       for (const seg of item.window) {
         const cell = list.find((c) => c.id === seg.cellId)
         if (!cell) continue
-        const inner = loopsLines(cell.loops, st, mode, duck, ind + IND, seg.from)
-        if (!inner.length) continue
+        if (!cell.loops.length) continue
+        const { lines: inner, tail } = cellBody(cell, st, mode, duck, ind + IND, seg.from)
         const range = seg.to === null ? `h.whole.begin >= ${safeNum(seg.from)}` : `h.whole.begin >= ${safeNum(seg.from)} && h.whole.begin < ${safeNum(seg.to)}`
         out.push(`${ind}// grupo ${safeNum(item.id)} · ${cellLabel(cell)} · compases ${safeNum(seg.from)}–${seg.to === null ? '…' : safeNum(seg.to) - 1}`)
-        out.push(`${ind}stack(`, ...inner, `${ind})${cellTail(cell, mode, safeNum(seg.from))}.filterHaps((h) => ${range}),`)
+        out.push(`${ind}stack(`, ...inner, `${ind})${tail}.filterHaps((h) => ${range}),`)
       }
       continue
     }
@@ -344,10 +373,10 @@ function groupLines(st: SongState, mode: SongMode, duck: boolean, ind: string): 
     for (let k = 0; left > 0 && k < 64; k++) {
       const cell = cells[k % cells.length]!
       const turns = Math.min(Math.max(1, Math.round(safeNum(cell.turns))), left)
-      const lines = loopsLines(cell.loops, st, mode, duck, ind + IND + IND, 0)
+      const { lines, tail } = cellBody(cell, st, 'display', duck, ind + IND + IND, 0)
       out.push(`${ind}${IND}// ${cellLabel(cell)} · ${turns} vuelta${turns === 1 ? '' : 's'}`)
       if (!lines.length) out.push(`${ind}${IND}[${turns}, silence],`)
-      else out.push(`${ind}${IND}[${turns}, stack(`, ...lines, `${ind}${IND})${cellTail(cell, 'display')}],`)
+      else out.push(`${ind}${IND}[${turns}, stack(`, ...lines, `${ind}${IND})${tail}],`)
       left -= turns
       if (!sched && k + 1 >= cells.length) break
     }
@@ -385,11 +414,11 @@ export function songCode(st: SongState, mode: SongMode = 'display'): string {
     for (const seg of st.cells!.window) {
       const cell = st.cells!.list.find((c) => c.id === seg.cellId)
       if (!cell) continue
-      const inner = loopsLines(cell.loops, st, mode, duck, IND + IND, seg.from)
-      if (!inner.length) continue
+      if (!cell.loops.length) continue
+      const { lines: inner, tail } = cellBody(cell, st, mode, duck, IND + IND, seg.from)
       const range = seg.to === null ? `h.whole.begin >= ${safeNum(seg.from)}` : `h.whole.begin >= ${safeNum(seg.from)} && h.whole.begin < ${safeNum(seg.to)}`
       out.push(`${IND}// ${cellLabel(cell)} · compases ${safeNum(seg.from)}–${seg.to === null ? '…' : safeNum(seg.to) - 1}`)
-      out.push(`${IND}stack(`, ...inner, `${IND})${cellTail(cell, mode, safeNum(seg.from))}.filterHaps((h) => ${range}),`)
+      out.push(`${IND}stack(`, ...inner, `${IND})${tail}.filterHaps((h) => ${range}),`)
     }
   } else if (st.loops.length) {
     out.push(`${IND}// tus loops`)
@@ -425,10 +454,14 @@ function songArrangeCode(st: SongState): string {
     if (!cell) continue
     const bass = bgOn && cell.parts.bass
     const chords = bgOn && cell.parts.chords
-    const lines = [...backgroundLines(st, bass, chords, false, ind), ...loopsLines(cell.loops, st, 'display', bass || chords, ind)]
+    const { lines, tail } = cellBody(
+      cell, st, 'display', bass || chords, ind, 0,
+      bass ? backgroundLines(st, true, false, false, ind) : [],
+      (i) => backgroundLines(st, false, chords, false, i),
+    )
     out.push(`${IND}// ${cellLabel(cell)} · ${safeNum(cell.turns)} vuelta${safeNum(cell.turns) === 1 ? '' : 's'}`)
     if (!lines.length) out.push(`${IND}[${safeNum(cell.turns)}, silence],`)
-    else out.push(`${IND}[${safeNum(cell.turns)}, stack(`, ...lines, `${IND})${cellTail(cell, 'display')}],`)
+    else out.push(`${IND}[${safeNum(cell.turns)}, stack(`, ...lines, `${IND})${tail}],`)
   }
   const djf = filterDjf(st.fx.filter)
   if (freeBlock.length) {

@@ -16,6 +16,11 @@ export interface StyleMusic {
    * `.orbit(3)` a los acordes; lo que va en `chords` entra y sale con ellos.
    */
   background: { bass: BassPattern; chords: string[] }
+  /**
+   * Afinación del bombo por compás (spec 008, §10): un patrón de notas de Strudel, una por acorde del fondo (la raíz), que se
+   * pone al bombo con `.note(...)` (superdough repite el sample a esa altura, `c3` = sin cambio). Sin él, el bombo suena como siempre.
+   */
+  kickTune?: string
   /** escala del estilo (spec 002, §5): clases de altura (0 = do … 11 = si) */
   scale: readonly number[]
   /** notas del acorde de cada compás del fondo (clases de altura; se repite): desempata la escala */
@@ -199,6 +204,8 @@ export const STYLE_MUSIC: Record<StyleId, StyleMusic> = {
       chords: ['note("<[c3,eb3,g3] [ab2,c3,eb3] [bb2,d3,f3] [g2,bb2,d3]>").s("supersaw").attack(0.02).release(0.3).lpf(1800).room(0.5).gain(0.25)'],
     },
     // do menor: C D Eb F G Ab Bb
+    // el bombo, afinado a la raíz de cada acorde del fondo (Cm A♭ B♭ Gm), uno por compás: el drop "cae" sobre ellos
+    kickTune: '<c3 ab2 bb2 g2>',
     scale: [0, 2, 3, 5, 7, 8, 10],
     chordTones: [
       [0, 3, 7],

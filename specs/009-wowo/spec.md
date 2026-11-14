@@ -46,7 +46,7 @@ El filtro de una célula va **después de su `stack`** (`.lpf("<…>")` + `.filt
 - **Como mucho 4 células con wowo** por canción (los cuatro colores `w0`…`w3`, el de su orden en la lista de células).
 - **Los buses `w<id>` son extra** en la salida: no entran en los orbits ni en el `djf` de la pantalla; el limitador
   maestro sí.
-- **El bajo y los acordes del fondo no llevan wowo** (son de su propio orbit); lo que lleva el wowo es lo de la célula.
+- **El bajo y los acordes del fondo no llevan wowo** (son de su propio orbit); **el wowo solo lo lleva la melodía de la célula**: el bombo, la caja y los platillos van por fuera (008 §10).
 - **Grupos en paralelo:** solo cuentan las células de la canción en la línea de tiempo del wowo (§9 del remix). Un grupo
   con wowo queda para cuando se sepa cuándo lo enciende la canción.
 - **Copiar a strudel.cc** lleva el wowo del código mostrado (Strudel puro); el código del motor no se copia.

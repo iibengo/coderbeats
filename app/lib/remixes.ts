@@ -185,9 +185,9 @@ const DIES_B: readonly Note[] = [...DIES_PHRASES[2]!, ...DIES_PHRASES[3]!.map(([
 /**
  * ── Techno (spec 008, §9): el molde del house/dnb, con el wowo ─────────────────────────────────────
  *
- * Las células con `lpf` no llevan bajo ni acordes (spec 008, §5): el `lpf` de la célula sustituye al suyo. Por eso el
- * bajo no está en "Entra el tema" (el drop no, y se nota el contraste) y en el groove; en los builds va fuera del filtro
- * resonante del wowo (su propio bajo, con su lpf).
+ * El bajo va por fuera del filtro y del wowo de la célula (spec 008, §10): en el motor es el fondo, que no pasa por el
+ * filtro de la célula; en el código mostrado se saca del `stack` filtrado. El wowo solo afecta a la melodía (y a los
+ * acordes, si los hay). El bombo va afinado a la raíz de cada acorde (`kickTune`).
  */
 const T = {
   /** bombo 4×4 */
@@ -211,10 +211,10 @@ const T = {
 const DIES_TECHNO: CellSpec[] = [
   { name: 'Pulso', turns: 4, parts: { bass: true, chords: false }, drums: { bd: T.bd4 }, text: 'solo el pulso: bombo 4×4 y el bajo a corcheas' },
   { name: 'Hats', turns: 4, parts: { bass: true, chords: false }, drums: { bd: T.bd4, hh: T.hat }, text: '+ palmada y open hat a contratiempo' },
-  { name: 'Entra el tema', turns: 8, parts: { bass: false, chords: false }, drums: { bd: T.bd4, sd: T.clap, hh: T.hat }, mel: { notes: DIES_A, synth: 'lead' }, lpf: [500, 700, 900, 1200, 1600, 2100, 2800, 3600], wow: WOW_PRESETS.acid, text: 'el tema con el wowo: el filtro se abre en cada golpe' },
+  { name: 'Entra el tema', turns: 8, parts: { bass: true, chords: false }, drums: { bd: T.bd4, sd: T.clap, hh: T.hat }, mel: { notes: DIES_A, synth: 'lead' }, lpf: [500, 700, 900, 1200, 1600, 2100, 2800, 3600], wow: WOW_PRESETS.acid, text: 'el tema con el wowo (el filtro se abre en cada golpe) sobre el bajo, que no pasa por el filtro' },
   { name: 'Build', turns: 8, parts: { bass: true, chords: false }, drums: { sd: T.roll, hh: T.hats16 }, mel: { notes: DIES_B, synth: 'lead' }, lpf: [1400, 1800, 2400, 3000, 3800, 4800, 6200, 8000], wow: WOW_PRESETS.house, text: 'sin bombo: la caja se acelera, el bajo en el wowo y el filtro se abre hasta 8 000 Hz (hasta el drop)' },
   { name: 'DROP', turns: 8, parts: { bass: true, chords: true }, drums: { bd: T.bd4, sd: T.clap, hh: T.hats16 }, mel: { notes: DIES_A, synth: 'lead' }, text: 'el drop: todo, bajo y acordes, el tema limpio y el platillo en semicorcheas' },
-  { name: 'Groove', turns: 4, parts: { bass: false, chords: false }, drums: { bd: T.bd4, sd: T.clap, hh: T.hat }, mel: { notes: DIES_B, synth: 'lead' }, lpf: [2200, 2600, 3000, 3400], wow: WOW_PRESETS.house, text: 'el groove en paralelo al tema (segunda vuelta)' },
+  { name: 'Groove', turns: 4, parts: { bass: true, chords: false }, drums: { bd: T.bd4, sd: T.clap, hh: T.hat }, mel: { notes: DIES_B, synth: 'lead' }, lpf: [2200, 2600, 3000, 3400], wow: WOW_PRESETS.house, text: 'el groove en paralelo al tema (segunda vuelta), con bajo' },
   { name: 'Build 2', turns: 4, parts: { bass: true, chords: false }, drums: { sd: T.roll, hh: T.hats16 }, mel: { notes: DIES_A, synth: 'lead' }, lpf: [2000, 2600, 3400, 4600], wow: WOW_PRESETS.acid, text: 'el segundo build, más corto' },
   { name: 'DROP 2', turns: 8, parts: { bass: true, chords: true }, drums: { bd: T.bd4, sd: T.clap, hh: T.hats16 }, mel: { notes: DIES_B, synth: 'lead' }, text: 'el drop final: todo, sin wowo (el tema, con otra frase)' },
   { name: 'Salida', turns: 2, parts: { bass: false, chords: true }, drums: {}, lpf: [1800, 600], text: 'solo los acordes, que se apagan' },

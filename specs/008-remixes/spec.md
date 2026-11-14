@@ -77,7 +77,7 @@ interface Cell {
 ```
 
 - **En el código:** `.lpf("<v1 v2 v3 …>")` después del `stack` de la célula, con un valor por vuelta. Es Strudel normal: **vale en strudel.cc**. En el código mostrado (`arrange`) cada sección empieza en su ciclo 0, así que va tal cual; en el **motor**, que trabaja con compases globales, el patrón va **rotado** al compás en el que empieza la célula para que la vuelta 1 de la célula use el primer valor (spec 005, §4.2).
-- Es un filtro de la célula, **independiente** del filtro de la pantalla (DJ, `djf`): los dos suenan a la vez. Sustituye al `lpf` propio del bajo y de los acordes mientras dura (por eso las células con `lpf` no llevan bajo; en el techno, el wowo y el bajo se reparten las células, §9).
+- Es un filtro de la célula, **independiente** del filtro de la pantalla (DJ, `djf`): los dos suenan a la vez. Sustituye al `lpf` propio de los acordes mientras dura. **El bajo va por fuera** (enmienda 2026-11-14, §10): el filtro de la célula no lo toca.
 - **Validación estricta** (`isCell`): una lista de 1 a 32 números finitos entre 60 y 20 000. Se escribe en el código con redondeo a entero; nada leído se escribe tal cual.
 - Copiar y fundir células lo conservan en la copia (la fusión, el de la célula destino).
 - No hay interfaz para editarlo todavía.
@@ -132,10 +132,10 @@ menor (las notas repetidas están a negras, así que la célula puede tener la m
 |---|---|---|---|
 | 1 | **Pulso** | 4 | Bombo 4×4 y el bajo a corcheas. Nada más. |
 | 2 | **Hats** | 4 | + palmada y open hat a contratiempo |
-| 3 | **Entra el tema** | 8 | Tema completo (A), **wowo acid** (`lpq 8`, `lpenv 3`) con el filtro 500 → 3 600 Hz, **sin bajo** (el lpf del wowo le quita el sitio) |
+| 3 | **Entra el tema** | 8 | Tema completo (A), **wowo acid** (`lpq 8`, `lpenv 3`) con el filtro 500 → 3 600 Hz, **con bajo** (fuera del filtro, §10) |
 | 4 | **Build** | 8 | **Sin bombo**: la caja en roll, el platillo en semicorcheas, el **puente** (B) y el **wowo house** abriendo 1 400 → 8 000 Hz; el bajo sigue |
 | 5 | **DROP** | 8 | **Todo**: bajo y acordes, bombo, palmada y platillo; el tema limpio (A), sin wowo |
-| 6 | **Groove** | 4 | El groove en paralelo al tema (B), wowo house, sin bajo |
+| 6 | **Groove** | 4 | El groove en paralelo al tema (B), wowo house, con bajo (§10) |
 | 7 | **Build 2** | 4 | El segundo build, más corto, con wowo acid y bajo |
 | 8 | **DROP 2** | 8 | El drop final: todo, el tema (B) limpio |
 | 9 | **Salida** | 2 | Solo los acordes, que se apagan (1 800 → 600 Hz) |
@@ -173,3 +173,32 @@ interface Cell {
     tiempo va **en el audio** (el nodo), no en los haps. Se desmonta al parar y se vuelve a montar al evaluar.
   - **Límite:** como mucho 4 células con wowo (el color las elige por su orden en la lista de células).
   - **Copia en strudel.cc:** copiar el código mostrado lleva el wowo (es Strudel puro); el código del motor no se copia.
+
+## 10. Enmienda (2026-11-14): el bajo fuera del filtro y el bombo afinado
+
+**A. El filtro y el wowo solo afectan a la melodía.** Antes, en el código mostrado, el bajo, el bombo y la batería iban
+dentro del `stack` que lleva el `lpf` de la célula y su wowo (y por eso las células con wowo no llevaban bajo). Ahora, en
+una célula con **wowo**, el filtro por vuelta y el wowo envuelven **solo la melodía** (y los acordes de la célula): el
+**bajo, el bombo, la caja y los platillos van por fuera, limpios**. Con `lpf` pero sin wowo, el filtro sigue como en §5
+sobre todos los loops de la célula, pero **el bajo siempre va por fuera**.
+
+- **Código mostrado** (`cellBody`, `song.ts`): `[8, stack( bajo, bombo, caja, hat, stack( melodía ).lpf("<…>").lpq(8)… )]`.
+  Es Strudel puro y vale en strudel.cc.
+- **Motor:** el bajo ya era el fondo (orbit 2), fuera del filtro; ahora el color `w<id>` y el filtro de la célula con wowo
+  solo van en el `stack` interior de la melodía, así que el bus del wowo (spec 009) solo lleva melodía. El sidechain
+  del bombo sigue empujando a la melodía (orbit 5).
+- **Techno:** «Entra el tema» y «Groove» pasan a llevar bajo (`parts.bass`), y el bajo del Build 2 deja de pasar por el
+  wowo. Salida (solo acordes con filtro) no cambia: los acordes siguen dentro del filtro.
+
+**B. El bombo afinado por compás** (`StyleMusic.kickTune`, `styles.ts`): el estilo puede dar un patrón de notas, una por acorde
+del fondo, que se pone al bombo con `.note(...)`. En superdough, `.note()` sobre un sample lo repite a esa altura (`c3`,
+midi 36, es sin cambio), así que el bombo sube y baja como mucho 5 semitonos. Techno: `<c3 ab2 bb2 g2>`, las raíces de
+`Cm–A♭–B♭–Gm`, un acorde por compás (el mismo ciclo que los acordes), para que el drop «caiga» sobre la armonía. Los
+demás estilos no lo llevan: suenan igual que antes.
+
+**C. (pendiente)** Una célula de *build* de verdad (riser de ruido con filtro que sube, otro color de pad y el último
+compás en silencio antes del drop).
+
+**Se comprueba** en `tests/unit/techno.test.ts`: el bajo mantiene su `lpf(450)` en «Entra el tema» y el build; el bombo, la
+caja y el platillo no tienen `cutoff` ni resonancia; el filtro y el color del wowo solo en el `stack` de la melodía (código
+mostrado y del motor); el bombo con `.note` por compás (`c3 ab2 bb2 g2 c3…`). **Pendiente:** escucharlo en la app.

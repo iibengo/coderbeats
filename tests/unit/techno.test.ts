@@ -74,7 +74,8 @@ describe('el remix Dies Irae en techno', () => {
     const parts = (n: string) => byName(n).parts
     expect(parts('Pulso')).toEqual({ bass: true, chords: false })
     expect(parts('Hats')).toEqual({ bass: true, chords: false })
-    expect(parts('Entra el tema')).toEqual({ bass: false, chords: false }) // (su lpf es el del wowo: el bajo vuelve en el drop)
+    expect(parts('Entra el tema')).toEqual({ bass: true, chords: false }) // el bajo va por fuera del filtro del wowo
+    expect(parts('Groove')).toEqual({ bass: true, chords: false })
     expect(parts('Build')).toEqual({ bass: true, chords: false }) // el build se queda sin bombo
     expect(parts('DROP')).toEqual({ bass: true, chords: true })
     expect(parts('Salida')).toEqual({ bass: false, chords: true })
@@ -110,6 +111,39 @@ describe('el remix Dies Irae en techno', () => {
     // en el drop no hay wowo: el filtro de siempre del sintetizador (aquí, el 0.5 de superdough)
     expect([...new Set(melIn(24, 32).map((e) => e.value.cutoff))]).toEqual([1800])
   })
+  it('el bajo va por fuera del filtro y del wowo: conserva su lpf, la melodía lleva el de la vuelta', async () => {
+    const c = code()
+    // el bajo (sawtooth) de "Entra el tema" (compases 8–15) y del build (16–23) mantiene el lpf(450) de siempre
+    const ev = await events(c, 50)
+    const bass = (from: number, to: number) => ev.filter((e) => e.begin >= from && e.begin < to && e.value.s === 'sawtooth')
+    expect([...new Set(bass(8, 16).map((e) => e.value.cutoff))]).toEqual([450])
+    expect([...new Set(bass(16, 24).map((e) => e.value.cutoff))]).toEqual([450])
+    // y la melodía sigue con el filtro por vuelta y el wowo
+    const mel = ev.filter((e) => e.begin >= 8 && e.begin < 16 && e.value.s === 'square')
+    expect(mel.every((e) => e.value.resonance === 8 && e.value.lpenv === 3)).toBe(true)
+    // el bombo, la caja y el platillo también van limpios: sin el filtro del wowo ni su resonancia
+    for (const key of ['bd', 'sd', 'hh']) {
+      const hits = ev.filter((e) => e.begin >= 8 && e.begin < 16 && e.value.s === key)
+      expect(hits.length, key).toBeGreaterThan(0)
+      expect(hits.every((e) => e.value.cutoff === undefined && e.value.resonance === undefined), key).toBe(true)
+    }
+    // en el código: el bajo y la batería fuera del `stack` que lleva el filtro, que solo tiene la melodía
+    const cell = c.slice(c.indexOf('// Entra el tema'), c.indexOf('// Build'))
+    const filtered = cell.slice(cell.indexOf('    stack('))
+    expect(cell.indexOf('sawtooth')).toBeLessThan(cell.indexOf('.lpf("<500'))
+    expect(filtered).not.toContain('RolandTR909')
+    expect(filtered).not.toContain('sawtooth')
+    expect(filtered).toContain('square')
+  })
+  it('el bombo va afinado a la raíz del acorde de cada compás (Cm A♭ B♭ Gm)', async () => {
+    expect(STYLE_MUSIC.techno.kickTune).toBe('<c3 ab2 bb2 g2>')
+    const c = code()
+    expect(c).toContain('.note("<c3 ab2 bb2 g2>")')
+    const ev = await events(c, 50)
+    const kicks = ev.filter((e) => e.value.s === 'bd' && e.begin >= 0 && e.begin < 8)
+    const noteOf = (bar: number) => [...new Set(kicks.filter((e) => Math.floor(e.begin) === bar).map((e) => String(e.value.note)))]
+    expect([0, 1, 2, 3, 4].map(noteOf)).toEqual([['c3'], ['ab2'], ['bb2'], ['g2'], ['c3']])
+  })
   it('la estructura suena: el build sin bombo y el drop con él', async () => {
     const ev = await events(code(), 50)
     const count = (key: string, from: number, to: number) => ev.filter((e) => e.begin >= from && e.begin < to && e.value.s === key).length
@@ -117,7 +151,7 @@ describe('el remix Dies Irae en techno', () => {
     expect(count('bd', 16, 24)).toBe(0) // el Build no lleva bombo
     expect(count('bd', 24, 32)).toBe(8 * 4) // el DROP sí
     expect(count('sawtooth', 0, 8)).toBeGreaterThan(0) // el bajo a corcheas
-    expect(count('sawtooth', 8, 16)).toBe(0) // en "Entra el tema" no hay bajo (lleva su lpf propio)
+    expect(count('sawtooth', 8, 16)).toBeGreaterThan(0) // en "Entra el tema" también hay bajo (fuera del filtro del wowo)
     expect(count('sawtooth', 16, 24)).toBeGreaterThan(0) // en el build sí
     expect(count('sawtooth', 24, 32)).toBeGreaterThan(0) // y en el drop
   })
@@ -151,5 +185,11 @@ describe('el motor: otra vez el remix del Himno', () => {
     // la célula con wowo lleva su color; sin wowo, no
     expect(engine).toContain('.lpq(8).lpenv(3).lpa(0.005).lpd(0.15).color("w3")')
     expect(engine).toMatch(/\.lpf\("<500 700 900 1200 1600 2100 2800 3600>"\)\.lpq/)
+    // y el color y el filtro solo van sobre la melodía: la batería queda fuera de ese `stack` (spec 008, §10)
+    const cellCode = engine.slice(engine.indexOf('// Entra el tema'), engine.indexOf('.color("w3")'))
+    const filtered = cellCode.slice(cellCode.lastIndexOf('    stack('))
+    expect(filtered).toContain('square')
+    expect(filtered).not.toContain('RolandTR909')
+    expect(cellCode).toContain('RolandTR909') // la batería sigue en la célula, por fuera
   })
 })
