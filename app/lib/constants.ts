@@ -13,6 +13,7 @@ export const STYLES: Record<StyleId, Style> = {
   house: { id: 'house', label: 'House', bpm: 124, quantizeEvery: 1 },
   dnb: { id: 'dnb', label: 'Drum and bass', bpm: 174, quantizeEvery: 2 },
   dembow: { id: 'dembow', label: 'Dembow', bpm: 120, quantizeEvery: 1 },
+  techno: { id: 'techno', label: 'Techno', bpm: 128, quantizeEvery: 1 },
 }
 
 export const KITS: Record<KitId, Kit> = {

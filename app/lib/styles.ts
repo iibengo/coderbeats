@@ -174,6 +174,40 @@ export const STYLE_MUSIC: Record<StyleId, StyleMusic> = {
     ],
     synth: 'lead',
   },
+  // techno (2026-11-14, spec 008 §9): 128 bpm, do menor, kit 909. Bombo 4×4, caja (palmada) en 2 y 4, open hat a
+  // contratiempo; el bajo, a corcheas, el pulso que no para. La melodía va a semicorcheas con las notas repetidas
+  // apagadas (una nota = un golpe), para que el lead de una célula con wowo pase por el filtro golpe a golpe.
+  techno: {
+    key: 'do menor',
+    priors: {
+      bd: prior(0.03, { 0: 1, 4: 1, 8: 1, 12: 1 }),
+      sd: prior(0.04, { 4: 1, 12: 1 }),
+      hh: prior(0.15, { 2: 1, 6: 1, 10: 1, 14: 1 }),
+    },
+    templates: {
+      bd: 'bd ~ ~ ~ bd ~ ~ ~ bd ~ ~ ~ bd ~ ~ ~',
+      sd: BACKBEAT,
+      hh: '~ ~ hh ~ ~ ~ hh ~ ~ ~ hh ~ ~ ~ hh ~',
+    },
+    background: {
+      // note("<[~ c2]*8>").s("sawtooth").lpf(450).gain(0.5): el pulso a corcheas
+      bass: {
+        bars: 1,
+        notes: Array.from({ length: 8 }, (_, i) => ({ pos: i * 2, dur: 2, note: 'c2' })),
+        sound: '.s("sawtooth").lpf(450).gain(0.5)',
+      },
+      chords: ['note("<[c3,eb3,g3] [ab2,c3,eb3] [bb2,d3,f3] [g2,bb2,d3]>").s("supersaw").attack(0.02).release(0.3).lpf(1800).room(0.5).gain(0.25)'],
+    },
+    // do menor: C D Eb F G Ab Bb
+    scale: [0, 2, 3, 5, 7, 8, 10],
+    chordTones: [
+      [0, 3, 7],
+      [8, 0, 3],
+      [10, 2, 5],
+      [7, 10, 2],
+    ],
+    synth: 'lead',
+  },
 }
 
 /** Pasos (0..15) con golpe de una plantilla. */

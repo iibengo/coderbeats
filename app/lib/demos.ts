@@ -30,6 +30,12 @@ export const DEMOS: Record<StyleId, Record<Instrument, string>> = {
     sd: '~ ~ ~ ~ sd ~ ~ ~ ~ ~ ~ ~ sd ~ ~ ~',
     hh: '~ ~ hh ~ ~ ~ hh ~ ~ ~ hh ~ ~ ~ hh ~',
   },
+  // techno: bombo 4×4, palmada en 2 y 4, open hat a contratiempo (el dibujo que se deja grabar)
+  techno: {
+    bd: 'bd ~ ~ ~ bd ~ ~ ~ bd ~ ~ ~ bd ~ ~ ~',
+    sd: '~ ~ ~ ~ sd ~ ~ ~ ~ ~ ~ ~ sd ~ ~ ~',
+    hh: '~ ~ hh ~ ~ ~ hh ~ ~ ~ hh ~ ~ ~ hh ~',
+  },
 }
 
 /** Loops de la demo de un estilo, con ids a partir de `nextId`, que empiezan a sonar en `bornAt`. */

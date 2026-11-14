@@ -6,6 +6,7 @@ import type { Instrument, KitId, StyleId } from './types'
 import { isValidBpm } from './tempo'
 import { INSTRUMENTS } from './constants'
 import { isMidi, MELODY_SYNTHS, type MelodySynth } from './melody'
+import { isWow, type Wow } from './wow'
 
 /**
  * Células (spec 005): cada célula es un aro con sus loops, su bajo y sus acordes. Una canción es
@@ -32,6 +33,11 @@ export interface Cell {
    * menos valores que vueltas, vale el último. Sin él, el filtro de siempre.
    */
   lpf?: number[]
+  /**
+   * El "wowo" (spec 008, §9): resonancia y envolvente sobre el filtro por vuelta (`lpf`), para que el filtro se abra en
+   * cada golpe. Solo tiene sentido con `lpf` (o solo, con el filtro abierto de por sí); sin él, el filtro de siempre.
+   */
+  wow?: Wow
   /**
    * Grupos en paralelo que esta célula de la canción **enciende** al empezar (ids de grupo; spec 005, §22): siempre desde su
    * primera célula, en esa línea de compás. Solo vale en las células de la canción.
@@ -249,6 +255,7 @@ const isCell = (x: unknown): x is Cell => {
   const parts = x.parts
   if (!isObj(parts) || typeof parts.bass !== 'boolean' || typeof parts.chords !== 'boolean') return false
   if (x.lpf !== undefined && !isLpf(x.lpf)) return false
+  if (x.wow !== undefined && !isWow(x.wow)) return false
   if ((x.groupOn !== undefined && !isGroupIds(x.groupOn)) || (x.groupOff !== undefined && !isGroupIds(x.groupOff))) return false
   const at = x.at
   if (!isObj(at) || !isNum(at.x) || !isNum(at.y) || !isNum(at.depth)) return false
@@ -656,7 +663,10 @@ interface LegacyCell extends Cell {
  */
 export function normalizeSong(raw: Song): Song {
   const legacy = new Map((raw.cells as LegacyCell[]).map((c) => [c.id, c]))
-  const cells = (raw.cells as LegacyCell[]).map(({ free: _free, on: _on, ...c }) => c as Cell)
+  const cells = (raw.cells as LegacyCell[])
+    .map(({ free: _free, on: _on, ...c }) => c as Cell)
+    // un wowo que no es válido (guardado a mano, versión futura) se descarta: el filtro se queda como estaba
+    .map((c) => (c.wow !== undefined && !isWow(c.wow) ? (({ wow: _wow, ...rest }) => rest as Cell)(c) : c))
   const ids = new Set(cells.map((c) => c.id))
   const seen = new Set<number>()
   const take = (list: unknown): number[] => {

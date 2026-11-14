@@ -1,6 +1,6 @@
 export type Instrument = 'bd' | 'sd' | 'hh'
 export type KitId = '909' | '808' | 'acoustic'
-export type StyleId = 'hiphop90' | 'house' | 'dnb' | 'dembow'
+export type StyleId = 'hiphop90' | 'house' | 'dnb' | 'dembow' | 'techno'
 
 export interface Style {
   id: StyleId
