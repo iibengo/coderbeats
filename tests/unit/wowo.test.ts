@@ -40,6 +40,20 @@ describe('el preludio del wowo (spec 008, §9)', () => {
     // (en Node no hay scheduler ni audio: solo se comprueba que evalúa sin error de sintaxis ni de referencias)
     await expect(events(`${WOW_PRELUDE}\n${engine}`, 1)).resolves.toEqual([])
   })
+  it('el Himno mejorado (2 wowos, 2 grupos con varios disparadores): el código del motor es válido con el preludio', async () => {
+    const song = cellsOf('oda-alegria-dembow')
+    for (const [from, to, cell] of [[20, 24, 4], [26, 34, 6], [38, 42, 8]] as const) {
+      const engine = songCode(
+        {
+          loops: [], style: 'dembow', kit: '808', background: { mode: 'manual', parts: { bass: false, chords: false } }, metronome: false,
+          fx: { filter: 1, space: 0, warmth: 0 }, cells: { list: song.cells, order: song.order, window: [{ cellId: song.order[cell]!, from, to }] },
+          groups: { list: song.cells, items: song.groups.map((g) => ({ id: g.id, order: g.order, window: [{ cellId: g.order[0]!, from, to }] })) },
+        } satisfies SongState,
+        'engine',
+      )
+      await expect(events(`${WOW_PRELUDE}\n${engine}`, 1), `${from}–${to}`).resolves.toEqual([])
+    }
+  })
   it('la Sinfonía n.º 40 (3 células con wowo, 2 grupos): el código del motor, en varias ventanas, es válido con el preludio', async () => {
     const song = cellsOf('sinfonia-40-techno')
     for (const [from, to, cell] of [[16, 32, 1], [56, 64, 4], [68, 84, 6]] as const) {

@@ -1,6 +1,6 @@
 # 008 · Remixes
 
-> Estado: **en marcha** (2026-11-14). Tres remixes: "Himno de la alegría" en dembow, "Dies Irae" en techno (con el wowo) y "Sinfonía n.º 40" en techno (§12).
+> Estado: **en marcha** (2026-11-14). Tres remixes: "Himno de la alegría" en dembow (mejorado en §13), "Dies Irae" en techno (con el wowo) y "Sinfonía n.º 40" en techno (§12).
 > Parte de: spec 005 (células y su demo del dembow, §20), 002 (melodía como loop) y 006 (Mis canciones).
 
 ## 1. Idea
@@ -281,3 +281,40 @@ que cabe en el modelo (16 células, ida y vuelta por JSON), qué entra y sale en
 notas, todo en do menor), los wowos, el código mostrado evaluado en Strudel (el kit sin `.bank()`, el bombo afinado c·a♭·b♭·g, el Intro solo con
 bombo, el redoble 2/2/2/5, el platillo, el último compás de cada riser en silencio, el sidechain), y el código del motor en varias ventanas.
 **Pendiente:** escucharlo en la app.
+
+## 13. Enmienda (2026-11-14): el Himno de la alegría, mejorado
+
+El Himno (§4) pasa de **7 a 12 células y de 34 a 56 compases (≈ 1 min 52 s a 120 bpm)**, con lo aprendido en el techno (§9–§12): dos drops,
+risers con el último compás en silencio, redoble de caja, platillo al entrar el drop, wowo en las subidas y el bombo afinado.
+
+**Qué cambia**
+
+| Antes | Ahora |
+|---|---|
+| Un solo «Subidón» (8) | **Dos drops**: Subidón y Subidón 2, este **más fuerte** (+ un pad que sostiene la raíz de cada acorde, si₃ / sol₃) |
+| La subida terminaba y caía el drop | **Riser** (2 compases: ruido, pad y caja que se abren; el **último compás en silencio**) justo antes de cada drop |
+| Sin respiro | **Break** (4): acordes y el Himno en pad, sin batería ni bajo, entre los dos drops |
+| Subida de 4 | **Subida** (el puente B, con el **wowo house**) y **Subida 2** (el puente una octava más aguda, con el **wowo acid**) |
+| Bajo solo en el Subidón | **Bajo desde el Dembow** (suena con el bombo y la caja) |
+| Caja dembow plana | Caja dembow con **redoble** (4 semicorcheas desde el paso 11) al final de cada 4 compases |
+| Sin platillo | **Platillo** (sinte `crash`, §12) al entrar cada drop |
+| Bombo 808 sin afinar | **Bombo afinado** a la raíz de cada acorde (`kickTune` del dembow, abajo) |
+| Final de 2 | **Final de 4** (1 800 → 350 Hz) |
+
+**La estructura (56 compases):** Intro 4 · Despierta 4 · Entra el ritmo 4 · Dembow 8 · Subida 4 · Riser 2 · **Subidón 8** · Break 4 · Subida 2 4 ·
+Riser 2 2 · **Subidón 2 8** · Final 4.
+
+**Los grupos en paralelo** (12 + 4 = 16 células, el máximo): **grupo 1** (A, A′, claro) lo enciende el Dembow y lo apaga la Subida (8 compases = A + A′);
+**grupo 2** (A↑, A′↑, una octava más aguda) lo enciende cada Subidón (los dos) y lo apagan el Break y el Final. El puente B, que antes era una célula
+del grupo, ahora va en la propia célula Subida (así lleva el wowo, que no admiten las células de los grupos, 009 §4).
+
+**El bombo 808 afinado** (`kickTune` del estilo dembow, `styles.ts`): `<e2 c2>`. El bombo del kit 808 (`RolandTR808`, sample de 3 s) suena a ≈ 50 Hz = midi 31,4
+(medido); `.note(x)` lo mueve `midi(x) − 36` semitonos, así que `e2` (40) lo deja en si₁ (35) y `c2` (36) en sol₁ (31): las raíces de **Bm** y **G**, en compases
+alternos como los acordes y el bajo. **Afecta a todo el dembow** (la demo y lo que se grabe en ese estilo con el kit 808), no solo al remix.
+
+**Se aproxima, igual que en §12:** el redoble y el platillo caen **cada 4 compases** (un loop es de como mucho 4); en el **código mostrado**, el grupo 2 solo cuenta su
+primer intervalo (el Himno agudo del Subidón 2 no suena al copiarlo a strudel.cc); el puente va en su célula, no en el grupo.
+
+**Se comprueba** (`tests/unit/remixes.test.ts`, `wowo.test.ts`): la estructura y las vueltas, los dos grupos y sus disparadores, el filtro por vuelta, el código mostrado en Strudel
+(los redobles 4·4·4·7, el último compás de cada riser en silencio, el drop justo después, el platillo cada 4, el pad de las raíces solo en el drop final, el bombo `e2`/`c2`
+alternos) y el código del motor con el preludio. **Pendiente:** escucharlo en la app.

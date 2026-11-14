@@ -59,6 +59,8 @@ const P = {
   hh16: Array(16).fill('hh').join(' '),
   bd: 'bd ~ ~ ~ bd ~ ~ ~ bd ~ ~ ~ bd ~ ~ ~',
   sd: '~ ~ ~ sd ~ ~ sd ~ ~ ~ ~ sd ~ ~ sd ~',
+  /** la caja dembow en 4 compases, con el **redoble** de semicorcheas al final del cuarto (spec 008, §13) */
+  sdFill: ['~ ~ ~ sd ~ ~ sd ~ ~ ~ ~ sd ~ ~ sd ~', '~ ~ ~ sd ~ ~ sd ~ ~ ~ ~ sd ~ ~ sd ~', '~ ~ ~ sd ~ ~ sd ~ ~ ~ ~ sd ~ ~ sd ~', '~ ~ ~ sd ~ ~ sd ~ ~ ~ ~ sd sd sd sd sd'].join(' '),
   /** la caja que se acelera en 4 compases: negras, corcheas, semicorcheas y semicorcheas */
   sdRoll: [
     'sd ~ ~ ~ sd ~ ~ ~ sd ~ ~ ~ sd ~ ~ ~',
@@ -93,29 +95,6 @@ interface CellSpec {
   wow?: Wow
   /** lo que añade, para la lista */
   text: string
-}
-
-const ODE_DEMBOW: CellSpec[] = [
-  { name: 'Intro', turns: 4, parts: { bass: false, chords: true }, drums: {}, lpf: [800, 900, 1000, 1200], text: 'solo los acordes, suaves' },
-  { name: 'Despierta', turns: 4, parts: { bass: false, chords: true }, drums: { hh: P.hh8 }, mel: { notes: ODE_A, synth: 'pad' }, text: '+ platillo y la melodía, suave y lejana' },
-  { name: 'Entra el ritmo', turns: 4, parts: { bass: false, chords: true }, drums: { hh: P.hh8, bd: P.bd }, mel: { notes: ODE_A, synth: 'pad' }, text: '+ bombo' },
-  { name: 'Dembow', turns: 8, parts: { bass: false, chords: true }, drums: { hh: P.hh16, bd: P.bd, sd: P.sd }, text: '+ caja dembow; entra el Himno completo, claro (A, A′)' },
-  { name: 'Subida', turns: 4, parts: { bass: false, chords: true }, drums: { hh: P.hh16, sd: P.sdRoll }, lpf: [600, 1000, 2000, 6000], text: 'sin bombo, la caja se acelera y el filtro se abre; el puente (B)' },
-  { name: 'Subidón', turns: 8, parts: { bass: true, chords: true }, drums: { hh: P.hh16, bd: P.bd, sd: P.sd }, text: 'todo, con el bajo y el Himno una octava más aguda (A↑, A′↑)' },
-  { name: 'Final', turns: 2, parts: { bass: false, chords: true }, drums: {}, lpf: [1500, 350], text: 'solo los acordes, que se apagan (el Himno se apaga)' },
-]
-
-/** El Himno, en orden y sin repetirse, en un grupo que se enciende con el Dembow y se apaga con el Final (20 compases = 8 + 4 + 8). */
-const ODE_GROUP: GroupSpec = {
-  on: 'Dembow',
-  off: 'Final',
-  cells: [
-    { name: 'Himno A', turns: 4, mel: { notes: ODE_A, synth: 'lead' } },
-    { name: 'Himno A2', turns: 4, mel: { notes: ODE_A2, synth: 'lead' } },
-    { name: 'Puente B', turns: 4, mel: { notes: ODE_B, synth: 'lead' }, lpf: [600, 1000, 2000, 6000] },
-    { name: 'Himno A agudo', turns: 4, mel: { notes: up(ODE_A, 12), synth: 'lead' } },
-    { name: 'Himno A2 agudo', turns: 4, mel: { notes: up(ODE_A2, 12), synth: 'lead' } },
-  ],
 }
 
 function buildSong(specs: readonly CellSpec[], groupSpecs: readonly GroupSpec[] = []): Song {
@@ -307,6 +286,37 @@ const MOZART_GROUPS: GroupSpec[] = [
   { on: ['Drop 1', 'Drop 2'], off: ['Break corto', 'Salida'], cells: [{ name: 'Tema A↑', turns: 4, mel: { notes: MZ_UP.a, synth: 'lead' } }, { name: 'Tema B↑', turns: 4, mel: { notes: MZ_UP.b, synth: 'lead' } }] },
 ]
 
+// ── El Himno de la alegría en dembow, mejorado (spec 008, §13) ──────────────────────────────────────────────
+/** el platillo del drop (ruido): en el primer compás del loop de 4, al entrar y cada 4 compases */
+const ODE_CRASH: readonly Note[] = [[0, 16, 62]]
+/** el pad que sostiene la raíz de cada acorde (Bm, G), un compás cada uno, para el drop final */
+const ODE_ROOTS: readonly Note[] = [[0, 16, 59], [16, 16, 55], [32, 16, 59], [48, 16, 55]]
+
+/**
+ * Doce células, 56 compases (≈ 1 min 52 s a 120 bpm), dos drops y dos grupos en paralelo con el tema (A, A′ y, una octava más
+ * aguda, A↑, A′↑). El puente B va en la propia célula de la subida, con el wowo.
+ */
+const ODE_DEMBOW: CellSpec[] = [
+  { name: 'Intro', turns: 4, parts: { bass: false, chords: true }, drums: {}, lpf: [800, 900, 1000, 1200], text: 'solo los acordes, suaves' },
+  { name: 'Despierta', turns: 4, parts: { bass: false, chords: true }, drums: { hh: P.hh8 }, mel: { notes: ODE_A, synth: 'pad' }, text: '+ platillo y la melodía, suave y lejana' },
+  { name: 'Entra el ritmo', turns: 4, parts: { bass: false, chords: true }, drums: { hh: P.hh8, bd: P.bd }, mel: { notes: ODE_A, synth: 'pad' }, text: '+ bombo (afinado a la raíz de cada acorde)' },
+  { name: 'Dembow', turns: 8, parts: { bass: true, chords: true }, drums: { hh: P.hh16, bd: P.bd, sd: P.sdFill }, text: '+ bajo y caja dembow, con redoble cada 4 compases; entra el Himno completo, claro (A, A′)' },
+  { name: 'Subida', turns: 4, parts: { bass: true, chords: true }, drums: { hh: P.hh16, sd: P.sdRoll }, mel: { notes: ODE_B, synth: 'lead' }, lpf: [600, 1000, 2000, 6000], wow: WOW_PRESETS.house, text: 'sin bombo: la caja se acelera y el puente (B) con el wowo, que se abre' },
+  { name: 'Riser', turns: 2, parts: { bass: false, chords: false }, drums: { sd: RISER2_ROLL }, extra: [{ notes: RISER2_NOISE, synth: 'riser' }, { notes: RISER2_PAD, synth: 'pad' }], lpf: [3000, 12000], text: 'ruido y pad que se abren y la caja; el último compás, en silencio' },
+  { name: 'Subidón', turns: 8, parts: { bass: true, chords: true }, drums: { hh: P.hh16, bd: P.bd, sd: P.sdFill }, extra: [{ notes: ODE_CRASH, synth: 'crash' }], text: 'el drop: todo, con el platillo al entrar y el Himno una octava más aguda (A↑, A′↑)' },
+  { name: 'Break', turns: 4, parts: { bass: false, chords: true }, drums: {}, mel: { notes: ODE_A, synth: 'pad' }, lpf: [1200, 1800, 2800, 4200], text: 'un respiro: los acordes y el Himno en pad' },
+  { name: 'Subida 2', turns: 4, parts: { bass: true, chords: true }, drums: { hh: P.hh16, sd: P.sdRoll }, mel: { notes: up(ODE_B, 12), synth: 'lead' }, lpf: [1000, 2000, 4000, 8000], wow: WOW_PRESETS.acid, text: 'el segundo build: el puente una octava más aguda, con el wowo acid' },
+  { name: 'Riser 2', turns: 2, parts: { bass: false, chords: false }, drums: { sd: RISER2_ROLL }, extra: [{ notes: RISER2_NOISE, synth: 'riser' }, { notes: RISER2_PAD, synth: 'pad' }], lpf: [3000, 12000], text: 'el build corto antes del drop final; el último compás, en silencio' },
+  { name: 'Subidón 2', turns: 8, parts: { bass: true, chords: true }, drums: { hh: P.hh16, bd: P.bd, sd: P.sdFill }, extra: [{ notes: ODE_CRASH, synth: 'crash' }, { notes: ODE_ROOTS, synth: 'pad' }], text: 'el drop final, más fuerte: además un pad que sostiene la raíz de cada acorde' },
+  { name: 'Final', turns: 4, parts: { bass: false, chords: true }, drums: {}, lpf: [1800, 1100, 650, 350], text: 'solo los acordes, que se apagan (el Himno se apaga)' },
+]
+
+/** El Himno, en orden y sin repetirse: claro con el Dembow (A, A′) y una octava más aguda en cada drop (A↑, A′↑). */
+const ODE_GROUPS: GroupSpec[] = [
+  { on: 'Dembow', off: 'Subida', cells: [{ name: 'Himno A', turns: 4, mel: { notes: ODE_A, synth: 'lead' } }, { name: 'Himno A2', turns: 4, mel: { notes: ODE_A2, synth: 'lead' } }] },
+  { on: ['Subidón', 'Subidón 2'], off: ['Break', 'Final'], cells: [{ name: 'Himno A agudo', turns: 4, mel: { notes: up(ODE_A, 12), synth: 'lead' } }, { name: 'Himno A2 agudo', turns: 4, mel: { notes: up(ODE_A2, 12), synth: 'lead' } }] },
+]
+
 export const REMIXES: readonly Remix[] = [
   {
     id: 'oda-alegria-dembow',
@@ -318,7 +328,7 @@ export const REMIXES: readonly Remix[] = [
     kit: '808',
     key: 'Re mayor',
     info: { cells: ODE_DEMBOW.map((s) => ({ name: s.name, turns: s.turns, text: s.text })) },
-    build: () => buildSong(ODE_DEMBOW, [ODE_GROUP]),
+    build: () => buildSong(ODE_DEMBOW, ODE_GROUPS),
   },
   {
     id: 'dies-irae-techno',

@@ -171,6 +171,9 @@ export const STYLE_MUSIC: Record<StyleId, StyleMusic> = {
       },
       chords: ['note("<[b3,d4,f#4] [g3,b3,d4]>").s("triangle").attack(0.02).release(0.4).lpf(2000).room(0.4).gain(0.3)'],
     },
+    // El bombo 808 (el de RolandTR808, sample de 3 s) suena a ≈ 50 Hz = midi 31,4 (medido): `.note(x)` lo mueve midi(x) − 36, así que
+    // para dejarlo en la raíz del acorde (Bm: b1 = 35, G: g1 = 31) la nota es la raíz + 5: `e2` (40) para si y `c2` (36) para sol.
+    kickTune: '<e2 c2>',
     // si menor: B C# D E F# G A
     scale: [11, 1, 2, 4, 6, 7, 9],
     chordTones: [
