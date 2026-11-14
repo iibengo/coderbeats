@@ -590,11 +590,16 @@ function cellScene(
         ? { mode: 'on' as const, progress: headProgress(curHead, curCell.turns) }
         : { mode: curGroup.on ? ('on' as const) : ('off' as const), progress: null }
       : null
-  curShown = geo
+  // el pulso de la colonia sale de la que suena de verdad: si se mira otra (fijada o de un grupo), no late como si sonara
+  curShown = plan ? geo : null
 
   // las demás células, pequeñas y quietas (solo se miran), mientras se aleja el zoom; del fondo al frente
   const skip = new Set([curCell?.id, tr?.ghost?.id])
   const placed = new Map(all.map((c) => [c.id, place(c)]))
+  if (!plan) {
+    const soundingId = songHead?.cellId ?? headBy.keys().next().value
+    curShown = soundingId !== undefined ? (placed.get(soundingId) ?? null) : null
+  }
   const crowd =
     k > 0.01
       ? backToFront(
@@ -845,7 +850,7 @@ function tick() {
   if (playing.value && theme) {
     const beatAbs = clock.bar * 4 + Math.floor(clock.barPhase * 4)
     if (beatAbs !== lastBeat) {
-      if (lastBeat !== -1) {
+      if (lastBeat !== -1 && !(colony.value && !curShown)) {
         const beat = ((beatAbs % 4) + 4) % 4
         // en la colonia, el pulso sale de la célula que suena, a su escala (el aro grande ya no se ve)
         const cell = colony.value ? curShown : null
