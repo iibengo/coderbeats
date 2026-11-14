@@ -729,7 +729,7 @@ function songState(display = false): SongState {
   // los grupos en paralelo: en el motor, sus tramos; en el código que se enseña, los encendidos enteros
   const s = liveSong()
   const items = display
-    ? s.groups.filter((g) => g.on).map((g) => ({ id: g.id, order: g.order, window: [] }))
+    ? s.groups.filter((g) => g.on || s.cells.some((c) => c.groupOn?.includes(g.id))).map((g) => ({ id: g.id, order: g.order, window: [] }))
     : [...groupPlays].map(([gid, gp]) => ({ id: gid, order: orderOf(s, gid), window: groupWindow(groupSong(s, gid), gp) }))
   if (items.length) st.groups = { list: s.cells, items }
   if (!multi()) return st

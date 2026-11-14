@@ -44,7 +44,7 @@ export interface SongState {
 }
 
 /** Lo que necesita el generador de cada célula. */
-export type CellCode = Pick<Cell, 'id' | 'name' | 'loops' | 'parts' | 'turns' | 'lpf'>
+export type CellCode = Pick<Cell, 'id' | 'name' | 'loops' | 'parts' | 'turns' | 'lpf' | 'groupOn' | 'groupOff'>
 
 /**
  * - display: el código que se enseña y se copia (valores fijos, sin metrónomo ni ganchos).
@@ -197,6 +197,29 @@ export function cellLpf(cell: Pick<Cell, 'lpf' | 'turns'>, mode: SongMode, from 
   return `.lpf("<${items.join(' ')}>")`
 }
 
+/**
+ * Cuándo suena un grupo en paralelo dentro de la vuelta de la canción, según los disparadores de sus células (spec 005,
+ * §22): `lead` compases de silencio hasta la primera célula que lo enciende y `span` compases de sonido hasta la que lo
+ * apaga (o hasta el final de la vuelta); `total` es lo que dura la vuelta. null si ninguna célula lo enciende.
+ */
+export function groupSchedule(cells: { list: CellCode[]; order: number[] } | undefined, gid: number): { lead: number; span: number; total: number } | null {
+  if (!cells) return null
+  let bar = 0
+  let lead: number | null = null
+  let end: number | null = null
+  for (const id of cells.order) {
+    const c = cells.list.find((x) => x.id === id)
+    if (!c) continue
+    const on = !!c.groupOn?.includes(gid)
+    const off = !!c.groupOff?.includes(gid) && !on
+    if (lead === null && on) lead = bar
+    else if (lead !== null && end === null && off) end = bar
+    bar += Math.max(1, Math.round(safeNum(c.turns)))
+  }
+  if (lead === null) return null
+  return { lead, span: (end ?? bar) - lead, total: bar }
+}
+
 const cellLabel = (c: Pick<Cell, 'id' | 'name'>) => safeLabel(c.name) || `célula ${safeNum(c.id)}`
 
 /**
@@ -224,19 +247,28 @@ function groupLines(st: SongState, mode: SongMode, duck: boolean, ind: string): 
     }
     const cells = item.order.map((id) => list.find((c) => c.id === id)).filter((c): c is CellCode => !!c)
     if (!cells.length) continue
-    if (cells.length === 1) {
+    if (cells.length === 1 && !groupSchedule(st.cells, item.id)) {
       const inner = loopsLines(cells[0]!.loops, st, mode, duck, ind + IND, 0)
       if (!inner.length) continue
       out.push(`${ind}// grupo ${safeNum(item.id)} · ${cellLabel(cells[0]!)}`, `${ind}stack(`, ...inner, `${ind}),`)
       continue
     }
-    out.push(`${ind}// grupo ${safeNum(item.id)}`, `${ind}arrange(`)
-    for (const cell of cells) {
+    const sched = groupSchedule(st.cells, item.id)
+    out.push(`${ind}// grupo ${safeNum(item.id)}${sched ? ` · entra en el compás ${sched.lead}` : ''}`, `${ind}arrange(`)
+    if (sched && sched.lead > 0) out.push(`${ind}${IND}// (silencio hasta que lo enciende su célula)`, `${ind}${IND}[${sched.lead}, silence],`)
+    // con disparadores, el grupo suena solo `span` compases (da la vuelta si es más corto) y calla hasta el final de la vuelta
+    let left = sched ? sched.span : Infinity
+    for (let k = 0; left > 0 && k < 64; k++) {
+      const cell = cells[k % cells.length]!
+      const turns = Math.min(Math.max(1, Math.round(safeNum(cell.turns))), left)
       const lines = loopsLines(cell.loops, st, mode, duck, ind + IND + IND, 0)
-      out.push(`${ind}${IND}// ${cellLabel(cell)} · ${safeNum(cell.turns)} vuelta${safeNum(cell.turns) === 1 ? '' : 's'}`)
-      if (!lines.length) out.push(`${ind}${IND}[${safeNum(cell.turns)}, silence],`)
-      else out.push(`${ind}${IND}[${safeNum(cell.turns)}, stack(`, ...lines, `${ind}${IND})${cellLpf(cell, 'display')}],`)
+      out.push(`${ind}${IND}// ${cellLabel(cell)} · ${turns} vuelta${turns === 1 ? '' : 's'}`)
+      if (!lines.length) out.push(`${ind}${IND}[${turns}, silence],`)
+      else out.push(`${ind}${IND}[${turns}, stack(`, ...lines, `${ind}${IND})${cellLpf(cell, 'display')}],`)
+      left -= turns
+      if (!sched && k + 1 >= cells.length) break
     }
+    if (sched && sched.total - sched.lead - sched.span > 0) out.push(`${ind}${IND}[${sched.total - sched.lead - sched.span}, silence],`)
     out.push(`${ind}),`)
   }
   return out
