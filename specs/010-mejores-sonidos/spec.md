@@ -2,7 +2,7 @@
 
 > Estado: **decidido y en marcha** (2026-11-14). Decisiones: Electrónico = uzu-drumkit (el 909 sintetizado, más adelante si hace
 > falta pegada); Vinilo con repo público de kits; Acústico retirado; master único «cálido» (sin opción); sintes solo como variantes
-> opcionales (el sonido por defecto no cambia hasta que se elija de oído). Fases hechas: 0 (CREDITS), 1 (Electrónico), 2 (Vinilo y `kits/coderbeats-kits/`), 3 (variantes de sintes en el laboratorio: `lib/synthVariants.ts`, `/lab/sintes`; el sonido por defecto no cambia).
+> opcionales (el sonido por defecto no cambia hasta que se elija de oído). Fases hechas: 0 (CREDITS), 1 (Electrónico), 2 (Vinilo y `kits/coderbeats-kits/`), 3 (variantes de sintes en el laboratorio: `lib/synthVariants.ts`, `/lab/sintes`; el sonido por defecto no cambia), 4 (master «cálido», §12).
 > Parte de: spec 001 §14.1 (hoja de ruta: «mejores sonidos»), 008 §9–§11 (techno, wowo, riser), 009 (wowo en el motor).
 > Las comprobaciones de licencias y tamaños de §2 se hicieron el 2026-11-14 mirando los repositorios, no de memoria.
 
@@ -173,3 +173,26 @@ cargar solo el kit que se usa, es un cambio aparte.
 - [fingerdrum.io/sample-kits](https://fingerdrum.io/sample-kits) — kits CC0 y CC BY 4.0 (el README de cada kit da las bibliotecas).
 - [ritchse/tidal-drum-machines](https://github.com/ritchse/tidal-drum-machines) — su README no declara licencia ni origen.
 - [Strudel · samples](https://strudel.cc/learn/samples/) — `samples('github:usuario/repo/rama')` y el formato de `strudel.json`.
+
+## 12. Lo que se hizo en la cadena master (fase 4, 2026-11-14)
+
+Un solo sonido «cálido», sin opción (decisión 4):
+
+```
+masterIn → saturador (WaveShaper, curva tanh con un pelín de asimetría, 2×) → compresor de pegamento (worklet) → limitador → techo −1 dB → salida
+```
+
+- **Saturador** (`lib/masterChain.ts`): `saturate(x)` = `tanh(1,25·(x+0,06))` centrada y normalizada para tener **ganancia 1 con señal pequeña**:
+  redondea los picos (el pico de 1 baja) sin subir lo bajo. La asimetría da algo de armónicos pares (el calor).
+- **Compresor de pegamento, sin latencia** (`public/worklets/master-glue.js`, clase `GlueCompressor`): feed-forward, detector RMS de 40 ms
+  enlazado entre canales, **umbral −16 dB, ratio 1,8, rodilla 12 dB, ataque 30 ms, suelta 120 ms**, +1 dB de makeup. Se hizo un worklet
+  **en vez de un segundo `DynamicsCompressorNode`** porque este lleva ≈ 6 ms de *lookahead* fijo que se sumaría a la salida.
+- **Vigilado, con tests** (`tests/unit/masterChain.test.ts`):
+  - **No bombea con el sidechain:** un bombo a 128 bpm sobre una cama que baja con el sidechain mueve la ganancia **menos de 1,5 dB**
+    de un golpe a otro, y nunca la baja más de 3 dB. La suelta (120 ms) es más corta que un tiempo (469 ms), el ataque lento deja pasar el golpe.
+  - **Una mezcla normal (≈ −12 dB RMS) baja 1–3 dB; una muy fuerte (−6 dB RMS), unos 4–5.** Sin pasar del umbral, no toca nada.
+  - **`echoGate`:** la prueba de eco (`runEchoTest`) corre **después** de montar la cadena entera y mide `roundTrip` y `echoLevel` con ella puesta;
+    la cadena no añade latencia (el compresor es sin lookahead y el saturador con sobremuestreo 2× añade menos de 1 ms), así que las calibraciones
+    de latencia guardadas siguen valiendo. Si el worklet no carga, la salida sigue sin compresor (saturador → limitador).
+- **Strudel.cc no tiene esta cadena:** el código copiado suena más seco. Se dice en el README; es solo de la app.
+- **Pendiente de oído:** que «cálido» no quite pegada al bombo en el techno; si hace falta, bajar `drive` o subir el umbral (`SATURATION`, `GLUE_WARM`).

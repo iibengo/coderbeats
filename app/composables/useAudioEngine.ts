@@ -7,6 +7,7 @@ import { melodyOfPhrase } from '~/lib/melodyAssist'
 import { midiName } from '~/lib/noteScore'
 import type { Remix } from '~/lib/remixes'
 import { STYLE_MUSIC } from '~/lib/styles'
+import { GLUE_WARM, saturationCurve } from '~/lib/masterChain'
 import { demoState } from '~/lib/demos'
 import { analyzeEchoTest, type EchoTestResult } from '~/lib/echoGate'
 import {
@@ -1136,11 +1137,23 @@ export function useAudioEngine() {
     silent.connect(ctx.destination)
     silent.start()
 
-    // cadena maestra: entrada → limitador → techo −1 dB → salida (§16.12)
+    // cadena maestra «cálida» (spec 010, §7): entrada → saturador → compresor de pegamento (worklet, sin latencia) → limitador →
+    // techo −1 dB → salida (§16.12). Si el worklet no carga, sigue sin él (saturador → limitador): suena, solo que más seco.
     masterIn = new GainNode(ctx)
+    const saturator = new WaveShaperNode(ctx, { curve: saturationCurve() as Float32Array<ArrayBuffer>, oversample: '2x' })
     const limiter = new DynamicsCompressorNode(ctx, { threshold: -6, knee: 0, ratio: 20, attack: 0.001, release: 0.1 })
     const ceiling = new GainNode(ctx, { gain: 10 ** (-1 / 20) })
-    masterIn.connect(limiter).connect(ceiling).connect(ctx.destination)
+    masterIn.connect(saturator).connect(limiter).connect(ceiling).connect(ctx.destination)
+    const masterGlue = async () => {
+      try {
+        await ctx!.audioWorklet.addModule(`${useRuntimeConfig().app.baseURL}worklets/master-glue.js`)
+        const glue = new AudioWorkletNode(ctx!, 'master-glue', { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2], processorOptions: GLUE_WARM })
+        saturator.disconnect()
+        saturator.connect(glue).connect(limiter)
+      } catch (e) {
+        log('error', `master-glue: ${e instanceof Error ? e.message : String(e)} (sin compresor de pegamento)`)
+      }
+    }
 
     const base = useRuntimeConfig().app.baseURL
     const strudelReady = (async () => {
@@ -1175,6 +1188,7 @@ export function useAudioEngine() {
       audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 },
     })
     await ctx.audioWorklet.addModule(`${base}worklets/capture-processor.js`)
+    await masterGlue() // antes de la prueba de eco: que mida la cadena entera
     const source = ctx.createMediaStreamSource(stream)
     capture = new AudioWorkletNode(ctx, 'capture-processor', { numberOfInputs: 1, numberOfOutputs: 1 })
     capture.port.onmessage = (e: MessageEvent) => {
