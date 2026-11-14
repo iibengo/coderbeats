@@ -1,0 +1,559 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<title>coderbeats · mapa de la arquitectura</title>
+<style>
+  :root {
+    --bg: #000;
+    --fg: #fff;
+    --dim: rgba(255, 255, 255, .56);
+    --line: rgba(255, 255, 255, .16);
+    --pink: #F496BC;
+    --pink-soft: rgba(244, 150, 188, .14);
+    --gutter: 16px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html { background: var(--bg); }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    padding: 0 var(--gutter) 120px; overflow-x: hidden;
+  }
+  code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  header { max-width: 1180px; margin: 0 auto; padding: 28px 0 8px; }
+  h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; letter-spacing: -.01em; }
+  h1 span { color: var(--pink); }
+  header p { margin: 0; color: var(--dim); max-width: 62ch; }
+
+  /* barra del bum */
+  .bar {
+    position: sticky; top: 0; z-index: 20; background: rgba(0, 0, 0, .92);
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line);
+    margin: 14px calc(var(--gutter) * -1) 18px; padding: 10px var(--gutter);
+  }
+  .bar-in { max-width: 1180px; margin: 0 auto; display: flex; gap: 12px; align-items: center; }
+  button.play {
+    flex: none; appearance: none; border: 1px solid var(--pink); color: var(--pink); background: transparent;
+    font: inherit; font-weight: 600; padding: 9px 14px; border-radius: 999px; cursor: pointer; min-height: 40px;
+  }
+  button.play:hover, button.play:focus-visible { background: var(--pink); color: #000; outline: none; }
+  .cap { min-width: 0; flex: 1; }
+  .cap-step { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--pink); }
+  .cap-text { font-size: 13.5px; color: var(--fg); line-height: 1.35; }
+  .cap-code {
+    max-width: 100%; display: none; margin: 8px 0 0; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px;
+    font-size: 12px; line-height: 1.45; color: var(--fg); white-space: pre; overflow-x: auto;
+  }
+  .cap-code b { color: var(--pink); font-weight: 500; }
+  .cap-code.on { display: block; }
+
+  .layout { max-width: 1180px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  .layout > *, .bar-in, .cap, .group, .nodes { min-width: 0; }
+  @media (min-width: 980px) { .layout { grid-template-columns: minmax(0, 1fr) 340px; } }
+
+  /* mapa */
+  #map { position: relative; }
+  #wires { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; z-index: 3; }
+  .groups { display: grid; grid-template-columns: 1fr; gap: 14px; position: relative; z-index: 1; }
+  @media (min-width: 700px) { .groups { grid-template-columns: repeat(2, 1fr); gap: 18px; } }
+  @media (min-width: 1100px) { .groups { grid-template-columns: repeat(3, 1fr); } }
+  .group { border: 1px solid var(--line); border-radius: 14px; padding: 12px; }
+  .group h2 {
+    margin: 0 0 10px; font-size: 11px; font-weight: 500; letter-spacing: .1em; text-transform: uppercase; color: var(--dim);
+  }
+  .group h2 em { font-style: normal; color: var(--pink); }
+  .nodes { display: grid; gap: 22px; }
+  .node {
+    appearance: none; text-align: left; width: 100%; font: inherit; color: var(--fg); background: #000;
+    border: 1px solid rgba(255, 255, 255, .32); border-radius: 10px; padding: 10px 12px; cursor: pointer;
+    transition: border-color .2s, box-shadow .3s, background .3s;
+    min-height: 44px;
+  }
+  .node b { display: block; font-weight: 600; font-size: 14px; }
+  .node small { display: block; color: var(--dim); font-size: 12px; line-height: 1.35; margin-top: 2px; }
+  .node:hover { border-color: var(--pink); }
+  .node:focus-visible { outline: 2px solid var(--pink); outline-offset: 2px; }
+  .node.sel { border-color: var(--pink); background: var(--pink-soft); }
+  .node.lit {
+    border-color: var(--pink); background: var(--pink-soft);
+    box-shadow: 0 0 0 1px var(--pink), 0 0 26px rgba(244, 150, 188, .45);
+  }
+  .node.flash { box-shadow: 0 0 0 1px var(--pink), 0 0 18px rgba(244, 150, 188, .35); border-color: var(--pink); }
+
+  .wire { fill: none; stroke: rgba(255, 255, 255, .3); stroke-width: 1.2; }
+  .wire.sec { stroke-dasharray: 3 4; stroke: rgba(255, 255, 255, .5); display: none; }
+  .show-sec .wire.sec, .wire.sec.rel { display: block; }
+  .wire.hot { stroke: var(--pink); stroke-opacity: .9; stroke-dasharray: none; }
+    #dot { fill: var(--pink); filter: drop-shadow(0 0 6px var(--pink)); opacity: 0; }
+  #tag { fill: var(--pink); font: 600 11px ui-monospace, Menlo, monospace; paint-order: stroke; stroke: #000; stroke-width: 4px; opacity: 0; }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; margin: 0 0 10px; color: var(--dim); font-size: 12px; align-items: center; }
+  .legend label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+  .legend input { accent-color: var(--pink); }
+
+  /* detalle */
+  aside#detail {
+    border: 1px solid var(--line); border-radius: 14px; padding: 16px; background: #000;
+    position: fixed; left: 8px; right: 8px; bottom: 8px; z-index: 30; max-height: 70vh; overflow: auto;
+    transform: translateY(120%); transition: transform .25s ease; visibility: hidden;
+    box-shadow: 0 -12px 40px rgba(0, 0, 0, .8); border-color: rgba(244, 150, 188, .5);
+  }
+  aside#detail.open { transform: none; visibility: visible; }
+  @media (min-width: 980px) {
+    aside#detail {
+      position: sticky; top: 92px; left: auto; right: auto; bottom: auto; max-height: calc(100vh - 110px);
+      transform: none; visibility: visible; box-shadow: none; border-color: var(--line); align-self: start;
+    }
+    .close { display: none; }
+  }
+  .close {
+    position: absolute; top: 8px; right: 8px; appearance: none; background: transparent; color: var(--dim);
+    border: 1px solid var(--line); width: 36px; height: 36px; border-radius: 50%; font-size: 18px; cursor: pointer;
+  }
+  #detail h3 { margin: 0 36px 2px 0; font-size: 18px; font-weight: 600; }
+  #detail .grp { color: var(--pink); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 10px; }
+  #detail h4 { margin: 16px 0 6px; font-size: 11px; font-weight: 500; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); }
+  #detail p { margin: 0; font-size: 14px; }
+  #detail ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+  #detail li { font-size: 12.5px; word-break: break-all; }
+  #detail li.sp { word-break: normal; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { font-size: 12px; border: 1px solid var(--line); border-radius: 999px; padding: 2px 9px; }
+  .empty { color: var(--dim); font-size: 14px; }
+  .note { max-width: 1180px; margin: 22px auto 0; color: var(--dim); font-size: 12.5px; }
+  .note p { margin: 0 0 6px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .node, aside#detail { transition: none; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>coder<span>beats</span> · mapa de la arquitectura</h1>
+  <p>Toca una caja para ver qué hace, dónde está el código, sus funciones principales y qué spec la define. Lanza el «bum» para seguir un golpe de voz desde el micro hasta el aro.</p>
+</header>
+
+<div class="bar" role="region" aria-label="Viaje de un bum">
+  <div class="bar-in">
+    <button class="play" id="replay" type="button">▶ Lanzar un bum</button>
+    <div class="cap" aria-live="polite">
+      <div class="cap-step" id="capStep">Listo</div>
+      <div class="cap-text" id="capText">Pulsa el botón y sigue el recorrido.</div>
+    </div>
+  </div>
+  <div class="bar-in"><pre class="cap-code mono" id="capCode"></pre></div>
+</div>
+
+<div class="layout">
+  <main>
+    <div class="legend">
+      <span>━ flujo principal</span><span>┄ secundarias: toca una caja</span>
+      <label><input type="checkbox" id="secToggle"> ver todas las secundarias</label>
+    </div>
+    <div id="map">
+      <svg id="wires" aria-hidden="true">
+        <defs>
+          <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0 0L10 5L0 10z" fill="rgba(255,255,255,.45)"/>
+          </marker>
+          <marker id="arrHot" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0 0L10 5L0 10z" fill="#F496BC"/>
+          </marker>
+        </defs>
+        <g id="wireLayer"></g>
+        <circle id="dot" r="6" cx="0" cy="0"/>
+        <text id="tag" x="0" y="0"></text>
+      </svg>
+      <div class="groups" id="groups"></div>
+    </div>
+  </main>
+
+  <aside id="detail" aria-live="polite">
+    <button class="close" id="closeDetail" type="button" aria-label="Cerrar">×</button>
+    <div id="detailBody"><p class="empty">Toca una caja del mapa.</p></div>
+  </aside>
+</div>
+
+<div class="note">
+  <p>Todo el contenido sale del código de <code>app/</code>, <code>public/worklets/</code> y de las specs de <code>specs/</code>. Los números (512 muestras, 3072, k = 3, 0,3 s…) son las constantes reales del código.</p>
+  <p>La spec 002 (melodía con la voz) está en borrador y no tiene código todavía, por eso no aparece en el mapa. La spec 001 habla de Tone.js, pero el motor real es Strudel (§16.12).</p>
+</div>
+
+<script>
+"use strict";
+
+/* ───────────── Datos: cada caja, sacada del código real ───────────── */
+const GROUPS = [
+  { id: "captura", title: "1 · Captura", nodes: ["mic", "calib"] },
+  { id: "worker", title: "2 · Worker de análisis", nodes: ["onsets", "echo", "features", "classifier", "lanes"] },
+  { id: "ritmo", title: "3 · Ritmo y canción", nodes: ["phrases", "loops", "cells", "groups", "bg"] },
+  { id: "sonido", title: "4 · Código y sonido", nodes: ["engine", "codegen", "sound"] },
+  { id: "imagen", title: "5 · Imagen", nodes: ["vevents", "aro", "water"] },
+  { id: "guardado", title: "6 · Guardado", nodes: ["storage", "library"] },
+];
+
+const NODES = {
+  mic: {
+    title: "Micro y captura", short: "AudioWorklet · bloques de 512",
+    what: "Pide el micro sin cancelación de eco, sin supresión de ruido y sin control automático de ganancia. Crea el AudioContext dentro del gesto de «Empezar». Un AudioWorklet copia el audio y lo envía en bloques de 512 muestras, cada uno con su frame exacto (currentFrame), por un MessagePort directo al worker de análisis. Todo se programa sobre el reloj del AudioContext.",
+    files: ["public/worklets/capture-processor.js", "app/composables/useAudioEngine.ts"],
+    funcs: ["start()", "CaptureProcessor", "STREAM_CHUNK = 512", "'stream-port'", "MessageChannel"],
+    specs: ["001 §4.3 · Captura del micro", "001 §16.12 · Spike de @strudel/web (cadena maestra)"],
+  },
+  calib: {
+    title: "Calibración", short: "tus golpes + latencia",
+    what: "Antes de tocar: mide la latencia de ida y vuelta con palmadas y guarda tus golpes de ejemplo de bombo, caja y hi-hat con sus características. Esas muestras y su normalización son lo que usa el clasificador; la latencia corrige el tiempo de cada golpe. Se guarda en localStorage con la clave coderbeats:calibration:v1.",
+    files: ["app/composables/useCalibration.ts", "app/lib/latency.ts", "app/components/LatencyStep.vue", "app/components/SoundStep.vue", "app/lib/storage.ts"],
+    funcs: ["useCalibration()", "measureLatency()", "usableLatencyMs()", "computeNorm()", "TAKES_PER_INSTRUMENT = 5"],
+    specs: ["001 §3.2 · Calibración de latencia", "001 §3.3 · Calibración de sonidos", "003 E6.2 y E6.6 · Retraso de imagen automático y calibración que rechaza lo imposible"],
+  },
+  onsets: {
+    title: "Detector de golpes", short: "onsets en streaming",
+    what: "Recibe el flujo del micro y marca el instante de cada ataque. Es un detector en streaming con mediana local del flujo y un periodo refractario anti doble disparo. El offline (detectOnsets) usa exactamente el mismo detector alimentado con el buffer entero, así dan el mismo resultado.",
+    files: ["app/lib/streamingOnsets.ts", "app/lib/onsets.ts", "app/workers/analysis.worker.ts"],
+    funcs: ["StreamingOnsetDetector", "DEFAULT_ONSET_OPTIONS", "minGapForCell()", "detectOnsets()"],
+    specs: ["001 §5.2 · Detección de onsets"],
+  },
+  echo: {
+    title: "Filtro de eco", short: "no oír lo que suena la app",
+    what: "La app avisa al worker de cuándo hará sonar algo (mensaje 'output' con tiempos de contexto). Un golpe del micro que coincide con la llegada esperada de ese eco se descarta, salvo que lo supere por varios dB. Al empezar, una prueba de eco mide la latencia de salida→micro y el nivel con el que llega el clic.",
+    files: ["app/lib/echoGate.ts", "app/workers/analysis.worker.ts", "app/composables/useAudioEngine.ts"],
+    funcs: ["EchoGate", "isEcho()", "addOutput()", "analyzeEchoTest()", "runEchoTest()"],
+    specs: ["Sin sección propia en las specs: está en el código (echoGate.ts)"],
+  },
+  features: {
+    title: "Características del golpe", short: "19 números por golpe",
+    what: "Con el audio que sigue al onset (FEATURE_SPAN = 3072 muestras) calcula el centroide espectral, la energía en 4 bandas, 13 MFCC (media de dos ventanas solapadas de 2048) y el cruce por cero. La ventana se normaliza a pico 1, así el volumen no cambia el resultado; el rms se calcula aparte y se usa solo para el volumen relativo. Usa Meyda.",
+    files: ["app/lib/features.ts", "app/lib/meyda.ts", "app/lib/workerProtocol.ts"],
+    funcs: ["extractFeatures()", "toVector()", "FEATURE_WINDOW = 2048", "FEATURE_SPAN = 3072", "BAND_EDGES_HZ"],
+    specs: ["001 §5.3 · Características"],
+  },
+  classifier: {
+    title: "Clasificador", short: "k-NN → bd · sd · hh",
+    what: "Compara el vector de 19 dimensiones, normalizado, con tus muestras de calibración. Vota entre los k = 3 vecinos más cercanos, ponderados por 1/distancia. Si el vecino más cercano está a más de 3 veces la distancia media entre pares, devuelve 'unknown'. Devuelve instrumento, confianza y la proporción de voto de cada instrumento.",
+    files: ["app/lib/classifier.ts", "app/lib/types.ts", "app/lib/constants.ts"],
+    funcs: ["KnnClassifier", "classify()", "leaveOneOut()", "computeNorm()", "normalize()", "distance()"],
+    specs: ["001 §5.4 · Clasificador"],
+  },
+  lanes: {
+    title: "Carriles y volumen", short: "qué graba y qué se ignora",
+    what: "Cada carril de batería es un interruptor: solo graban los encendidos y el clasificador elige entre ellos (decideLane). Lo de un carril apagado se ignora, salvo que dude con uno encendido. El volumen se mide relativo a tu calibración (1 = como tus golpes), y uno mucho más flojo se descarta como ruido. Al final el worker manda 'hit', 'echo' o 'ignored' al hilo principal.",
+    files: ["app/lib/lanes.ts", "app/lib/volume.ts", "app/lib/workerProtocol.ts", "app/workers/analysis.worker.ts"],
+    funcs: ["decideLane()", "toggleLane()", "relativeVolume()", "isTooQuiet()", "ToWorker / FromWorker"],
+    specs: ["003 E4.0–E4.2 · Carriles que graban", "003 E4.5 y E5.2 · Umbral de volumen"],
+  },
+  phrases: {
+    title: "Frases", short: "agrupar golpes por compases",
+    what: "Agrupa los golpes en frases por compases (16 pasos por compás). Poco antes de cada línea de compás se llama a decide(): si no hay golpes nuevos en los últimos closeBeats tiempos, o se llegó a maxBars, la frase se cierra y su longitud se redondea a 1, 2 o 4 compases. Un golpe tardío enmienda la frase recién cerrada. El motor la decide 0,3 s antes de la línea.",
+    files: ["app/lib/phrases.ts", "app/composables/useAudioEngine.ts"],
+    funcs: ["PhraseTracker", "add()", "decide()", "snapshot()", "expectedCloseBar()", "roundUpLength()", "onWorkerMessage()", "decide(bar)"],
+    specs: ["001 §16.12 · Decidir 0,3 s antes de la línea", "001 §16.15 · Modos de frase y respuesta inmediata"],
+  },
+  loops: {
+    title: "Loops", short: "una bola por instrumento",
+    what: "Convierte una frase cerrada en loops (FreeLoop: instrumento, compases, fase, golpes con su paso). Con la ayuda activada cuantiza con criterio de estilo, sin mover un golpe más de 1 paso, y a un golpe suelto lo deja como golpe. Si el instrumento ya tiene loop: «completa» añade los golpes nuevos y «sustituye» reemplaza el loop entero (la versión anterior sigue sonando hasta el nacimiento de la nueva). Como mucho 8 loops por célula. Tocar el aro edita los golpes.",
+    files: ["app/lib/freeLoops.ts", "app/lib/assist.ts", "app/lib/styles.ts", "app/lib/loopEdit.ts", "app/lib/lanes.ts"],
+    funcs: ["addPhrase()", "candidatesFromPhrase()", "mergeLoops()", "assistQuantize()", "loopBarAt()", "addHit() / moveHit() / removeHit()", "MAX_LOOPS = 8"],
+    specs: ["001 §16.15, §16.19, §16.21 · Sustituye/completa, una bola por instrumento", "003 E1.4 · Edición con el dedo", "003 E5.1 · La rejilla de la ayuda se adapta al carril"],
+  },
+  cells: {
+    title: "Células", short: "la canción · compases y vueltas",
+    what: "Una célula es un aro con sus loops, su bajo y sus acordes. Una canción son varias células que suenan una tras otra, cada una sus vueltas (1, 2, 4 u 8; 1 vuelta = 1 compás), con un máximo de 16. Código puro: advance() da la célula que suena en cada compás, windowAt() da los tramos que van al motor (la célula que suena y la siguiente) y stepPlay() gestiona saltos y bucle. Estado «canción» (avanza) o «bucle» (una célula repetida).",
+    files: ["app/lib/cells.ts", "app/lib/tempo.ts", "app/composables/useAudioEngine.ts"],
+    funcs: ["Song / Cell", "advance()", "windowAt()", "stepPlay()", "songFromLoops()", "withNewCell() / withCopy() / withCut()", "tempoFromTaps()", "TURNS", "MAX_CELLS = 16"],
+    specs: ["005 §3 · Modelo de datos", "005 §4 · Cómo suena (canción y bucle)", "005 §6 · Tempo fácil (4 toques)", "005 §15 · Células sueltas: copiar, enganchar, cortar", "005 §18 y §19 · Enmiendas 3 y 4"],
+  },
+  groups: {
+    title: "Grupos en paralelo", short: "células que suenan a la vez",
+    what: "Cada grupo que suena lleva su propia posición (la célula que suena, desde qué compás y un salto pendiente) y avanza por su cuenta, siempre en línea de compás, a la vez que la canción. Reutiliza las mismas funciones puras de cells.ts. Tocar una célula de un grupo la enciende, la apaga o salta.",
+    files: ["app/lib/groups.ts", "app/lib/cells.ts"],
+    funcs: ["startGroup()", "stopGroup()", "stepGroup()", "groupWindow()", "tapGroup()", "holdGroup() / releaseGroup()", "reconcileGroup()", "retargetMain()"],
+    specs: ["005 §16 · Enmienda 2: grupos de células en paralelo", "005 §17 · Grupos: hecho y decisiones a revisar"],
+  },
+  bg: {
+    title: "Fondo: bajo y acordes", short: "música del estilo",
+    what: "Cada estilo (hip hop 90, house, drum and bass) trae su música de fondo, plantillas y probabilidades por paso. El bajo se describe como datos (notas con paso y duración) y se convierte en mini-notación Strudel. En modo progresivo el bajo y los acordes entran y salen con rampas de varios compases; en manual los controlas tú. Las demos cargan una canción de ejemplo por estilo.",
+    files: ["app/lib/styles.ts", "app/lib/bass.ts", "app/lib/background.ts", "app/lib/demos.ts", "app/lib/constants.ts"],
+    funcs: ["STYLE_MUSIC", "bassCode()", "targetParts()", "planTransitions()", "DEMOS", "STYLES / KITS"],
+    specs: ["001 §16.13 · Fondo progresivo", "001 §16.17 · Fondo manual", "001 §16.20 · Cargar demo", "003 E1.3 · El bajo como datos"],
+  },
+  engine: {
+    title: "Motor (orquestador)", short: "useAudioEngine",
+    what: "El director de orquesta en el hilo principal, y el mayor archivo de la app. Recibe los golpes del worker (onWorkerMessage), avisa a la imagen al instante ('heard'), alimenta el PhraseTracker, hace nacer los loops (birth) y reevalúa el código Strudel cuando algo cambia (reevaluate, agrupado en una microtarea). Lleva el reloj de compases, las células y los grupos, y reparte los eventos visuales con onTrigger. Arranca Strudel (@strudel/web 1.3.0), el worker y el AudioWorklet.",
+    files: ["app/composables/useAudioEngine.ts"],
+    funcs: ["useAudioEngine()", "onWorkerMessage()", "birth()", "decide()", "reevaluate()", "onTrigger()", "play() / stop()", "setSong() / enterCell() / travelTo()", "onVisual()", "clockNow()"],
+    specs: ["001 §16.12 · Spike A3.0: @strudel/web validado", "005 §4.2 · Motor", "003 E6 · Retraso de imagen"],
+  },
+  codegen: {
+    title: "Generador de código Strudel", short: "songCode() → texto",
+    what: "Convierte el estado de la canción en código Strudel. Determinista. Cada loop pasa a 16 tokens por compás, que tokensToMini colapsa en mini-notación; después se añaden banco de sonidos, .n(), nudge para el desfase fino, ganancia por mezcla (1/√n) y sidechain del bombo con el fondo. Tiene dos modos: 'display' (el código que se enseña y se copia, y que suena igual en strudel.cc; con varias células usa arrange) y 'engine' (el que se evalúa: efectos por ref(), pulso, metrónomo, etiquetas color() y filterHaps para acotar cada célula a sus compases).",
+    files: ["app/lib/song.ts", "app/lib/strudel.ts", "app/lib/mix.ts", "app/lib/gestures.ts"],
+    funcs: ["songCode(state, mode)", "loopTokens()", "tokensToMini()", "loopGains()", "filterDjf()", "spaceParams()", "warmthShape()", "DUCK"],
+    specs: ["001 §16.11 · Que suene a canción, como en strudel.cc", "005 §9 · Código Strudel", "005 §4.2 · Solo la célula que suena y la siguiente"],
+  },
+  sound: {
+    title: "Motor de sonido", short: "Strudel + Web Audio",
+    what: "S.evaluate() recibe el código y Strudel (superdough) programa los eventos sobre el reloj del AudioContext. Los samples (909, 808 y MPC60 en public/samples) se registran con el mismo índice que en strudel.cc. La salida pasa por una cadena maestra: limitador, techo de −1 dB y destino. El fondo va por dos orbits propios (2 y 3) con nodos nativos para abrir y cerrar con rampas.",
+    files: ["app/composables/useAudioEngine.ts", "app/types/strudel.d.ts", "public/samples/", "app/lib/constants.ts"],
+    funcs: ["S.initStrudel()", "S.evaluate()", "samples()", "setupBackgroundNodes()", "limitador + techo −1 dB", "KITS", "S.hush()"],
+    specs: ["001 §16.12 · Cadena maestra y Strudel", "001 §16.13 · Fondo progresivo (nodos nativos)"],
+  },
+  vevents: {
+    title: "Eventos visuales", short: "heard · hit · birth",
+    what: "El motor emite tres tipos de evento: 'heard' (lo que acabas de hacer, al instante), 'birth' (nace un loop y su bola cae) y 'hit' (suena un golpe de un loop o del fondo, desde onTrigger). Para que la imagen vaya con lo que se oye, los 'hit' se retrasan la latencia de salida (imageDelay), con ajuste automático para cascos Bluetooth y fino manual. VisualStage los reparte al aro y al tema de agua.",
+    files: ["app/composables/useAudioEngine.ts", "app/lib/imageDelay.ts", "app/components/visual/VisualStage.vue"],
+    funcs: ["onVisual()", "VisualHit", "onEngineVisual()", "imageDelayMs()", "autoImageDelayMs()", "takeDue()"],
+    specs: ["003 E1.6 · Tiempo visual", "003 E6 · Retraso de imagen con cascos Bluetooth"],
+  },
+  aro: {
+    title: "Aro (la gota)", short: "Canvas 2D",
+    what: "El instrumento a la vista: una gota de agua con una franja concéntrica por voz, la aguja del compás y los golpes como puntos (el bajo, como rayitas). Se toca para añadir, mover y borrar golpes, con fantasma e imán de la guía. Con la célula: cámara, transición de agua entre células, marcadores del borde y la colonia (zoom alejado con todas las células). Geometría y gestos son código puro en lib/aro.",
+    files: ["app/components/visual/AroCanvas.ts", "app/components/visual/VisualStage.vue", "app/lib/aro/shape.ts", "app/lib/aro/bands.ts", "app/lib/aro/zoom.ts", "app/lib/aro/colony.ts", "app/lib/aro/transition.ts", "app/lib/aro/markers.ts", "app/lib/aro/drift.ts", "app/lib/aro/guide.ts", "app/lib/aro/drop.ts", "app/lib/aro/view.ts", "app/lib/palette.ts"],
+    funcs: ["AroCanvas", "outerRadius()", "bandLayout()", "dropLayout()", "inColony()", "transitionAt()", "edgeMarkers()", "ghostTarget()", "dropAction()", "VOICE_HEX"],
+    specs: ["003 · El aro (y sus enmiendas)", "005 §5 · Cómo se ve (cámara, transición, marcadores)", "005 §7 · La colonia"],
+  },
+  water: {
+    title: "Agua", short: "tema visual intercambiable",
+    what: "Simulación de ondas sobre un campo de alturas con ping-pong: next = (vecinos / 2 − prev) · amortiguación. En WebGL2 usa texturas half-float, con canales R = bombo, G = caja, B = platillo, A = pulso neutro. Si el navegador no puede, cae a Canvas 2D (o se usa directamente con movimiento reducido). El tema es una interfaz común (hit, birth, frame) y se registra en themes/index.ts.",
+    files: ["app/themes/water/webgl2.ts", "app/themes/water/canvas2d.ts", "app/themes/index.ts", "app/themes/types.ts", "app/lib/water.ts"],
+    funcs: ["createWaterWebGL2()", "createWaterCanvas2D()", "waveStep()", "drop()", "THEMES", "VisualTheme: hit() birth() frame()"],
+    specs: ["001 §16.14 · Visual como tema intercambiable", "003 E1.7 · Movimiento reducido y rendimiento"],
+  },
+  storage: {
+    title: "Guardado automático", short: "localStorage",
+    what: "Lo de ahora se guarda solo, con claves versionadas: coderbeats:prefs:v1 (kit, estilo, ayuda, modos, efectos, tema, retraso de imagen) y coderbeats:song:v1 (la canción con sus células). Si solo existe coderbeats:loops:v1, de antes de las células, se migra a una canción de una célula. Sin almacenamiento (modo privado) sigue funcionando en la sesión. La repetición «sustituye» antigua se migra una sola vez a «completa».",
+    files: ["app/composables/usePrefs.ts", "app/lib/storage.ts", "app/lib/prefsMigration.ts", "app/lib/cells.ts"],
+    funcs: ["usePrefs()", "readJson() / writeJson()", "migrateRepeatMode()", "isSong()", "storableSong()", "songFromLoops()", "normalizeSong()"],
+    specs: ["005 §3 · Persistencia y migración", "001 §16.21 · «Completa» por defecto", "003 E6.4 · Se guarda por dispositivo"],
+  },
+  library: {
+    title: "Biblioteca · Mis canciones", short: "guardar, abrir, borrar",
+    what: "Una lista de canciones guardadas a propósito, en este dispositivo y sin servidor. Nombre automático (estilo + fecha) editable, abrir, renombrar y borrar con «deshacer» unos segundos. Lógica pura y sin DOM: leer nunca borra, y una entrada que esta versión no entiende se conserva tal cual; lo que no se puede leer se aparta en una clave aparte. Lo guardado es una instantánea de la canción (SongSnapshot).",
+    files: ["app/lib/library.ts", "app/composables/useLibrary.ts", "app/components/LibrarySheet.vue"],
+    funcs: ["parseLibrary()", "serializeLibrary()", "makeSaved()", "addSong()", "replaceSong()", "renameSong()", "removeSong()", "restoreEntry()", "autoName()", "useLibrary()"],
+    specs: ["006 · Mis canciones (guardar, abrir y borrar)"],
+  },
+};
+
+/* flechas: main = flujo del golpe; sec = relaciones secundarias */
+const EDGES = [
+  ["mic", "onsets", "main"], ["onsets", "echo", "main"], ["echo", "features", "main"],
+  ["features", "classifier", "main"], ["classifier", "lanes", "main"], ["lanes", "engine", "main"],
+  ["engine", "phrases", "main"], ["phrases", "loops", "main"], ["loops", "codegen", "main"],
+  ["codegen", "sound", "main"], ["sound", "vevents", "main"], ["vevents", "aro", "main"], ["vevents", "water", "main"],
+  ["calib", "classifier", "sec"], ["calib", "engine", "sec"], ["engine", "echo", "sec"],
+  ["engine", "vevents", "sec"], ["loops", "cells", "sec"], ["cells", "codegen", "sec"],
+  ["groups", "cells", "sec"], ["groups", "codegen", "sec"], ["bg", "codegen", "sec"],
+  ["engine", "storage", "sec"], ["library", "engine", "sec"], ["library", "storage", "sec"],
+];
+
+/* El recorrido de un «bum» */
+const CODE_EXAMPLE =
+`setcpm(174/4)
+stack(
+  // tus loops
+  s("bd ~ ~ ~ ~ ~ ~ ~ bd ~ ~ ~ ~ ~ ~ ~").bank("RolandTR909"),
+)`;
+const STEPS = [
+  { n: "mic", tag: "bum", t: "El «bum» entra por el micro y el AudioWorklet lo corta en bloques de 512 muestras con su frame exacto." },
+  { n: "onsets", tag: "onset", t: "El worker recibe el flujo por un MessagePort directo y el detector en streaming marca el ataque." },
+  { n: "echo", tag: "¿eco?", t: "EchoGate comprueba que no sea el eco de algo que acaba de sonar la propia app. No lo es: sigue." },
+  { n: "features", tag: "19 nº", t: "Con las 3072 muestras siguientes al onset saca el centroide, 4 bandas, 13 MFCC y el cruce por cero: 19 dimensiones." },
+  { n: "classifier", tag: "bd", t: "El k-NN (k = 3) lo compara con tus muestras de calibración y vota: bombo." },
+  { n: "lanes", tag: "bd ✓", t: "Carril de bombo encendido y volumen normal: el worker envía el mensaje 'hit' al hilo principal." },
+  { n: "engine", tag: "hit", flash: ["water"], t: "onWorkerMessage corrige la latencia y avisa al instante a la imagen ('heard'): el agua suelta una onda pequeña mientras la frase sigue abierta." },
+  { n: "phrases", tag: "frase", t: "El PhraseTracker la acumula; poco antes de la línea de compás (0,3 s) decide() la cierra y la redondea a 1, 2 o 4 compases." },
+  { n: "loops", tag: "loop bd", t: "addPhrase cuantiza con la ayuda del estilo y nace un FreeLoop en el compás siguiente: su bola cae ('birth')." },
+  { n: "codegen", tag: "songCode", code: true, t: "songCode() convierte los loops en código Strudel, un token por paso y 16 por compás (este es el modo 'display', un loop de bombo con golpes en los pasos 0 y 8):" },
+  { n: "sound", tag: "evaluate", t: "reevaluate() llama a S.evaluate() con la versión 'engine' del código; Strudel programa el golpe sobre el reloj del AudioContext y suena, tras el limitador." },
+  { n: "vevents", tag: "onTrigger", t: "Cuando suena, onTrigger avisa a la imagen; se retrasa la latencia de salida para que lo que ves vaya con lo que oyes." },
+  { n: "aro", tag: "paso", t: "El aro enciende el punto de ese paso en la franja del bombo (aro.light) y la bola late." },
+  { n: "water", tag: "onda", t: "El tema de agua suelta su onda, la más fuerte y ancha para el bombo. Y el bum vuelve a sonar en cada vuelta del loop." },
+];
+
+/* ───────────── Construcción del DOM ───────────── */
+const $ = (s) => document.querySelector(s);
+const svgNS = "http://www.w3.org/2000/svg";
+const els = {};
+const groupsEl = $("#groups");
+for (const g of GROUPS) {
+  const sec = document.createElement("section");
+  sec.className = "group";
+  sec.innerHTML = `<h2><em>${g.title.split(" · ")[0]}</em> · ${g.title.split(" · ")[1]}</h2><div class="nodes"></div>`;
+  const wrap = sec.querySelector(".nodes");
+  for (const id of g.nodes) {
+    const d = NODES[id];
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "node"; b.dataset.id = id;
+    b.innerHTML = `<b></b><small></small>`;
+    b.querySelector("b").textContent = d.title;
+    b.querySelector("small").textContent = d.short;
+    b.addEventListener("click", () => select(id));
+    wrap.appendChild(b);
+    els[id] = b;
+  }
+  groupsEl.appendChild(sec);
+}
+
+/* ───────────── Detalle ───────────── */
+const detail = $("#detail"), detailBody = $("#detailBody");
+let selected = null;
+const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+function select(id) {
+  if (selected) els[selected].classList.remove("sel");
+  selected = id; els[id].classList.add("sel");
+  const d = NODES[id];
+  const g = GROUPS.find((x) => x.nodes.includes(id));
+  detailBody.innerHTML = `
+    <h3>${esc(d.title)}</h3>
+    <div class="grp">${esc(g.title)}</div>
+    <h4>Qué hace</h4><p>${esc(d.what)}</p>
+    <h4>Archivos</h4><ul>${d.files.map((f) => `<li class="mono">${esc(f)}</li>`).join("")}</ul>
+    <h4>Funciones principales</h4><div class="chips">${d.funcs.map((f) => `<span class="chip mono">${esc(f)}</span>`).join("")}</div>
+    <h4>Spec que la define</h4><ul>${d.specs.map((s) => `<li class="sp">${esc(s)}</li>`).join("")}</ul>`;
+  markRelated();
+  detail.classList.add("open");
+  try { history.replaceState(null, "", "#" + id); } catch (e) {}
+}
+$("#closeDetail").addEventListener("click", () => {
+  detail.classList.remove("open");
+  if (selected) els[selected].classList.remove("sel");
+  selected = null;
+  markRelated();
+});
+
+/* ───────────── Flechas (calculadas desde el DOM) ───────────── */
+function markRelated() {
+  paths.forEach((p, k) => {
+    const [a, b] = k.split(">");
+    p.classList.toggle("rel", !!selected && (a === selected || b === selected));
+  });
+}
+const map = $("#map"), wireLayer = $("#wireLayer");
+const paths = new Map();   // "a>b" → <path>
+function rectOf(id) {
+  const m = map.getBoundingClientRect(), r = els[id].getBoundingClientRect();
+  return { l: r.left - m.left, t: r.top - m.top, w: r.width, h: r.height, r: r.right - m.left, b: r.bottom - m.top, cx: r.left - m.left + r.width / 2, cy: r.top - m.top + r.height / 2 };
+}
+function route(a, b) {
+  const A = rectOf(a), B = rectOf(b);
+  let p0, p1, c0, c1;
+  const sameCol = Math.abs(A.cx - B.cx) < 40;
+  if (B.t >= A.b - 4) {                      // destino debajo
+    p0 = [A.cx, A.b]; p1 = [B.cx, B.t];
+    const k = Math.max(24, (B.t - A.b) / 2), bow = sameCol && B.t - A.b > 80 ? 34 : 0;
+    c0 = [p0[0] + bow, p0[1] + k]; c1 = [p1[0] + bow, p1[1] - k];
+  } else if (B.b <= A.t + 4) {               // destino encima
+    p0 = [A.cx, A.t]; p1 = [B.cx, B.b];
+    const k = Math.max(24, (A.t - B.b) / 2), bow = sameCol ? 34 : 0;
+    c0 = [p0[0] + bow, p0[1] - k]; c1 = [p1[0] + bow, p1[1] + k];
+  } else if (B.l >= A.r) {                   // destino a la derecha
+    p0 = [A.r, A.cy]; p1 = [B.l, B.cy];
+    const k = Math.max(24, (B.l - A.r) / 2);
+    c0 = [p0[0] + k, p0[1]]; c1 = [p1[0] - k, p1[1]];
+  } else {                                   // a la izquierda
+    p0 = [A.l, A.cy]; p1 = [B.r, B.cy];
+    const k = Math.max(24, (A.l - B.r) / 2);
+    c0 = [p0[0] - k, p0[1]]; c1 = [p1[0] + k, p1[1]];
+  }
+  return `M${p0[0]},${p0[1]} C${c0[0]},${c0[1]} ${c1[0]},${c1[1]} ${p1[0]},${p1[1]}`;
+}
+function drawWires() {
+  const svg = $("#wires");
+  svg.setAttribute("viewBox", `0 0 ${map.clientWidth} ${map.clientHeight}`);
+  wireLayer.replaceChildren(); paths.clear();
+  for (const [a, b, kind] of EDGES) {
+    const p = document.createElementNS(svgNS, "path");
+    p.setAttribute("d", route(a, b));
+    p.setAttribute("class", "wire " + (kind === "sec" ? "sec" : ""));
+    p.setAttribute("marker-end", "url(#arr)");
+    wireLayer.appendChild(p); paths.set(a + ">" + b, p);
+  }
+  markRelated();
+}
+let rafDraw = 0;
+const redraw = () => { cancelAnimationFrame(rafDraw); rafDraw = requestAnimationFrame(drawWires); };
+new ResizeObserver(redraw).observe(map);
+window.addEventListener("resize", redraw);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(redraw);
+$("#secToggle").addEventListener("change", (e) => map.classList.toggle("show-sec", e.target.checked));
+
+/* ───────────── Animación del bum ───────────── */
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const dot = $("#dot"), tag = $("#tag"), capStep = $("#capStep"), capText = $("#capText"), capCode = $("#capCode");
+let run = 0;
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+function glow(id, on) { els[id].classList.toggle("lit", on); }
+function tween(path, ms, label) {
+  return new Promise((resolve) => {
+    const len = path.getTotalLength(), t0 = performance.now();
+    function f(now) {
+      const k = Math.min(1, (now - t0) / ms), e = k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+      const pt = path.getPointAtLength(len * e);
+      dot.setAttribute("cx", pt.x); dot.setAttribute("cy", pt.y);
+      tag.setAttribute("x", pt.x + 11); tag.setAttribute("y", pt.y - 9);
+      if (k < 1 && run) requestAnimationFrame(f); else resolve();
+    }
+    requestAnimationFrame(f);
+  });
+}
+function highlightCode(s) {
+  return esc(s).replace(/(s\("[^"]*"\)|\.bank\("[^"]*"\))/g, "<b>$1</b>");
+}
+async function launch() {
+  const id = ++run;
+  const btn = $("#replay");
+  btn.textContent = "↻ Otra vez";
+  for (const k in els) els[k].classList.remove("lit", "flash");
+  paths.forEach((p) => { p.classList.remove("hot"); p.setAttribute("marker-end", "url(#arr)"); });
+  capCode.classList.remove("on");
+  drawWires();
+  dot.style.opacity = 1; tag.style.opacity = 1;
+  let prev = null;
+  for (let i = 0; i < STEPS.length; i++) {
+    if (id !== run) return;
+    const s = STEPS[i];
+    capStep.textContent = `Paso ${i + 1} de ${STEPS.length} · ${NODES[s.n].title}`;
+    capText.textContent = s.t;
+    capCode.classList.toggle("on", !!s.code);
+    if (s.code) capCode.innerHTML = highlightCode(CODE_EXAMPLE);
+    tag.textContent = s.tag;
+    const el = els[s.n];
+    if (i === 0 || window.innerWidth < 980) el.scrollIntoView({ block: "center", behavior: reduce ? "auto" : "smooth" });
+    if (prev) {
+      const key = prev + ">" + s.n, p = paths.get(key);
+      if (p) { p.classList.add("hot"); p.setAttribute("marker-end", "url(#arrHot)"); }
+      const d = p ? p : (() => { const q = document.createElementNS(svgNS, "path"); q.setAttribute("d", route(prev, s.n)); return q; })();
+      if (reduce) { const pt = d.getPointAtLength(d.getTotalLength()); dot.setAttribute("cx", pt.x); dot.setAttribute("cy", pt.y); tag.setAttribute("x", pt.x + 11); tag.setAttribute("y", pt.y - 9); }
+      else await tween(d, 650, s.tag);
+    } else {
+      const r = rectOf(s.n); dot.setAttribute("cx", r.cx); dot.setAttribute("cy", r.cy); tag.setAttribute("x", r.cx + 11); tag.setAttribute("y", r.cy - 9);
+    }
+    if (id !== run) return;
+    glow(s.n, true);
+    if (s.flash) s.flash.forEach((f) => { els[f].classList.add("flash"); setTimeout(() => els[f].classList.remove("flash"), 900); });
+    await wait(s.code ? 2200 : 850);
+    prev = s.n;
+  }
+  if (id !== run) return;
+  capStep.textContent = "Fin del recorrido";
+  capText.textContent = "Y vuelta a empezar: el loop sigue sonando y encendiendo el aro y el agua cada compás. Toca cualquier caja para ver su detalle.";
+  capCode.classList.remove("on");
+  dot.style.opacity = 0; tag.style.opacity = 0;
+}
+$("#replay").addEventListener("click", launch);
+
+/* arranque: caja por enlace (#id) y primer bum */
+window.addEventListener("load", () => {
+  drawWires();
+  const h = location.hash.slice(1);
+  if (NODES[h]) select(h);
+  setTimeout(launch, 500);
+});
+</script>
+</body>
+</html>
