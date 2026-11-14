@@ -1,6 +1,6 @@
 # 008 · Remixes
 
-> Estado: **en marcha** (2026-11-14). Primera prueba: "Himno de la alegría" en dembow.
+> Estado: **en marcha** (2026-11-14). Dos remixes: "Himno de la alegría" en dembow y "Dies Irae" en techno (con el wowo).
 > Parte de: spec 005 (células y su demo del dembow, §20), 002 (melodía como loop) y 006 (Mis canciones).
 
 ## 1. Idea
@@ -77,7 +77,7 @@ interface Cell {
 ```
 
 - **En el código:** `.lpf("<v1 v2 v3 …>")` después del `stack` de la célula, con un valor por vuelta. Es Strudel normal: **vale en strudel.cc**. En el código mostrado (`arrange`) cada sección empieza en su ciclo 0, así que va tal cual; en el **motor**, que trabaja con compases globales, el patrón va **rotado** al compás en el que empieza la célula para que la vuelta 1 de la célula use el primer valor (spec 005, §4.2).
-- Es un filtro de la célula, **independiente** del filtro de la pantalla (DJ, `djf`): los dos suenan a la vez. Sustituye al `lpf` propio del bajo y de los acordes mientras dura (por eso las células con `lpf` no llevan bajo).
+- Es un filtro de la célula, **independiente** del filtro de la pantalla (DJ, `djf`): los dos suenan a la vez. Sustituye al `lpf` propio del bajo y de los acordes mientras dura (por eso las células con `lpf` no llevan bajo; en el techno, el wowo y el bajo se reparten las células, §9).
 - **Validación estricta** (`isCell`): una lista de 1 a 32 números finitos entre 60 y 20 000. Se escribe en el código con redondeo a entero; nada leído se escribe tal cual.
 - Copiar y fundir células lo conservan en la copia (la fusión, el de la célula destino).
 - No hay interfaz para editarlo todavía.
@@ -93,6 +93,8 @@ interface Cell {
 - **Tests de datos** (`tests/unit/remixes.test.ts`): la lista y su atribución; las siete células con sus vueltas, loops y partes; las notas de cada frase (secuencia, duraciones que suman 4 compases, todas en la escala de si menor / re mayor, y la octava más aguda a +12); `isSong` y la ida y vuelta por JSON.
 - **El código que sale se evalúa en Strudel** (el mismo intérprete de Node de la demo del dembow, 005 §20.3): 34 ciclos; en cada sección, qué suena y qué no (la Intro y el Final solo con acordes; la caja acelerada de la Subida con 4, 8, 16 y 16 golpes por compás y **sin bombo**; el bajo solo en el Subidón; la melodía clara frente a la octava más aguda) y el `lpf` de cada vuelta.
 - **Filtro por vuelta:** validación (rechaza valores raros), rotación del patrón en el motor y que el código mostrado sigue siendo Strudel válido.
+- **El wowo** (`tests/unit/wowo.test.ts`): el preludio (`wowPlan`) no engancha nada sin el motor y le pasa los compases en los que cambia el filtro de cada célula cuando se lo pide; el código del motor del remix, con el preludio delante, evalúa sin error. El remix entero (`tests/unit/techno.test.ts`): 9 células y 50 compases, qué entra en cada una, el filtro subiendo en los builds, la melodía (notas y escala) y el código mostrado evaluado en Strudel (filtro por vuelta y resonancia de cada golpe, sin wowo en el drop).
+- **Sin cambios de comportamiento:** el resto de la app tiene el código que tenía: sin wowo (`lpq`/`lpenv`) y sin compuertas; el remix del Himno, igual.
 - **Interfaz:** la hoja lista el remix; abrirlo deja 7 células y cambia estilo y kit. **Probado en Chrome** sobre `dev/lab-estudio` (la pantalla principal sin el paso del micro): el botón, la hoja con la atribución, y abrir deja dembow, kit 808, 120 bpm, las 7 células y el código con el `lpf` de cada vuelta. El sonido real y la sensación en el móvil quedan por probar.
 
 ## 8. Decisiones a revisar
@@ -103,3 +105,71 @@ interface Cell {
 4. **El bajo solo en el Subidón**, como pedía la descripción.
 5. **Dónde está el botón** (debajo del de Mis canciones) y su icono: a revisar al verlo en el móvil.
 6. **Atribución visible** (compositor y años): en la hoja de la lista; no hay pantalla de créditos.
+7. **El wowo, segundo remix (2026-11-14):** el estilo `techno` es nuevo (no reutiliza house cambiando bpm: su bajo y sus
+   acordes son otros); el bajo y el wowo van en células distintas (las de `lpf` no llevan bajo, §5) y el drop es el
+   contraste limpio; el wowo va en el motor por el bus de la célula, no en los haps; el laboratorio de oído
+   (`/lab/wowo`) es solo de desarrollo. El sonido en la app entera (móvil y cromo) queda por probar en persona.
+
+## 9. Segundo remix: "Dies Irae" en techno, y el wowo (`Cell.wow`)
+
+**La idea.** Un techno que **entra poco a poco** y estalla en el drop, con el **"wowo"**: el filtro de una célula con
+resonancia que **se abre en cada golpe** y vuelve al valor de la vuelta. Prueba de oído antes de nada: el código mostrado
+pegado en strudel.cc suena con el wowo (aprobado por el autor, 2026-11-14).
+
+**El estilo `techno`** (`styles.ts`, `constants.ts`, `demos.ts`): 128 bpm, do menor, kit 909. Bombo 4×4, palmada en 2 y
+4, open hat a contratiempo; el **bajo a corcheas** (el pulso que no para, `c2` en todas); acordes `Cm–A♭–B♭–Gm` con
+supersaw; escala de do menor (`C D E♭ F G A♭ B♭`), la misma para la ayuda de la melodía. Tiene su demo grabable (el
+dibujo del techno) y su etiqueta en la barra de estilos.
+
+**La melodía.** El **Dies Irae**, la secuencia gregoriana anónima del siglo XIII que se canta en la misa de difuntos
+(dominio público; el arreglo es de coderbeats). Cuatro frases de 2 compases, con la **nota pedal repetida en negras**
+(lo que le da el aire de martillo): `F F F F | D F F F` ×2, `A♭ G F E♭` (la figura que baja), y `B♭ D B♭ E♭`. En do
+menor (las notas repetidas están a negras, así que la célula puede tener la misma nota de descanso).
+
+**Las nueve células** (guarda: las células con `lpf` no llevan bajo, §5; el bajo y el wowo se reparten):
+
+| # | Célula | Vueltas | Qué suena |
+|---|---|---|---|
+| 1 | **Pulso** | 4 | Bombo 4×4 y el bajo a corcheas. Nada más. |
+| 2 | **Hats** | 4 | + palmada y open hat a contratiempo |
+| 3 | **Entra el tema** | 8 | Tema completo (A), **wowo acid** (`lpq 8`, `lpenv 3`) con el filtro 500 → 3 600 Hz, **sin bajo** (el lpf del wowo le quita el sitio) |
+| 4 | **Build** | 8 | **Sin bombo**: la caja en roll, el platillo en semicorcheas, el **puente** (B) y el **wowo house** abriendo 1 400 → 8 000 Hz; el bajo sigue |
+| 5 | **DROP** | 8 | **Todo**: bajo y acordes, bombo, palmada y platillo; el tema limpio (A), sin wowo |
+| 6 | **Groove** | 4 | El groove en paralelo al tema (B), wowo house, sin bajo |
+| 7 | **Build 2** | 4 | El segundo build, más corto, con wowo acid y bajo |
+| 8 | **DROP 2** | 8 | El drop final: todo, el tema (B) limpio |
+| 9 | **Salida** | 2 | Solo los acordes, que se apagan (1 800 → 600 Hz) |
+
+Total: **50 compases** (~1 min 34 s a 128 bpm).
+
+**El wowo (`Cell.wow`, opcional)** — el único campo nuevo:
+
+```ts
+interface Cell {
+  // … como hoy
+  /** resonancia y envolvente sobre el filtro por vuelta: el filtro se abre en cada golpe */
+  wow?: { depth: number; q: number; attack: number; decay: number }
+}
+```
+
+- **Valores** (`lib/wow.ts`): `depth` 0,5–5 (`lpenv`), `q` 0–20 (`lpq`), `attack` 0,001–0,5 s (`lpa`), `decay` 0,01–2 s
+  (`lpd`). Presets de oído copiados de las variantes de sonido ya afinadas (002 §17): `acid` (8 / 3 / 0,005 / 0,15), el
+  del lead "c"), `breathe` (1,5 / 4 / 0,3 / 0,8), el del pad) y `house` (2,5 / 6 / 0,005 / 0,18), el del lead "b").
+- **Validación:** los cuatro números, en rango (`isWow`). Al normalizar, un wowo inválido **se descarta** (el filtro se
+  queda como estaba) en vez de tirar la canción: puede venir de una versión futura.
+- **En el código mostrado:** va detrás del filtro de la célula, es Strudel puro y **vale en strudel.cc**:
+  `).lpf("<500 700 …>").lpq(8).lpenv(3).lpa(0.005).lpd(0.15)],`. Sin `lpf` propio, se pone delante `.lpf(20000)` (el
+  filtro abierto) para tener algo que abrir.
+- **En el motor:** no puede ir en los haps de la célula (con `filterHaps` el hap nace sin color; y el `lpenv` en los
+  haps probaría la envolvente en cada golpe, no en cada vuelta). Va **por compás**: los haps de una célula con wowo
+  llevan `color("w<id>")` (`cellTail`) y el código del motor deja su plan (`wowPlan`, en un comentario: el motor no deja
+  llamar a funciones que no son de Strudel) y, delante, el **preludio** `lib/wowPrelude.ts`:
+  - el motor deja en `__cbWowo` su función de enganche al evaluar; `wowPlan` calcula los compases en los que cambia el
+    filtro de cada célula (la primera vuelta y cada cambio del `lpf` entre vueltas) y se la pasa; **sin wowo, nada se
+    engancha** (el código de siempre es igual);
+  - la compuerta (`mountWowo`, `useAudioEngine`) va **en serie en el bus de la célula** (`getBus(id)`, por donde sale
+    todo lo de esa célula, con el `lpf` de la vuelta ya aplicado): un `BiquadFilterNode` que en cada compás con cambio
+    programa el `lpf` de la vuelta y la envolvente del wowo delante, y sigue hasta el siguiente cambio. El barrido en el
+    tiempo va **en el audio** (el nodo), no en los haps. Se desmonta al parar y se vuelve a montar al evaluar.
+  - **Límite:** como mucho 4 células con wowo (el color las elige por su orden en la lista de células).
+  - **Copia en strudel.cc:** copiar el código mostrado lleva el wowo (es Strudel puro); el código del motor no se copia.

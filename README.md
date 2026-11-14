@@ -4,8 +4,9 @@ Un instrumento para jugar con la voz: haces beatbox (bum, pff, ts) y coderbeats 
 
 - **Escucha continua**: graba frases de beatbox, las cuantiza al compás y las deja como loops (bombo, caja, platillo).
 - **Células y canción**: cada célula es un aro con sus loops, su bajo y sus acordes; varias células, una tras otra, forman una canción. Hay grupos que suenan en paralelo.
-- **Fondo y efectos**: bajo y acordes por estilo (hip hop 90, house, drum and bass), filtro, espacio y calor.
+- **Fondo y efectos**: bajo y acordes por estilo (hip hop 90, house, drum and bass, dembow, techno), filtro, espacio y calor; el filtro de una célula puede barrer vuelta a vuelta (loops de canción y remixes) y hacer el **wowo** (resonancia y envolvente en cada golpe).
 - **Código = sonido**: el código mostrado, pegado en strudel.cc, suena igual que en coderbeats.
+- **Remixes**: canciones de demo de dominio público (el Himno de la alegría en dembow, el Dies Irae en techno), con su atribución.
 - **Mis canciones**: se guardan en el navegador (localStorage), en tu dispositivo.
 - Funciona como PWA, pensada también para móvil.
 
@@ -17,7 +18,7 @@ Necesitas Node.js y npm.
 
 ```bash
 npm install          # instala dependencias (y prepara Nuxt)
-npm run dev          # servidor de desarrollo en http://localhost:3000 (incluye /spike, el banco de pruebas de Strudel)
+npm run dev          # servidor de desarrollo en http://localhost:3000 (incluye /spike, el banco de pruebas de Strudel, y /lab/wowo, el del wowo)
 npm run dev:phone    # igual, accesible desde el móvil por HTTPS (el micrófono lo exige, salvo en localhost)
 npm test             # tests unitarios (Vitest)
 npm run test:coverage
