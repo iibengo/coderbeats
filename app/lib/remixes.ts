@@ -7,6 +7,7 @@ import type { FreeLoop } from './freeLoops'
 import type { MelodySynth } from './melody'
 import type { Parts } from './background'
 import type { Instrument, KitId, StyleId } from './types'
+import { WOW_PRESETS, type Wow } from './wow'
 
 export interface RemixInfo {
   /** nombre de la célula y lo que añade, para la lista */
@@ -84,6 +85,8 @@ interface CellSpec {
   drums: Partial<Record<Instrument, string>>
   mel?: { notes: readonly Note[]; synth: MelodySynth }
   lpf?: number[]
+  /** el "wowo" del filtro de la célula (spec 008, §9): resonancia y envolvente sobre el `lpf` */
+  wow?: Wow
   /** lo que añade, para la lista */
   text: string
 }
@@ -132,6 +135,7 @@ function buildSong(specs: readonly CellSpec[], groupSpecs: readonly GroupSpec[] 
       parts: { ...s.parts },
       turns: s.turns,
       ...(s.lpf ? { lpf: [...s.lpf] } : {}),
+      ...(s.wow ? { wow: { ...s.wow } } : {}),
       // en una curva suave de izquierda a derecha, a distintas profundidades (como la demo de dembow)
       at: { x: i * 3, y: Math.sin(i * 1.3) * 1.2, depth: [0, 0.4, 0.1, 0.6][i % 4]! },
     }
@@ -160,6 +164,62 @@ function buildSong(specs: readonly CellSpec[], groupSpecs: readonly GroupSpec[] 
   return { version: 1, cells, order: cells.slice(0, specs.length).map((c) => c.id), groups, nextGroupId: groups.length + 1, bpm: null, nextCellId: nextCell, nextLoopId: id }
 }
 
+// ── El Dies Irae (gregoriano, s. XIII), en do menor (spec 008, §9) ──────────────────────────────────
+// La secuencia del juicio final: la nota repetida de cada frase es lo que le da el carácter de martillo. C3=48 D3=50
+// Eb3=51 F3=53 G3=55 Ab3=56 Bb3=58 (la escala del techno, do menor).
+/** Las cuatro frases, 2 compases cada una (32 pasos); la nota pedal de cada una se repite en negras. */
+const DIES_PHRASES: readonly (readonly Note[])[] = [
+  // F F F F | D F F F: la frase que da nombre a la secuencia
+  [[0, 2, 53], [2, 2, 53], [4, 2, 53], [6, 2, 53], [8, 2, 50], [10, 2, 53], [12, 2, 53], [14, 2, 53], [16, 2, 53], [18, 2, 53], [20, 2, 53], [22, 2, 53], [24, 2, 50], [26, 2, 53], [28, 2, 53], [30, 2, 53]],
+  // F F F F | D F F F (repite, más larga al final): el martillo sube
+  [[0, 2, 53], [2, 2, 53], [4, 2, 53], [6, 2, 53], [8, 2, 50], [10, 2, 53], [12, 4, 53], [16, 2, 53], [18, 2, 53], [20, 2, 53], [22, 2, 53], [24, 2, 50], [26, 2, 53], [28, 4, 53]],
+  // Ab… G… F… Eb…: la figura que se desliza hacia abajo
+  [[0, 2, 56], [2, 2, 56], [4, 2, 56], [6, 2, 56], [8, 2, 55], [10, 2, 55], [12, 2, 55], [14, 2, 55], [16, 4, 53], [20, 2, 53], [22, 2, 53], [24, 2, 51], [26, 2, 51], [28, 4, 51]],
+  // Bb… D… Bb… Eb…: la cadencia que vuelve al D (el "pozo" del tema), en Bb (do menor natural)
+  [[0, 2, 58], [2, 2, 58], [4, 2, 58], [6, 2, 58], [8, 2, 50], [10, 2, 50], [12, 2, 50], [14, 2, 50], [16, 2, 58], [18, 2, 58], [20, 2, 58], [22, 2, 58], [24, 2, 51], [26, 2, 51], [28, 2, 51], [30, 2, 51]],
+]
+/** Un tema de 4 compases con las frases 1–2 y otro con las 3–4: dos células de 4 compases. */
+const DIES_A: readonly Note[] = [...DIES_PHRASES[0]!, ...DIES_PHRASES[1]!.map(([p, d, m]) => [p, d, m] as const)]
+const DIES_B: readonly Note[] = [...DIES_PHRASES[2]!, ...DIES_PHRASES[3]!.map(([p, d, m]) => [p, d, m] as const)]
+
+/**
+ * ── Techno (spec 008, §9): el molde del house/dnb, con el wowo ─────────────────────────────────────
+ *
+ * Las células con `lpf` no llevan bajo ni acordes (spec 008, §5): el `lpf` de la célula sustituye al suyo. Por eso el
+ * bajo no está en "Entra el tema" (el drop no, y se nota el contraste) y en el groove; en los builds va fuera del filtro
+ * resonante del wowo (su propio bajo, con su lpf).
+ */
+const T = {
+  /** bombo 4×4 */
+  bd4: 'bd ~ ~ ~ bd ~ ~ ~ bd ~ ~ ~ bd ~ ~ ~',
+  /** palmada en 2 y 4 */
+  clap: '~ ~ ~ ~ sd ~ ~ ~ ~ ~ ~ ~ sd ~ ~ ~',
+  /** el open hat a contratiempo (la corchea de la 8ª, el "tss" del techno) */
+  hat: '~ ~ hh ~ ~ ~ hh ~ ~ ~ hh ~ ~ ~ hh ~',
+  /** la misma batería, 4 compases, con la caja en roll al final: negras, corcheas, semicorcheas y 16 */
+  roll: [
+    'sd ~ ~ ~ sd ~ ~ ~ sd ~ ~ ~ sd ~ ~ ~',
+    'sd ~ sd ~ sd ~ sd ~ sd ~ sd ~ sd ~ sd ~',
+    Array(16).fill('sd').join(' '),
+    Array(16).fill('sd').join(' '),
+  ].join(' '),
+  /** el platillo en semicorcheas, para el drop */
+  hats16: Array(16).fill('hh').join(' '),
+}
+
+/** El Dies Irae en techno: entra poco a poco (con wowo en el build) y estalla en el drop. */
+const DIES_TECHNO: CellSpec[] = [
+  { name: 'Pulso', turns: 4, parts: { bass: true, chords: false }, drums: { bd: T.bd4 }, text: 'solo el pulso: bombo 4×4 y el bajo a corcheas' },
+  { name: 'Hats', turns: 4, parts: { bass: true, chords: false }, drums: { bd: T.bd4, hh: T.hat }, text: '+ palmada y open hat a contratiempo' },
+  { name: 'Entra el tema', turns: 8, parts: { bass: false, chords: false }, drums: { bd: T.bd4, sd: T.clap, hh: T.hat }, mel: { notes: DIES_A, synth: 'lead' }, lpf: [500, 700, 900, 1200, 1600, 2100, 2800, 3600], wow: WOW_PRESETS.acid, text: 'el tema con el wowo: el filtro se abre en cada golpe' },
+  { name: 'Build', turns: 8, parts: { bass: true, chords: false }, drums: { sd: T.roll, hh: T.hats16 }, mel: { notes: DIES_B, synth: 'lead' }, lpf: [1400, 1800, 2400, 3000, 3800, 4800, 6200, 8000], wow: WOW_PRESETS.house, text: 'sin bombo: la caja se acelera, el bajo en el wowo y el filtro se abre hasta 8 000 Hz (hasta el drop)' },
+  { name: 'DROP', turns: 8, parts: { bass: true, chords: true }, drums: { bd: T.bd4, sd: T.clap, hh: T.hats16 }, mel: { notes: DIES_A, synth: 'lead' }, text: 'el drop: todo, bajo y acordes, el tema limpio y el platillo en semicorcheas' },
+  { name: 'Groove', turns: 4, parts: { bass: false, chords: false }, drums: { bd: T.bd4, sd: T.clap, hh: T.hat }, mel: { notes: DIES_B, synth: 'lead' }, lpf: [2200, 2600, 3000, 3400], wow: WOW_PRESETS.house, text: 'el groove en paralelo al tema (segunda vuelta)' },
+  { name: 'Build 2', turns: 4, parts: { bass: true, chords: false }, drums: { sd: T.roll, hh: T.hats16 }, mel: { notes: DIES_A, synth: 'lead' }, lpf: [2000, 2600, 3400, 4600], wow: WOW_PRESETS.acid, text: 'el segundo build, más corto' },
+  { name: 'DROP 2', turns: 8, parts: { bass: true, chords: true }, drums: { bd: T.bd4, sd: T.clap, hh: T.hats16 }, mel: { notes: DIES_B, synth: 'lead' }, text: 'el drop final: todo, sin wowo (el tema, con otra frase)' },
+  { name: 'Salida', turns: 2, parts: { bass: false, chords: true }, drums: {}, lpf: [1800, 600], text: 'solo los acordes, que se apagan' },
+]
+
 export const REMIXES: readonly Remix[] = [
   {
     id: 'oda-alegria-dembow',
@@ -172,6 +232,18 @@ export const REMIXES: readonly Remix[] = [
     key: 'Re mayor',
     info: { cells: ODE_DEMBOW.map((s) => ({ name: s.name, turns: s.turns, text: s.text })) },
     build: () => buildSong(ODE_DEMBOW, [ODE_GROUP]),
+  },
+  {
+    id: 'dies-irae-techno',
+    title: 'Dies Irae',
+    composer: 'Anónimo (gregoriano, s. XIII)',
+    years: 's. XIII',
+    publicDomain: 'Melodía gregoriana anónima, del siglo XIII, de dominio público; el arreglo (ritmo, bajo, acordes, estructura) es de coderbeats.',
+    style: 'techno',
+    kit: '909',
+    key: 'Do menor',
+    info: { cells: DIES_TECHNO.map((s) => ({ name: s.name, turns: s.turns, text: s.text })) },
+    build: () => buildSong(DIES_TECHNO),
   },
 ]
 

@@ -1,0 +1,155 @@
+import { describe, expect, it } from 'vitest'
+import { isSong, normalizeSong, songBars } from '../../app/lib/cells'
+import { remixBars, remixById } from '../../app/lib/remixes'
+import { songCode, type SongState } from '../../app/lib/song'
+import { STYLES } from '../../app/lib/constants'
+import { STYLE_MUSIC } from '../../app/lib/styles'
+import { isWow, WOW_LIMITS, WOW_PRESETS, wowCode, wowControls } from '../../app/lib/wow'
+import { events } from '../helpers/strudelEval'
+
+const remix = remixById('dies-irae-techno')!
+const song = remix.build()
+const byName = (n: string) => song.cells.find((c) => c.name === n)!
+const songCells = () => song.order.map((id) => song.cells.find((c) => c.id === id)!)
+const code = () =>
+  songCode(
+    {
+      loops: [], style: remix.style, kit: remix.kit, background: { mode: 'manual', parts: { bass: false, chords: false } }, metronome: false,
+      fx: { filter: 1, space: 0, warmth: 0 }, cells: { list: song.cells, order: song.order, window: [] },
+      groups: { list: song.cells, items: song.groups.map((g) => ({ id: g.id, order: g.order, window: [] })) },
+    } satisfies SongState,
+    'display',
+  )
+
+describe('el estilo techno (spec 008, §9)', () => {
+  it('128 bpm, do menor, kit 909 en el remix', () => {
+    expect(STYLES.techno).toMatchObject({ label: 'Techno', bpm: 128, quantizeEvery: 1 })
+    expect(STYLE_MUSIC.techno.key).toBe('do menor')
+    expect(STYLE_MUSIC.techno.scale).toEqual([0, 2, 3, 5, 7, 8, 10])
+  })
+  it('el bajo a corcheas y los acordes en la escala', () => {
+    const bass = STYLE_MUSIC.techno.background.bass
+    expect(bass.notes.map((n) => n.pos)).toEqual([0, 2, 4, 6, 8, 10, 12, 14])
+    expect(new Set(bass.notes.map((n) => n.note))).toEqual(new Set(['c2']))
+    for (const tones of STYLE_MUSIC.techno.chordTones) for (const t of tones) expect(STYLE_MUSIC.techno.scale).toContain(t)
+  })
+})
+
+describe('el wowo (Cell.wow)', () => {
+  it('valida los cuatro números en rango', () => {
+    expect(isWow(WOW_PRESETS.acid)).toBe(true)
+    for (const bad of [null, 3, 'acid', {}, { ...WOW_PRESETS.acid, q: -1 }, { ...WOW_PRESETS.acid, depth: 9 }, { ...WOW_PRESETS.acid, decay: 0 }, { ...WOW_PRESETS.acid, attack: NaN }])
+      expect(isWow(bad)).toBe(false)
+  })
+  it('el código es Strudel normal, y sin wowo no sale nada', () => {
+    expect(wowCode(WOW_PRESETS.acid)).toBe('.lpq(8).lpenv(3).lpa(0.005).lpd(0.15)')
+    expect(wowCode(undefined)).toBe('')
+    expect(wowCode({ depth: 99, q: 99, attack: 0, decay: 0 })).toBe('')
+    expect(wowControls({ depth: 2.456, q: 7.1234, attack: 0.01, decay: 0.5 })).toEqual({ lpq: 7.12, lpenv: 2.46, lpa: 0.01, lpd: 0.5 })
+    // acotado: nada se escribe tal cual
+    expect(wowControls({ depth: WOW_LIMITS.depth[0], q: WOW_LIMITS.q[1], attack: WOW_LIMITS.attack[0], decay: WOW_LIMITS.decay[1] })).toEqual({ lpq: 20, lpenv: 0.5, lpa: 0.001, lpd: 2 })
+  })
+  it('una canción con wowo se valida, y sin wowo no cambia nada', () => {
+    expect(isSong(song)).toBe(true)
+    expect(isSong(JSON.parse(JSON.stringify(song)))).toBe(true)
+    const bad = JSON.parse(JSON.stringify(song))
+    bad.cells[2].wow = { nope: true }
+    expect(isSong(bad)).toBe(false)
+    // al normalizar, un wowo inválido se descarta (el filtro se queda como estaba) en vez de tirar la canción
+    const n = normalizeSong(bad)
+    expect(n.cells[2].wow).toBeUndefined()
+    expect(isSong(n)).toBe(true)
+  })
+})
+
+describe('el remix Dies Irae en techno', () => {
+  it('9 células, 50 compases, en el orden de la historia', () => {
+    expect(remixBars(remix)).toBe(50)
+    expect(songBars(song)).toBe(50)
+    expect(songCells().map((c) => [c.name, c.turns])).toEqual([
+      ['Pulso', 4], ['Hats', 4], ['Entra el tema', 8], ['Build', 8], ['DROP', 8], ['Groove', 4], ['Build 2', 4], ['DROP 2', 8], ['Salida', 2],
+    ])
+  })
+  it('entra poco a poco: pulso → hats → tema con wowo → build sin bombo → drop con bajo y acordes', () => {
+    const parts = (n: string) => byName(n).parts
+    expect(parts('Pulso')).toEqual({ bass: true, chords: false })
+    expect(parts('Hats')).toEqual({ bass: true, chords: false })
+    expect(parts('Entra el tema')).toEqual({ bass: false, chords: false }) // (su lpf es el del wowo: el bajo vuelve en el drop)
+    expect(parts('Build')).toEqual({ bass: true, chords: false }) // el build se queda sin bombo
+    expect(parts('DROP')).toEqual({ bass: true, chords: true })
+    expect(parts('Salida')).toEqual({ bass: false, chords: true })
+  })
+  it('el wowo va en las células de entrada y en los dos builds, con el filtro subiendo', () => {
+    for (const n of ['Entra el tema', 'Build', 'Groove', 'Build 2']) expect(byName(n).wow, n).toBeDefined()
+    for (const n of ['Pulso', 'Hats', 'DROP', 'DROP 2', 'Salida']) expect(byName(n).wow, n).toBeUndefined()
+    const buildLpf = byName('Build').lpf!
+    expect(buildLpf).toHaveLength(8)
+    expect(buildLpf.every((v, i) => i === 0 || v > buildLpf[i - 1]!)).toBe(true) // sube vuelta a vuelta
+    expect(buildLpf.at(-1)).toBe(8000)
+  })
+  it('la melodía: la nota repetida del Dies Irae y todas las notas en do menor (melódica)', () => {
+    const mel = (n: string) => byName(n).loops.find((l) => l.instrument === 'mel')!
+    expect(mel('Entra el tema').bars).toBe(4)
+    expect(mel('Entra el tema').hits.map((h) => h.midi).slice(0, 4)).toEqual([53, 53, 53, 53]) // F F F F
+    const scale = STYLE_MUSIC.techno.scale
+    for (const c of songCells()) for (const h of c.loops.filter((l) => l.instrument === 'mel').flatMap((l) => l.hits)) expect(scale).toContain(h.midi! % 12)
+  })
+  it('el código mostrado lleva el wowo en la célula y se evalúa en Strudel con su filtro por vuelta', async () => {
+    const c = code()
+    expect(c.startsWith('setcpm(128/4)\n')).toBe(true)
+    expect(c).toContain('.lpf("<500 700 900 1200 1600 2100 2800 3600>").lpq(8).lpenv(3).lpa(0.005).lpd(0.15)')
+    expect(c).toContain('.bank("RolandTR909")')
+    const ev = await events(c, 50)
+    // el filtro de la célula "Entra el tema" (compases 8–15) sube vuelta a vuelta, y la resonancia de cada hap es la del wowo
+    const melIn = (from: number, to: number) => ev.filter((e) => e.begin >= from && e.begin < to && e.value.s === 'square')
+    const cutoffs = new Map(melIn(8, 16).map((e) => [Math.floor(e.begin - 8), e.value.cutoff]))
+    // (la frase ocupa 2 de los 4 compases de su loop: en sus compases 2 y 3 no hay melodía, y no hay vuelta que contar)
+    expect([...cutoffs.keys()].sort((a, b) => a - b)).toEqual([0, 1, 4, 5])
+    expect([0, 1, 4, 5].map((k) => cutoffs.get(k))).toEqual([500, 700, 1600, 2100])
+    expect(melIn(8, 16).every((e) => e.value.resonance === 8 && e.value.lpenv === 3)).toBe(true)
+    // en el drop no hay wowo: el filtro de siempre del sintetizador (aquí, el 0.5 de superdough)
+    expect([...new Set(melIn(24, 32).map((e) => e.value.cutoff))]).toEqual([1800])
+  })
+  it('la estructura suena: el build sin bombo y el drop con él', async () => {
+    const ev = await events(code(), 50)
+    const count = (key: string, from: number, to: number) => ev.filter((e) => e.begin >= from && e.begin < to && e.value.s === key).length
+    expect(count('bd', 0, 8)).toBe(4 * 4 + 4 * 4) // Pulso y Hats: 4 por compás
+    expect(count('bd', 16, 24)).toBe(0) // el Build no lleva bombo
+    expect(count('bd', 24, 32)).toBe(8 * 4) // el DROP sí
+    expect(count('sawtooth', 0, 8)).toBeGreaterThan(0) // el bajo a corcheas
+    expect(count('sawtooth', 8, 16)).toBe(0) // en "Entra el tema" no hay bajo (lleva su lpf propio)
+    expect(count('sawtooth', 16, 24)).toBeGreaterThan(0) // en el build sí
+    expect(count('sawtooth', 24, 32)).toBeGreaterThan(0) // y en el drop
+  })
+})
+
+describe('el motor: otra vez el remix del Himno', () => {
+  it('el código del motor de una canción sin wowo no menciona el wowo y lleva el lpf de siempre en su sitio', () => {
+    const himno = remixById('oda-alegria-dembow')!.build()
+    // sin wowo, el lpf de la célula va con su filterHaps, como siempre
+    const st: SongState = {
+      loops: [], style: 'dembow', kit: '808', background: { mode: 'manual', parts: { bass: false, chords: false } }, metronome: false, fx: { filter: 1, space: 0, warmth: 0 },
+      cells: { list: himno.cells, order: himno.order, window: [{ cellId: himno.order[0]!, from: 0, to: 4 }, { cellId: himno.order[1]!, from: 4, to: 8 }] },
+    }
+    const code = songCode(st, 'engine')
+    expect(code).not.toMatch(/wowo|lpq/)
+    // (la ventana es la célula que suena y la siguiente: aquí la célula 2, sin lpf, con el de siempre)
+    expect(code).toContain('.lpf(20000).filterHaps((h) => h.whole.begin >= 4 && h.whole.begin < 8)')
+  })
+  it('el código del motor del techno: wowoPlan con la marca de cada compás y los colores de las células con wowo', () => {
+    const st: SongState = {
+      loops: [], style: 'techno', kit: '909', background: { mode: 'manual', parts: { bass: false, chords: false } }, metronome: false, fx: { filter: 1, space: 0, warmth: 0 },
+      cells: { list: song.cells, order: song.order, window: [{ cellId: song.order[2]!, from: 8, to: 16 }] },
+    }
+    const engine = songCode(st, 'engine')
+    // la marca por compás: ninguna en Pulso y Hats (4 + 4), el wowo de las células 3, 4, 6 y 7 en lo suyo
+    expect(engine).toContain('"~@4 ~@4 3@8 4@8 ~@8 ~@4 ~@4 ~@8 ~@2"')
+    expect(engine).toContain('{"bus":3,"wow":{"lpq":8,"lpenv":3,"lpa":0.005,"lpd":0.15},"lpf":[500,700,900,1200,1600,2100,2800,3600]}')
+    // la compuerta del motor se engancha en el bus de la célula (su `bus` es el id de la célula), y el plan va en un
+    // comentario (el motor no deja llamar a una función que no es de Strudel)
+    expect(engine).toContain('wowPlan); esto es su plan')
+    // la célula con wowo lleva su color; sin wowo, no
+    expect(engine).toContain('.lpq(8).lpenv(3).lpa(0.005).lpd(0.15).color("w3")')
+    expect(engine).toMatch(/\.lpf\("<500 700 900 1200 1600 2100 2800 3600>"\)\.lpq/)
+  })
+})
