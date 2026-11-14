@@ -5,6 +5,7 @@ import { MELODY_DECISION_SEC } from '~/lib/liveMelody'
 import type { MelodySynth } from '~/lib/melody'
 import { melodyOfPhrase } from '~/lib/melodyAssist'
 import { midiName } from '~/lib/noteScore'
+import type { Remix } from '~/lib/remixes'
 import { STYLE_MUSIC } from '~/lib/styles'
 import { demoState } from '~/lib/demos'
 import { analyzeEchoTest, type EchoTestResult } from '~/lib/echoGate'
@@ -1422,6 +1423,20 @@ export function useAudioEngine() {
     await replaceSong(saved.song)
   }
 
+  /**
+   * Abre un remix (spec 008): reemplaza la canción de ahora por la del remix, con su estilo y su kit, y el fondo en
+   * manual (cada célula lleva sus partes). Si sonaba, arranca de nuevo desde su primera célula. El tempo es el del
+   * estilo. Los efectos de la pantalla se dejan como estaban.
+   */
+  async function openRemix(r: Remix) {
+    style.value = r.style
+    kit.value = r.kit
+    bgMode.value = 'manual'
+    lastBgMode.value = 'manual'
+    log('cell', `remix «${r.title}» (${r.composer}) abierto: ${r.info.cells.map((c) => `${c.name} ${c.turns}`).join(' · ')}`)
+    await replaceSong(r.build())
+  }
+
   /** Pone una canción entera (guardada o demo) y enseña su primera célula. Parado. */
   function setSong(raw: Song) {
     // lo guardado antes de los grupos se migra (una libre → un grupo de una célula; una suelta, uno apagado)
@@ -2012,6 +2027,7 @@ export function useAudioEngine() {
   const displayCode = () => songCode(songState(true), 'display')
 
   return {
+    openRemix,
     previewNote,
     simulateLivePitch,
     livePitch,

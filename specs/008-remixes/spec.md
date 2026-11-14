@@ -81,7 +81,7 @@ interface Cell {
 - **Tests de datos** (`tests/unit/remixes.test.ts`): la lista y su atribución; las siete células con sus vueltas, loops y partes; las notas de cada frase (secuencia, duraciones que suman 4 compases, todas en la escala de si menor / re mayor, y la octava más aguda a +12); `isSong` y la ida y vuelta por JSON.
 - **El código que sale se evalúa en Strudel** (el mismo intérprete de Node de la demo del dembow, 005 §20.3): 34 ciclos; en cada sección, qué suena y qué no (la Intro y el Final solo con acordes; la caja acelerada de la Subida con 4, 8, 16 y 16 golpes por compás y **sin bombo**; el bajo solo en el Subidón; la melodía clara frente a la octava más aguda) y el `lpf` de cada vuelta.
 - **Filtro por vuelta:** validación (rechaza valores raros), rotación del patrón en el motor y que el código mostrado sigue siendo Strudel válido.
-- **Interfaz:** la hoja lista el remix; abrirlo deja 7 células y cambia estilo y kit (probado en Chrome).
+- **Interfaz:** la hoja lista el remix; abrirlo deja 7 células y cambia estilo y kit. **Probado en Chrome** sobre `dev/lab-estudio` (la pantalla principal sin el paso del micro): el botón, la hoja con la atribución, y abrir deja dembow, kit 808, 120 bpm, las 7 células y el código con el `lpf` de cada vuelta. El sonido real y la sensación en el móvil quedan por probar.
 
 ## 8. Decisiones a revisar
 

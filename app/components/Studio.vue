@@ -19,6 +19,7 @@ watchEffect(() => engine.setLatency(usableLatencyMs(calibration.data.value?.late
 
 const settingsOpen = ref(false)
 const libraryOpen = ref(false)
+const remixOpen = ref(false)
 const stage = ref<InstanceType<typeof VisualStage> | null>(null)
 const renderer = computed(() => stage.value?.rendererName ?? '')
 const layoutInfo = () => stage.value?.layoutInfo() ?? ''
@@ -67,6 +68,12 @@ const libraryStyle = computed(() =>
   compact.value
     ? 'position: absolute; top: max(0.5rem, env(safe-area-inset-top)); right: calc(env(safe-area-inset-right, 0px) + 74px); width: 44px; height: 44px'
     : 'position: absolute; top: max(0.5rem, env(safe-area-inset-top)); left: 0.5rem; width: 44px; height: 44px',
+)
+// Remixes (spec 008): debajo del botón de Mis canciones; en horizontal, a su lado
+const remixStyle = computed(() =>
+  compact.value
+    ? 'position: absolute; top: max(0.5rem, env(safe-area-inset-top)); right: calc(env(safe-area-inset-right, 0px) + 122px); width: 44px; height: 44px'
+    : 'position: absolute; top: calc(max(0.5rem, env(safe-area-inset-top)) + 48px); left: 0.5rem; width: 44px; height: 44px',
 )
 const playStyle = computed(() =>
   compact.value
@@ -130,6 +137,20 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
       </svg>
     </button>
 
+    <!-- remixes (spec 008) -->
+    <button
+      class="flex items-center justify-center text-white/50"
+      :style="remixStyle"
+      aria-label="remixes"
+      @pointerdown.stop
+      @click="remixOpen = true"
+    >
+      <svg width="22" height="16" viewBox="0 0 22 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+        <circle cx="8" cy="8" r="5.5" />
+        <circle cx="14" cy="8" r="5.5" />
+      </svg>
+    </button>
+
     <!-- ajustes -->
     <button
       class="flex items-center justify-center text-white/50"
@@ -163,5 +184,6 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
   </VisualStage>
 
   <LibrarySheet v-model:open="libraryOpen" />
+  <RemixSheet v-model:open="remixOpen" />
   <SettingsSheet v-model:open="settingsOpen" :renderer="renderer" :layout="layoutInfo" @recalibrate="(w) => emit('recalibrate', w)" />
 </template>
