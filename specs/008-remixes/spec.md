@@ -93,7 +93,7 @@ interface Cell {
 - **Tests de datos** (`tests/unit/remixes.test.ts`): la lista y su atribución; las siete células con sus vueltas, loops y partes; las notas de cada frase (secuencia, duraciones que suman 4 compases, todas en la escala de si menor / re mayor, y la octava más aguda a +12); `isSong` y la ida y vuelta por JSON.
 - **El código que sale se evalúa en Strudel** (el mismo intérprete de Node de la demo del dembow, 005 §20.3): 34 ciclos; en cada sección, qué suena y qué no (la Intro y el Final solo con acordes; la caja acelerada de la Subida con 4, 8, 16 y 16 golpes por compás y **sin bombo**; el bajo solo en el Subidón; la melodía clara frente a la octava más aguda) y el `lpf` de cada vuelta.
 - **Filtro por vuelta:** validación (rechaza valores raros), rotación del patrón en el motor y que el código mostrado sigue siendo Strudel válido.
-- **El wowo** (`tests/unit/wowo.test.ts`): el preludio (`wowPlan`) no engancha nada sin el motor y le pasa los compases en los que cambia el filtro de cada célula cuando se lo pide; el código del motor del remix, con el preludio delante, evalúa sin error. El remix entero (`tests/unit/techno.test.ts`): 10 células y 54 compases, qué entra en cada una, el filtro subiendo en los builds, la melodía (notas y escala) y el código mostrado evaluado en Strudel (filtro por vuelta y resonancia de cada golpe, sin wowo en el drop).
+- **El wowo** (`tests/unit/wowo.test.ts`): el preludio (`wowPlan`) no engancha nada sin el motor y le pasa los compases en los que cambia el filtro de cada célula cuando se lo pide; el código del motor del remix, con el preludio delante, evalúa sin error. El remix entero (`tests/unit/techno.test.ts`): 11 células y 56 compases, qué entra en cada una, el filtro subiendo en los builds, la melodía (notas y escala) y el código mostrado evaluado en Strudel (filtro por vuelta y resonancia de cada golpe, sin wowo en el drop).
 - **Sin cambios de comportamiento:** el resto de la app tiene el código que tenía: sin wowo (`lpq`/`lpenv`) y sin compuertas; el remix del Himno, igual.
 - **Interfaz:** la hoja lista el remix; abrirlo deja 7 células y cambia estilo y kit. **Probado en Chrome** sobre `dev/lab-estudio` (la pantalla principal sin el paso del micro): el botón, la hoja con la atribución, y abrir deja dembow, kit 808, 120 bpm, las 7 células y el código con el `lpf` de cada vuelta. El sonido real y la sensación en el móvil quedan por probar.
 
@@ -126,7 +126,7 @@ dibujo del techno) y su etiqueta en la barra de estilos.
 (lo que le da el aire de martillo): `F F F F | D F F F` ×2, `A♭ G F E♭` (la figura que baja), y `B♭ D B♭ E♭`. En do
 menor (las notas repetidas están a negras, así que la célula puede tener la misma nota de descanso).
 
-**Las diez células** (desde §10 el bajo va por fuera del filtro; el Riser, de §11, va entre el Build y el drop):
+**Las once células** (desde §10 el bajo va por fuera del filtro; los Riser, de §11, van entre cada build y su drop):
 
 | # | Célula | Vueltas | Qué suena |
 |---|---|---|---|
@@ -138,10 +138,11 @@ menor (las notas repetidas están a negras, así que la célula puede tener la m
 | 6 | **DROP** | 8 | **Todo**: bajo y acordes, bombo, palmada y platillo; el tema limpio (A), sin wowo |
 | 7 | **Groove** | 4 | El groove en paralelo al tema (B), wowo house, con bajo (§10) |
 | 8 | **Build 2** | 4 | El segundo build, más corto, con wowo acid y bajo |
-| 9 | **DROP 2** | 8 | El drop final: todo, el tema (B) limpio |
-| 10 | **Salida** | 2 | Solo los acordes, que se apagan (1 800 → 600 Hz) |
+| 9 | **Riser 2** | 2 | La versión corta (§11): un compás que se abre y otro en silencio |
+| 10 | **DROP 2** | 8 | El drop final: todo, el tema (B) limpio |
+| 11 | **Salida** | 2 | Solo los acordes, que se apagan (1 800 → 600 Hz) |
 
-Total: **54 compases** (~1 min 41 s a 128 bpm).
+Total: **56 compases** (~1 min 45 s a 128 bpm).
 
 **El wowo (`Cell.wow`, opcional)** — el único campo nuevo:
 
@@ -220,7 +221,7 @@ para crear tensión y dejar **el aire antes de que el drop caiga**:
 - **Sin wowo**: el motor admite 4 células con wowo (009 §4) y ya están todas en las demás células. El filtro del
   Riser sube a saltos por compás, y la caja pasa también por él (sin wowo, el filtro de la célula afecta a todo, §10).
 
-La canción pasa a **10 células y 54 compases**. Los ids de las células a partir del drop se desplazan en uno (los que
+**Riser 2** (2 vueltas) va entre el Build 2 y el DROP 2: un compás con ruido (3 000 → 12 000 Hz), la caja a semicorcheas y un pad en Re, y otro en silencio. La canción pasa a **11 células y 56 compases**. Los ids de las células a partir del drop se desplazan en uno (los que
 entran en el `wowPlan` siguen siendo la 3 y la 4).
 
 **Se comprueba** (`tests/unit/techno.test.ts`): la célula (vueltas, sin wowo, el filtro que sube, los dos sintes), que va

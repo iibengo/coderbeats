@@ -224,6 +224,12 @@ const RISER_ROLL = [
   Array(16).fill('~').join(' '),
 ].join(' ')
 
+/** La versión corta, 2 compases (antes del DROP 2): uno que se abre y otro en silencio. */
+const RISER2_NOISE: readonly Note[] = Array.from({ length: 4 }, (_, i) => [i * 4, 4, 60] as const)
+const RISER2_PAD: readonly Note[] = [[0, 16, 62]]
+// (el loop es de 4 compases, la célula dura 2: el 2.º, y los de después, en silencio)
+const RISER2_ROLL = [Array(16).fill('sd').join(' '), ...Array(3).fill(Array(16).fill('~').join(' '))].join(' ')
+
 /** El Dies Irae en techno: entra poco a poco (con wowo en el build) y estalla en el drop. */
 const DIES_TECHNO: CellSpec[] = [
   { name: 'Pulso', turns: 4, parts: { bass: true, chords: false }, drums: { bd: T.bd4 }, text: 'solo el pulso: bombo 4×4 y el bajo a corcheas' },
@@ -234,6 +240,7 @@ const DIES_TECHNO: CellSpec[] = [
   { name: 'DROP', turns: 8, parts: { bass: true, chords: true }, drums: { bd: T.bd4, sd: T.clap, hh: T.hats16 }, mel: { notes: DIES_A, synth: 'lead' }, text: 'el drop: todo, bajo y acordes, el tema limpio y el platillo en semicorcheas' },
   { name: 'Groove', turns: 4, parts: { bass: true, chords: false }, drums: { bd: T.bd4, sd: T.clap, hh: T.hat }, mel: { notes: DIES_B, synth: 'lead' }, lpf: [2200, 2600, 3000, 3400], wow: WOW_PRESETS.house, text: 'el groove en paralelo al tema (segunda vuelta), con bajo' },
   { name: 'Build 2', turns: 4, parts: { bass: true, chords: false }, drums: { sd: T.roll, hh: T.hats16 }, mel: { notes: DIES_A, synth: 'lead' }, lpf: [2000, 2600, 3400, 4600], wow: WOW_PRESETS.acid, text: 'el segundo build, más corto' },
+  { name: 'Riser 2', turns: 2, parts: { bass: false, chords: false }, drums: { sd: RISER2_ROLL }, extra: [{ notes: RISER2_NOISE, synth: 'riser' }, { notes: RISER2_PAD, synth: 'pad' }], lpf: [3000, 12000], text: 'el build corto antes del drop final: un compás que se abre y otro en silencio' },
   { name: 'DROP 2', turns: 8, parts: { bass: true, chords: true }, drums: { bd: T.bd4, sd: T.clap, hh: T.hats16 }, mel: { notes: DIES_B, synth: 'lead' }, text: 'el drop final: todo, sin wowo (el tema, con otra frase)' },
   { name: 'Salida', turns: 2, parts: { bass: false, chords: true }, drums: {}, lpf: [1800, 600], text: 'solo los acordes, que se apagan' },
 ]
