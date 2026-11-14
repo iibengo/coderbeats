@@ -122,6 +122,8 @@ export interface AroFrame {
   playing: boolean
   /** suena el reloj pero no esta célula (se mira otra cosa): sin aguja ni estela */
   idle?: boolean
+  /** agua y estela más suaves, 0..1 (Jugar, spec 011 §12.1): 0 = como siempre; el agua pasa a ser una textura de fondo y los golpes y la aguja se leen primero */
+  calm?: number
   /** fase del compás que se oye, 0..1 */
   phase: number
   dots: AroDot[]
@@ -1132,7 +1134,7 @@ export class AroCanvas {
       if (!ring) continue
       const p = (now - w.born) / WAVE_LIFE[w.voice]
       const e = 1 - (1 - p) ** 3
-      const al = (1 - p) * f.weights[w.voice]
+      const al = (1 - p) * f.weights[w.voice] * (1 - 0.5 * (f.calm ?? 0))
       const { a, b } = layout[w.voice]
       const mid = (a + b) / 2
       const sp = e * WAVE_SPREAD[w.voice]
@@ -1179,7 +1181,7 @@ export class AroCanvas {
       const g = x.createConicGradient(head - TRAIL_SPAN, geo.cx, geo.cy)
       const k = TRAIL_SPAN / TAU
       g.addColorStop(0, 'rgba(255,255,255,0)')
-      g.addColorStop(k * 0.999, `rgba(255,255,255,${TRAIL_ALPHA})`)
+      g.addColorStop(k * 0.999, `rgba(255,255,255,${TRAIL_ALPHA * (1 - 0.4 * (f.calm ?? 0))})`)
       g.addColorStop(k, 'rgba(255,255,255,0)')
       g.addColorStop(1, 'rgba(255,255,255,0)')
       x.fillStyle = g

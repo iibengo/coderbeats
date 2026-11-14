@@ -122,6 +122,9 @@ const fullLimits = computed(() => {
  * Pellizcar más allá del tramo, o el selector, cambian de modo.
  */
 const mode = engine.mode
+/** cuánto se suaviza el agua en Jugar (spec 011, §12.1): ondas, estela y destellos al 55–70 %; Componer, como siempre */
+const CALM_JUGAR = 0.45
+const soft = () => (mode.value === 'jugar' ? 1 - CALM_JUGAR : 1)
 const zoomBounds = computed(() => (mode.value === 'jugar' ? limits.value : { ...limits.value, min: fullLimits.value.min, max: COLONY_ENTER - 0.01 }))
 /** gestos de colonia (el mapa); la interfaz de cerca (bolas, chapa, marcadores) se oculta */
 const colony = ref(false)
@@ -384,7 +387,7 @@ function onEngineVisual(h: Parameters<Parameters<typeof engine.onVisual>[0]>[0])
   const g = { x: gg.cx, y: gg.cy }
   if (h.kind === 'heard' && h.instrument !== 'bass' && h.instrument !== 'chords') {
     const p = aro?.pointOf(h.instrument, h.step ?? 0) ?? { x: g.x, y: g.y }
-    theme.hit({ kind: 'heard', time: h.time, loopId: null, instrument: h.instrument, x: p.x, y: p.y, strength: h.strength })
+    theme.hit({ kind: 'heard', time: h.time, loopId: null, instrument: h.instrument, x: p.x, y: p.y, strength: h.strength * soft() })
     return
   }
   if (h.kind === 'birth' && h.loopId !== null) {
@@ -408,7 +411,7 @@ function onEngineVisual(h: Parameters<Parameters<typeof engine.onVisual>[0]>[0])
     const ball = bgBalls.value.find((b) => b.part === h.instrument)
     pulse(ballEls.get(h.instrument), h.instrument)
     // las bolas se ocultan en la colonia: sin su agua
-    if (ball && !colony.value) theme.hit({ kind: 'hit', time: h.time, loopId: null, instrument: h.instrument, x: ball.x, y: ball.y, strength: 0.3 })
+    if (ball && !colony.value) theme.hit({ kind: 'hit', time: h.time, loopId: null, instrument: h.instrument, x: ball.x, y: ball.y, strength: 0.3 * soft() })
     return
   }
   if (h.loopId === null || falls.has(h.loopId)) return
@@ -416,7 +419,7 @@ function onEngineVisual(h: Parameters<Parameters<typeof engine.onVisual>[0]>[0])
   // (sin onda del agua en el aro: la gota tiene las suyas, spec 003 E1.9)
   const strength = 0.6 + 0.4 * h.strength // la mezcla baja la ganancia con muchos loops: la onda no debe desaparecer
   const b = bodies.get(h.loopId)
-  if (b && !colony.value) theme.hit({ kind: 'hit', time: h.time, loopId: h.loopId, instrument: h.instrument, x: b.x, y: b.y, strength })
+  if (b && !colony.value) theme.hit({ kind: 'hit', time: h.time, loopId: h.loopId, instrument: h.instrument, x: b.x, y: b.y, strength: strength * soft() })
   aro?.light(h.loopId, h.step ?? 0)
   pulse(els.get(h.loopId), h.instrument)
 }
@@ -888,7 +891,7 @@ function tick() {
           downbeat: beat === 0,
           x: cell ? cell.cx : g.x,
           y: cell ? cell.cy : g.y,
-          ...(cell ? { scale: beatScale(cell.R, nearR) } : {}),
+          scale: (cell ? beatScale(cell.R, nearR) : 1) * soft(),
         })
       }
       lastBeat = beatAbs
@@ -984,6 +987,7 @@ function tick() {
       ...scene,
       weights,
       playing: playing.value,
+      calm: CALM_JUGAR * (mode.value === 'jugar' ? 1 : 0),
       // la que se mira sin sonar (fijada, o de un grupo apagado) no lleva aguja ni estela, ni lejos ni cerca
       idle: playing.value && !plan && !engine.groupHeads().some((h) => h.cellId === engine.viewCellId.value),
       phase: clock.barPhase,
