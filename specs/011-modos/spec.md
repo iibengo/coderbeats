@@ -1,6 +1,6 @@
 # 011 · Modos: la misma canción, dos vistas
 
-> Estado: **decidida (2026-11-14); en implementación por fases** (§11). Las decisiones están en §10; §12 añade a Jugar la textura del agua, el primer minuto guiado y la recompensa.
+> Estado: **fases 1–7 hechas (2026-11-14); falta probarlas en el móvil** (§11). Las fases 8 y 9 (§14, componer más fácil) están por hacer. Las decisiones están en §10; §12 añade a Jugar la textura del agua, el primer minuto guiado y la recompensa.
 > Parte de: spec 003 (el aro), 005 (células, colonia, grupos, disparadores), 002 (melodía), 006 (Mis canciones), 008 (remixes),
 > 010 (sonidos). El inventario de §2 se hizo mirando `Studio.vue`, `VisualStage.vue`, `SettingsSheet.vue` y las specs, no de memoria.
 
@@ -233,7 +233,7 @@ Las otras cinco, decididas por lo más simple:
 | **4** | **Jugar, menos ruido visual**: el agua como textura suave (§12.1) | a mano |
 | **5** | **Primer minuto guiado** (§12.2) | tests de la máquina de pasos (pura); a mano: arranque con la app vacía |
 | **6** | **Recompensa** cuando todos los carriles tienen algo (§12.3) | test de la condición (pura); a mano |
-| **7** | Limpieza: retirar `pinned`/`viewAway` si ya no hacen falta; README y esta spec | tests de todo |
+| **7** | Limpieza y documentación. **`pinned`/`viewAway` se quedan**: ya solo los activa «editando» (doble toque en Componer), que es el único estado raro que queda (§3.4) | tests de todo |
 | **8** | **Convertir en canción** (§14.2): de un loop a la estructura completa | tests de la función pura; a mano |
 | **9** | **Componer en directo** (§14.1): grabar canción tocando las capas | tests de la línea de tiempo y del convertidor; a mano |
 
@@ -315,3 +315,20 @@ que luego se puede retocar en Componer. *Nota:* la decisión 4 («Jugar no crea 
 
 - **Modo «Escenario»**: solo mirar y grabar (el disco en perspectiva tipo LED, estela, encendido en el drop).
 - Como gestos o efectos **dentro** de los modos: **dibujar una melodía con el dedo** en el Órgano, la **calibración como mini-juego** (tipo espiral), el **árbol de estilos** como selector, **formas efímeras** al sonar.
+
+## 15. Lo implementado (2026-11-14) y dónde está
+
+| Fase | Commit | Dónde |
+|---|---|---|
+| 1 | pref + selector + pellizco | `lib/modes.ts`, `composables/usePrefs.ts` (`mode`), `components/ModeSwitch.vue`, `VisualStage.vue` (`switchMode`, `zoomBounds`), motor (`mode`, la voz no graba en Componer) |
+| 2 | tira de células, sin marcadores, «editando» | `lib/modes.ts` (`cellStrip`), `components/CellStrip.vue` |
+| 3 | Componer = la colonia | (dentro de la fase 1: el modo decide el tramo del zoom y `colony`; doble toque → Jugar con esa célula) |
+| 4 | agua suave | `VisualStage.vue` (`CALM_JUGAR`, `soft()`), `AroCanvas.ts` (`calm`) |
+| 5 | primer minuto guiado | `lib/firstMinute.ts`, `VisualStage.vue` (la frase), ⋯ → «Repetir la guía» |
+| 6 | recompensa | `lib/reward.ts`, `AroCanvas.ts` (`reward`) |
+
+**Cómo se decidió el modo en el código:** el modo no cambia datos. Decide (a) qué tramo del zoom vale (`zoomBounds`: Jugar = «de cerca», Componer = el mapa),
+(b) el valor de `colony` (los gestos de la colonia) y (c) si la voz graba. **Todo lo demás (células, grupos, el motor, el código mostrado) es idéntico.**
+
+**Pendiente de probar a mano (móvil):** el pellizco (que no cambie de modo sin querer y que cambie cuando se quiere), el selector, la tira, el doble toque de Componer a Jugar,
+la guía (con la canción vacía) y la recompensa (con los tres carriles llenos).

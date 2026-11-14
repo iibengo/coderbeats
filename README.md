@@ -3,6 +3,7 @@
 Un instrumento para jugar con la voz: haces beatbox (bum, pff, ts) y coderbeats lo convierte en batería que suena en bucle y en **código [Strudel](https://strudel.cc)** que puedes copiar y pegar. Todo corre en el navegador: el micrófono se analiza en el dispositivo y no se envía nada a ningún servidor.
 
 - **Escucha continua**: graba frases de beatbox, las cuantiza al compás y las deja como loops (bombo, caja, platillo).
+- **Dos modos** (spec 011): **Jugar** (por defecto: una gota, la voz y el dedo, con un primer minuto guiado) y **Componer** (el mapa de células, grupos y disparadores). Son dos vistas de la misma canción: cualquier demo o remix funciona en los dos.
 - **Células y canción**: cada célula es un aro con sus loops, su bajo y sus acordes; varias células, una tras otra, forman una canción. Hay grupos que suenan en paralelo.
 - **Fondo y efectos**: bajo y acordes por estilo (hip hop 90, house, drum and bass, dembow, techno), filtro, espacio y calor; el filtro de una célula puede barrer vuelta a vuelta (loops de canción y remixes) y hacer el **wowo** (resonancia y envolvente en cada golpe). La app lleva una cadena master «cálida» (saturación suave y compresión de pegamento) que **strudel.cc no tiene**: el código copiado suena algo más seco.
 - **Código = sonido**: el código mostrado, pegado en strudel.cc, suena igual que en coderbeats.
