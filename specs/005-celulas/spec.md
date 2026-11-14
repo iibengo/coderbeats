@@ -708,7 +708,7 @@ Motivo: en la colonia, acercarse a una célula que no suena la ponía a sonar (e
 
 1. **Un toque** = que suene (como antes: la de la canción, en bucle; la de un grupo, lo enciende o salta).
 2. **Doble toque** = entrar a editarla **sin cambiar lo que suena**. Para que el primer toque no llegue a hacer nada, el toque espera lo que dura un doble toque (300 ms) antes de actuar; el cambio cae en una línea de compás, así que no se nota. Entrar en la célula que ya suena es seguir a la canción.
-3. **Dentro de una célula que no suena** (de la canción o de un grupo), la vista y la cámara no siguen a la canción. Sale «◎ centrar» (también cerca, no solo tras mover el mapa), que devuelve la vista a la célula que suena y la vuelve a seguir. Si la canción llega a la célula que se ve, la vista vuelve a seguirla sola; viajar a otra célula con un toque también la suelta.
+3. **Dentro de una célula que no suena** (de la canción o de un grupo), la vista y la cámara no siguen a la canción. Sale «◎ centrar» (también cerca, no solo tras mover el mapa), que devuelve la vista a la célula que suena y la vuelve a seguir. La vista queda fijada aunque la canción llegue a la célula que se ve (así no hay saltos de cámara); solo «◎ centrar» o viajar a otra célula con un toque la sueltan.
 4. **Grabar en una célula que no suena**: el loop nace en la célula que se ve. Una de un grupo enciende su grupo sola (§16). Una de la canción **no suena hasta que la canción llegue a ella** (o se toque para que suene); nace alineada con su primer compás.
 
 Problemas que veo con el punto 4 (a revisar):

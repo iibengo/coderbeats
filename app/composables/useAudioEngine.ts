@@ -394,8 +394,6 @@ function onPulse(cycle: number, t: number) {
   }
   later(() => {
     // la vista sigue a la canción, salvo que se esté en una célula de un grupo en paralelo (a menos que se haya viajado a propósito)
-    // la canción llega a la célula que se estaba viendo aparte: vuelve a seguirla (enmienda 3)
-    if (pinned.value && entered && entered.cellId === viewCellId.value) pinned.value = false
     if (entered && (consumed || !viewAway())) showCell(entered.cellId, entered.startBar)
     // en una célula de un grupo, el compás que se ve cuenta desde que esa célula empezó a sonar
     const vgp = groupPlays.get(groupIdOf(song.value, viewCellId.value) ?? MAIN)
@@ -512,13 +510,13 @@ function startGroupPlays() {
 
 /**
  * Se entró a editar una célula de la canción que no suena (doble toque, enmienda 3): la vista no sigue a la
- * canción hasta que se toque "◎ centrar", se viaje a otra célula o la canción llegue a ella.
+ * canción hasta que se toque "◎ centrar" o se viaje a otra célula (aunque la canción llegue a ella).
  */
 const pinned = ref(false)
 
 /** ¿Se ve algo que no es lo que suena en la canción? Una célula de un grupo en paralelo, o una de la canción que se entró a editar. */
 const viewAway = (): boolean =>
-  inParallel(song.value, viewCellId.value) || (pinned.value && multi() && cursor !== null && cursor.cellId !== viewCellId.value)
+  inParallel(song.value, viewCellId.value) || (pinned.value && multi())
 
 /**
  * Los loops y las partes del fondo de la célula de la canción en el modo de una sola célula: la que se ve,
@@ -1636,6 +1634,7 @@ export function useAudioEngine() {
     }
     reconcileGroups(song.value)
     // si se veía la borrada y suena otra, la vista pasa a la que suena
+    if (id === viewCellId.value) pinned.value = false
     if (!cellById(song.value, viewCellId.value) && !(cursor && cursor.cellId === id)) showCell(cursor?.cellId ?? nextId, cursor?.startBar ?? 0)
     syncLoopUi()
     reevaluate()
