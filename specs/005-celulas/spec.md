@@ -881,3 +881,22 @@ Puro, en `lib/cells.ts`: `mergeCells(song, aId, bId): { song: Song; dropped: { n
 6. **Golpes en el mismo paso:** queda el de B (su fuerza). Alternativa: el más fuerte de los dos.
 7. **Los silenciados no se funden.** Alternativa: fundirlos y dejar el loop silenciado.
 8. **Una nota de A que empieza dentro de una de B se descarta** (no recorta a B). Alternativa: que la de A recorte a la de B donde empieza (legato).
+
+## 22. Enmienda 6 · disparadores de grupos en la célula (2026-11-14)
+
+**Para qué.** Un grupo en paralelo (§16) avanza por su cuenta, pero hasta ahora solo se encendía con Play o tocándolo. Hacía falta que **la canción** lo encendiera cuando llega a una parte concreta (p. ej. el Himno del remix, que debe empezar con la célula Dembow y no repetir el mismo trozo mientras la batería cambia de célula).
+
+**Modelo.** Dos campos opcionales en la célula (`Cell.groupOn`, `Cell.groupOff`): ids de grupos en paralelo (1 a 16 enteros ≥ 1; validación estricta). Solo valen en **células de la canción**.
+
+**Reglas.**
+1. Al **entrar** la canción en una célula (cambiar de célula, no repetirse en bucle), en esa línea de compás: **enciende** los grupos de `groupOn`, **siempre desde su primera célula** (también si ya sonaban: se reinician), y **apaga** los de `groupOff` (siguen hasta esa línea).
+2. Un grupo en las dos listas se enciende (se reinicia).
+3. Al dar a Play, se aplican los de la célula con la que arranca (compás 0). Si se da Play desde otra célula, solo cuentan los de esa célula (decisión: sencillo y predecible, aunque limitado).
+4. Solo cambian **lo que suena**; la marca "encendido" que se guarda con la canción no se toca (al volver a dar Play, el grupo no arranca solo desde el compás 0).
+5. La canción es cíclica: cada vuelta vuelve a encender lo que enciende.
+6. Si un grupo desaparece (se borra su última célula), los ids que lo apuntaban se limpian en las dos listas; una lista vacía desaparece. Copiar una célula conserva sus disparadores (sin efecto mientras la copia no esté en la canción).
+7. **Código mostrado** (strudel.cc): el grupo lleva `[n, silence]` hasta la célula que lo enciende y calla desde la que lo apaga hasta el final de la vuelta; si es más corto que lo que está encendido, da la vuelta.
+
+**Interfaz.** Un marcador pequeño en la colonia, en las células que encienden (▶) o apagan (■) un grupo. Sin interfaz para editarlos todavía (los trae la canción: p. ej. los remixes).
+
+**Decisiones a revisar.** (a) Dar Play desde otra célula no aplica los disparadores de las anteriores (el grupo no suena aunque «le tocara»). (b) Mientras se ve una célula del grupo que se reinicia, el grupo se queda en ella (como con Play). (c) Un editor para poner y quitar disparadores desde la interfaz.

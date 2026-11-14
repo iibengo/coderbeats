@@ -2,7 +2,7 @@
  * Remixes (spec 008): canciones de demo que mezclan un estilo con una melodía de **dominio público**. La melodía va como
  * notas (aquí no hay ningún audio de terceros) y el arreglo (ritmo, bajo, acordes, estructura) es original.
  */
-import { MAX_CELLS, type Cell, type Song, type Turns } from './cells'
+import { MAX_CELLS, type Cell, type Group, type Song, type Turns } from './cells'
 import type { FreeLoop } from './freeLoops'
 import type { MelodySynth } from './melody'
 import type { Parts } from './background'
@@ -43,6 +43,13 @@ const ODE_START: readonly Note[] = [
 export const ODE_A: readonly Note[] = [...ODE_START, [48, 6, 66], [54, 2, 64], [56, 8, 64]]
 /** frase A′ (cadencia cerrada): ... E. D D */
 export const ODE_A2: readonly Note[] = [...ODE_START, [48, 6, 64], [54, 2, 62], [56, 8, 62]]
+/** frase B (el puente): E E F♯ D | E F♯G F♯ D | E F♯G F♯ E | D E A(grave) */
+export const ODE_B: readonly Note[] = [
+  [0, 4, 64], [4, 4, 64], [8, 4, 66], [12, 4, 62], // E E F# D
+  [16, 4, 64], [20, 2, 66], [22, 2, 67], [24, 4, 66], [28, 4, 62], // E F# G F# D
+  [32, 4, 64], [36, 2, 66], [38, 2, 67], [40, 4, 66], [44, 4, 64], // E F# G F# E
+  [48, 4, 62], [52, 4, 64], [56, 8, 57], // D E A
+]
 const up = (notes: readonly Note[], semitones: number): Note[] => notes.map(([p, d, m]) => [p, d, m + semitones] as const)
 
 // ── Patrones de un compás (16 pasos) o de cuatro (64) ─────────────────────────────────────────────
@@ -60,6 +67,16 @@ const P = {
   ].join(' '),
 }
 
+/**
+ * Un grupo en paralelo (spec 005, §22): células de solo melodía que suenan seguidas, encendido por la célula `on` de la
+ * canción y apagado por la `off` (por nombre).
+ */
+interface GroupSpec {
+  on: string
+  off?: string
+  cells: { name: string; turns: Turns; mel: { notes: readonly Note[]; synth: MelodySynth }; lpf?: number[] }[]
+}
+
 interface CellSpec {
   name: string
   turns: Turns
@@ -75,13 +92,26 @@ const ODE_DEMBOW: CellSpec[] = [
   { name: 'Intro', turns: 4, parts: { bass: false, chords: true }, drums: {}, lpf: [800, 900, 1000, 1200], text: 'solo los acordes, suaves' },
   { name: 'Despierta', turns: 4, parts: { bass: false, chords: true }, drums: { hh: P.hh8 }, mel: { notes: ODE_A, synth: 'pad' }, text: '+ platillo y la melodía, suave y lejana' },
   { name: 'Entra el ritmo', turns: 4, parts: { bass: false, chords: true }, drums: { hh: P.hh8, bd: P.bd }, mel: { notes: ODE_A, synth: 'pad' }, text: '+ bombo' },
-  { name: 'Dembow', turns: 8, parts: { bass: false, chords: true }, drums: { hh: P.hh16, bd: P.bd, sd: P.sd }, mel: { notes: ODE_A, synth: 'lead' }, text: '+ caja dembow y la melodía clara' },
-  { name: 'Subida', turns: 4, parts: { bass: false, chords: true }, drums: { hh: P.hh16, sd: P.sdRoll }, mel: { notes: ODE_A2, synth: 'lead' }, lpf: [600, 1000, 2000, 6000], text: 'sin bombo, la caja se acelera y el filtro se abre' },
-  { name: 'Subidón', turns: 8, parts: { bass: true, chords: true }, drums: { hh: P.hh16, bd: P.bd, sd: P.sd }, mel: { notes: up(ODE_A2, 12), synth: 'lead' }, text: 'todo, con el bajo y la melodía una octava más aguda' },
-  { name: 'Final', turns: 2, parts: { bass: false, chords: true }, drums: {}, lpf: [1500, 350], text: 'solo los acordes, que se apagan' },
+  { name: 'Dembow', turns: 8, parts: { bass: false, chords: true }, drums: { hh: P.hh16, bd: P.bd, sd: P.sd }, text: '+ caja dembow; entra el Himno completo, claro (A, A′)' },
+  { name: 'Subida', turns: 4, parts: { bass: false, chords: true }, drums: { hh: P.hh16, sd: P.sdRoll }, lpf: [600, 1000, 2000, 6000], text: 'sin bombo, la caja se acelera y el filtro se abre; el puente (B)' },
+  { name: 'Subidón', turns: 8, parts: { bass: true, chords: true }, drums: { hh: P.hh16, bd: P.bd, sd: P.sd }, text: 'todo, con el bajo y el Himno una octava más aguda (A↑, A′↑)' },
+  { name: 'Final', turns: 2, parts: { bass: false, chords: true }, drums: {}, lpf: [1500, 350], text: 'solo los acordes, que se apagan (el Himno se apaga)' },
 ]
 
-function buildSong(specs: readonly CellSpec[]): Song {
+/** El Himno, en orden y sin repetirse, en un grupo que se enciende con el Dembow y se apaga con el Final (20 compases = 8 + 4 + 8). */
+const ODE_GROUP: GroupSpec = {
+  on: 'Dembow',
+  off: 'Final',
+  cells: [
+    { name: 'Himno A', turns: 4, mel: { notes: ODE_A, synth: 'lead' } },
+    { name: 'Himno A′', turns: 4, mel: { notes: ODE_A2, synth: 'lead' } },
+    { name: 'Puente B', turns: 4, mel: { notes: ODE_B, synth: 'lead' }, lpf: [600, 1000, 2000, 6000] },
+    { name: 'Himno A↑', turns: 4, mel: { notes: up(ODE_A, 12), synth: 'lead' } },
+    { name: 'Himno A′↑', turns: 4, mel: { notes: up(ODE_A2, 12), synth: 'lead' } },
+  ],
+}
+
+function buildSong(specs: readonly CellSpec[], groupSpecs: readonly GroupSpec[] = []): Song {
   let id = 1
   const loop = (instrument: FreeLoop['instrument'], bars: 1 | 4, hits: FreeLoop['hits'], synth?: MelodySynth): FreeLoop => ({
     id: id++, instrument, bars, phaseBar: 0, hits, muted: false, bornAt: 0, fromTemplate: false, ...(synth ? { synth } : {}),
@@ -106,7 +136,28 @@ function buildSong(specs: readonly CellSpec[]): Song {
       at: { x: i * 3, y: Math.sin(i * 1.3) * 1.2, depth: [0, 0.4, 0.1, 0.6][i % 4]! },
     }
   })
-  return { version: 1, cells, order: cells.map((c) => c.id), groups: [], nextGroupId: 1, bpm: null, nextCellId: cells.length + 1, nextLoopId: id }
+  // los grupos en paralelo: sus células (solo melodía) debajo de la canción, y los disparadores en las células de la canción que los encienden y apagan
+  const groups: Group[] = []
+  let nextCell = cells.length + 1
+  groupSpecs.forEach((g, gi) => {
+    const gid = gi + 1
+    const ids: number[] = []
+    g.cells.forEach((gc, k) => {
+      const cid = nextCell++
+      ids.push(cid)
+      cells.push({
+        id: cid, name: gc.name, loops: [loop('mel', 4, gc.mel.notes.map(([pos, dur, midi]) => ({ pos, dur, midi, strength: 0.8 })), gc.mel.synth)],
+        parts: { bass: false, chords: false }, turns: gc.turns, ...(gc.lpf ? { lpf: [...gc.lpf] } : {}),
+        at: { x: 9 + k * 3, y: 4.5 + gi * 2.5, depth: [0.5, 0.2, 0.6, 0.3][k % 4]! },
+      })
+    })
+    groups.push({ id: gid, order: ids, on: false })
+    const on = cells.find((c) => c.name === g.on)
+    if (on) on.groupOn = [...(on.groupOn ?? []), gid]
+    const off = g.off ? cells.find((c) => c.name === g.off) : undefined
+    if (off) off.groupOff = [...(off.groupOff ?? []), gid]
+  })
+  return { version: 1, cells, order: cells.slice(0, specs.length).map((c) => c.id), groups, nextGroupId: groups.length + 1, bpm: null, nextCellId: nextCell, nextLoopId: id }
 }
 
 export const REMIXES: readonly Remix[] = [
@@ -120,7 +171,7 @@ export const REMIXES: readonly Remix[] = [
     kit: '808',
     key: 'Re mayor',
     info: { cells: ODE_DEMBOW.map((s) => ({ name: s.name, turns: s.turns, text: s.text })) },
-    build: () => buildSong(ODE_DEMBOW),
+    build: () => buildSong(ODE_DEMBOW, [ODE_GROUP]),
   },
 ]
 

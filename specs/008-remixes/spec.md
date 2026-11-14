@@ -29,24 +29,36 @@ Una categoría nueva, **Remixes**, junto a los estilos y a Mis canciones: **canc
 
 **La tonalidad.** **Re mayor** tiene las mismas notas que **si menor** (la escala del dembow, spec 005 §20): el estilo no cambia (120 bpm, kit 808, acordes Bm–G y bajo b1/g1) y la ayuda de la melodía sigue yendo a la misma escala.
 
-**Las siete células**, creciendo una a una hasta el subidón (cada una añade lo que dice a lo de la anterior, salvo donde se diga que quita):
+**La estructura (revisada, 2026-11-14).** La melodía no cabe en un loop (4 compases) y, repetida dentro de la célula, siempre suena el mismo trozo. Por eso el **Himno va en un grupo en paralelo de 5 células de 4 compases** (spec 005 §22: 20 compases = Dembow 8 + Subida 4 + Subidón 8), que **se enciende solo con la célula "Dembow" y se apaga con "Final"** mientras la batería cambia de célula:
+
+| Célula del grupo | Suena en | Frase |
+|---|---|---|
+| Himno A | Dembow (12–15) | A, clara (lead) |
+| Himno A′ | Dembow (16–19) | A′ |
+| Puente B | Subida (20–23) | B, con el filtro que se abre (600 → 6 000 Hz) |
+| Himno A↑ | Subidón (24–27) | A, una octava más aguda |
+| Himno A′↑ | Subidón (28–31) | A′, una octava más aguda |
+
+Las células 2 y 3 (Despierta, Entra el ritmo) conservan su **loop suave** de A (pad). **Frase B (el puente):** `E E F♯ D | E F♯G F♯ D | E F♯G F♯ E | D E A(grave)`.
+
+**Las siete células de la canción** (la melodía de Dembow, Subida y Subidón viene del grupo):
 
 | # | Célula | Vueltas | Qué suena |
 |---|---|---|---|
 | 1 | **Intro** | 4 | Solo los **acordes**, suaves (el filtro apenas se abre: 800 → 1 200 Hz) |
 | 2 | **Despierta** | 4 | + **platillo** (en corcheas) + la **melodía** (frase A) **suave y lejana** (sinte pad, con su reverb) |
 | 3 | **Entra el ritmo** | 4 | + **bombo** (0 4 8 12) |
-| 4 | **Dembow** | 8 | + **caja dembow** (3 6 11 14), platillo en semicorcheas y la **melodía clara** (frase A, sinte lead) |
-| 5 | **Subida** | 4 | **Sin bombo**; la **caja se acelera** (negras, corcheas y semicorcheas a lo largo de los 4 compases); el **filtro se abre** (600 → 6 000 Hz); la melodía (frase A′) sigue |
-| 6 | **Subidón** | 8 | **Todo**: acordes, **bajo**, bombo, caja dembow, platillo y la melodía (frase A′) **una octava más aguda** |
-| 7 | **Final** | 2 | Solo los **acordes**, que **se apagan** (el filtro se cierra: 1 500 → 350 Hz) |
+| 4 | **Dembow** | 8 | + **caja dembow** (3 6 11 14), platillo en semicorcheas; **enciende el grupo del Himno** (A, A′) |
+| 5 | **Subida** | 4 | **Sin bombo**; la **caja se acelera** (negras, corcheas y semicorcheas a lo largo de los 4 compases); el **filtro se abre** (600 → 6 000 Hz); suena el **puente (B)** |
+| 6 | **Subidón** | 8 | **Todo**: acordes, **bajo**, bombo, caja dembow y platillo; el Himno **una octava más aguda** (A↑, A′↑) |
+| 7 | **Final** | 2 | Solo los **acordes**, que **se apagan** (el filtro se cierra: 1 500 → 350 Hz); **apaga el grupo** |
 
-Total: **34 compases** (unos 68 s a 120 bpm).
+Total: **34 compases** (unos 68 s a 120 bpm); en la colonia, 12 células (7 de la canción y 5 del grupo).
 
 ### 4.1 Qué se aproxima
 
 1. **"Suave y lejana"** (células 1 y 2) se aproxima con **filtro y sinte**: los acordes con el filtro cerrado y la melodía con el sinte *pad* (ataque lento, reverb grande). La app no tiene volumen ni reverb **por loop**: la mezcla es automática (spec 005 §20.4).
-2. **Cada frase de 4 compases es un loop de melodía** (el máximo del modelo): en la célula 4 (8 vueltas) la frase A suena **dos veces seguidas** y en la 6, la A′ dos veces; el tema completo (A, A′, B, A′) no cabe en un loop de más de 4 compases. Llegar a 8 compases por loop sería otro cambio del modelo (no hecho).
+2. **Cada frase de 4 compases es un loop de melodía** (el máximo del modelo) y las frases van **en células de un grupo en paralelo** que avanza solo (spec 005 §22): así el tema suena en orden y no se repite el mismo trozo. Loops de 8 compases: más adelante.
 3. **El filtro que se abre y se apaga** es un **filtro paso bajo por vuelta** (`Cell.lpf`, §5): sube o baja a saltos, **una vez por compás**, no de forma continua.
 4. **La caja que se acelera** es un loop de **4 compases** con más golpes en cada uno (no un redoble continuo): compás 1 a negras (0 4 8 12), compás 2 a corcheas, compases 3 y 4 a semicorcheas.
 5. **La melodía una octava más aguda** va escrita 12 semitonos arriba (re mayor se queda en el registro del lead, hasta la A5).
@@ -85,8 +97,8 @@ interface Cell {
 
 ## 8. Decisiones a revisar
 
-1. **Qué frase va en cada célula:** A en las células 2, 3 y 4 y A′ en la 5 y la 6 (la 5 y la 6 siguen una a otra). La frase B (el puente) no se usa porque no se reconoce tanto.
-2. **La melodía continúa en la célula 3** (Entra el ritmo, solo "+ bombo"): se interpretó como que lo anterior sigue. En la 5 (Subida) también sigue.
+1. **Qué frase va dónde:** A suave en Despierta y Entra el ritmo; en el grupo, A y A′ (Dembow), B (Subida), A↑ y A′↑ (Subidón), por pedido del autor.
+2. **La melodía continúa en la célula 3** (Entra el ritmo, solo "+ bombo"): se interpretó como que lo anterior sigue.
 3. **El platillo** va en corcheas en las células 2 y 3 y en semicorcheas desde la 4 (el patrón del dembow).
 4. **El bajo solo en el Subidón**, como pedía la descripción.
 5. **Dónde está el botón** (debajo del de Mis canciones) y su icono: a revisar al verlo en el móvil.
