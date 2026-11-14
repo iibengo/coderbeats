@@ -83,7 +83,9 @@ const rendererName = ref('')
 // ── geometría (todo centrado en la ventana, también en escritorio) ───────────────
 const PLAY_FROM_BOTTOM = 56 // centro del botón Play desde abajo (px)
 /** fila de bolas de los loops: encima de Play (E1.1) */
-const ROW_FROM_BOTTOM = PLAY_FROM_BOTTOM + 62
+/** la fila de acciones va entre Play y la fila de bolas */
+const ACTIONS_FROM_BOTTOM = PLAY_FROM_BOTTOM + 52
+const ROW_FROM_BOTTOM = PLAY_FROM_BOTTOM + 90
 const BALL = 22
 const BALL_GAP = 36
 /** zona de arriba (estilo y ⋯) y de abajo (fila de bolas, Play y fondo) que la gota no pisa (E1.8) */
@@ -161,34 +163,18 @@ const bgBalls = computed(() => {
     { part: 'chords' as Part, label: 'acordes', x: view.w / 2 + 96, y },
   ]
 })
-/** "∞ ▶ seguir canción": junto a Play, donde estaría la bola de acordes (que en la colonia se oculta) */
-const releaseStyle = computed(() => {
-  const x = compact.value ? sideX.value.right - 40 : view.w / 2 + 112
-  const y = compact.value ? view.h / 2 + 84 : view.h - PLAY_FROM_BOTTOM
-  return { left: `${x}px`, top: `${y}px`, transform: 'translate(-50%, -50%)' }
-})
-/** "apagar extras": a la izquierda de Play, donde estaría la bola de bajo (que en la colonia se oculta) */
-const extrasStyle = computed(() => {
-  const x = compact.value ? sideX.value.right - 40 : view.w / 2 - 112
-  const y = compact.value ? view.h / 2 - 84 : view.h - PLAY_FROM_BOTTOM
-  return { left: `${x}px`, top: `${y}px`, transform: 'translate(-50%, -50%)' }
-})
-/** "↶ deshacer": a la altura de la fila de bolas; en la colonia, a la izquierda de "◎ centrar" si está */
-const undoStyle = computed(() => {
-  const shift = showFollow.value ? 56 : 0
-  const x = compact.value ? sideX.value.left : view.w / 2 - shift
-  // cerca, un poco por encima de las bolas para no taparlas
-  const y = compact.value ? view.h / 2 + 44 : view.h - ROW_FROM_BOTTOM - (colony.value ? 0 : 40)
-  return { left: `${x}px`, top: `${y}px`, transform: 'translate(-50%, -50%)' }
-})
-/** "◎ centrar": tras mover el mapa en la colonia, o dentro de una célula que no suena (enmienda 3) */
+/** "◎ Volver a la canción": tras mover el mapa en la colonia, o con la vista fuera de lo que suena (enmienda 3) */
 const showFollow = computed(() => (colony.value && panned.value) || engine.viewAway.value)
-const followStyle = computed(() => {
-  const x = compact.value ? sideX.value.left : view.w / 2 + (engine.undoInfo.value ? 62 : 0)
-  // cerca, un poco por encima de las bolas para no taparlas
-  const y = compact.value ? view.h / 2 : view.h - ROW_FROM_BOTTOM - (colony.value ? 0 : 40)
-  return { left: `${x}px`, top: `${y}px`, transform: 'translate(-50%, -50%)' }
-})
+/**
+ * La zona de acciones (spec 005, §19): un solo sitio, encima de Play (en horizontal, una columna a su izquierda).
+ * Orden fijo: sonido (soltar bucle, apagar extras), cámara (volver a la canción) y deshacer.
+ */
+const actionsStyle = computed(() =>
+  compact.value
+    ? { right: `${view.w - sideX.value.right + 40}px`, top: '50%', transform: 'translateY(-50%)', flexDirection: 'column' as const, alignItems: 'flex-end' }
+    : { left: '0', right: '0', bottom: `${ACTIONS_FROM_BOTTOM - 16}px`, justifyContent: 'center' },
+)
+const hasActions = computed(() => looping.value || engine.extrasOn.value || showFollow.value || !!engine.undoInfo.value)
 /** posición de cada bola en la fila, por orden de instrumento (bombo, caja, platillo) */
 const rowSlots = computed(() => {
   const order = [...loops.value.loops].sort(
@@ -1624,10 +1610,10 @@ defineExpose({ rendererName, layoutInfo })
       :aria-label="
         chapa.free
           ? chapa.on ? 'grupo encendido: tocar para apagarlo' : 'grupo apagado: tocar para encenderlo'
-          : chapa.loop ? 'seguir con la canción' : `vuelta ${chapa.turn + 1} de ${chapa.turns}: tocar para dejarla en bucle`
+          : chapa.loop ? 'en bucle' : `vuelta ${chapa.turn + 1} de ${chapa.turns}: tocar para dejarla en bucle`
       "
       @pointerdown.stop
-      @click="chapa.free ? engine.toggleGroup(engine.viewGroup.value) : chapa.loop ? engine.resume() : engine.loopHere()"
+      @click="chapa.free ? engine.toggleGroup(engine.viewGroup.value) : chapa.loop ? undefined : engine.loopHere()"
     >
       <template v-if="chapa.free">
         <span class="chapa-inf">{{ chapa.on ? '●' : '○' }}</span>
@@ -1635,7 +1621,6 @@ defineExpose({ rendererName, layoutInfo })
       </template>
       <template v-else-if="chapa.loop">
         <span class="chapa-inf">∞</span>
-        <span>▶ seguir</span>
       </template>
       <span v-else-if="chapa.turns > 8" class="chapa-num">{{ chapa.turn + 1 }}/{{ chapa.turns }}</span>
       <span v-else class="chapa-dots" :style="{ '--cols': Math.min(4, chapa.turns) }">
@@ -1643,65 +1628,21 @@ defineExpose({ rendererName, layoutInfo })
       </span>
     </button>
 
-    <!-- colonia: tras mover el mapa, "◎ centrar" devuelve la cámara a la célula que suena (spec 005, §7.1) -->
-    <button
-      v-if="showFollow"
-      class="follow-btn absolute"
-      :style="followStyle"
-      aria-label="centrar la cámara en la célula que suena"
-      @pointerdown.stop
-      @click="((panned = false), engine.followSong())"
-    >
-      ◎ centrar
-    </button>
-
-    <!-- sonando una canción de varias células: fijar la vista en la que se ve; la canción cambia y la cámara se queda -->
-    <button
-      v-if="engine.playing.value && engine.multi.value && !showFollow && !engine.viewIsFree.value"
-      class="follow-btn absolute"
-      :style="followStyle"
-      aria-label="fijar la vista en esta célula: la canción cambia de célula y la cámara se queda"
-      @pointerdown.stop
-      @click="engine.pinView()"
-    >
-      ⌖ fijar vista
-    </button>
-
-    <!-- deshacer lo último que se borró (una célula o "Borrar todo"), unos 8 s (spec 005, §7.1) -->
-    <button
-      v-if="engine.undoInfo.value"
-      class="undo-btn absolute"
-      :style="undoStyle"
-      aria-label="deshacer el último borrado"
-      @pointerdown.stop
-      @click="engine.undo()"
-    >
-      ↶ deshacer
-    </button>
-
-    <!-- colonia: apagar todos los grupos en paralelo, menos la canción (spec 005, §16.10) -->
-    <button
-      v-if="colony && engine.extrasOn.value"
-      class="release-btn absolute"
-      :style="extrasStyle"
-      aria-label="apagar los grupos que suenan a la vez que la canción"
-      @pointerdown.stop
-      @click="engine.stopExtras()"
-    >
-      apagar extras
-    </button>
-
-    <!-- colonia: mientras hay bucle, soltarlo desde aquí (la chapa de vueltas no se ve alejado) -->
-    <button
-      v-if="colony && looping"
-      class="release-btn absolute"
-      :style="releaseStyle"
-      aria-label="seguir con la canción: soltar el bucle"
-      @pointerdown.stop
-      @click="engine.resume()"
-    >
-      <span class="chapa-inf">∞</span> ▶ seguir canción
-    </button>
+    <!-- zona de acciones (spec 005, §19): un solo sitio, en orden fijo, solo lo que tiene sentido ahora -->
+    <div v-if="hasActions" class="actions absolute" :style="actionsStyle" @pointerdown.stop>
+      <button v-if="looping" class="act-btn" aria-label="soltar el bucle: la canción sigue" @click="engine.resume()">
+        <span class="chapa-inf">∞</span> Soltar bucle
+      </button>
+      <button v-if="engine.extrasOn.value" class="act-btn" aria-label="apagar los grupos que suenan a la vez que la canción" @click="engine.stopExtras()">
+        Apagar extras
+      </button>
+      <button v-if="showFollow" class="act-btn" aria-label="volver a la célula que suena en la canción" @click="((panned = false), engine.followSong())">
+        ◎ Volver a la canción
+      </button>
+      <button v-if="engine.undoInfo.value" class="act-btn" data-kind="undo" aria-label="deshacer el último borrado" @click="engine.undo()">
+        ↶ Deshacer
+      </button>
+    </div>
 
     <!-- bolas del fondo (modo manual, §16.17) -->
     <template v-if="bgMode === 'manual' && !colony && !engine.viewIsFree.value">
@@ -1767,36 +1708,15 @@ defineExpose({ rendererName, layoutInfo })
   background: #f496bc;
   box-shadow: 0 0 10px rgb(244 150 188 / 0.6);
 }
-/* "◎ centrar" de la colonia */
-.follow-btn {
-  height: 30px;
-  padding: 0 14px;
-  border-radius: 9999px;
-  border: 1px solid #f496bc;
-  background: rgb(255 255 255 / 0.07);
-  color: #f496bc;
-  font-size: 12px;
-  letter-spacing: 0.04em;
-  white-space: nowrap;
+/* zona de acciones: una fila (o columna en horizontal) de botones del mismo estilo */
+.actions {
+  display: flex;
+  gap: 8px;
+  pointer-events: none;
 }
-.undo-btn {
-  height: 30px;
-  padding: 0 14px;
-  border-radius: 9999px;
-  border: 1px solid rgb(255 255 255 / 0.4);
-  background: rgb(255 255 255 / 0.09);
-  color: rgb(255 255 255 / 0.9);
-  font-size: 12px;
-  letter-spacing: 0.04em;
-  white-space: nowrap;
-}
-.undo-btn::after {
-  content: '';
-  position: absolute;
-  inset: -8px;
-  border-radius: 9999px;
-}
-.release-btn {
+.act-btn {
+  pointer-events: auto;
+  position: relative;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -1810,16 +1730,15 @@ defineExpose({ rendererName, layoutInfo })
   letter-spacing: 0.03em;
   white-space: nowrap;
 }
-.release-btn::after {
+.act-btn[data-kind='undo'] {
+  border-color: rgb(255 255 255 / 0.4);
+  background: rgb(255 255 255 / 0.09);
+  color: rgb(255 255 255 / 0.9);
+}
+.act-btn::after {
   content: '';
   position: absolute;
   inset: -6px;
-  border-radius: 9999px;
-}
-.follow-btn::after {
-  content: '';
-  position: absolute;
-  inset: -8px;
   border-radius: 9999px;
 }
 /* chapa de vueltas: gotita pegada al borde, arriba */

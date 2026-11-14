@@ -716,3 +716,13 @@ Problemas que veo con el punto 4 (a revisar):
 - Mientras se ve una célula que no suena no hay chapa de vueltas ni transiciones de agua de la que suena, y la colonia no muestra su halo de progreso.
 - La canción no se detiene a esperar: si llega a la célula mientras se graba, la vista pasa a seguirla.
 5. **Fijar la vista** en la célula que suena: doble toque sobre ella (o el botón «⌖ fijar vista», con la canción sonando y varias células). La canción sigue cambiando de célula y suena el cambio, pero la vista y la cámara se quedan; sale «◎ centrar» para volver a seguirla.
+
+## 19. Enmienda 4 · una sola zona de acciones (2026-11-14)
+
+Motivo: había botones sueltos en sitios distintos y con nombres parecidos (◎ centrar, ∞ ▶ seguir canción, «▶ seguir» de la chapa, apagar extras, ↶ deshacer).
+
+1. **Un sitio fijo**: una fila centrada justo encima de Play (la fila de bolas sube un poco). En horizontal, una columna a la izquierda de Play. Igual en escritorio.
+2. **Solo lo que tiene sentido ahora**, en orden fijo: **sonido** («∞ Soltar bucle» si hay bucle; «Apagar extras» si hay un grupo encendido), **cámara** («◎ Volver a la canción» si la vista no está donde suena o se movió el mapa) y **deshacer** («↶ Deshacer», 8 s tras borrar). Sonando y siguiendo, la fila está vacía.
+3. **Se quitan**: «∞ ▶ seguir canción» (colonia), «▶ seguir» de la chapa, «⌖ Fijar vista» (mover el mapa ya deja de seguir; el doble toque sobre la célula que se ve sigue fijando la vista) y «◎ centrar» (pasa a «Volver a la canción»).
+4. **La chapa** se queda en el aro y solo informa: vueltas, «∞» en bucle (tocarla en bucle no hace nada; se suelta con «Soltar bucle»), y el interruptor «grupo · suena / apagado» de una célula de un grupo.
+5. **«Apagar extras»** sale siempre que haya un grupo encendido, no solo en la colonia.
