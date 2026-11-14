@@ -47,7 +47,8 @@ import {
 } from '~/lib/aro/colony'
 import { Drift, GLIDE_TAU, glideEnd, linkedIds, releaseVelocity, type Sample } from '~/lib/aro/drift'
 import { readJson, writeJson } from '~/lib/storage'
-import { MODE_HINT, type Mode } from '~/lib/modes'
+import { cellStrip, MODE_HINT, type Mode } from '~/lib/modes'
+import CellStrip from '../CellStrip.vue'
 import { edgeMarkers } from '~/lib/aro/markers'
 import { transitionAt } from '~/lib/aro/transition'
 import { clampZoom, contourPoints, dropLayout, freeRect, lerpGeo, moveGeo, pinchZoom, scaleGeo, stretchOf, wheelZoom, zoomLimits, type Insets } from '~/lib/aro/zoom'
@@ -172,6 +173,23 @@ const bgBalls = computed(() => {
 })
 /** "◎ Volver a la canción": tras mover el mapa en la colonia, o con la vista fuera de lo que suena (enmienda 3) */
 const showFollow = computed(() => (colony.value && panned.value) || engine.viewAway.value)
+/** la célula que se está editando (spec 011, §3.4): la que se ve cuando no es la que suena */
+const editingName = computed(() => {
+  const c = engine.song.value.cells.find((x) => x.id === engine.viewCellId.value)
+  return c?.name?.trim() || `célula ${engine.viewCellId.value}`
+})
+/** la tira de células de Jugar: solo si hay más de una parte */
+const strip = computed(() => (mode.value === 'jugar' ? cellStrip(engine.song.value, engine.viewCellId.value) : []))
+const stripStyle = computed(() =>
+  compact.value
+    ? 'bottom: max(0.5rem, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); width: min(40vw, 220px)'
+    : 'top: calc(max(0.75rem, env(safe-area-inset-top)) + 46px); left: 50%; transform: translateX(-50%); width: min(60vw, 260px)',
+)
+function pickStrip(id: number) {
+  // como un toque en la colonia: ir a esa parte (salta en la siguiente línea de compás y queda en bucle); otro toque suelta el bucle
+  if (engine.loopTarget.value === id) engine.resume()
+  else engine.travelTo(id)
+}
 /**
  * La zona de acciones (spec 005, §19): un solo sitio, encima de Play (en horizontal, una columna a su izquierda).
  * Orden fijo: sonido (soltar bucle, apagar extras), cámara (volver a la canción) y deshacer.
@@ -784,7 +802,8 @@ function updateChapa(plan: ReturnType<typeof engine.cellPlan>, pos: number, near
 }
 
 /** una célula por marcador; solo las que no se ven (todas menos la que se ve) */
-const markerCells = computed(() => (engine.multi.value && !colony.value ? engine.song.value.cells.filter((c) => c.id !== engine.viewCellId.value) : []))
+// (sustituidos por la tira de células de Jugar, spec 011: en la gota ya no hay marcadores de las demás células)
+const markerCells = computed((): Cell[] => [])
 const markerEls = new Map<number, HTMLElement>()
 const setMarker = (id: number) => (el: Element | ComponentPublicInstance | null) => {
   if (el instanceof HTMLElement) markerEls.set(id, el)
@@ -1833,6 +1852,9 @@ defineExpose({ switchMode, openOrgan: (x: number, y: number) => (organ.value = {
       :style="{ top: `${drag.y}px` }"
     />
 
+    <!-- tira de células de Jugar (spec 011, §3.6) -->
+    <CellStrip v-if="strip.length" class="absolute" :style="stripStyle" :cells="strip" :looping="engine.loopTarget.value" @pick="pickStrip" />
+
     <!-- marcadores del borde (spec 005, §5.3): cada célula que no se ve; tocar uno viaja a ella, en bucle -->
     <button
       v-for="c in markerCells"
@@ -1879,8 +1901,9 @@ defineExpose({ switchMode, openOrgan: (x: number, y: number) => (organ.value = {
       <button v-if="engine.extrasOn.value" class="act-btn" aria-label="apagar los grupos que suenan a la vez que la canción" @click="engine.stopExtras()">
         Apagar extras
       </button>
-      <button v-if="showFollow" class="act-btn" aria-label="volver a la célula que suena en la canción" @click="((panned = false), engine.followSong())">
-        ◎ Volver a la canción
+      <button v-if="showFollow" class="act-btn" aria-label="volver a la célula que suena en la canción (dejar de editar)" @click="((panned = false), engine.followSong())">
+        <template v-if="colony">◎ Centrar</template>
+        <template v-else>Editando · {{ editingName }} ▶ Seguir la canción</template>
       </button>
       <button v-if="engine.undoInfo.value" class="act-btn" data-kind="undo" aria-label="deshacer el último borrado" @click="engine.undo()">
         ↶ Deshacer
