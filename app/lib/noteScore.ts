@@ -22,6 +22,13 @@ export function parseExpected(text: string): Expected[] | null {
   return out
 }
 
+/** Transpone un texto de notas esperadas (`A3 C4@4`) `semitones` semitonos; conserva los `@paso`. Si no se entiende, lo devuelve igual. */
+export function shiftExpected(text: string, semitones: number): string {
+  const notes = parseExpected(text)
+  if (!notes) return text
+  return notes.map((n) => `${midiName(n.midi + semitones)}${n.step !== undefined ? `@${n.step}` : ''}`).join(' ')
+}
+
 const NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
 export const midiName = (m: number): string => `${NAMES[((Math.round(m) % 12) + 12) % 12]}${Math.floor(Math.round(m) / 12) - 1}`
 

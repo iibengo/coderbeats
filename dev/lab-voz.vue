@@ -3,8 +3,9 @@
 // Graba tomas con el micro, saca la altura (YIN), las notas y la puerta de tono, y las compara con lo que querías cantar.
 import { detectOnsets } from '~/lib/onsets'
 import { DEFAULT_NOTE_OPTIONS, DEFAULT_TONE_GATE, segmentNotes, toneGate, type Note } from '~/lib/notes'
-import { midiName, parseExpected, scoreNotes, type Score } from '~/lib/noteScore'
+import { midiName, parseExpected, scoreNotes, shiftExpected, type Score } from '~/lib/noteScore'
 import { DEFAULT_PITCH_OPTIONS, midiToHz, trackPitch, type PitchTrack } from '~/lib/pitch'
+import { readJson, writeJson } from '~/lib/storage'
 import { decodeWav, encodeWav } from '~/lib/wav'
 
 // ── tomas del protocolo (spec 002 §9) ────────────────────────────────────────────
@@ -28,7 +29,7 @@ const TAKES: TakeDef[] = [
   { id: 3, slug: 'tarareo', title: 'Tarareo "mmm" legato con deslizamientos', sec: 10, click: true, expected: 'A3 C4 E4', how: 'Sin cortar la voz: "mmm" de la a do y de do a mi, deslizándote entre ellas.' },
   { id: 4, slug: 'vibrato', title: 'Una nota larga con vibrato', sec: 8, click: true, expected: 'A3', how: 'Una sola nota (la) sostenida unos 4 s, con vibrato.' },
   { id: 5, slug: 'susurro', title: 'Frase muy suave', sec: 10, click: true, expected: 'A3 C4 E4 C4', how: 'Casi susurrando: "na" muy suave en la do mi do.' },
-  { id: 6, slug: 'bajo-dum', title: 'Línea de bajo con "dum"', sec: 12, click: true, expected: 'A2 A2 D3 E3', how: 'Grave, "dum" en cada nota: la la re mi (en tu registro grave; corrige las notas si hace falta).' },
+  { id: 6, slug: 'bajo-dum', title: 'Línea de bajo con "dum"', sec: 12, click: true, expected: 'E3 E3 A3 B3', how: 'Grave, "dum" en cada nota: mi mi la si (en tu registro más grave).' },
   { id: 7, slug: 'mezcla', title: 'Beatbox y "na" mezclados', sec: 12, click: true, expected: 'A3 C4', pattern: 'bum na ts na', how: '"bum na ts na" repetido varias veces; en los "na" canta la y do (los "bum" y "ts" son beatbox de siempre).' },
   { id: 8, slug: 'beatbox', title: 'Beatbox solo', sec: 10, click: true, expected: '', pattern: 'bum pff ts', how: '"bum pff ts" repetido, sin cantar nada. No debería salir ninguna melodía.' },
   { id: 9, slug: 'fuga', title: 'Fuga: fondo por los altavoces (sin cascos)', sec: 14, click: false, background: true, expected: 'A3 C4 E4', how: 'SIN cascos y con el volumen normal: 5 s sin cantar (solo se oye el fondo) y luego "na" en la do mi.' },
@@ -40,8 +41,18 @@ const COUNT_IN = 4 * BEAT
 const STEP = BEAT / 4
 
 // ── estado ───────────────────────────────────────────────────────────────────────
+// Las notas de TAKES están escritas para una voz media (A3–A4). `octave` las baja o sube y se recuerda (solo en el laboratorio).
+const OCTAVE_KEY = 'coderbeats:lab:octave'
+const octave = ref(readJson(OCTAVE_KEY, (x): x is number => typeof x === 'number' && Number.isInteger(x) && Math.abs(x) <= 3) ?? -1)
 const take = ref<TakeDef>(TAKES[0]!)
-const expectedText = ref(TAKES[0]!.expected)
+const expectedText = ref(shiftExpected(TAKES[0]!.expected, octave.value * 12))
+/** modo "escucha y repite": la app toca cada nota esperada y tú la repites con "na" */
+const guided = ref(true)
+/** las tomas con una melodía fija que repetir (no la mezcla con beatbox ni las de solo beatbox o fuga) */
+const guideable = (t: TakeDef) => t.id <= 6
+const nowNote = ref<{ name: string; i: number; n: number; phase: 'escucha' | 'repite' } | null>(null)
+/** cómo fue la toma guiada (para dibujar cuándo sonó cada nota): se guarda con la toma */
+const lastGuide = shallowRef<{ slot: number; tone: number; n: number } | null>(null)
 const label = ref('pc')
 const click = ref(true)
 const background = ref(false)
@@ -64,9 +75,23 @@ let stream: MediaStream | null = null
 let mic: AudioWorkletNode | null = null
 
 watch(take, (t) => {
-  expectedText.value = t.expected
+  expectedText.value = shiftExpected(t.expected, octave.value * 12)
   click.value = t.click
   background.value = !!t.background
+  guided.value = guideable(t)
+})
+
+function shiftOctave(d: 1 | -1) {
+  octave.value += d
+  expectedText.value = shiftExpected(expectedText.value, d * 12)
+  writeJson(OCTAVE_KEY, octave.value)
+}
+
+const TONE_SEC = 0.7
+const SLOT_SEC = 2.6
+const recSec = computed(() => {
+  const n = expected.value?.length ?? 0
+  return guided.value && guideable(take.value) && n ? Math.ceil(n * SLOT_SEC + 0.5) : take.value.sec
 })
 
 // ── análisis ─────────────────────────────────────────────────────────────────────
@@ -135,14 +160,33 @@ function backgroundAt(t: number, sec: number) {
   for (const m of [57, 60, 64]) add(midiToHz(m), 'triangle', 0.15) // la3 do4 mi4
 }
 
+/** Un tono de referencia (la nota esperada) por los cascos. */
+function toneAt(t: number, midi: number) {
+  if (!ctx) return
+  const o = ctx.createOscillator()
+  const g = ctx.createGain()
+  o.type = 'triangle'
+  o.frequency.value = midiToHz(midi)
+  g.gain.setValueAtTime(0, t)
+  g.gain.linearRampToValueAtTime(0.3, t + 0.03)
+  g.gain.setValueAtTime(0.3, t + TONE_SEC - 0.08)
+  g.gain.linearRampToValueAtTime(0, t + TONE_SEC)
+  o.connect(g).connect(ctx.destination)
+  o.start(t)
+  o.stop(t + TONE_SEC + 0.02)
+}
+
 // ── grabar ───────────────────────────────────────────────────────────────────────
 async function record() {
   if (!ctx || !mic) return
   const c = ctx
   const m = mic
   const def = take.value
-  const sec = def.sec
+  const notesToPlay = guided.value && guideable(def) ? (expected.value ?? []) : []
+  const sec = notesToPlay.length ? Math.ceil(notesToPlay.length * SLOT_SEC + 0.5) : def.sec
   rec.value = null
+  nowNote.value = null
+  lastGuide.value = notesToPlay.length ? { slot: SLOT_SEC, tone: TONE_SEC, n: notesToPlay.length } : null
   loadedName.value = null
   status.value = 'counting'
   msg.value = ''
@@ -156,7 +200,9 @@ async function record() {
   m.port.postMessage('start')
   const t0 = c.currentTime + 0.4
   const zeroT = t0 + COUNT_IN
-  if (click.value) for (let k = 0; k * BEAT < COUNT_IN + sec; k++) clickAt(t0 + k * BEAT, k % 4 === 0)
+  // en el modo guiado el clic suena solo en la cuenta atrás: durante la toma estorbaría al oír la nota
+  if (click.value) for (let k = 0; k * BEAT < (notesToPlay.length ? COUNT_IN : COUNT_IN + sec); k++) clickAt(t0 + k * BEAT, k % 4 === 0)
+  notesToPlay.forEach((e, i) => toneAt(zeroT + i * SLOT_SEC, e.midi))
   if (background.value) backgroundAt(t0, COUNT_IN + sec + 0.3)
 
   await new Promise<void>((resolve) => {
@@ -166,10 +212,17 @@ async function record() {
         status.value = 'counting'
         beatText.value = now < t0 ? '…' : String(Math.min(4, Math.floor((now - t0) / BEAT) + 1))
         progress.value = 0
+        nowNote.value = notesToPlay.length ? { name: midiName(notesToPlay[0]!.midi), i: 0, n: notesToPlay.length, phase: 'escucha' } : null
       } else {
         status.value = 'recording'
-        beatText.value = '¡canta!'
         progress.value = Math.min(1, (now - zeroT) / sec)
+        if (notesToPlay.length) {
+          const i = Math.min(notesToPlay.length - 1, Math.floor((now - zeroT) / SLOT_SEC))
+          const into = now - zeroT - i * SLOT_SEC
+          const done = now - zeroT >= notesToPlay.length * SLOT_SEC
+          nowNote.value = done ? null : { name: midiName(notesToPlay[i]!.midi), i: i + 1, n: notesToPlay.length, phase: into < TONE_SEC ? 'escucha' : 'repite' }
+          beatText.value = done ? '' : nowNote.value!.phase === 'escucha' ? 'escucha' : '¡repite!'
+        } else beatText.value = '¡canta!'
       }
       if (now >= zeroT + sec + 0.15) return resolve()
       requestAnimationFrame(tick)
@@ -193,6 +246,7 @@ async function record() {
   rec.value = all.slice(zero, zero + Math.round(sec * c.sampleRate))
   sr.value = c.sampleRate
   status.value = 'done'
+  nowNote.value = null
   const peak = rec.value.reduce((p, v) => Math.max(p, Math.abs(v)), 0)
   msg.value = `toma lista · pico ${(20 * Math.log10(peak + 1e-9)).toFixed(1)} dBFS${peak < 0.02 ? ' (muy baja: acerca el micro o sube la ganancia)' : peak > 0.98 ? ' (saturada)' : ''}`
 }
@@ -227,6 +281,8 @@ async function save() {
     bpm: BPM,
     click: click.value,
     background: background.value,
+    guided: lastGuide.value,
+    octave: octave.value,
     label: clean,
     createdAt: new Date().toISOString(),
   }
@@ -242,7 +298,7 @@ async function save() {
 
 async function load(name: string) {
   try {
-    const r = (await $fetch('/_lab/take', { query: { name } })) as { meta: { takeId?: number; expected?: string }; wav: string }
+    const r = (await $fetch('/_lab/take', { query: { name } })) as { meta: { takeId?: number; expected?: string; guided?: { slot: number; tone: number; n: number } | null }; wav: string }
     const bin = Uint8Array.from(atob(r.wav), (ch) => ch.charCodeAt(0))
     const w = decodeWav(bin.buffer)
     if (!w) throw new Error('wav no válido')
@@ -250,6 +306,7 @@ async function load(name: string) {
     if (def) take.value = def
     await nextTick()
     expectedText.value = r.meta.expected ?? ''
+    lastGuide.value = r.meta.guided && typeof r.meta.guided.slot === 'number' ? r.meta.guided : null
     sr.value = w.sampleRate
     rec.value = w.samples
     loadedName.value = name
@@ -377,6 +434,21 @@ function draw() {
       x.fillText(`${(k * BEAT).toFixed(1)}s`, px(k * BEAT) + 2, H - stripH - 2)
     }
   }
+  // toma guiada: cuándo sonó cada nota de referencia (franja azul) y su nota
+  const guide = lastGuide.value
+  const gnotes = expected.value ?? []
+  if (guide) {
+    x.fillStyle = 'rgba(142,207,242,0.10)'
+    for (let i = 0; i < guide.n; i++) {
+      x.fillRect(px(i * guide.slot), plotT, px(guide.tone) - px(0), plotB - plotT)
+      const e = gnotes[i]
+      if (e) {
+        x.fillStyle = '#8ECFF2'
+        x.fillText(midiName(e.midi), px(i * guide.slot) + 2, plotT + 10)
+        x.fillStyle = 'rgba(142,207,242,0.10)'
+      }
+    }
+  }
   // notas esperadas
   x.setLineDash([4, 4])
   x.strokeStyle = '#8ECFF2aa'
@@ -429,7 +501,7 @@ function draw() {
   }
 }
 
-watch([track, notes, gates, expected, playhead, take, started, () => N.minProb, () => N.minRms], () => nextTick(draw))
+watch([track, notes, gates, expected, playhead, take, started, lastGuide, () => N.minProb, () => N.minRms], () => nextTick(draw))
 onMounted(() => {
   draw()
   window.addEventListener('resize', draw)
@@ -547,12 +619,20 @@ async function nudgeTest() {
         <section class="space-y-2 rounded border border-neutral-800 p-3">
           <p class="text-sm"><b>Toma {{ take.id }}:</b> {{ take.how }}</p>
           <p v-if="take.pattern" class="text-xs text-neutral-500">Patrón: «{{ take.pattern }}»</p>
+          <div class="flex items-center gap-2 text-xs text-neutral-400">
+            Octava: <button class="rounded border border-neutral-700 px-2 py-0.5" title="bajar las notas una octava" @click="shiftOctave(-1)">▼ 8ª</button>
+            <button class="rounded border border-neutral-700 px-2 py-0.5" title="subir las notas una octava" @click="shiftOctave(1)">▲ 8ª</button>
+            <span>desplazamiento guardado: {{ octave > 0 ? '+' : '' }}{{ octave }} (las notas de cada toma se escriben para una voz media y se bajan/suben así)</span>
+          </div>
           <label class="block text-xs text-neutral-400">
             Notas que quieres cantar (A3 C4 E4…; opcional <code>@paso</code> en semicorcheas desde el 1.er tiempo, p. ej. <code>A3@0 C4@4</code>)
             <input v-model="expectedText" class="mt-1 w-full rounded bg-neutral-900 px-2 py-1 font-mono text-sm text-neutral-100" />
           </label>
           <p v-if="expected === null" class="text-xs text-red-400">No entiendo alguna nota (usa A3, C#4, Bb2…).</p>
           <div class="flex flex-wrap items-center gap-3 text-sm">
+            <label class="flex items-center gap-1" :class="guideable(take) ? '' : 'opacity-40'">
+              <input v-model="guided" type="checkbox" :disabled="!guideable(take)" /> escucha y repite (suena cada nota esperada y tú la repites)
+            </label>
             <label class="flex items-center gap-1"><input v-model="click" type="checkbox" /> clic (solo con cascos)</label>
             <label class="flex items-center gap-1"><input v-model="background" type="checkbox" /> fondo de prueba por los altavoces</label>
             <button
@@ -560,9 +640,14 @@ async function nudgeTest() {
               :disabled="status === 'counting' || status === 'recording'"
               @click="record"
             >
-              ● Grabar ({{ take.sec }} s)
+              ● Grabar ({{ recSec }} s)
             </button>
             <span v-if="status === 'counting' || status === 'recording'" class="font-mono text-2xl text-white">{{ beatText }}</span>
+          </div>
+          <div v-if="nowNote" class="flex items-baseline gap-4 rounded bg-neutral-900 px-4 py-3">
+            <span class="font-mono text-6xl font-bold" :class="nowNote.phase === 'escucha' ? 'text-[#8ECFF2]' : 'text-[#F496BC]'">{{ nowNote.name }}</span>
+            <span class="text-lg" :class="nowNote.phase === 'escucha' ? 'text-[#8ECFF2]' : 'text-[#F496BC]'">{{ nowNote.i === 0 ? '⏳ prepárate: primera nota' : nowNote.phase === 'escucha' ? '🔊 escucha' : '🎤 repite con "na"' }}</span>
+            <span class="text-sm text-neutral-500">{{ nowNote.i ? `nota ${nowNote.i} de ${nowNote.n}` : `${nowNote.n} notas` }}</span>
           </div>
           <div v-if="status === 'recording'" class="h-1 w-full bg-neutral-800"><div class="h-1 bg-[#F496BC]" :style="{ width: `${progress * 100}%` }" /></div>
         </section>

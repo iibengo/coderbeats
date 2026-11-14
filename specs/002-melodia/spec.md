@@ -224,6 +224,7 @@ Una línea por loop de voz, en mini-notación con duraciones (`@n` en semicorche
 
 1. **Laboratorio `/lab/voz`** (solo con `nuxt dev`, como `/spike`: vive en `dev/` y no entra en el build):
    - grabas una toma (cuenta atrás de un compás y clic a 90 bpm, con cascos) y ves la **curva de altura** (MIDI, con la probabilidad de voz), los **onsets**, las **notas detectadas** y qué sonidos **pasan la puerta de tono**;
+   - **escucha y repite** (tomas 1–6): la app toca cada nota esperada con un tono corto y tú la repites; muestra en grande qué nota toca ahora. Las notas esperadas se escriben para una voz media y un desplazamiento de octava (▼ 8ª / ▲ 8ª, que se recuerda) las coloca en tu registro;
    - ajustas en vivo los umbrales (voz, duración mínima, puerta) y se reanaliza al momento;
    - escuchas tu toma y las notas detectadas;
    - escribes las notas que querías (`A3 C4 E4 D4`) y ves el **% de notas con la clase de altura correcta** y el inicio a ≤ 1 semicorchea;

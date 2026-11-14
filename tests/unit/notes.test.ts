@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { segmentNotes, toneGate } from '../../app/lib/notes'
-import { midiName, parseExpected, scoreNotes } from '../../app/lib/noteScore'
+import { midiName, parseExpected, scoreNotes, shiftExpected } from '../../app/lib/noteScore'
 import { trackPitch } from '../../app/lib/pitch'
 import { detectOnsets } from '../../app/lib/onsets'
 import { sound } from '../helpers/synth'
@@ -149,4 +149,14 @@ describe('noteScore', () => {
     expect(scoreNotes([], notes(60)).pitchClassRate).toBe(0)
     expect(scoreNotes(parseExpected('A3')!, []).missed).toEqual([0])
   })
+})
+
+describe('shiftExpected', () => {
+  it('sube y baja una octava y conserva los @paso', () => {
+    expect(shiftExpected('A3 C4 E4', -12)).toBe('A2 C3 E3')
+    expect(shiftExpected('A2@0 C3@4', 12)).toBe('A3@0 C4@4')
+    expect(shiftExpected('A3 Bb3', -12)).toBe('A2 A#2')
+    expect(shiftExpected('', 12)).toBe('')
+  })
+  it('si no se entiende, lo deja como está', () => expect(shiftExpected('A3 hola', 12)).toBe('A3 hola'))
 })
