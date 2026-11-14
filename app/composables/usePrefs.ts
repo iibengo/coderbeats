@@ -8,6 +8,7 @@ import { migrateRepeatMode } from '~/lib/prefsMigration'
 import { isStoredPrefs } from '~/lib/prefsGuard'
 import type { LoopLength } from '~/lib/phrases'
 import type { SongFx } from '~/lib/song'
+import { modeFromSaved, type Mode } from '~/lib/modes'
 import type { KitId, StyleId } from '~/lib/types'
 import type { PhraseMode, RepeatMode } from './useAudioEngine'
 
@@ -37,6 +38,8 @@ export interface StudioPrefs {
   imageFineMs?: number
   /** melodía con la voz (spec 002, F1; beta, apagada por defecto) */
   melody?: boolean
+  /** el modo (spec 011): Jugar o Componer; por dispositivo, no se guarda con la canción */
+  mode?: Mode
 }
 
 const isPrefs = (x: unknown): x is StudioPrefs => isStoredPrefs(x)
@@ -58,6 +61,7 @@ export function usePrefs() {
       engine.setAssist(p.assist)
       engine.metronome.value = p.metronome && !engine.echo.value?.bleed
       engine.bgMode.value = p.bgMode
+      engine.mode.value = modeFromSaved(p.mode)
       if (p.bgManual) engine.setBackgroundManual(p.bgManual)
       engine.setPhraseOptions({ mode: p.phraseMode, closeBeats: p.phraseCloseBeats, maxBars: p.maxPhraseBars })
       // 'accumulate' (antes de §16.19) y el "sustituye" por defecto de antes de §16.21 pasan a 'complete'
@@ -100,6 +104,7 @@ export function usePrefs() {
           imageAuto: engine.imageAuto.value,
           imageFineMs: engine.imageFineMs.value,
           melody: engine.melodyOn.value,
+          mode: engine.mode.value,
         }) satisfies StudioPrefs,
       (p) => writeJson(PREFS_KEY, p),
       { deep: true },

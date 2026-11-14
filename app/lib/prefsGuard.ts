@@ -1,4 +1,5 @@
 import { kitFromSaved, STYLES } from './constants'
+import { isMode } from './modes'
 
 const BG_MODES = ['manual', 'progressive', 'full', 'off']
 const unit = (v: unknown): boolean => typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 1
@@ -20,6 +21,7 @@ export function isStoredPrefs(x: unknown): boolean {
     typeof p.assist === 'boolean' &&
     typeof p.metronome === 'boolean' &&
     (p.melody === undefined || typeof p.melody === 'boolean') &&
+    (p.mode === undefined || isMode(p.mode)) &&
     BG_MODES.includes(p.bgMode as string) &&
     (p.phraseMode === 'silence' || p.phraseMode === 'bar') &&
     typeof p.repeatMode === 'string' &&

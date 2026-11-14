@@ -4,6 +4,7 @@ import { STYLES } from '~/lib/constants'
 import { usableLatencyMs } from '~/lib/latency'
 import { TEMPO_RESET_MS, TEMPO_TAPS } from '~/lib/tempo'
 import type { StyleId } from '~/lib/types'
+import ModeSwitch from './ModeSwitch.vue'
 import VisualStage from './visual/VisualStage.vue'
 
 const emit = defineEmits<{ recalibrate: ['latency' | 'sounds'] }>()
@@ -74,6 +75,12 @@ const remixStyle = computed(() =>
   compact.value
     ? 'position: absolute; top: max(0.5rem, env(safe-area-inset-top)); right: calc(env(safe-area-inset-right, 0px) + 122px); width: 44px; height: 44px'
     : 'position: absolute; top: calc(max(0.5rem, env(safe-area-inset-top)) + 48px); left: 0.5rem; width: 44px; height: 44px',
+)
+// el selector de modo (spec 011): bajo ⋯ en vertical y escritorio; en horizontal, bajo Play
+const modeStyle = computed(() =>
+  compact.value
+    ? 'position: absolute; bottom: max(0.5rem, env(safe-area-inset-bottom)); right: calc(env(safe-area-inset-right, 0px) + 10px)'
+    : 'position: absolute; top: calc(max(0.5rem, env(safe-area-inset-top)) + 50px); right: 0.5rem',
 )
 const playStyle = computed(() =>
   compact.value
@@ -150,6 +157,9 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
         <circle cx="14" cy="8" r="5.5" />
       </svg>
     </button>
+
+    <!-- modo (spec 011): Jugar | Componer -->
+    <ModeSwitch :model-value="engine.mode.value" :style="modeStyle" @pointerdown.stop @update:model-value="stage?.switchMode($event)" />
 
     <!-- ajustes -->
     <button

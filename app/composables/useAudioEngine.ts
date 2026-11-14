@@ -8,6 +8,7 @@ import { midiName } from '~/lib/noteScore'
 import type { Remix } from '~/lib/remixes'
 import { STYLE_MUSIC } from '~/lib/styles'
 import { GLUE_WARM, saturationCurve } from '~/lib/masterChain'
+import { DEFAULT_MODE, type Mode } from '~/lib/modes'
 import { demoState } from '~/lib/demos'
 import { analyzeEchoTest, type EchoTestResult } from '~/lib/echoGate'
 import {
@@ -214,6 +215,8 @@ const melodyOn = ref(false)
 const melodyBlocked = computed(() => !!echo.value?.bleed)
 const melodyActive = computed(() => melodyOn.value && !melodyBlocked.value)
 const kit = ref<KitId>('electro')
+/** el modo (spec 011): Jugar o Componer. Solo es una vista: no toca la canción ni lo que suena */
+const mode = ref<Mode>(DEFAULT_MODE)
 const style = ref<StyleId>('hiphop90')
 const assist = ref(true)
 const metronome = ref(true)
@@ -1063,7 +1066,7 @@ function onWorkerMessage(m: FromWorker) {
   }
   const uiMs = (c.currentTime - m.time) * 1000
   if (m.type === 'absorbed') return log('melody', 'golpe dentro de una nota: es melodía, no batería', uiMs)
-  if (m.type === 'melodic') return onMelodic(m, uiMs)
+  if (m.type === 'melodic') return mode.value === 'componer' ? log('unknown', 'ignorado: modo Componer (melodía)', uiMs) : onMelodic(m, uiMs)
   if (m.type === 'echo') return log('echo', `eco descartado (${m.strength.toFixed(3)})`, uiMs)
   if (m.type === 'ignored')
     return log('unknown', `ignorado: carril apagado (${m.instrument} ${(m.confidence * 100).toFixed(0)}%)${fmtVolume(m.vol)}`, uiMs)
@@ -1081,6 +1084,8 @@ function onWorkerMessage(m: FromWorker) {
   // ruido de fondo: un golpe mucho más flojo que los de tu calibración no cuenta (E4.5)
   if (isTooQuiet(m.vol)) return log('unknown', `flojo: descartado (${m.instrument} ${(m.confidence * 100).toFixed(0)}%)${fmtVolume(m.vol)}`, uiMs)
   if (!playing.value || !tracker) return log('stopped', `${m.instrument} sin loop en marcha`, uiMs)
+  // en Componer (el mapa) no hay gota: la voz no graba (spec 011, §3.3)
+  if (mode.value === 'componer') return log('unknown', `ignorado: modo Componer (${m.instrument})`, uiMs)
   // con varias células, en estado canción no se graba; en bucle, sí (spec 005, §4.4)
   if (multi() && !loop && !viewAway()) return log('unknown', `ignorado: canción avanzando (${m.instrument} ${(m.confidence * 100).toFixed(0)}%)`, uiMs)
   log('hit', `${m.instrument} ${(m.confidence * 100).toFixed(0)}%${fmtVolume(m.vol)}`, uiMs)
@@ -2200,6 +2205,11 @@ export function useAudioEngine() {
     echo,
     playing,
     kit,
+    mode,
+    setMode: (m: Mode) => {
+      if (mode.value !== m) log('cell', `modo: ${m}`)
+      mode.value = m
+    },
     style,
     assist,
     metronome,

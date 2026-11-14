@@ -18,6 +18,7 @@ import {
   clampToRect,
   colonyCam,
   colonyMinZoom,
+  COLONY_ENTER,
   crowdAlpha,
   DOUBLE_TAP_MS,
   depthAlpha,
@@ -27,7 +28,6 @@ import {
   HANDLE_MIN_R,
   LABEL_HIT,
   handlePoint,
-  inColony,
   isDoubleTap,
   lastTurnFill,
   mapToScreen,
@@ -35,7 +35,6 @@ import {
   panBy,
   pulseScale as beatScale,
   screenToMap,
-  settleZoom,
   spotAt,
   threadAt,
   threadBend,
@@ -48,6 +47,7 @@ import {
 } from '~/lib/aro/colony'
 import { Drift, GLIDE_TAU, glideEnd, linkedIds, releaseVelocity, type Sample } from '~/lib/aro/drift'
 import { readJson, writeJson } from '~/lib/storage'
+import { MODE_HINT, type Mode } from '~/lib/modes'
 import { edgeMarkers } from '~/lib/aro/markers'
 import { transitionAt } from '~/lib/aro/transition'
 import { clampZoom, contourPoints, dropLayout, freeRect, lerpGeo, moveGeo, pinchZoom, scaleGeo, stretchOf, wheelZoom, zoomLimits, type Insets } from '~/lib/aro/zoom'
@@ -116,7 +116,13 @@ const fullLimits = computed(() => {
   if (cellPoints.value.length < 1) return l
   return { ...l, min: Math.min(l.min, colonyMinZoom(cellPoints.value, freeRect(view.w, view.h, insets.value))) }
 })
-/** gestos de colonia (zoom alejado); la interfaz de cerca (bolas, chapa, marcadores) se oculta */
+/**
+ * El modo (spec 011) decide qué tramo del zoom vale: **Jugar** = solo «de cerca» (la gota; sin mapa) y **Componer** = solo el mapa (la colonia).
+ * Pellizcar más allá del tramo, o el selector, cambian de modo.
+ */
+const mode = engine.mode
+const zoomBounds = computed(() => (mode.value === 'jugar' ? limits.value : { ...limits.value, min: fullLimits.value.min, max: COLONY_ENTER - 0.01 }))
+/** gestos de colonia (el mapa); la interfaz de cerca (bolas, chapa, marcadores) se oculta */
 const colony = ref(false)
 /** centro de las columnas laterales en horizontal (Play, bajo y acordes a la derecha; estilo y bolas a la izquierda) */
 const sideX = computed(() => ({ left: safe.left + 40, right: view.w - safe.right - 48 }))
@@ -133,11 +139,11 @@ let lastZEff = 1
 let settleTimer: ReturnType<typeof setTimeout> | null = null
 /** zoom en vivo durante un pellizco (con resistencia más allá de los límites), o null */
 let pinchLive: number | null = null
-const zoomNow = () => pinchLive ?? clampZoom(limits.value.initial * zoomRel, fullLimits.value)
+const zoomNow = () => pinchLive ?? clampZoom(limits.value.initial * zoomRel, zoomBounds.value)
 function setZoom(z: number) {
-  zoomRel = clampZoom(z, fullLimits.value) / limits.value.initial
+  zoomRel = clampZoom(z, zoomBounds.value) / limits.value.initial
   // el zoom de la colonia no se guarda (spec 005, decisión 13): solo el de cerca
-  if (zoomRel * limits.value.initial < limits.value.min - 1e-6) return
+  if (mode.value !== 'jugar' || zoomRel * limits.value.initial < limits.value.min - 1e-6) return
   nearRel = zoomRel
   // sin almacenamiento: solo para esta sesión
   writeJson(ZOOM_KEY, { zoomRel })
@@ -927,7 +933,12 @@ function tick() {
   if (aro) {
     weights = stepWeights(weights, targetWeights.value, dt, reduced)
     const zEff = geo!.R / (Math.min(geo!.free.x1 - geo!.free.x0, geo!.free.y1 - geo!.free.y0) / 2)
-    const isColony = inColony(zoomNow(), cellPoints.value.length)
+    // al arrancar en Componer (preferencia guardada), el mapa se ajusta a todas las células (spec 011)
+    if (fitPending && view.w > 0) {
+      fitPending = false
+      if (mode.value === 'componer') zoomRel = fullLimits.value.min / limits.value.initial
+    }
+    const isColony = mode.value === 'componer' && cellPoints.value.length >= 1
     if (isColony !== colony.value) {
       colony.value = isColony
       // al volver a cerca, la cámara vuelve a seguir a la que suena
@@ -1423,7 +1434,7 @@ function onMove(e: PointerEvent) {
       applyFx(gs.axis, gs.filter, gs.space, dcx, dcy, c.x, c.y)
     }
     // pellizco: zoom continuo, con resistencia más allá de los límites (al soltar, vuelve)
-    if (gs.mode === 'pinch') pinchLive = pinchZoom(gs.z0, gs.d0, d, fullLimits.value)
+    if (gs.mode === 'pinch') pinchLive = pinchZoom(gs.z0, gs.d0, d, zoomBounds.value)
   }
 }
 
@@ -1589,6 +1600,8 @@ function tapCell(id: number) {
     tapTimer = null
     // el doble toque entra a editarla sin cambiar lo que suena (enmienda 3): el primer toque no llegó a hacer nada
     engine.enterCell(id)
+    // entrar a editar una célula = pasar a Jugar con ella en la gota (spec 011, §3.4): la vista se queda en ella
+    switchMode('jugar', { keepView: true })
     zoomRel = nearRel
     panned.value = false
     return
@@ -1613,25 +1626,75 @@ function singleTapCell(id: number) {
   else engine.travelTo(id)
 }
 
+/** cuánto hay que pasarse del tope (fracción del límite) para que el pellizco cambie de modo, y la rueda acumulada que hace lo mismo */
+const PUSH_FRAC = 0.9
+const WHEEL_PUSH = 220
+let wheelPush = 0
+let fitPending = true
+
+/** El aviso de la primera vez (por dispositivo) al pasar a cada modo con el pellizco (spec 011, §4.2). */
+const HINT_KEY = 'coderbeats:mode-hints:v1'
+const modeHint = ref('')
+let hintTimer: ReturnType<typeof setTimeout> | null = null
+function showModeHint(m: Mode) {
+  const seen = readJson(HINT_KEY, (x): x is Mode[] => Array.isArray(x)) ?? []
+  if (seen.includes(m)) return
+  writeJson(HINT_KEY, [...seen, m])
+  modeHint.value = MODE_HINT[m]
+  if (hintTimer) clearTimeout(hintTimer)
+  hintTimer = setTimeout(() => (modeHint.value = ''), 3500)
+}
+
+/**
+ * Cambia de modo (spec 011): el selector y el pellizco. La música sigue; solo cambia lo que se ve y se toca. Al pasar a Jugar la gota vuelve
+ * a seguir a la canción, salvo si se entra a editar una célula (`keepView`: doble toque en Componer). `hint`: avisa la primera vez.
+ */
+function switchMode(m: Mode, o: { keepView?: boolean; hint?: boolean } = {}) {
+  if (mode.value === m) return
+  engine.setMode(m)
+  panned.value = false
+  if (m === 'componer') zoomRel = fullLimits.value.min / limits.value.initial
+  else {
+    zoomRel = nearRel
+    if (!o.keepView) engine.followSong()
+  }
+  if (o.hint) showModeHint(m)
+}
+
 /** Fin de un pellizco: el zoom vuelve a los límites con suavidad y se guarda. */
 function endPinch() {
   if (pinchLive === null) return
   const z = pinchLive
   pinchLive = null
-  setZoom(settleZoom(z, limits.value.min))
+  // pellizcar más allá del tramo del modo cambia de modo (spec 011, §4.2): alejar desde Jugar = Componer; acercar desde Componer = Jugar
+  const b = zoomBounds.value
+  if (mode.value === 'jugar' && cellPoints.value.length >= 1 && z < b.min * PUSH_FRAC) return switchMode('componer', { hint: true })
+  if (mode.value === 'componer' && z > b.max / PUSH_FRAC) return switchMode('jugar', { hint: true })
+  setZoom(z)
 }
 
 /** Rueda (o pellizco del trackpad): zoom (E1.5). */
 function onWheel(e: WheelEvent) {
   e.preventDefault()
   touched()
-  setZoom(wheelZoom(zoomNow(), e.deltaY, e.ctrlKey, fullLimits.value))
-  // entre el mínimo de la gota y el umbral de la colonia, al parar la rueda vuelve a cerca
+  const b = zoomBounds.value
+  const before = zoomNow()
+  setZoom(wheelZoom(before, e.deltaY, e.ctrlKey, b))
+  // seguir empujando la rueda contra el tope del modo (≈ dos vueltas de rueda) cambia de modo (spec 011, §4.2)
+  const out = e.deltaY > 0
+  const atEdge = out ? before <= b.min + 1e-3 && mode.value === 'jugar' : before >= b.max - 1e-3 && mode.value === 'componer'
+  if (atEdge) {
+    wheelPush += Math.abs(e.deltaY)
+    if (wheelPush > WHEEL_PUSH && (mode.value !== 'jugar' || cellPoints.value.length >= 1)) {
+      wheelPush = 0
+      return switchMode(mode.value === 'jugar' ? 'componer' : 'jugar', { hint: true })
+    }
+  } else wheelPush = 0
   if (settleTimer) clearTimeout(settleTimer)
   settleTimer = setTimeout(() => {
     settleTimer = null
-    setZoom(settleZoom(zoomNow(), limits.value.min))
-  }, 250)
+    wheelPush = 0
+  }, 400)
 }
 
 /**
@@ -1727,7 +1790,7 @@ const layoutInfo = () => {
     }),
   ].join(' · ')
 }
-defineExpose({ openOrgan: (x: number, y: number) => (organ.value = { x, y }), organOpen: () => !!organ.value, rendererName, layoutInfo, debugDots: () => aro?.debugDots() ?? [], aroWhere: (x: number, y: number) => aro?.where(x, y) })
+defineExpose({ switchMode, openOrgan: (x: number, y: number) => (organ.value = { x, y }), organOpen: () => !!organ.value, rendererName, layoutInfo, debugDots: () => aro?.debugDots() ?? [], aroWhere: (x: number, y: number) => aro?.where(x, y) })
 </script>
 
 <template>
@@ -1867,6 +1930,8 @@ defineExpose({ openOrgan: (x: number, y: number) => (organ.value = { x, y }), or
     </button>
 
     <slot />
+    <div v-if="modeHint" class="mode-hint pointer-events-none absolute left-1/2 -translate-x-1/2 rounded-full bg-black/60 px-4 py-2 text-xs text-white/80 backdrop-blur" style="top: calc(max(0.5rem, env(safe-area-inset-top)) + 96px)" role="status">{{ modeHint }}</div>
+
     <MelodyOrgan v-if="organ" :origin="organ" @close="organ = null" />
   </div>
 </template>
