@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { segmentNotes, toneGate } from '../../app/lib/notes'
+import { melodicOnsets, segmentNotes, toneGate } from '../../app/lib/notes'
 import { midiName, parseExpected, scoreNotes, shiftExpected } from '../../app/lib/noteScore'
 import { trackPitch } from '../../app/lib/pitch'
 import { detectOnsets } from '../../app/lib/onsets'
@@ -66,6 +66,66 @@ describe('segmentNotes', () => {
   })
 
   it('silencio: ninguna nota', () => expect(names(new Float32Array(SR))).toEqual([]))
+})
+
+describe('fragmentos al empezar y terminar una nota', () => {
+  const run = (segs: Parameters<typeof voice>[1], onsets: number[] = []) => segmentNotes(trackPitch(voice(SR, segs), SR), onsets)
+
+  it('la voz que entra por debajo (3 semitonos, 80 ms) no deja una nota de más', () => {
+    const n = run([{ midi: 57, sec: 0.08 }, { midi: 60, sec: 0.6 }])
+    expect(n.map((x) => midiName(x.midi))).toEqual(['C4'])
+    expect(n[0]!.start).toBeLessThan(0.1)
+  })
+
+  it('una cadena de fragmentos al principio se absorbe entera', () => {
+    const n = run([{ midi: 61, sec: 0.07 }, { midi: 62, sec: 0.1 }, { midi: 60, sec: 0.6 }])
+    expect(n.map((x) => midiName(x.midi))).toEqual(['C4'])
+  })
+
+  it('la voz que cae al final (medio semitono, 0,25 s) se absorbe', () => {
+    const n = run([{ midi: 60, sec: 0.6 }, { midi: 59.4, sec: 0.25 }])
+    expect(n.map((x) => midiName(x.midi))).toEqual(['C4'])
+    expect(n[0]!.end - n[0]!.start).toBeGreaterThan(0.8)
+  })
+
+  it('una nota corta de verdad entre dos largas (no está en el borde) se conserva', () => {
+    const n = run([{ midi: 60, sec: 0.5 }, { midi: 64, sec: 0.15 }, { midi: 60, sec: 0.5 }])
+    expect(n.map((x) => midiName(x.midi))).toEqual(['C4', 'E4', 'C4'])
+  })
+
+  it('dos notas, cada una con su propio ataque de energía, no se funden; sin el segundo ataque, sí', () => {
+    const x = voice(SR, [{ midi: 60, sec: 0.15 }, { midi: 61, sec: 0.6 }])
+    const t = trackPitch(x, SR)
+    expect(segmentNotes(t, [0.0, 0.16]).map((n) => midiName(n.midi))).toEqual(['C4', 'C#4'])
+    expect(segmentNotes(t, [0.0]).map((n) => midiName(n.midi))).toEqual(['C#4'])
+  })
+
+  it('una cola una octava más abajo (voz quebrada, 0,1 s) se absorbe', () => {
+    expect(run([{ midi: 60, sec: 0.6 }, { midi: 48, sec: 0.1 }]).map((x) => midiName(x.midi))).toEqual(['C4'])
+  })
+
+  it('un fragmento largo (0,5 s) o muy lejano (6 semitonos) es una nota', () => {
+    expect(run([{ midi: 54, sec: 0.5 }, { midi: 60, sec: 0.6 }]).map((x) => midiName(x.midi))).toEqual(['F#3', 'C4'])
+    expect(run([{ midi: 54, sec: 0.08 }, { midi: 60, sec: 0.6 }]).map((x) => midiName(x.midi))).toEqual(['C4'])
+  })
+})
+
+describe('zumbidos de fondo', () => {
+  it('un tono flojo y constante (pico de volumen bajo) no es nota; con pico suficiente, sí', () => {
+    const quiet = voice(SR, [{ midi: 37, sec: 0.5 }], { peakDb: -62 })
+    expect(segmentNotes(trackPitch(quiet, SR))).toEqual([])
+    const sung = voice(SR, [{ midi: 48, sec: 0.5 }], { peakDb: -24 })
+    expect(segmentNotes(trackPitch(sung, SR)).map((n) => midiName(n.midi))).toEqual(['C3'])
+  })
+})
+
+describe('melodicOnsets', () => {
+  const note = (start: number, end: number) => ({ start, end, midi: 60, rms: 0.1 })
+  it('un onset es melodía si cae dentro de una nota (con margen para el ataque)', () => {
+    const m = melodicOnsets([0.15, 0.45, 1.0, 1.55, 2.5], [note(0.3, 0.4), note(1.7, 2.2)])
+    expect(m).toEqual([true, false, false, true, false])
+  })
+  it('sin notas, ninguno', () => expect(melodicOnsets([0.1, 0.5], [])).toEqual([false, false]))
 })
 
 describe('toneGate', () => {

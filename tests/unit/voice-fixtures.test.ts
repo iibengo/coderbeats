@@ -4,7 +4,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { segmentNotes, toneGate } from '../../app/lib/notes'
+import { melodicOnsets, segmentNotes } from '../../app/lib/notes'
 import { parseExpected, scoreNotes } from '../../app/lib/noteScore'
 import { detectOnsets } from '../../app/lib/onsets'
 import { trackPitch } from '../../app/lib/pitch'
@@ -24,12 +24,12 @@ describe.skipIf(!names.length)('tomas de voz locales', () => {
       const track = trackPitch(samples, sampleRate)
       const onsets = detectOnsets(samples, sampleRate).map((o) => o.time)
       const notes = segmentNotes(track, onsets)
-      const passes = onsets.filter((t) => toneGate(track, t).pass).length
+      const passes = melodicOnsets(onsets, notes).filter(Boolean).length
       const exp = parseExpected(meta.expected ?? '') ?? []
       const s = exp.length ? scoreNotes(exp, notes, STEP, 0) : null
       const f = (v: number | null | undefined) => (v == null ? '—' : `${Math.round(v * 100)} %`)
       console.info(
-        `[voz] ${name}: onsets ${onsets.length}, pasan la puerta ${passes}, notas ${notes.length}` +
+        `[voz] ${name}: onsets ${onsets.length}, son melodía ${passes}, notas ${notes.length}` +
           (s ? ` · clase ${f(s.pitchClassRate)} · exacta ${f(s.exactRate)} · inicio ${f(s.startRate)}` : ''),
       )
     })

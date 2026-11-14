@@ -63,23 +63,25 @@ Cantas o tarareas una melodía corta y se convierte en un **loop de sintetizador
 
 ### 4.2 Segmentación en notas (`lib/notes.ts`)
 
-Sobre la trayectoria de YIN (MIDI decimal por frame y probabilidad de voz):
-1. **Tramos con voz**: probabilidad de voz > 0,5 durante ≥ 40 ms.
+Sobre la trayectoria de YIN (MIDI decimal por frame, probabilidad de voz y volumen). Valores por defecto fijados con tus tomas del 2026-11-14 (§15.14):
+1. **Tramos con voz**: probabilidad de voz ≥ 0,6 y volumen ≥ 0,001 (la cola de un "na" decae hasta ~0,002 con el tono todavía limpio; con 0,004 se perdía). Los huecos de hasta 30 ms (consonantes) no parten el tramo.
 2. **Cortes dentro de un tramo**:
    - Por **onset de energía**: se reutiliza el detector de la spec 001, así que las consonantes ("na-na", "da-da") separan notas repetidas.
    - Por **cambio de altura sostenido**: más de 0,7 semitonos respecto a la mediana del tramo durante ≥ 60 ms. Así el vibrato no corta.
-3. **Altura de cada nota**: la **mediana** de los frames centrales (se descartan el primer y el último 20 %). Así no cuentan los deslizamientos de entrada y salida ni la oscilación del vibrato.
-4. **Inicio** = inicio del tramo (corregido de latencia, como la batería). **Duración** = longitud del tramo.
+   - Los frames de **transición rápida** (más de 30 semitonos por segundo: un glissando) no son nota: cortan.
+3. **Fragmentos de entrada y de salida** (tus tomas 1 y 2): la voz entra por debajo o cae al final y deja trozos cortos pegados a la nota. En el **borde** de un tramo (la cadena de fragmentos empieza o acaba el tramo) se absorben en la nota larga de al lado (≥ 0,4 s y ≥ 1,5 veces la cadena) si su altura está cerca según su duración: ≤ 0,1 s hasta 4 semitonos, ≤ 0,2 s hasta 2, ≤ 0,35 s hasta 1,2; una cola de ≤ 0,2 s **una octava más abajo** (la voz que se quiebra al final, error de octava de YIN) también. Los fragmentos pueden estar separados de la nota hasta 0,12 s. No se absorben si la nota larga tiene su propio ataque de energía (son dos notas), ni si están **entre** dos notas (una nota corta de verdad en medio de una melodía).
+4. **Altura de cada nota**: la **mediana** de los frames centrales (se descartan el primer y el último 20 %). Así no cuentan los deslizamientos de entrada y salida ni la oscilación del vibrato. Duración mínima de una nota: **0,1 s**. Además, una nota tiene que llegar a un **pico de volumen de 0,004** en algún frame (la cola puede ser más suave): sin eso, un zumbido de fondo con tono (en tus tomas, unos 69 Hz) cuela notas fantasma al bajar el volumen mínimo.
+5. **Inicio** = el onset de energía que lo precede (hasta 80 ms antes), si lo hay; si no, el inicio del tramo; corregido de latencia, como la batería. **Duración** = longitud del tramo.
 
-### 4.3 Melodía o beatbox (`lib/classifier.ts` y el worker)
+### 4.3 Melodía o beatbox (`lib/notes.ts`, `lib/classifier.ts` y el worker)
 
-Cada sonido se decide en dos pasos:
-1. **Puerta de tono**: probabilidad de voz > 0,5 y altura estable (±1 semitono) durante **≥ 80 ms**. Un "bum" tiene tono, pero cae en menos tiempo y con ataque explosivo; un "na" sostiene el tono.
-2. **Clasificador** (el de la spec 001, vecinos más cercanos) con una **4.ª clase, "na"**, calibrada con su toma. Si pasa la puerta y el clasificador dice "na", es melodía; si no pasa la puerta, solo puede ser batería.
+**Decisión con datos (2026-11-14): notas primero.** Un sonido es melodía si su onset cae **dentro de una nota sostenida** (§4.2, ≥ 0,1 s de altura estable con voz), con un margen de 0,2 s para el ataque (`melodicOnsets`; en la toma 1 el onset llega ~0,15 s antes de la nota). Las tomas 7 y 8 mostraron que la **puerta por onset** de la primera versión (≥ 80 ms de altura estable desde el onset) separa mal: con el volumen mínimo bajado a 0,001 (necesario para no perder las colas de los "na"), deja pasar 3 de 29 sonidos de beatbox (10 %), y con 0,004 solo reconoce 1 "na" de unos 9. Con "notas primero": **0 de 29** sonidos de beatbox confundidos con melodía y 8 notas de los unos 9 "na" de la toma 7 (el reconocimiento de la melodía lo dan las **notas**, no los onsets: con "na" suave el detector de energía no ve todos los ataques).
 
-- Los umbrales (80 ms, ±1 semitono) se fijan con tus tomas en el laboratorio (fase 0).
-- **Hasta la fase 3** no hay clase "na": la melodía se decide solo con la puerta de tono, y un sonido que la pasa **no se graba además como batería**. Una calibración antigua (sin "na") sigue valiendo.
-- **Un sonido que pasa la puerta es melodía, no batería** y el carril "na" es un interruptor (§8.6), no un voto del clasificador.
+- **Hasta la fase 3** no hay clase "na": la melodía se decide solo así, y un sonido que cae dentro de una nota **no se graba además como batería**. Una calibración antigua (sin "na") sigue valiendo.
+- **Un sonido dentro de una nota es melodía, no batería**, y el carril "na" es un interruptor (§8.6), no un voto del clasificador.
+- **Fase 3:** con la clase "na" del clasificador (vecinos más cercanos, 4.ª clase, calibrada con el reto del §14), si el sonido cae dentro de una nota *y* el clasificador dice "na", es melodía.
+- **Latencia de la decisión:** hace falta ver 0,1 s de altura estable tras el onset, algo más que el análisis de la batería (unos 64 ms); entra en el margen de 0,3 s antes de la línea de compás (§16.12 de la 001) y se mide en la fase 1.
+- **La puerta por onset** (`toneGate`) se conserva en `lib/notes.ts` por si hace falta como segunda opinión en el worker.
 - Con fuga del fondo por el micro, la melodía se desactiva (§10).
 
 ## 5. Ayuda (activada por defecto)
@@ -329,3 +331,8 @@ Lo que cambió respecto al borrador del 2026-11-13, y por qué.
 11. **Calibración y ajustes** (§8.1): la clase "na" y los ajustes nuevos son opcionales; lo guardado hasta hoy sigue valiendo.
 12. **Plan** (§12): F0–F5, con la F1 como lo mínimo para cantar "na-na" y oír una melodía afinada.
 13. **Laboratorio** (§9): una novena toma (fuga sin cascos), ruta de desarrollo para guardar tomas, y repetir las tomas clave con el iPhone.
+14. **Tomas reales (2026-11-14, voz grave A2–D3, PC con cascos de cable)** — tomas 1, 2, 7 y 8:
+    - Toma 1 (escala) y toma 2 (melodía "da"): el 100 % de las notas con la altura exacta, pero con **fragmentos de más** al entrar o al caer. Arreglado con la absorción de fragmentos (§4.2.3) y el pico de volumen mínimo (§4.2.4): 8 de 8 y 5 de 5 notas, sin sobrantes. El inicio por onset de energía solo da 6 onsets para 8 notas ("na" suave): el inicio de nota no puede depender solo de él.
+    - Toma 7 (mezcla): la puerta por onset dejaba pasar 1 "na"; el volumen de los "na" decae de 0,019 a ~0,002 en décimas de segundo con el tono limpio.
+    - Toma 8 (solo beatbox, 29 onsets): 0 notas con cualquier combinación de umbrales de volumen (0,001–0,004), probabilidad (0,6–0,8) y duración mínima (0,1–0,2 s). Con la puerta por onset, hasta 6 confundidos de 29.
+    - Consecuencia: criterio "notas primero" (§4.3) y los valores por defecto de §4.2. Quedan por medir con más tomas: el 90 % de la ayuda (la ayuda aún no existe) y la toma 9 (fuga).

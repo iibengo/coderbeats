@@ -20,6 +20,8 @@ export interface NoteOptions {
   minProb: number
   /** volumen mínimo para contar como voz */
   minRms: number
+  /** una nota tiene que llegar al menos a este volumen en algún frame (la cola puede ser más suave): descarta zumbidos de fondo con tono */
+  minPeakRms: number
   /** duración mínima de una nota (s) */
   minNoteSec: number
   /** huecos sin voz de hasta esto (s) no parten la nota, salvo que haya un onset dentro */
@@ -32,17 +34,29 @@ export interface NoteOptions {
   glideSlope: number
   /** fracción de cada extremo que no cuenta para la altura */
   trim: number
+  /** fragmentos al empezar o terminar una nota (la voz que entra por debajo o cae al final) */
+  fragment: {
+    /** [duración máxima del fragmento (s), distancia máxima de altura a la nota que lo absorbe (semitonos)]: cuanto más corto, más lejos puede estar */
+    tiers: readonly (readonly [number, number])[]
+    /** la nota que absorbe dura al menos esto (s) y al menos `ratio` veces toda la cadena de fragmentos */
+    minHostSec: number
+    ratio: number
+    /** separación máxima entre notas pegadas (s) */
+    adjacentSec: number
+  }
 }
 
 export const DEFAULT_NOTE_OPTIONS: NoteOptions = {
   minProb: 0.6,
-  minRms: 0.004,
-  minNoteSec: 0.04,
+  minRms: 0.001,
+  minPeakRms: 0.004,
+  minNoteSec: 0.1,
   gapSec: 0.03,
   splitSemitones: 0.7,
   splitSec: 0.06,
   glideSlope: 30,
   trim: 0.2,
+  fragment: { tiers: [[0.1, 4], [0.2, 2], [0.35, 1.2]], minHostSec: 0.4, ratio: 1.5, adjacentSec: 0.12 },
 }
 
 const median = (v: number[]): number => {
@@ -143,20 +157,84 @@ export function segmentNotes(t: PitchTrack, onsets: readonly number[] = [], opti
     }
   }
 
-  // altura y límites de cada nota
-  const notes: Note[] = []
+  // altura y límites de cada nota; cada onset de energía se reparte entre los tramos (el primero que lo alcanza)
+  const claimed = new Set<number>()
+  interface Raw extends Note {
+    /** tiene su propio ataque de energía */
+    onset: number | null
+  }
+  let raws: Raw[] = []
   for (const [a, b] of segments) {
     const frames = Array.from({ length: b - a + 1 }, (_, k) => a + k).filter((k) => voiced[k])
     const dur = (b - a + 1) * dt
     if (dur < o.minNoteSec || frames.length < 2) continue
+    if (Math.max(...frames.map((k) => t.rms[k]!)) < o.minPeakRms) continue
     const cut = Math.floor(frames.length * o.trim)
     const core = frames.slice(cut, frames.length - cut)
     const midi = median((core.length ? core : frames).map((k) => t.midi[k]!))
-    let start = t.times[a]!
-    // el onset de energía más cercano justo antes del tramo da el inicio (la consonante)
-    const near = onsets.filter((x) => x <= start + 0.02 && start - x < 0.08).sort((p, q) => q - p)[0]
-    if (near !== undefined) start = near
-    notes.push({ start, end: t.times[b]! + dt / 2, midi, rms: frames.reduce((s, k) => s + t.rms[k]!, 0) / frames.length })
+    const start = t.times[a]!
+    const near = onsets.find((x, i) => !claimed.has(i) && x <= start + 0.02 && start - x < 0.08)
+    if (near !== undefined) claimed.add(onsets.indexOf(near))
+    raws.push({ start, end: t.times[b]! + dt / 2, midi, rms: frames.reduce((s, k) => s + t.rms[k]!, 0) / frames.length, onset: near ?? null })
+  }
+  raws = absorbFragments(raws, o.fragment)
+  return raws.map(({ onset, ...n }) => ({ ...n, start: onset !== null ? Math.min(onset, n.start) : n.start }))
+}
+
+/**
+ * La voz que entra por debajo (o cae al final) deja fragmentos cortos pegados a la nota: se absorben en la nota
+ * larga de al lado. Solo en los bordes de un tramo con voz (la cadena de fragmentos empieza o acaba el tramo), con
+ * la altura cerca de la nota según su duración (`tiers`), y no si hay un ataque de energía propio en el sitio
+ * donde empezaría la absorción (entonces son dos notas).
+ */
+function absorbFragments<T extends Note & { onset: number | null }>(list: T[], f: NoteOptions['fragment']): T[] {
+  const notes = [...list]
+  const dur = (n: Note) => n.end - n.start
+  const maxSec = Math.max(...f.tiers.map(([sec]) => sec))
+  const near = (frag: Note, host: Note) => {
+    const d = dur(frag)
+    const dm = Math.abs(frag.midi - host.midi)
+    // una octava más abajo al caer la voz (voz quebrada): error de octava de YIN, no una nota
+    if (d <= 0.2 && Math.abs(dm - 12) <= 1.5) return true
+    return f.tiers.some(([sec, semi]) => d <= sec && dm <= semi)
+  }
+  for (let changed = true; changed; ) {
+    changed = false
+    for (let h = 0; h < notes.length && !changed; h++) {
+      const host = notes[h]!
+      if (dur(host) < f.minHostSec) continue
+      // cadena de fragmentos pegados por delante, hasta el principio del tramo
+      const lead: number[] = []
+      for (let j = h - 1; j >= 0 && notes[j + 1]!.start - notes[j]!.end <= f.adjacentSec; j--) {
+        if (dur(notes[j]!) > maxSec) {
+          lead.length = 0
+          break
+        }
+        lead.unshift(j)
+      }
+      const leadOk = lead.length > 0 && host.onset === null && lead.every((j) => near(notes[j]!, host)) && dur(host) >= f.ratio * (notes[h - 1]!.end - notes[lead[0]!]!.start)
+      if (leadOk) {
+        host.start = notes[lead[0]!]!.start
+        host.onset = notes[lead[0]!]!.onset
+        notes.splice(lead[0]!, lead.length)
+        changed = true
+        continue
+      }
+      // y por detrás, hasta el final del tramo
+      const tail: number[] = []
+      for (let j = h + 1; j < notes.length && notes[j]!.start - notes[j - 1]!.end <= f.adjacentSec; j++) {
+        if (dur(notes[j]!) > maxSec || notes[j]!.onset !== null) {
+          tail.length = 0
+          break
+        }
+        tail.push(j)
+      }
+      if (tail.length && tail.every((j) => near(notes[j]!, host)) && dur(host) >= f.ratio * (notes[tail.at(-1)!]!.end - notes[h + 1]!.start)) {
+        host.end = notes[tail.at(-1)!]!.end
+        notes.splice(tail[0]!, tail.length)
+        changed = true
+      }
+    }
   }
   return notes
 }
@@ -172,13 +250,16 @@ export interface ToneGateOptions {
   minRms: number
 }
 
-export const DEFAULT_TONE_GATE: ToneGateOptions = { minSec: 0.08, tolerance: 1, within: 0.25, minProb: 0.6, minRms: 0.004 }
+export const DEFAULT_TONE_GATE: ToneGateOptions = { minSec: 0.08, tolerance: 1, within: 0.25, minProb: 0.6, minRms: 0.001 }
 
 export interface ToneGateResult {
   pass: boolean
   /** altura (mediana) y duración del tramo estable, si pasa */
   midi?: number
   sec?: number
+  /** probabilidad de voz media y volumen medio del tramo */
+  prob?: number
+  rms?: number
 }
 
 /**
@@ -206,8 +287,27 @@ export function toneGate(t: PitchTrack, onset: number, options: Partial<ToneGate
         break
       }
     }
-    if (win.length >= need && (!best.pass || win.length * dt > (best.sec ?? 0))) best = { pass: true, midi: median(win), sec: win.length * dt }
+    if (win.length >= need && (!best.pass || win.length * dt > (best.sec ?? 0))) {
+      const idx = Array.from({ length: win.length }, (_, k) => i + k)
+      best = {
+        pass: true,
+        midi: median(win),
+        sec: win.length * dt,
+        prob: idx.reduce((a, k) => a + t.prob[k]!, 0) / idx.length,
+        rms: idx.reduce((a, k) => a + t.rms[k]!, 0) / idx.length,
+      }
+    }
     if (best.pass) break
   }
   return best
+}
+
+/**
+ * ¿Cada onset es melodía? (spec 002, §4.3, revisado con las tomas de voz del 2026-11-14.) Un onset es melodía si
+ * cae dentro de una nota sostenida (`segmentNotes`, ≥ `minNoteSec`), con un margen para el ataque. Separa mucho
+ * mejor que mirar solo 80 ms desde el onset (`toneGate`): en las tomas, 0 falsas melodías en 29 sonidos de
+ * beatbox, frente a 3 de 29 con la puerta por onset y los mismos umbrales de volumen.
+ */
+export function melodicOnsets(onsets: readonly number[], notes: readonly Note[], lead = 0.2): boolean[] {
+  return onsets.map((t) => notes.some((n) => t >= n.start - lead && t < n.end))
 }

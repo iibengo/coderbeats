@@ -1,8 +1,8 @@
 <script setup lang="ts">
 // Laboratorio de voz (spec 002, §9, fase 0). Solo en desarrollo (`nuxt dev`): no entra en el build.
-// Graba tomas con el micro, saca la altura (YIN), las notas y la puerta de tono, y las compara con lo que querías cantar.
+// Graba tomas con el micro, saca la altura (YIN) y las notas, decide qué onsets son melodía, y las compara con lo que querías cantar.
 import { detectOnsets } from '~/lib/onsets'
-import { DEFAULT_NOTE_OPTIONS, DEFAULT_TONE_GATE, segmentNotes, toneGate, type Note } from '~/lib/notes'
+import { DEFAULT_NOTE_OPTIONS, melodicOnsets, segmentNotes, type Note } from '~/lib/notes'
 import { midiName, parseExpected, scoreNotes, shiftExpected, type Score } from '~/lib/noteScore'
 import { DEFAULT_PITCH_OPTIONS, midiToHz, trackPitch, type PitchTrack } from '~/lib/pitch'
 import { readJson, writeJson } from '~/lib/storage'
@@ -20,7 +20,7 @@ interface TakeDef {
   /** fondo de prueba por los altavoces */
   background?: boolean
   expected: string
-  /** nº de "na" de la toma (para contar la puerta de tono), si no son todas las notas esperadas */
+  /** nº de "na" de la toma (para contar qué onsets son melodía), si no son todas las notas esperadas */
   pattern?: string
 }
 const TAKES: TakeDef[] = [
@@ -65,10 +65,11 @@ const rec = shallowRef<Float32Array | null>(null)
 const sr = ref(48000)
 const saved = ref<string[]>([])
 const loadedName = ref<string | null>(null)
+/** la toma que se ve ya está en disco (guardada o cargada): no se puede guardar otra vez, solo con una toma nueva */
+const onDisk = ref(false)
 
 const P = reactive({ threshold: DEFAULT_PITCH_OPTIONS.threshold, median: DEFAULT_PITCH_OPTIONS.median })
 const N = reactive({ ...DEFAULT_NOTE_OPTIONS })
-const G = reactive({ ...DEFAULT_TONE_GATE })
 
 let ctx: AudioContext | null = null
 let stream: MediaStream | null = null
@@ -98,7 +99,10 @@ const recSec = computed(() => {
 const track = computed<PitchTrack | null>(() => (rec.value ? trackPitch(rec.value, sr.value, { threshold: P.threshold, median: P.median }) : null))
 const onsets = computed(() => (rec.value ? detectOnsets(rec.value, sr.value).map((o) => o.time) : []))
 const notes = computed<Note[]>(() => (track.value ? segmentNotes(track.value, onsets.value, N) : []))
-const gates = computed(() => (track.value ? onsets.value.map((t) => ({ t, ...toneGate(track.value!, t, G) })) : []))
+const gates = computed(() => {
+  const m = melodicOnsets(onsets.value, notes.value)
+  return onsets.value.map((t, i) => ({ t, pass: m[i]! }))
+})
 const expected = computed(() => parseExpected(expectedText.value))
 const score = computed<Score | null>(() => (expected.value && expected.value.length ? scoreNotes(expected.value, notes.value, STEP, 0) : null))
 const passes = computed(() => gates.value.filter((g) => g.pass).length)
@@ -185,6 +189,7 @@ async function record() {
   const notesToPlay = guided.value && guideable(def) ? (expected.value ?? []) : []
   const sec = notesToPlay.length ? Math.ceil(notesToPlay.length * SLOT_SEC + 0.5) : def.sec
   rec.value = null
+  onDisk.value = false
   nowNote.value = null
   lastGuide.value = notesToPlay.length ? { slot: SLOT_SEC, tone: TONE_SEC, n: notesToPlay.length } : null
   loadedName.value = null
@@ -268,7 +273,7 @@ async function refreshList() {
 }
 
 async function save() {
-  if (!rec.value) return
+  if (!rec.value || onDisk.value) return
   const clean = label.value.toLowerCase().replace(/[^a-z0-9_-]/g, '') || 'pc'
   const stamp = new Date().toTimeString().slice(0, 8).replace(/:/g, '')
   const name = `t${take.value.id}-${take.value.slug}_${clean}_${stamp}`
@@ -290,6 +295,7 @@ async function save() {
     const r = (await $fetch('/_lab/take', { method: 'POST', body: { name, wav: b64(encodeWav(rec.value, sr.value)), meta } })) as { path: string }
     msg.value = `guardada: ${r.path}`
     loadedName.value = name
+    onDisk.value = true
     await refreshList()
   } catch (e) {
     msg.value = `No se pudo guardar: ${e instanceof Error ? e.message : String(e)}`
@@ -310,6 +316,7 @@ async function load(name: string) {
     sr.value = w.sampleRate
     rec.value = w.samples
     loadedName.value = name
+    onDisk.value = true
     status.value = 'done'
     msg.value = `cargada ${name}`
   } catch (e) {
@@ -484,7 +491,7 @@ function draw() {
     x.fillStyle = '#ffffff'
     x.fillText(midiName(n.midi), px(n.start) + 2, py(n.midi) - 8)
   }
-  // onsets: verde si pasan la puerta de tono, rojo si no
+  // onsets: verde si el onset cae dentro de una nota (melodía), rojo si no
   for (const g of gates.value) {
     x.strokeStyle = g.pass ? '#7be08a' : '#e07b7b'
     x.beginPath()
@@ -657,14 +664,20 @@ async function nudgeTest() {
           <canvas ref="canvas" class="w-full rounded border border-neutral-800" :style="{ height: `${H}px` }" />
           <p class="text-xs text-neutral-500">
             Rosa = altura con voz · gris = rechazada · blanco = notas detectadas · azul discontinuo = notas esperadas · verde/rojo = onsets que
-            pasan / no pasan la puerta de tono.
+            son / no son melodía.
           </p>
           <div v-if="rec" class="flex flex-wrap items-center gap-2 text-sm">
             <button class="rounded border border-neutral-700 px-2 py-1" @click="playTake">▶ Mi toma</button>
             <button class="rounded border border-neutral-700 px-2 py-1" @click="playNotes">▶ Notas detectadas</button>
             <button class="rounded border border-neutral-700 px-2 py-1" @click="stopPlay">■</button>
-            <input v-model="label" class="w-24 rounded bg-neutral-900 px-2 py-1 text-xs" title="etiqueta del nombre (pc, iphone, cascos…)" />
-            <button class="rounded bg-neutral-200 px-2 py-1 font-medium text-black" :disabled="!rec" @click="save">Guardar toma</button>
+            <select v-model="label" class="rounded bg-neutral-900 px-2 py-1 text-xs" title="dónde la grabas (va en el nombre del archivo)" :disabled="onDisk">
+              <option value="pc">pc</option>
+              <option value="iphone">iphone</option>
+              <option value="otro">otro</option>
+            </select>
+            <button class="rounded bg-neutral-200 px-2 py-1 font-medium text-black disabled:opacity-40" :disabled="!rec || onDisk" @click="save">
+              {{ onDisk ? '✓ Guardada' : 'Guardar toma' }}
+            </button>
             <span v-if="loadedName" class="text-xs text-neutral-500">{{ loadedName }}</span>
           </div>
         </section>
@@ -672,12 +685,12 @@ async function nudgeTest() {
         <section v-if="rec" class="grid gap-4 md:grid-cols-2">
           <div class="space-y-1 rounded border border-neutral-800 p-3 text-sm">
             <h2 class="font-medium">Resultado</h2>
-            <p>Onsets: <b>{{ onsets.length }}</b> · pasan la puerta de tono: <b>{{ passes }}</b> · notas detectadas: <b>{{ notes.length }}</b></p>
+            <p>Onsets: <b>{{ onsets.length }}</b> · son melodía (caen dentro de una nota): <b>{{ passes }}</b> · notas detectadas: <b>{{ notes.length }}</b></p>
             <p v-if="take.id === 8" class="text-xs text-neutral-400">
-              Sin cantar nada: confundidos con melodía = <b>{{ onsets.length ? pct(passes / onsets.length) : '—' }}</b> (objetivo ≤ 5 %) · notas falsas: <b>{{ notes.length }}</b>
+              Sin cantar nada: onsets confundidos con melodía = <b>{{ onsets.length ? pct(passes / onsets.length) : '—' }}</b> (objetivo ≤ 5 %) · notas falsas: <b>{{ notes.length }}</b>
             </p>
             <p v-else-if="take.id === 7" class="text-xs text-neutral-400">
-              Debería pasar la puerta solo en los "na" (esperadas {{ expected?.length ?? 0 }} por vuelta del patrón).
+              Debería ser melodía solo en los "na" (esperadas {{ expected?.length ?? 0 }} por vuelta del patrón).
             </p>
             <template v-if="score">
               <p>
@@ -711,8 +724,6 @@ async function nudgeTest() {
             <label class="flex items-center justify-between gap-2">volumen mín. {{ N.minRms }}<input v-model.number="N.minRms" type="range" min="0.0005" max="0.03" step="0.0005" /></label>
             <label class="flex items-center justify-between gap-2">nota mín. {{ N.minNoteSec }} s<input v-model.number="N.minNoteSec" type="range" min="0.02" max="0.2" step="0.01" /></label>
             <label class="flex items-center justify-between gap-2">corte por cambio {{ N.splitSemitones }} st<input v-model.number="N.splitSemitones" type="range" min="0.3" max="2" step="0.1" /></label>
-            <label class="flex items-center justify-between gap-2">puerta: duración {{ G.minSec }} s<input v-model.number="G.minSec" type="range" min="0.04" max="0.25" step="0.01" /></label>
-            <label class="flex items-center justify-between gap-2">puerta: tolerancia ±{{ G.tolerance }} st<input v-model.number="G.tolerance" type="range" min="0.3" max="2" step="0.1" /></label>
           </div>
         </section>
 
