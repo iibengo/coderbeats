@@ -138,9 +138,9 @@ describe('demo del dembow: "Cargar demo"', () => {
 })
 
 describe('los kits (spec 010)', () => {
-  it('Electrónico (uzu-drumkit) va sin .bank(); el 808 con su banco; solo dos kits en la UI', async () => {
+  it('Electrónico (uzu-drumkit) va sin .bank(); el 808 con su banco; tres kits en la UI', async () => {
     const { KIT_ORDER, KITS: K, kitFromSaved } = await import('../../app/lib/constants')
-    expect(KIT_ORDER).toEqual(['electro', '808'])
+    expect(KIT_ORDER).toEqual(['electro', 'vinyl', '808'])
     expect(K.electro.strudelBank).toBeNull()
     expect(K['808'].strudelBank).toBe('RolandTR808')
     // los índices son los del uzu-drumkit de strudel.cc (el orden de su strudel.json)
@@ -162,5 +162,36 @@ describe('los kits (spec 010)', () => {
     for (const dir of readdirSync('public/samples', { withFileTypes: true }).filter((d) => d.isDirectory())) {
       for (const f of readdirSync(`public/samples/${dir.name}`)) expect(credits, `${dir.name}/${f}`).toContain(`${dir.name}/${f}`)
     }
+  })
+})
+
+describe('el kit Vinilo y el repositorio de kits (spec 010, fase 2)', () => {
+  it('el código mostrado lleva su samples() y su .bank(); el engine no (tiene su propio mapa)', async () => {
+    const { songCode } = await import('../../app/lib/song')
+    const base = { loops: [], style: 'hiphop90' as const, kit: 'vinyl' as const, background: { mode: 'off' as const, parts: { bass: false, chords: false } }, metronome: false, fx: { filter: 1, space: 0, warmth: 0 } }
+    const st = { ...base, loops: [{ id: 1, instrument: 'bd' as const, bars: 1 as const, phaseBar: 0, hits: [{ pos: 0, strength: 0.8 }], muted: false, bornAt: 0, fromTemplate: false }] }
+    const code = songCode(st, 'display')
+    expect(code.split('\n')[0]).toBe('setcpm(90/4)')
+    expect(code.split('\n')[1]).toBe("samples('github:iibengo/coderbeats-kits/v1')")
+    expect(code).toContain('.bank("Vinyl")')
+    expect(songCode(st, 'engine')).not.toContain('samples(')
+    expect(songCode({ ...st, kit: 'electro' }, 'display')).not.toContain('samples(')
+  })
+  it('el strudel.json del repositorio de kits coincide con el kit y con los samples de la app', async () => {
+    const { readFileSync } = await import('node:fs')
+    const json = JSON.parse(readFileSync('kits/coderbeats-kits/strudel.json', 'utf8')) as Record<string, string | string[]>
+    expect(json._base).toBe('https://raw.githubusercontent.com/iibengo/coderbeats-kits/v1/')
+    expect(KITS.vinyl.samples).toBe('github:iibengo/coderbeats-kits/v1')
+    for (const inst of ['bd', 'sd', 'hh'] as const) {
+      const files = json[`${KITS.vinyl.strudelBank}_${inst}`] as string[]
+      expect(files, inst).toEqual([`vinyl/${inst}.wav`])
+      // la misma muestra en el repositorio de kits y en la app (que no se desincronicen)
+      expect(readFileSync(`kits/coderbeats-kits/${files[0]}`).equals(readFileSync(`public/samples/${files[0]}`)), inst).toBe(true)
+    }
+  })
+  it('el hip hop trae el kit Vinilo y el dembow el 808', async () => {
+    const { DEMO_KIT } = await import('../../app/lib/cells')
+    expect(DEMO_KIT.hiphop90).toBe('vinyl')
+    expect(DEMO_KIT.dembow).toBe('808')
   })
 })

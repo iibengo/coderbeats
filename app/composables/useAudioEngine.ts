@@ -1628,6 +1628,9 @@ export function useAudioEngine() {
       log('cell', `demo-canción de ${STYLES[style.value].label} cargada: ${demo.cells.map((c) => `${c.name} ${c.turns}`).join(' · ')}`)
       return replaceSong(demo)
     }
+    // el estilo puede traer su kit (hip hop: Vinilo), también en la demo de una célula
+    const cellKit = DEMO_KIT[style.value]
+    if (cellKit && kit.value !== cellKit) setKit(cellKit)
     // demo de una célula: si había una canción de varias, vuelve a ser de una
     if (multi()) await replaceSong({ ...emptySong(), nextLoopId: liveSong().nextLoopId })
     const bornAt = playing.value && clock ? nextBarLine() : 0

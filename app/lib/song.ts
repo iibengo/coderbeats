@@ -394,7 +394,7 @@ export function songCode(st: SongState, mode: SongMode = 'display'): string {
   const music = STYLE_MUSIC[st.style]
   const engine = mode === 'engine'
   const g = ENGINE_GLOBAL
-  const out: string[] = [`setcpm(${safeNum(st.bpm ?? style.bpm)}/4)`, 'stack(']
+  const out: string[] = [`setcpm(${safeNum(st.bpm ?? style.bpm)}/4)`, ...samplesLine(st, mode), 'stack(']
 
   const bgOn = st.background.mode !== 'off'
   const showBass = engine ? bgOn : st.background.parts.bass
@@ -441,6 +441,12 @@ export function songCode(st: SongState, mode: SongMode = 'display'): string {
  * Código mostrado de una canción de varias células (spec 005, §9): `arrange` con una sección por
  * célula, en orden, cada una con su fondo y sus loops. Suena igual en strudel.cc (sin el barrido).
  */
+/** La línea `samples('github:…')` del kit, si el código mostrado la necesita para sonar igual en strudel.cc (spec 010). */
+function samplesLine(st: Pick<SongState, 'kit'>, mode: SongMode): string[] {
+  const smp = mode === 'display' ? KITS[st.kit]?.samples : undefined
+  return smp ? [`samples('${smp}')`] : []
+}
+
 function songArrangeCode(st: SongState): string {
   const style = STYLES[st.style]
   const music = STYLE_MUSIC[st.style]
@@ -468,8 +474,8 @@ function songArrangeCode(st: SongState): string {
     // con grupos en paralelo, la canción y ellos suenan a la vez: un `stack` que los junta
     const head = out.slice(0, 2)
     const body = out.slice(3).map((l) => `${IND}${l}`)
-    return [...head, 'stack(', `${IND}arrange(`, ...body, `${IND}),`, ...freeBlock, djf < 0.5 ? `).djf(${djf})` : ')'].join('\n')
+    return [head[0]!, ...samplesLine(st, 'display'), ...head.slice(1), 'stack(', `${IND}arrange(`, ...body, `${IND}),`, ...freeBlock, djf < 0.5 ? `).djf(${djf})` : ')'].join('\n')
   }
   out.push(djf < 0.5 ? `).djf(${djf})` : ')')
-  return out.join('\n')
+  return [out[0]!, ...samplesLine(st, 'display'), ...out.slice(1)].join('\n')
 }

@@ -341,7 +341,7 @@ const DEMBOW_SONG: SectionSpec[] = [
 export const SONG_DEMOS: Partial<Record<StyleId, SectionSpec[]>> = { dnb: DNB_SONG, dembow: DEMBOW_SONG }
 
 /** Kit con el que suena la demo-canción de un estilo, si tiene uno propio (al cargarla se elige). */
-export const DEMO_KIT: Partial<Record<StyleId, KitId>> = { dembow: '808' }
+export const DEMO_KIT: Partial<Record<StyleId, KitId>> = { dembow: '808', hiphop90: 'vinyl' }
 
 const demoLoop = (style: StyleId, instrument: Instrument, id: number, pattern: string = DEMOS[style][instrument]): FreeLoop => ({
   id,

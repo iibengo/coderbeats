@@ -30,3 +30,15 @@ https://github.com/tidalcycles/sounds-tr808-fischer
 | `808/hh.wav` | `ch8/CH.WAV` | `c9f30ff2b4d73b03` |
 
 No hace falta atribución (CC0); se menciona por cortesía. «808» y «Roland» son marcas de sus dueños y solo se usan para describir el sonido.
+
+## Kit «Vinilo» · Boochi44 (CC0)
+
+Del repositorio **Boochi44/free-drum-samples**, kit «03 Soulful Vintage» (**CC0 1.0**; 808 bajados de calidad y *bitcrushed*):
+https://github.com/Boochi44/free-drum-samples. La misma carpeta se publica como repositorio propio para strudel.cc
+(`kits/coderbeats-kits/`, ver su README).
+
+| Archivo | Origen (`drum-samples/03-soulful-vintage/…`) |
+|---|---|
+| `vinyl/bd.wav` | `kicks/vintage-kick-02.wav` |
+| `vinyl/sd.wav` | `snares/vintage-snare-02.wav` |
+| `vinyl/hh.wav` | `hi-hats/hi-hat-closed-01.wav` |

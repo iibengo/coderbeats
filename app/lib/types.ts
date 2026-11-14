@@ -1,5 +1,5 @@
 export type Instrument = 'bd' | 'sd' | 'hh'
-export type KitId = 'electro' | '808'
+export type KitId = 'electro' | '808' | 'vinyl'
 export type StyleId = 'hiphop90' | 'house' | 'dnb' | 'dembow' | 'techno'
 
 export interface Style {
@@ -15,6 +15,8 @@ export interface Kit {
   label: string
   /** banco de strudel.cc; `null` = sin `.bank()` (el kit por defecto de strudel.cc, uzu-drumkit; spec 010) */
   strudelBank: string | null
+  /** línea `samples('github:…')` que el código mostrado necesita en strudel.cc si el kit no es de los suyos (spec 010) */
+  samples?: string
   /** índice del sample en el mapa de strudel.cc (para que suene igual al copiar el código) */
   sampleIndex: Record<Instrument, number>
 }

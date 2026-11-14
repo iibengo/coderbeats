@@ -20,11 +20,14 @@ export const KITS: Record<KitId, Kit> = {
   // «Electrónico» (spec 010): el uzu-drumkit (Unlicense), el kit por defecto de strudel.cc: sin `.bank()`, solo `s("bd")`
   // y `.n(k)`, y suena igual al copiar el código. Índices: bd 0 (10_bd_switchangel), sd 1 (11_sd_switchangel_3), hh 3 (13_hh_switchangel).
   electro: { id: 'electro', label: 'Electrónico', strudelBank: null, sampleIndex: { bd: 0, sd: 1, hh: 3 } },
+  // «Vinilo» (spec 010): el kit «Soulful Vintage» de Boochi44 (CC0), 808 bajados de calidad. Para que valga en strudel.cc,
+  // el código mostrado lleva su `samples('github:…')` (el repositorio sale de `kits/coderbeats-kits/`).
+  vinyl: { id: 'vinyl', label: 'Vinilo', strudelBank: 'Vinyl', samples: 'github:iibengo/coderbeats-kits/v1', sampleIndex: { bd: 0, sd: 0, hh: 0 } },
   '808': { id: '808', label: '808', strudelBank: 'RolandTR808', sampleIndex: { bd: 1, sd: 1, hh: 0 } },
 }
 
 /** Orden de la UI (las claves numéricas de un objeto se reordenan solas). */
-export const KIT_ORDER: readonly KitId[] = ['electro', '808']
+export const KIT_ORDER: readonly KitId[] = ['electro', 'vinyl', '808']
 
 /**
  * Kits que ya no existen y a cuál pasan al leerlos de lo guardado (spec 010): el `909` y el `acoustic` (samples sin licencia
