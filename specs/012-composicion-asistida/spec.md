@@ -194,15 +194,15 @@ Así: **mejorar una variación mejora la conversión**, y la conversión **se pr
 **Lo primero que haría es S1**: es lo único que **ya está roto** (un fallo que dio una melodía que nadie cantó) y es pequeño: dos cambios en el detector y dos tests de señales.
 Después **S2 y S3** (la melodía sugerida, que es lo que **más se nota** y lo que dio la idea) y, con ella ya buena, **S4–S6** (las variaciones y la conversión).
 
-## 9. Decisiones que hay que tomar
+## 9. Decisiones (2026-11-15)
 
-1. ~~¿La sugerida se propone sola o solo cuando se pide?~~ **Decidido (2026-11-15): se propone sola, con el interruptor «Sugerencias» (§3.4) para apagarlo todo**, por defecto activado.
-2. **El volumen de la sugerida** (y la **densidad por estilo** de la §3.2b: la tabla es una propuesta) (propongo ~35 %) y si **suena siempre o solo al tocar la franja**.
-3. **Las semillas**: «otra» sigue una **secuencia fija por ritmo** (mismo ritmo, mismas sugerencias en el mismo orden) o es **azar nuevo** cada vez. Recomiendo la fija (reproducible: más fácil de probar y de volver a una que gustó).
-4. **Las variaciones se aceptan solas** si se edita la copia (propuesta) o **hay que tocarla**. Recomiendo: se aceptan solas (nunca se pierde nada).
-5. **F4 (prueba de fuga grave en el arranque)**: ¿se hace o basta con F1–F3? Recomiendo **dejarlo para si F1–F3 no bastan**.
-6. **Quién usa las variaciones**: ¿solo Componer (copiar) y «Convertir», o también un botón en **Jugar** («variar esta parte»)? Recomiendo **solo Componer y Convertir** por ahora.
-7. **Nombres de los chips**: «+ energía», «− energía», «variar melodía», «redoble» (propuestos).
+1. **Sale sola**, con el interruptor «Sugerencias» (§3.4), por defecto activado.
+2. **Volumen de la sugerida: ≈ 35 %** (y suena siempre, no solo al tocar la franja). La densidad por estilo de la §3.2b es una propuesta a afinar de oído.
+3. **«Otra» sigue una secuencia fija y reproducible** por ritmo (la misma entrada da las mismas sugerencias en el mismo orden).
+4. **Una variación se acepta sola** si se edita la copia (nunca se pierde nada); tocarla también la acepta.
+5. **F4 no por ahora**: F1–F3 bastan.
+6. **Las variaciones solo en Componer (copiar) y en «Convertir en canción»**; no hay botón de variar en Jugar.
+7. **Nombres de los chips:** «+ energía», «− energía», «variar melodía», «redoble».
 
 ## Fuentes de lo medido
 

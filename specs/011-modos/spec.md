@@ -339,7 +339,7 @@ Es el contrario de Jugar (una gota pequeña y concentrada): aquí **no hay gota*
 
 **Por qué solo aquí, y no en Componer ni en Jugar.** En **Componer**, tocar el agua **crea una célula** (005 §7.1), así que el fondo ya tiene otro significado; en **Jugar**, fuera de la gota un dedo no hace nada (003 E1.5), y ahí está bien. **Escenario es el único modo donde el fondo dispara sonidos.**
 
-**Cuántos modos.** Es el **tercero** (Jugar, Componer, Escenario): la decisión 1 de §10 dijo «como mucho 2–3». Alternativa si no se quiere un tercero en el selector: **un botón «Escenario» dentro de Jugar** que cambia la pantalla, sin tocar el selector.
+**Cuántos modos.** **Siguen siendo dos** (decidido): Escenario es **un botón dentro de Jugar** que cambia la pantalla, sin tocar el selector.
 
 **Riesgos y cosas a vigilar:**
 - **Latencia al tocar**: un impacto tiene que sonar **al instante** (sin esperar a la rejilla); para grabar se cuantiza **después**.
@@ -352,7 +352,8 @@ Es el contrario de Jugar (una gota pequeña y concentrada): aquí **no hay gota*
 
 **Fases (propuesta):** (1) los sonidos (`boom`, `impacto`, `barrido`) como sintes con sus tests; (2) el modo con las zonas y la onda de color, sin grabar; (3) grabar como capa de efectos; (4) el afinado al estilo y a la raíz.
 
-**Preguntas abiertas:** ¿tercer modo o botón dentro de Jugar? · ¿el barrido se arrastra o se mantiene? · ¿«cuantizar» activado por defecto al grabar? · ¿cuántos golpes caben (4 zonas, 6…)?
+**Decisiones (2026-11-15):** (1) **un botón «Escenario» dentro de Jugar**; el **selector sigue siendo Jugar | Componer** (dos modos). (2) El **barrido** se hace **manteniendo pulsado** un lado (más simple que arrastrar). (3) **Cuantizar al grabar, activado por defecto.** (4) **Cuatro zonas** (las de la tabla).
+**Opcional, sin decidir cuándo:** en **Componer**, un botón **«⚡ Efectos»** que, **mientras está encendido**, convierte los toques en el fondo en golpes de efecto **en vez de crear células** (así el escenario también se puede tocar sobre el mapa, sin cambiar de modo).
 
 ## 15. Lo implementado (2026-11-14) y dónde está
 
