@@ -2,6 +2,7 @@
 
 > Estado: **propuesta, sin programar** (2026-11-14). Para que la decidas: §9 reúne lo que hay que elegir; §8 es cómo lo haría, por fases.
 > Parte de: 002 (melodía con la voz), 003 (el aro), 005 (células, copiar §15), 011 (modos; §14 «convertir en canción»), 010 (sonidos).
+> Decidido (2026-11-15): las sugerencias **siguen el estilo actual** (escala, tempo y patrones típicos, §3.2b) y tienen **un interruptor propio en ⋯, «Sugerencias»**, separado de «Ayuda»; apagado, **no se propone nada** (§3.4).
 > Principio común: **la app propone, la persona manda.** Todo sale **en fantasma** (tenue, hueco, suave), **tocar = aceptar** y **«otra» = probar otra**.
 > Nunca se escribe nada en la canción sin que se acepte (o se edite), y siempre se puede **deshacer**.
 
@@ -63,7 +64,7 @@ En **Jugar**, con **un ritmo hecho** y sin melodía (ni cantada ni sugerida acep
 - **«✕»** o **seguir tocando** otra cosa durante un rato **la deja de proponer** esta vez (no insiste).
 - **Si canta, manda su voz**: en cuanto el detector avisa de una nota (ya sin las falsas de la §2) la **sugerida se retira** y no vuelve a salir mientras haya voz (y 2 compases después).
 - **Al arrancar la guía** (011 §12.2), el paso **«toca la franja de la melodía»** ya enseña la sugerida: el paso «canta» pasa a ser **«canta, o toca la sugerida»**.
-- Un ajuste en ⋯: **«Ayuda: melodía sugerida»** (por defecto **activado**). Apagado, nada de esto.
+- Un ajuste propio en ⋯: **«Sugerencias»** (§3.4). Apagado, nada de esto.
 
 ### 3.2 Cómo se compone la sugerida (puro: `lib/suggestMelody.ts`)
 
@@ -86,6 +87,28 @@ La salida es un loop de melodía normal (`MelodyHit[]`, 4 compases), que es lo q
 - **Se ve** en la **franja de la melodía** con los puntos **huecos y muy tenues** (el mismo estilo que las sugerencias del estilo, 003 E3.3), sin ondas ni destellos.
 - **Al aceptar**: el loop provisional se **convierte** en un loop normal (nueva id, `synth` del estilo, volumen normal). Un **deshacer** la quita.
 
+### 3.2b Siguen el estilo actual
+
+Todo lo que se propone sale **del estilo que está elegido** (`style`), nunca de uno genérico. Se lee de los datos del estilo que ya existen (`styles.ts`, `constants.ts`); **no hay datos nuevos por estilo salvo una tabla de densidad** (abajo).
+
+| Del estilo | Qué se usa | De dónde |
+|---|---|---|
+| **Escala** | Las notas de la melodía son **solo de la escala del estilo** (si menor, do menor, etc.); en los apoyos, del **acorde** de ese compás | `STYLE_MUSIC[style].scale` y `chordTones` |
+| **Tempo y rejilla** | La densidad **se ajusta al tempo**: una nota no dura menos de ≈ 0,12 s (a 90 bpm, semicorcheas; a 174 bpm de dnb, **corcheas**, porque ese estilo graba cada 2 pasos). Una variación que acelera el platillo **no pasa de la rejilla del estilo** | `STYLES[style].bpm` (o el tempo fijado con los 4 toques) y `quantizeEvery` |
+| **Patrones típicos** | Los **anclas** de la melodía son los golpes de batería **y** los huecos que el estilo pide (lo que `priors` y `templates` consideran su ritmo), y las variaciones de «+ energía» añaden golpes **donde el estilo ya los pone** | `STYLE_MUSIC[style].priors` y `templates` |
+| **Sinte** | El de la sugerida es el del estilo (versión suave) | `STYLE_MUSIC[style].synth` |
+| **Tonalidad del remix** | En una canción de un remix (008) se sigue **el estilo de la canción** (el techno del Mozart: do menor) | el estilo de la canción |
+
+**Densidad por estilo** (propuesta, a afinar de oído; notas de la melodía por compás): **hip hop** 3–5 (frases con aire) · **house** 4–7 · **dnb** 3–5 (en corcheas, ligero sobre el ritmo rápido) · **dembow** 4–6, **cayendo sobre la caja del dembow** (pasos 3 6 11 14) · **techno** 5–8 (nota pedal repetida y apagada a semicorcheas, como el Dies Irae, 008 §9).
+**Si cambia el estilo o el tempo, lo que está propuesto se rehace** (una propuesta sin aceptar no se queda con el estilo anterior). Lo ya **aceptado** no se toca: es la canción.
+
+### 3.4 El interruptor «Sugerencias»
+
+- **Un ajuste propio en ⋯, «Sugerencias»**, **separado de «Ayuda»**. **«Ayuda»** (`assist`) **corrige** lo que la persona toca (cuantizar a la rejilla, imantar a la escala); **«Sugerencias»** **propone** cosas nuevas. Se pueden combinar de cualquier forma.
+- **Apagado, no se propone nada**: ni la melodía sugerida (ni su fantasma ni su sonido), ni las variaciones al copiar, ni el paso de la guía que habla de la sugerida. La app se comporta **exactamente como hoy**.
+- **Se guarda** por dispositivo con las demás preferencias (`StudioPrefs.suggestions`, con su guarda y migración; por defecto, **activado**).
+- **Lo que no es una propuesta sigue funcionando** aunque esté apagado: la **conversión en canción** y cada variación **pedida a mano** son acciones **explícitas** (un botón), no sugerencias; si se **apagan** las sugerencias mientras hay una propuesta a la vista, **se retira** (no se acepta ni se pierde nada).
+
 ## 4. Lo que NO hace la melodía sugerida
 
 - No decide el **sinte** (el del estilo) ni los **efectos**; no toca la batería ni el bajo.
@@ -106,6 +129,7 @@ En **Componer**, al **copiar** una célula (arrastrar el asa a agua vacía; 005 
 | **redoble** | **Redoble de caja al final** (4 semicorcheas en el último tiempo del último compás; con loops de 1 compás, se hace de 4 para poder ponerlo) |
 | **igual** | Una copia exacta (como hoy) |
 
+- Las variaciones **siguen el estilo actual** (§3.2b): el platillo no pasa de la rejilla y el tempo del estilo, los golpes extra salen de sus `priors`, la melodía se queda en su escala. Y **solo se proponen con «Sugerencias» encendido** (§3.4).
 - **Tocar la copia = aceptar** (se quita el borde a trazos y los chips). **«↻ otra»** = otra variación **del mismo tipo** (siguiente semilla), siempre **partiendo de la original** (no de la anterior propuesta).
 - **Nunca se pierde nada**: la copia es **una célula suelta** (005 §15.1: sin hilos y sin sonar, tenue); si la persona la mueve, la engancha o la edita, **se da por aceptada**. «↶ deshacer» (el chip de 8 s) la quita.
 - **Orden de los chips**: el que más ayuda a **avanzar la canción** primero: si la célula es la **última de su grupo**, **+ energía** (para ir hacia el drop); si ya lleva **todas las capas**, **− energía** (para el respiro); en una **melodía**, **variar**.
@@ -146,6 +170,7 @@ Así: **mejorar una variación mejora la conversión**, y la conversión **se pr
 |---|---|---|
 | Arreglos de la fuga (F1–F4) | `pitch.ts` (`fmin`), `liveMelody.ts` y `analysis.worker.ts` (la puerta de batería), `echoGate.ts` (F4) | Cambian lo que se detecta, no el modelo |
 | `suggestMelody` | `lib/suggestMelody.ts` (puro) | Usa `STYLE_MUSIC`, `melodyAssist` y `melodyView` |
+| El interruptor «Sugerencias» | `useAudioEngine.ts` (`suggestions`, como `assist`), `usePrefs.ts`, `prefsGuard.ts`, `SettingsSheet.vue` | Una casilla; las dos ayudas lo miran antes de proponer |
 | La sugerida en el motor | `useAudioEngine.ts` (`suggestion`: `{ hits, seed, synth } \| null`, **no** en `Song`) | Una línea extra en `songCode('engine')` a bajo volumen |
 | La sugerida a la vista | `VisualStage.vue`/`AroCanvas.ts` (puntos huecos en la franja), chip «↻ otra» | El estilo de 003 E3.3 |
 | `varyCell` | `lib/variations.ts` (puro) | Usa `priors`, `assist.ts`, `melodyView` |
@@ -171,8 +196,8 @@ Después **S2 y S3** (la melodía sugerida, que es lo que **más se nota** y lo 
 
 ## 9. Decisiones que hay que tomar
 
-1. **¿La sugerida se propone sola** (en cuanto hay ritmo y la franja está vacía; recomendado, con el ajuste para apagarla) **o solo cuando se pide** (un botón «sugerir»)? Lo primero ayuda más, lo segundo es menos intrusivo.
-2. **El volumen de la sugerida** (propongo ~35 %) y si **suena siempre o solo al tocar la franja**.
+1. ~~¿La sugerida se propone sola o solo cuando se pide?~~ **Decidido (2026-11-15): se propone sola, con el interruptor «Sugerencias» (§3.4) para apagarlo todo**, por defecto activado.
+2. **El volumen de la sugerida** (y la **densidad por estilo** de la §3.2b: la tabla es una propuesta) (propongo ~35 %) y si **suena siempre o solo al tocar la franja**.
 3. **Las semillas**: «otra» sigue una **secuencia fija por ritmo** (mismo ritmo, mismas sugerencias en el mismo orden) o es **azar nuevo** cada vez. Recomiendo la fija (reproducible: más fácil de probar y de volver a una que gustó).
 4. **Las variaciones se aceptan solas** si se edita la copia (propuesta) o **hay que tocarla**. Recomiendo: se aceptan solas (nunca se pierde nada).
 5. **F4 (prueba de fuga grave en el arranque)**: ¿se hace o basta con F1–F3? Recomiendo **dejarlo para si F1–F3 no bastan**.
