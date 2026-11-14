@@ -20,6 +20,7 @@ export function isStoredPrefs(x: unknown): boolean {
     Object.hasOwn(STYLES, p.style) &&
     typeof p.assist === 'boolean' &&
     typeof p.metronome === 'boolean' &&
+    (p.melody === undefined || typeof p.melody === 'boolean') &&
     BG_MODES.includes(p.bgMode as string) &&
     (p.phraseMode === 'silence' || p.phraseMode === 'bar') &&
     typeof p.repeatMode === 'string' &&

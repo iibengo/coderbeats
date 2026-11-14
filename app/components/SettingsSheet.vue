@@ -12,7 +12,7 @@ const emit = defineEmits<{ recalibrate: ['latency' | 'sounds'] }>()
 const engine = useAudioEngine()
 // lo que reemplaza la canción la desvincula de la guardada de la que venía (spec 006, §10.4): así "Guardar" no machaca una guardada
 const library = useLibrary()
-const { kit, assist, metronome, bgMode, phraseCloseBeats, maxPhraseBars, phraseMode, repeatMode, fx, playing, diag, echo, loops, multi, imageAuto, imageFineMs, imageDelayShown, syncTest, syncFlash } =
+const { kit, assist, melodyOn, melodyBlocked, metronome, bgMode, phraseCloseBeats, maxPhraseBars, phraseMode, repeatMode, fx, playing, diag, echo, loops, multi, imageAuto, imageFineMs, imageDelayShown, syncTest, syncFlash } =
   engine
 
 const code = computed(() => engine.displayCode())
@@ -202,6 +202,14 @@ watch(open, (o) => {
             Ayuda
             <input type="checkbox" :checked="assist" @change="engine.setAssist(($event.target as HTMLInputElement).checked)" />
           </label>
+          <div class="grid gap-0.5">
+            <label class="flex items-center justify-between">
+              <span>Melodía con la voz <span class="text-xs text-neutral-500">beta</span></span>
+              <input type="checkbox" :checked="melodyOn" @change="engine.setMelody(($event.target as HTMLInputElement).checked)" />
+            </label>
+            <p class="text-xs text-neutral-500">Canta «na» con el loop sonando y se afina a la escala del estilo. Mejor con cascos.</p>
+            <p v-if="melodyOn && melodyBlocked" class="text-xs text-amber-300">Sin efecto: el micro oye los altavoces. Usa cascos y recarga la app.</p>
+          </div>
           <label v-if="showMotion" class="flex items-center justify-between">
             Movimiento del móvil
             <input type="checkbox" :checked="motion.enabled.value" @change="motion.toggle()" />

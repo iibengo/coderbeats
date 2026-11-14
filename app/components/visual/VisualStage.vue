@@ -197,6 +197,8 @@ const dotKey = (loopId: number, pos: number) => (loopId < 0 ? `bass-${pos}` : `$
 function dotsOf(ls: readonly FreeLoop[], g: number): AroDot[] {
   const out: AroDot[] = []
   for (const l of ls) {
+    // la franja de la melodía llega en la F2 (spec 002): de momento solo se oye, con su bola
+    if (l.instrument === 'mel') continue
     const bar = loopBarAt(l, g)
     for (const h of l.hits) {
       if (h.pos < bar * 16 - 0.5 || h.pos >= bar * 16 + 15.5) continue
@@ -224,7 +226,7 @@ function crowdDots(c: Cell): AroDot[] {
 }
 const ringDots = computed<AroDot[]>(() => dotsOf(loops.value.loops, shownBar()))
 const phraseDots = computed(() =>
-  (phrase.value?.hits ?? []).map((h, i) => ({
+  (phrase.value?.hits ?? []).filter((h) => h.instrument !== 'mel').map((h, i) => ({
     key: `${Math.round(h.globalStep)}-${h.instrument}-${i}`,
     step: ((h.globalStep % 16) + 16) % 16,
     voice: h.instrument,

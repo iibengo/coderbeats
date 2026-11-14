@@ -6,6 +6,7 @@ import { decideLane } from '../lib/lanes'
 import type { Instrument } from '../lib/types'
 import { EchoGate } from '../lib/echoGate'
 import { extractFeatures } from '../lib/features'
+import { LiveMelody, MELODY_DECISION_SEC } from '../lib/liveMelody'
 import { StreamingOnsetDetector, type StreamOnset } from '../lib/streamingOnsets'
 import { relativeVolume, volumeRefs, type VolumeRefs } from '../lib/volume'
 import { FEATURE_SPAN, type FromWorker, type ToWorker } from '../lib/workerProtocol'
@@ -23,16 +24,26 @@ let gate: EchoGate | null = null
 let firstFrame: number | null = null
 let expectedFrame = 0
 let queue: StreamOnset[] = []
+/** melodía con la voz (spec 002): altura en continuo y notas; null = apagada */
+let live: LiveMelody | null = null
+let melodyOn = false
 
 const post = (m: FromWorker) => self.postMessage(m)
 
 function processQueue() {
   if (!detector || firstFrame === null) return
   const received = detector.received
-  while (queue.length && received >= queue[0]!.sample + FEATURE_SPAN) {
+  // con melodía, un golpe espera a saber si cayó dentro de una nota (spec 002, §4.3)
+  const waitSamples = live ? Math.max(FEATURE_SPAN, Math.round(MELODY_DECISION_SEC * sampleRate)) : FEATURE_SPAN
+  while (queue.length && received >= queue[0]!.sample + waitSamples) {
+    if (live && live.time < (firstFrame + queue[0]!.sample) / sampleRate + MELODY_DECISION_SEC) break
     const o = queue.shift()!
     const time = (firstFrame + o.sample) / sampleRate
     const decisionMs = ((received - o.sample) / sampleRate) * 1000
+    if (live?.isMelodic(time)) {
+      post({ type: 'absorbed', time })
+      continue
+    }
     if (gate?.isEcho(time, o.strength)) {
       post({ type: 'echo', time, strength: o.strength })
       continue
@@ -73,8 +84,21 @@ function onChunk(frame: number, data: Float32Array) {
   // hueco en el stream (no debería pasar): rellena con silencio para no desalinear tiempos
   if (frame > expectedFrame) queue.push(...detector.push(new Float32Array(frame - expectedFrame)))
   expectedFrame = frame + data.length
-  queue.push(...detector.push(data))
+  const onsets = detector.push(data)
+  queue.push(...onsets)
+  if (live) {
+    for (const o of onsets) live.addOnset((firstFrame + o.sample) / sampleRate)
+    live.push(frame, data)
+    for (const n of live.scan()) post({ type: 'melodic', time: n.start, midi: n.midi })
+  }
   processQueue()
+}
+
+function setMelody(on: boolean) {
+  melodyOn = on
+  if (on && !live) live = new LiveMelody(sampleRate)
+  else if (!on) live = null
+  else live?.reset()
 }
 
 self.onmessage = (e: MessageEvent) => {
@@ -97,6 +121,7 @@ self.onmessage = (e: MessageEvent) => {
       refs = volumeRefs(m.samples)
       break
     case 'start':
+      setMelody(!!m.melody)
       detector = new StreamingOnsetDetector(sampleRate, { minGap: m.minGap })
       gate = m.echo ? new EchoGate(m.echo) : null
       firstFrame = null
@@ -108,6 +133,12 @@ self.onmessage = (e: MessageEvent) => {
       break
     case 'lanes':
       armed = new Set(m.armed)
+      break
+    case 'melody':
+      setMelody(m.on)
+      break
+    case 'notes':
+      post({ type: 'notes', id: m.id, notes: live ? live.notesBetween(m.from, m.to) : [] })
       break
     case 'output':
       if (gate) for (const t of m.times) gate.addOutput(t)

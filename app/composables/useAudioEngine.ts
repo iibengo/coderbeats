@@ -1,6 +1,10 @@
 import { computed, reactive, ref, shallowRef } from 'vue'
 import { NO_PARTS, PART_ORBIT, planTransitions, targetParts, type BackgroundMode, type Part, type Parts } from '~/lib/background'
 import { KIT_ORDER, KITS, STYLES } from '~/lib/constants'
+import { MELODY_DECISION_SEC } from '~/lib/liveMelody'
+import { melodyOfPhrase } from '~/lib/melodyAssist'
+import { midiName } from '~/lib/noteScore'
+import { STYLE_MUSIC } from '~/lib/styles'
 import { demoState } from '~/lib/demos'
 import { analyzeEchoTest, type EchoTestResult } from '~/lib/echoGate'
 import {
@@ -99,7 +103,7 @@ export interface TakeOptions {
 /** Evento de diagnóstico. */
 export interface DiagEvent {
   at: number
-  kind: 'hit' | 'echo' | 'unknown' | 'stopped' | 'born' | 'removed' | 'phrase' | 'error' | 'background' | 'cell'
+  kind: 'hit' | 'echo' | 'unknown' | 'stopped' | 'born' | 'removed' | 'phrase' | 'error' | 'background' | 'cell' | 'melody'
   text: string
   /** ms desde el golpe hasta que llegó al hilo principal */
   uiMs?: number
@@ -196,6 +200,10 @@ const ready = ref(false)
 const level = ref(0)
 const echo = shallowRef<EchoTestResult | null>(null)
 const playing = ref(false)
+/** melodía con la voz (spec 002, F1): la pide el usuario en ⋯; con fuga del fondo por el micro no funciona */
+const melodyOn = ref(false)
+const melodyBlocked = computed(() => !!echo.value?.bleed)
+const melodyActive = computed(() => melodyOn.value && !melodyBlocked.value)
 const kit = ref<KitId>('909')
 const style = ref<StyleId>('hiphop90')
 const assist = ref(true)
@@ -426,7 +434,8 @@ function onPulse(cycle: number, t: number) {
   }
   // la frase se decide poco antes de la siguiente línea de compás (§16.12)
   const next = cycle + 1
-  later(() => decide(next), (t + barSec - 0.3 - c.currentTime) * 1000)
+  // con melodía los golpes llegan ~0,35 s más tarde (esperan a saber si son voz): la decisión se adelanta lo mismo
+  later(() => decide(next), (t + barSec - 0.3 - (melodyActive.value ? MELODY_DECISION_SEC + 0.05 : 0) - c.currentTime) * 1000)
 }
 
 function onTrigger(hap: StrudelHap, t: number) {
@@ -793,7 +802,60 @@ function decide(bar: number) {
   if (!playing.value || !tracker) return
   const closed = tracker.decide(bar)
   phrase.value = tracker.snapshot()
-  if (closed) birth(closed, bar)
+  if (closed) finishPhrase(closed, bar)
+}
+
+// ── Melodía con la voz (spec 002, F1) ──────────────────────────────────────────
+interface WorkerNote {
+  start: number
+  end: number
+  midi: number
+  rms: number
+}
+let notesSeq = 0
+const pendingNotes = new Map<number, (n: WorkerNote[]) => void>()
+
+/** Pide al worker las notas de la voz entre dos tiempos de contexto; si no contesta en 0,5 s, ninguna. */
+function askNotes(from: number, to: number): Promise<WorkerNote[]> {
+  return new Promise((resolve) => {
+    const id = ++notesSeq
+    const timer = setTimeout(() => {
+      pendingNotes.delete(id)
+      log('error', 'el worker no contestó con las notas de la melodía')
+      resolve([])
+    }, 500)
+    pendingNotes.set(id, (n) => {
+      clearTimeout(timer)
+      resolve(n)
+    })
+    toWorker({ type: 'notes', id, from, to })
+  })
+}
+
+/**
+ * Una frase cerrada nace como loops. Si tiene notas de la voz, antes se piden al worker y pasan por la ayuda
+ * (octavas, escala, ritmo y registro); la batería de la frase nace igual de siempre.
+ */
+function finishPhrase(closed: ClosedPhrase, bornAt: number, amend = false) {
+  if (!melodyActive.value || !closed.hits.some((h) => h.instrument === 'mel')) return birth(closed, bornAt, amend)
+  const t0 = tracker
+  if (!t0 || !ctx) return
+  const from = barTime(closed.startBar) - 0.5
+  void askNotes(from, ctx.currentTime).then((notes) => {
+    if (tracker !== t0) return // se paró o cambió el tempo mientras tanto
+    const { raw, hits: melody } = melodyOfPhrase(notes, {
+      assist: assist.value,
+      style: style.value,
+      startBar: closed.startBar,
+      bars: closed.bars,
+      register: STYLE_MUSIC[style.value].synth,
+      stepSeconds: stepSeconds(),
+      globalStep: (t) => t0.globalStep(t),
+      latencySec,
+    })
+    log('melody', `${raw.length} nota${raw.length === 1 ? '' : 's'} de la voz → ${melody.length} tras ${assist.value ? 'la ayuda' : 'el registro (sin ayuda)'}`)
+    birth({ ...closed, melody }, bornAt, amend)
+  })
 }
 
 function logLoopEvent(e: LoopEvent) {
@@ -831,7 +893,7 @@ function birth(phrase: ClosedPhrase, bornAt: number, amend = false) {
   loops.value = r.state
   const touched = new Set(r.events.flatMap((e) => ('loop' in e ? [e.loop.instrument] : [])))
   for (const inst of new Set(phrase.hits.map((h) => h.instrument)))
-    if (!touched.has(inst)) log('phrase', `${inst}: sin cambios, todos sus golpes caen en pasos ya ocupados tras cuantizar`)
+    if (inst !== 'mel' && !touched.has(inst)) log('phrase', `${inst}: sin cambios, todos sus golpes caen en pasos ya ocupados tras cuantizar`)
   for (const e of r.events) {
     logLoopEvent(e)
     if (e.type === 'born' || e.type === 'replaced' || e.type === 'completed') {
@@ -852,7 +914,14 @@ function birth(phrase: ClosedPhrase, bornAt: number, amend = false) {
 function onWorkerMessage(m: FromWorker) {
   const c = ctx
   if (!c) return
+  if (m.type === 'notes') {
+    pendingNotes.get(m.id)?.(m.notes)
+    pendingNotes.delete(m.id)
+    return
+  }
   const uiMs = (c.currentTime - m.time) * 1000
+  if (m.type === 'absorbed') return log('melody', 'golpe dentro de una nota: es melodía, no batería', uiMs)
+  if (m.type === 'melodic') return onMelodic(m, uiMs)
   if (m.type === 'echo') return log('echo', `eco descartado (${m.strength.toFixed(3)})`, uiMs)
   if (m.type === 'ignored')
     return log('unknown', `ignorado: carril apagado (${m.instrument} ${(m.confidence * 100).toFixed(0)}%)${fmtVolume(m.vol)}`, uiMs)
@@ -890,9 +959,25 @@ function onWorkerMessage(m: FromWorker) {
     confidence: m.confidence,
   })
   phrase.value = tracker.snapshot()
-  if (r.closed) birth(r.closed, nextBarLine())
+  if (r.closed) finishPhrase(r.closed, nextBarLine())
   // golpe tardío de la frase recién cerrada: sus loops nacen en la misma línea de compás
-  if (r.amended && lastBirth?.startBar === r.amended.startBar) birth(r.amended, lastBirth.bornAt, true)
+  if (r.amended && lastBirth?.startBar === r.amended.startBar) finishPhrase(r.amended, lastBirth.bornAt, true)
+}
+
+/** Nace una nota de la voz (spec 002): cuenta como actividad de la frase; las notas se piden al cerrarla. */
+function onMelodic(m: Extract<FromWorker, { type: 'melodic' }>, uiMs: number) {
+  const name = `${midiName(m.midi)} (${m.midi.toFixed(1)})`
+  if (!playing.value || !tracker) return log('stopped', `nota ${name} sin loop en marcha`, uiMs)
+  if (multi() && !loop && !viewAway()) return log('unknown', `ignorado: canción avanzando (nota ${name})`, uiMs)
+  log('melody', `nota ${name}`, uiMs)
+  const gs = tracker.globalStep(m.time - latencySec)
+  visualListeners.forEach((f) =>
+    f({ kind: 'heard', loopId: null, instrument: 'mel', time: m.time, strength: 0.6, step: ((gs % 16) + 16) % 16 }),
+  )
+  const r = tracker.add({ tCorr: m.time - latencySec, instrument: 'mel', strength: 0.6, confidence: 1 })
+  phrase.value = tracker.snapshot()
+  if (r.closed) finishPhrase(r.closed, nextBarLine())
+  if (r.amended && lastBirth?.startBar === r.amended.startBar) finishPhrase(r.amended, lastBirth.bornAt, true)
 }
 
 // ── API ────────────────────────────────────────────────────────────────────────
@@ -1102,7 +1187,7 @@ export function useAudioEngine() {
     silenceBackgroundNodes()
     syncFx()
     const echoCfg = echo.value?.bleed ? { roundTrip: echo.value.roundTrip, echoLevel: echo.value.echoLevel } : null
-    toWorker({ type: 'start', minGap: minGapForCell(stepSeconds() * STYLES[style.value].quantizeEvery), echo: echoCfg })
+    toWorker({ type: 'start', minGap: minGapForCell(stepSeconds() * STYLES[style.value].quantizeEvery), echo: echoCfg, melody: melodyActive.value })
     capture?.port.postMessage('stream-on')
     playing.value = true
     try {
@@ -1407,6 +1492,13 @@ export function useAudioEngine() {
   }
 
   /** Enciende o apaga un carril de grabación (mantener un hueco de su franja, E4.1). */
+  /** Enciende o apaga la melodía con la voz (⋯). En marcha, se aplica al momento. */
+  function setMelody(on: boolean) {
+    melodyOn.value = on
+    toWorker({ type: 'melody', on: melodyActive.value })
+    log('melody', `melodía con la voz ${on ? 'activada' : 'desactivada'}${on && melodyBlocked.value ? ' (pero se oye el fondo por el micro: sin efecto hasta usar cascos)' : ''}`)
+  }
+
   function toggleLane(inst: Instrument) {
     lanes.value = toggleLaneSet(lanes.value, inst)
     toWorker({ type: 'lanes', armed: [...lanes.value] })
@@ -1867,6 +1959,9 @@ export function useAudioEngine() {
   const displayCode = () => songCode(songState(true), 'display')
 
   return {
+    melodyOn,
+    melodyBlocked,
+    setMelody,
     ready,
     level,
     echo,

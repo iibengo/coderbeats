@@ -204,3 +204,36 @@ export function assistMelody(notes: readonly RawNote[], o: AssistOptions): Melod
   const shifted = fitRegister(clipped.map((h) => h.midi), REGISTER[o.register])
   return clipped.map((h, i) => ({ ...h, midi: fold(shifted[i]!) })).filter((h) => isMidi(h.midi))
 }
+
+/** Una nota como la manda el worker: tiempos de contexto (s) y volumen. */
+export interface HeardNote {
+  start: number
+  end: number
+  midi: number
+  rms: number
+}
+
+export interface PhraseMelodyOptions extends AssistOptions {
+  /** paso global (decimal) de un tiempo de contexto */
+  globalStep: (t: number) => number
+  /** latencia de entrada (s): se resta al inicio de cada nota, como en la batería */
+  latencySec: number
+}
+
+/**
+ * De las notas que oyó el worker a los golpes de la melodía de una frase: pasos globales (con la latencia de
+ * entrada corregida), solo las de esta frase, y la ayuda. `raw` es lo oído que cae en la frase (para el diagnóstico).
+ */
+export function melodyOfPhrase(notes: readonly HeardNote[], o: PhraseMelodyOptions): { raw: RawNote[]; hits: MelodyHit[] } {
+  const lo = o.startBar * 16 - 0.5
+  const hi = (o.startBar + o.bars) * 16
+  const raw: RawNote[] = notes
+    .map((n) => ({
+      step: o.globalStep(n.start - o.latencySec),
+      dur: (n.end - n.start) / o.stepSeconds,
+      midi: n.midi,
+      strength: Math.min(1, n.rms * 20),
+    }))
+    .filter((n) => n.step >= lo && n.step < hi)
+  return { raw, hits: assistMelody(raw, o) }
+}

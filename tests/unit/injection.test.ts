@@ -158,6 +158,8 @@ describe('biblioteca y ajustes: claves del prototipo', () => {
     bad(isStoredPrefs({ ...ok, fx: { filter: 5, space: 0, warmth: 0 } }))
     bad(isStoredPrefs({ ...ok, fx: null }))
     bad(isStoredPrefs({ ...ok, bgMode: 'x' }))
+    expect(isStoredPrefs({ ...ok, melody: true })).toBe(true)
+    bad(isStoredPrefs({ ...ok, melody: 'si' }))
     bad(isStoredPrefs(null))
   })
 })

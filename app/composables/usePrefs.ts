@@ -34,6 +34,8 @@ export interface StudioPrefs {
   /** retraso de imagen (spec 003, E6): automático según la calibración y ajuste fino (ms); por dispositivo */
   imageAuto?: boolean
   imageFineMs?: number
+  /** melodía con la voz (spec 002, F1; beta, apagada por defecto) */
+  melody?: boolean
 }
 
 const isPrefs = (x: unknown): x is StudioPrefs => isStoredPrefs(x)
@@ -62,6 +64,7 @@ export function usePrefs() {
       engine.setFx(p.fx)
       // sin lo guardado (antes de E6): automático y sin ajuste fino
       engine.setImageDelay(restoreImageDelay(p))
+      engine.setMelody(p.melody === true)
       // los bajos editados de antes de E3.8 se borran: vuelve el de cada estilo (spec 003, E1.4)
       if ('bassEdits' in p) {
         const { bassEdits: _old, ...rest } = p as StudioPrefs & { bassEdits?: unknown }
@@ -95,6 +98,7 @@ export function usePrefs() {
           completeDefault: true,
           imageAuto: engine.imageAuto.value,
           imageFineMs: engine.imageFineMs.value,
+          melody: engine.melodyOn.value,
         }) satisfies StudioPrefs,
       (p) => writeJson(PREFS_KEY, p),
       { deep: true },

@@ -6,6 +6,7 @@ import { DEFAULT_NOTE_OPTIONS, melodicOnsets, segmentNotes, type Note } from '~/
 import { midiName, parseExpected, scoreNotes, shiftExpected, type Score } from '~/lib/noteScore'
 import { DEFAULT_PITCH_OPTIONS, midiToHz, trackPitch, type PitchTrack } from '~/lib/pitch'
 import { readJson, writeJson } from '~/lib/storage'
+import { songCode } from '~/lib/song'
 import { decodeWav, encodeWav } from '~/lib/wav'
 
 // ── tomas del protocolo (spec 002 §9) ────────────────────────────────────────────
@@ -592,6 +593,78 @@ async function nudgeTest() {
     nudgeBusy.value = false
   }
 }
+
+// ── Sintes de la melodía: ¿suena el código que genera la app? ─────────────────────
+const synthRows = ref<{ name: string; peak: number; notes: number; ok: boolean; err?: string }[]>([])
+const synthBusy = ref(false)
+
+async function synthTest() {
+  if (!ctx) return
+  synthBusy.value = true
+  synthRows.value = []
+  const c = ctx
+  const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const S: any = await import('@strudel/web')
+    S.setAudioContext(c)
+    await S.initAudio()
+    await S.initStrudel({})
+    const out: AudioNode = S.getSuperdoughAudioController().output.destinationGain
+    const tap = new AudioWorkletNode(c, 'capture-processor', { numberOfInputs: 1, numberOfOutputs: 1 })
+    const silent = c.createGain()
+    silent.gain.value = 0
+    out.connect(tap)
+    tap.connect(silent).connect(c.destination)
+    const chunks: { frame: number; data: Float32Array }[] = []
+    let done: (() => void) | null = null
+    tap.port.onmessage = (e: MessageEvent) => {
+      const d = e.data as { type: string; frame?: number; data?: Float32Array }
+      if (d.type === 'chunk') chunks.push({ frame: d.frame!, data: d.data! })
+      if (d.type === 'stopped') done?.()
+    }
+    const hit = (pos: number, dur: number, midi: number) => ({ pos, dur, midi, strength: 0.6 })
+    const loop = {
+      id: 1, instrument: 'mel' as const, bars: 2 as const, phaseBar: 0, muted: false, bornAt: 0, fromTemplate: false,
+      hits: [hit(0, 4, 57), hit(4, 2, 60), hit(8, 4, 64), hit(16, 4, 62), hit(20, 6, 60)],
+    }
+    const rows: typeof synthRows.value = []
+    for (const [style, synth] of [['hiphop90', 'piano'], ['house', 'lead'], ['dnb', 'pad'], ['hiphop90', 'lead'], ['house', 'pad'], ['dnb', 'piano']] as const) {
+      const code = songCode(
+        { loops: [loop], style, kit: '909', melodySynth: synth, background: { mode: 'off', parts: { bass: false, chords: false } }, metronome: false, fx: { filter: 1, space: 0, warmth: 0 } },
+        'display',
+      )
+      const name = `${style} · ${synth}`
+      try {
+        await S.evaluate(code)
+        await wait(800)
+        chunks.length = 0
+        tap.port.postMessage('start')
+        await wait(3500)
+        await new Promise<void>((r) => {
+          done = r
+          tap.port.postMessage('stop')
+        })
+        S.hush()
+        const buf = new Float32Array(chunks.reduce((n, ch) => n + ch.data.length, 0))
+        let o = 0
+        for (const ch of chunks) {
+          buf.set(ch.data, o)
+          o += ch.data.length
+        }
+        const peak = buf.reduce((p, v) => Math.max(p, Math.abs(v)), 0)
+        const notes = detectOnsets(buf, c.sampleRate, { minGap: 0.05 }).length
+        rows.push({ name, peak: Math.round(peak * 1000) / 1000, notes, ok: peak > 0.02 })
+      } catch (e) {
+        rows.push({ name, peak: 0, notes: 0, ok: false, err: e instanceof Error ? e.message : String(e) })
+      }
+      synthRows.value = [...rows]
+      await wait(300)
+    }
+  } finally {
+    synthBusy.value = false
+  }
+}
 </script>
 
 <template>
@@ -753,6 +826,24 @@ async function nudgeTest() {
             </tbody>
           </table>
           <p v-if="nudgeVerdict" class="text-sm text-[#F496BC]">{{ nudgeVerdict }}</p>
+        </section>
+
+        <!-- sintes de la melodía -->
+        <section class="space-y-2 rounded border border-neutral-800 p-3 text-sm">
+          <h2 class="font-medium">Sintes de la melodía (código real de la app)</h2>
+          <p class="text-xs text-neutral-400">
+            Toca una melodía de 2 compases con cada combinación de estilo y sinte (6 pasadas de ~4 s) y mide la salida: tiene que sonar
+            (pico &gt; 0,02). La columna «notas» son los ataques detectados: un pad, con ataque lento y cola larga, da pocos. Escúchalas para decidir cuál te gusta.
+          </p>
+          <button class="rounded border border-neutral-700 px-2 py-1 disabled:opacity-40" :disabled="synthBusy" @click="synthTest">
+            {{ synthBusy ? 'Probando…' : 'Probar sintes' }}
+          </button>
+          <table v-if="synthRows.length" class="text-xs font-mono">
+            <thead class="text-neutral-500"><tr><th class="pr-4 text-left">estilo · sinte</th><th class="pr-4 text-left">pico</th><th class="pr-4 text-left">notas</th><th class="text-left">resultado</th></tr></thead>
+            <tbody>
+              <tr v-for="r in synthRows" :key="r.name"><td class="pr-4">{{ r.name }}</td><td class="pr-4">{{ r.peak }}</td><td class="pr-4">{{ r.notes }}</td><td :class="r.ok ? 'text-green-400' : 'text-red-400'">{{ r.ok ? 'suena' : (r.err ?? 'no suena') }}</td></tr>
+            </tbody>
+          </table>
         </section>
       </template>
     </div>

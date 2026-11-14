@@ -8,12 +8,18 @@ export type ToWorker =
       type: 'start'
       minGap: number
       echo: { roundTrip: number; echoLevel: number } | null
+      /** seguir la altura de la voz (spec 002): los golpes esperan ~0,35 s a saber si son melodía */
+      melody?: boolean
     }
   | { type: 'stop' }
   /** tiempos de contexto en los que la app hará sonar algo (para el filtro de eco) */
   | { type: 'output'; times: number[] }
   /** carriles que graban (spec 003, E4.2): el clasificador elige solo entre ellos */
   | { type: 'lanes'; armed: Instrument[] }
+  /** activa o desactiva la melodía en marcha (spec 002) */
+  | { type: 'melody'; on: boolean }
+  /** pide las notas de la voz entre dos tiempos de contexto (s); se contesta con `notes` */
+  | { type: 'notes'; id: number; from: number; to: number }
 
 /** worker de análisis → hilo principal */
 export type FromWorker =
@@ -32,6 +38,11 @@ export type FromWorker =
   | { type: 'echo'; time: number; strength: number }
   /** golpe de un carril apagado: se ignora (spec 003, E4.2) */
   | { type: 'ignored'; time: number; instrument: Instrument; confidence: number; vol: number | null }
+  /** una nota de la voz acaba de nacer (spec 002): `time` es su inicio */
+  | { type: 'melodic'; time: number; midi: number }
+  /** un golpe que cayó dentro de una nota: es melodía, no batería (no se manda como golpe) */
+  | { type: 'absorbed'; time: number }
+  | { type: 'notes'; id: number; notes: { start: number; end: number; midi: number; rms: number }[] }
 
 /** Muestras que necesita la extracción de features tras el onset (2 ventanas de 2048 solapadas a la mitad). */
 export const FEATURE_SPAN = 3072

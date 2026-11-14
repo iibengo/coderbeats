@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { isMidi, melodyMini, REGISTER, STRUDEL_NOTE, type MelodyHit } from '../../app/lib/melody'
-import { assistMelody, fitRegister, fixOctaveErrors, snapToScale, type AssistOptions, type RawNote } from '../../app/lib/melodyAssist'
+import { assistMelody, fitRegister, fixOctaveErrors, melodyOfPhrase, snapToScale, type AssistOptions, type RawNote } from '../../app/lib/melodyAssist'
 import { STYLE_MUSIC } from '../../app/lib/styles'
 
 const opts = (o: Partial<AssistOptions> = {}): AssistOptions => ({ assist: true, style: 'hiphop90', startBar: 0, bars: 1, register: 'piano', stepSeconds: 60 / 90 / 4, ...o })
@@ -146,5 +146,40 @@ describe('melodyMini y nombres de nota', () => {
   it('una nota que cruza el compás se recorta; un MIDI inválido no se escribe', () => {
     expect(melodyMini([h(12, 8, 57)], 2, 0)).toBe('<[~@12 a3@4] [~@16]>')
     expect(melodyMini([h(0, 4, 999), h(4, 4, 60)], 1, 0)).toBe('~@4 c4@4 ~@8')
+  })
+})
+
+describe('melodyOfPhrase (de lo que oye el worker al loop)', () => {
+  // 90 bpm: una semicorchea = 0,1667 s; el compás 4 empieza en el segundo 4 * 16 * 0,1667 = 10,667
+  const step = 60 / 90 / 4
+  const globalStep = (t: number) => t / step
+  const heard = (startStep: number, durSteps: number, midi: number) => ({ start: startStep * step, end: (startStep + durSteps) * step, midi, rms: 0.05 })
+  const base = { ...opts({ startBar: 4, bars: 1 }), globalStep, latencySec: 0 }
+
+  it('pasa los segundos a pasos de la frase y aplica la ayuda', () => {
+    const r = melodyOfPhrase([heard(64, 3.8, 56.9), heard(68.1, 2, 60.2)], base)
+    expect(r.raw).toHaveLength(2)
+    expect(r.hits.map((h) => [h.pos, h.dur, h.midi % 12])).toEqual([[0, 4, 9], [4, 2, 0]]) // la y do
+  })
+
+  it('las notas de otras frases (antes o después) no entran', () => {
+    const r = melodyOfPhrase([heard(40, 4, 57), heard(66, 2, 60), heard(80, 2, 64)], base)
+    expect(r.raw).toHaveLength(1)
+    expect(r.hits).toHaveLength(1)
+  })
+
+  it('una nota que empezó un poco antes del compás (el ataque) sí entra', () => {
+    expect(melodyOfPhrase([heard(63.7, 4, 57)], base).hits[0]!.pos).toBe(0)
+  })
+
+  it('la latencia de entrada adelanta el inicio de cada nota', () => {
+    // el worker la oyó 0,1667 s (1 paso) tarde: con la latencia corregida cae en el paso 4, no en el 5
+    const r = melodyOfPhrase([heard(69, 2, 60)], { ...base, latencySec: step })
+    expect(r.hits[0]!.pos).toBe(4)
+  })
+
+  it('el volumen pasa a fuerza (0..1) y sin notas no hay nada', () => {
+    expect(melodyOfPhrase([{ ...heard(64, 2, 57), rms: 0.5 }], base).raw[0]!.strength).toBe(1)
+    expect(melodyOfPhrase([], base)).toEqual({ raw: [], hits: [] })
   })
 })
