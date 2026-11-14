@@ -114,6 +114,17 @@ export function resizeMelNote(s: LoopsState, loopId: number, pos: number, durSte
   return { state: replace(s, { ...loop, hits: next, fromTemplate: false }), hit: { loopId, pos: hit.pos } }
 }
 
+/**
+ * Deshacer una edición de la melodía: deja el loop `id` como estaba antes (`before`), o lo quita si antes no existía.
+ * Solo toca ese loop: lo que haya nacido mientras tanto (batería, otras capas) se queda.
+ */
+export function restoreMel(s: LoopsState, id: number, before: FreeLoop | null): LoopsState {
+  const exists = s.loops.some((l) => l.id === id)
+  if (!before) return exists ? { ...s, loops: s.loops.filter((l) => l.id !== id) } : s
+  if (exists) return replace(s, before)
+  return { loops: [...s.loops, before], nextId: Math.max(s.nextId, before.id + 1) }
+}
+
 /** Cambia la longitud del loop de melodía (1, 2 o 4 compases): al alargar repite lo que hay; al acortar, quita lo que queda fuera. */
 export function setMelBars(s: LoopsState, loopId: number, bars: 1 | 2 | 4): LoopsState {
   const loop = s.loops.find((l) => l.id === loopId && l.instrument === 'mel')

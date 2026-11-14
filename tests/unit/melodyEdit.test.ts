@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { emptyLoops, type FreeLoop, type LoopsState } from '../../app/lib/freeLoops'
-import { addMelNote, gForBar, melLoopOf, moveMelNote, resizeMelNote, setMelBars, snapMelMidi, snapMelStep, type MelEditOptions } from '../../app/lib/melodyEdit'
+import { addMelNote, gForBar, melLoopOf, moveMelNote, resizeMelNote, restoreMel, setMelBars, snapMelMidi, snapMelStep, type MelEditOptions } from '../../app/lib/melodyEdit'
 import { fitToScale, fracToMidi, isTonic, midiToFrac, nearestScaleNote, rangeOf, rowOf, scaleNotes } from '../../app/lib/melodyView'
 import { removeHit } from '../../app/lib/loopEdit'
 import { STYLE_MUSIC } from '../../app/lib/styles'
@@ -152,5 +152,36 @@ describe('borrar y longitud del loop', () => {
     const born = mel([[0, 4, 57]], { bornAt: 9, prev: { hits: [{ pos: 0, strength: 1, midi: 55, dur: 2 } as never], bars: 1, phaseBar: 0 } })
     const r = addMelNote(st(born), 8, 60, 0, A)!
     expect(r.state.loops[0]).toMatchObject({ bornAt: 9, prev: born.prev })
+  })
+})
+
+describe('deshacer (restoreMel)', () => {
+  const before = mel([[0, 4, 57], [8, 4, 60]])
+  it('devuelve el loop como estaba tras mover, estirar o añadir', () => {
+    const s0 = st(before)
+    const moved = moveMelNote(s0, 7, 8, 12, 64, 0, A)!.state
+    expect(notes(restoreMel(moved, 7, before))).toEqual([[0, 4, 57], [8, 4, 60]])
+    const added = addMelNote(s0, 5, 62, 0, A)!.state
+    expect(notes(restoreMel(added, 7, before))).toEqual([[0, 4, 57], [8, 4, 60]])
+  })
+  it('si la edición borró el loop (la última nota), lo vuelve a poner con su id', () => {
+    const one = mel([[0, 4, 57]])
+    const gone = removeHit(st(one), 7, 0)
+    expect(gone.loops).toEqual([])
+    const back = restoreMel(gone, 7, one)
+    expect(back.loops).toEqual([one])
+    expect(back.nextId).toBeGreaterThan(7)
+  })
+  it('si la edición creó el loop, deshacer lo quita', () => {
+    const created = addMelNote(emptyLoops(), 4, 60, 0, A)!.state
+    expect(restoreMel(created, 1, null).loops).toEqual([])
+    expect(restoreMel(emptyLoops(), 1, null)).toEqual(emptyLoops())
+  })
+  it('no toca lo demás: lo que naciera mientras tanto se queda', () => {
+    const drum: FreeLoop = { id: 9, instrument: 'bd', bars: 1, phaseBar: 0, hits: [{ pos: 0, strength: 1 }], muted: false, bornAt: 5, fromTemplate: false }
+    const edited = { ...st(before, drum), loops: [moveMelNote(st(before), 7, 8, 12, 64, 0, A)!.state.loops[0]!, drum] }
+    const r = restoreMel(edited, 7, before)
+    expect(r.loops.find((l) => l.id === 9)).toEqual(drum)
+    expect(notes(r)).toEqual([[0, 4, 57], [8, 4, 60]])
   })
 })

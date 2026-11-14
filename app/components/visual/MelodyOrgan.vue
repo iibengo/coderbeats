@@ -1,11 +1,13 @@
 <script setup lang="ts">
 // El órgano de la melodía (spec 002, F2): tocar la franja de la melodía la abre a pantalla completa, como una caja de
 // música de la célula. Horizontal = tiempo (los pasos del loop); vertical = solo las notas de la escala del estilo.
-// Tocar un hueco pone una nota (arrastrar hacia la derecha la alarga); arrastrar una nota la mueve; tirar de su extremo
-// cambia su duración; tocarla la borra. La célula sigue sonando y la línea blanca marca dónde va.
+// Tocar un hueco pone una nota (arrastrar hacia la derecha la alarga); tocar una nota la hace sonar; arrastrarla la
+// mueve, y **arrastrarla fuera del cuadro la borra**; tirar de su extremo cambia su duración. «↶ deshacer» devuelve la
+// melodía como estaba antes de la última edición (unos 8 s, un solo nivel). La célula sigue sonando y la línea blanca marca dónde va.
 // Se abre y se cierra con una transición de agua desde el punto donde se tocó la franja.
 import { removeHit } from '~/lib/loopEdit'
-import { addMelNote, gForBar, melLoopOf, moveMelNote, resizeMelNote, setMelBars, snapMelStep, type MelEditOptions } from '~/lib/melodyEdit'
+import { addMelNote, gForBar, melLoopOf, moveMelNote, resizeMelNote, restoreMel, setMelBars, snapMelStep, type MelEditOptions } from '~/lib/melodyEdit'
+import type { FreeLoop, LoopsState } from '~/lib/freeLoops'
 import { isTonic, rangeOf, rowOf, scaleNotes } from '~/lib/melodyView'
 import type { MelodyHit } from '~/lib/melody'
 import { midiName } from '~/lib/noteScore'
@@ -48,7 +50,7 @@ const midiOfRow = (r: number) => rows.value[Math.min(rows.value.length - 1, Math
 // ── gestos ───────────────────────────────────────────────────────────────────────
 type Gest =
   | { kind: 'new'; id: number; x0: number; y0: number; pos: number; row: number; dur: number; moved: boolean }
-  | { kind: 'move'; id: number; x0: number; y0: number; hit: MelodyHit; grab: number; pos: number; row: number; moved: boolean }
+  | { kind: 'move'; id: number; x0: number; y0: number; hit: MelodyHit; grab: number; pos: number; row: number; moved: boolean; outside: boolean }
   | { kind: 'resize'; id: number; hit: MelodyHit; dur: number }
 let g: Gest | null = null
 
@@ -64,6 +66,29 @@ const snapPos = (pos: number): number => {
 const split = (pos: number) => {
   const b = Math.min(bars.value - 1, Math.max(0, Math.floor(pos / 16 + 1e-9)))
   return { b, step: pos - b * 16 }
+}
+
+// ── deshacer: un solo nivel, unos 8 s (como el resto de la app, 005 §7.1) ─────────
+const UNDO_MS = 8000
+const undo = ref<{ id: number; before: FreeLoop | null } | null>(null)
+let undoTimer: ReturnType<typeof setTimeout> | null = null
+/** Aplica una edición y guarda cómo estaba el loop de melodía para poder deshacerla. */
+function commit(next: LoopsState) {
+  const before = loop.value ?? null
+  engine.editLoops(next)
+  const after = melLoopOf(next)
+  const id = after?.id ?? before?.id
+  if (id === undefined) return
+  undo.value = { id, before }
+  if (undoTimer) clearTimeout(undoTimer)
+  undoTimer = setTimeout(() => (undo.value = null), UNDO_MS)
+}
+function doUndo() {
+  const u = undo.value
+  if (!u) return
+  engine.editLoops(restoreMel(loops.value, u.id, u.before))
+  undo.value = null
+  if (undoTimer) clearTimeout(undoTimer)
 }
 
 function noteAt(x: number, y: number): { hit: MelodyHit; resize: boolean } | null {
@@ -83,7 +108,7 @@ function onDown(e: PointerEvent) {
   const hit = noteAt(x, y)
   if (hit) {
     if (hit.resize) g = { kind: 'resize', id: e.pointerId, hit: hit.hit, dur: hit.hit.dur }
-    else g = { kind: 'move', id: e.pointerId, x0: x, y0: y, hit: hit.hit, grab: x / cellW.value - hit.hit.pos, pos: hit.hit.pos, row: Math.floor(y / rowH.value), moved: false }
+    else g = { kind: 'move', id: e.pointerId, x0: x, y0: y, hit: hit.hit, grab: x / cellW.value - hit.hit.pos, pos: hit.hit.pos, row: Math.floor(y / rowH.value), moved: false, outside: false }
     engine.previewNote(hit.hit.midi, synth.value)
     return
   }
@@ -102,6 +127,9 @@ function onMove(e: PointerEvent) {
     if (g.moved) g.dur = Math.max(q, Math.round((x / cellW.value - g.pos) / q) * q)
   } else if (g.kind === 'move') {
     if (Math.hypot(x - g.x0, y - g.y0) > 5) g.moved = true
+    // fuera del cuadro de la rejilla: al soltar, se borra
+    const sr = scroller.value?.getBoundingClientRect()
+    g.outside = !!sr && (e.clientX < sr.left - 28 || e.clientX > sr.right + 28 || e.clientY < sr.top - 28 || e.clientY > sr.bottom + 28)
     g.pos = snapPos(x / cellW.value - g.grab)
     const row = Math.min(rows.value.length - 1, Math.max(0, Math.floor(y / rowH.value)))
     if (row !== g.row) {
@@ -122,26 +150,25 @@ function onUp(e: PointerEvent, cancelled = false) {
   if (gs.kind === 'new') {
     const { b, step } = split(gs.pos)
     const r = addMelNote(loops.value, step, midiOfRow(gs.row), gForBar(l, b), opts(), gs.moved ? gs.dur : 2)
-    if (r) engine.editLoops(r.state)
+    if (r) commit(r.state)
   } else if (gs.kind === 'move') {
     if (!l) return
-    if (!gs.moved) {
-      // tocar una nota la borra
-      engine.editLoops(removeHit(loops.value, l.id, gs.hit.pos))
-      return
-    }
+    // tocar una nota solo la hace sonar (ya sonó al apoyar el dedo)
+    if (!gs.moved) return
+    // soltarla fuera del cuadro la borra
+    if (gs.outside) return commit(removeHit(loops.value, l.id, gs.hit.pos))
     const { b, step } = split(gs.pos)
     const r = moveMelNote(loops.value, l.id, gs.hit.pos, step, midiOfRow(gs.row), gForBar(l, b), opts())
-    if (r) engine.editLoops(r.state)
+    if (r) commit(r.state)
   } else if (gs.kind === 'resize' && l) {
     const r = resizeMelNote(loops.value, l.id, gs.hit.pos, gs.dur, opts())
-    if (r) engine.editLoops(r.state)
+    if (r) commit(r.state)
   }
 }
 
 function setBars(n: 1 | 2 | 4) {
   const l = loop.value
-  if (l) engine.editLoops(setMelBars(loops.value, l.id, n))
+  if (l) commit(setMelBars(loops.value, l.id, n))
 }
 
 // ── dibujo ───────────────────────────────────────────────────────────────────────
@@ -187,7 +214,7 @@ function draw() {
   }
   // lo que se está haciendo: la nota nueva o la movida, imantadas
   if (gs?.kind === 'new') noteRow(x, gs.pos, gs.moved ? gs.dur : 2, gs.row, 0.55)
-  if (gs?.kind === 'move' && gs.moved) noteRow(x, gs.pos, gs.hit.dur, gs.row, 0.75)
+  if (gs?.kind === 'move' && gs.moved) noteRow(x, gs.pos, gs.hit.dur, gs.row, gs.outside ? 0.35 : 0.75, gs.outside)
   // línea de reproducción
   if (playing.value && loop.value) {
     const phase = engine.clockNow().barPhase
@@ -210,17 +237,23 @@ function draw() {
 function note(x: CanvasRenderingContext2D, pos: number, dur: number, midi: number, alpha: number, mute: number) {
   noteRow(x, pos, dur, (rows.value.length - 1) - rowOfNote(midi), alpha * mute)
 }
-function noteRow(x: CanvasRenderingContext2D, pos: number, dur: number, row: number, alpha: number) {
+function noteRow(x: CanvasRenderingContext2D, pos: number, dur: number, row: number, alpha: number, doomed = false) {
   const cw = cellW.value
   const rh = rowH.value
   const px = pos * cw + 1
   const py = row * rh + 2
   const w = Math.max(6, dur * cw - 2)
   const h = rh - 4
-  x.fillStyle = `rgba(255,255,255,${alpha * 0.85})`
+  // arrastrada fuera del cuadro: rosa y hueca (se borrará al soltar)
+  x.fillStyle = doomed ? 'rgba(244,150,188,0.25)' : `rgba(255,255,255,${alpha * 0.85})`
   x.beginPath()
   x.roundRect(px, py, w, h, Math.min(7, h / 2))
   x.fill()
+  if (doomed) {
+    x.strokeStyle = 'rgba(244,150,188,0.9)'
+    x.lineWidth = 1.5
+    x.stroke()
+  }
   // el asa para estirar: una rayita en el extremo
   x.fillStyle = `rgba(11,11,15,${alpha * 0.55})`
   x.fillRect(px + w - 5, py + h * 0.3, 1.5, h * 0.4)
@@ -273,6 +306,10 @@ defineExpose({ close })
 
 const onKey = (e: KeyboardEvent) => {
   if (e.key === 'Escape') close()
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+    e.preventDefault()
+    doUndo()
+  }
 }
 const measure = () => {
   view.w = window.innerWidth
@@ -286,6 +323,7 @@ onMounted(() => {
   nextTick(open)
 })
 onBeforeUnmount(() => {
+  if (undoTimer) clearTimeout(undoTimer)
   cancelAnimationFrame(raf)
   window.removeEventListener('resize', measure)
   window.removeEventListener('keydown', onKey)
@@ -313,6 +351,7 @@ const label = (m: number) => midiName(m).replace('#', '♯')
         <button class="h-9 w-9 rounded-full border border-white/30 text-lg leading-none" aria-label="cerrar el órgano" @click="close">✕</button>
         <h2 class="text-sm font-medium tracking-wide text-white/80">Melodía</h2>
         <span class="text-xs text-white/40">{{ STYLE_MUSIC[style].key }}</span>
+        <button v-if="undo" class="rounded-full border border-white/40 px-3 py-1 text-xs text-white" aria-label="deshacer la última edición" @click="doUndo">↶ deshacer</button>
         <div class="ml-auto flex items-center gap-1" role="group" aria-label="compases del loop">
           <button
             v-for="n in ([1, 2, 4] as const)"
@@ -362,7 +401,7 @@ const label = (m: number) => midiName(m).replace('#', '♯')
         </div>
       </div>
       <p class="px-4 pb-2 text-center text-[11px] text-white/35">
-        Toca un hueco para poner una nota (arrastra a la derecha para alargarla) · arrastra una nota para moverla · tira de su extremo · tócala para borrarla
+        Toca un hueco para poner una nota (arrastra a la derecha para alargarla) · toca una nota para oírla · arrástrala para moverla, o fuera del cuadro para borrarla · tira de su extremo para cambiar su duración
       </p>
     </div>
   </Teleport>
