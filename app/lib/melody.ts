@@ -5,8 +5,8 @@
  * entero validado; nunca un valor leído tal cual de lo guardado.
  */
 /** `drone`: un sine con mucha reverb, para fondos (la demo del dembow); no es de los que se eligen para cantar */
-export type MelodySynth = 'lead' | 'piano' | 'pad' | 'drone'
-export const MELODY_SYNTHS: readonly MelodySynth[] = ['lead', 'piano', 'pad', 'drone']
+export type MelodySynth = 'lead' | 'piano' | 'pad' | 'drone' | 'riser'
+export const MELODY_SYNTHS: readonly MelodySynth[] = ['lead', 'piano', 'pad', 'drone', 'riser']
 
 /** Rango MIDI que se admite en un loop de melodía o bajo (C1–C7). */
 export const MIDI_MIN = 24
@@ -26,6 +26,7 @@ export const REGISTER: Record<MelodySynth | 'bass', readonly [number, number]> =
   piano: [48, 72], // C3–C5
   pad: [48, 72], // C3–C5
   drone: [36, 60], // C2–C4
+  riser: [48, 72], // ruido: la altura no cuenta (spec 008, §11)
   bass: [28, 52], // E1–E3
 }
 
@@ -35,6 +36,8 @@ export const SYNTH_SOUND: Record<MelodySynth, string> = {
   lead: '.s("square").lpf(1800).decay(0.2).sustain(0.5).delay(0.25)',
   pad: '.s("supersaw").attack(0.08).release(0.6).lpf(1200).room(0.8)',
   drone: '.s("sine").room(0.9)',
+  // ruido rosa para los builds (spec 008, §11): la nota solo marca cuándo suena; el filtro de la célula lo abre
+  riser: '.s("pink").attack(0.12).decay(0.2).sustain(0.7).release(0.05).gain(0.6).room(0.3)',
 }
 
 /** Golpe de una melodía: `pos` y `dur` en semicorcheas dentro del loop; `midi` entero. */

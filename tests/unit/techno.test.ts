@@ -63,11 +63,11 @@ describe('el wowo (Cell.wow)', () => {
 })
 
 describe('el remix Dies Irae en techno', () => {
-  it('9 células, 50 compases, en el orden de la historia', () => {
-    expect(remixBars(remix)).toBe(50)
-    expect(songBars(song)).toBe(50)
+  it('10 células, 54 compases, en el orden de la historia', () => {
+    expect(remixBars(remix)).toBe(54)
+    expect(songBars(song)).toBe(54)
     expect(songCells().map((c) => [c.name, c.turns])).toEqual([
-      ['Pulso', 4], ['Hats', 4], ['Entra el tema', 8], ['Build', 8], ['DROP', 8], ['Groove', 4], ['Build 2', 4], ['DROP 2', 8], ['Salida', 2],
+      ['Pulso', 4], ['Hats', 4], ['Entra el tema', 8], ['Build', 8], ['Riser', 4], ['DROP', 8], ['Groove', 4], ['Build 2', 4], ['DROP 2', 8], ['Salida', 2],
     ])
   })
   it('entra poco a poco: pulso → hats → tema con wowo → build sin bombo → drop con bajo y acordes', () => {
@@ -100,7 +100,7 @@ describe('el remix Dies Irae en techno', () => {
     expect(c.startsWith('setcpm(128/4)\n')).toBe(true)
     expect(c).toContain('.lpf("<500 700 900 1200 1600 2100 2800 3600>").lpq(8).lpenv(3).lpa(0.005).lpd(0.15)')
     expect(c).toContain('.bank("RolandTR909")')
-    const ev = await events(c, 50)
+    const ev = await events(c, 54)
     // el filtro de la célula "Entra el tema" (compases 8–15) sube vuelta a vuelta, y la resonancia de cada hap es la del wowo
     const melIn = (from: number, to: number) => ev.filter((e) => e.begin >= from && e.begin < to && e.value.s === 'square')
     const cutoffs = new Map(melIn(8, 16).map((e) => [Math.floor(e.begin - 8), e.value.cutoff]))
@@ -109,12 +109,12 @@ describe('el remix Dies Irae en techno', () => {
     expect([0, 1, 4, 5].map((k) => cutoffs.get(k))).toEqual([500, 700, 1600, 2100])
     expect(melIn(8, 16).every((e) => e.value.resonance === 8 && e.value.lpenv === 3)).toBe(true)
     // en el drop no hay wowo: el filtro de siempre del sintetizador (aquí, el 0.5 de superdough)
-    expect([...new Set(melIn(24, 32).map((e) => e.value.cutoff))]).toEqual([1800])
+    expect([...new Set(melIn(28, 36).map((e) => e.value.cutoff))]).toEqual([1800])
   })
   it('el bajo va por fuera del filtro y del wowo: conserva su lpf, la melodía lleva el de la vuelta', async () => {
     const c = code()
     // el bajo (sawtooth) de "Entra el tema" (compases 8–15) y del build (16–23) mantiene el lpf(450) de siempre
-    const ev = await events(c, 50)
+    const ev = await events(c, 54)
     const bass = (from: number, to: number) => ev.filter((e) => e.begin >= from && e.begin < to && e.value.s === 'sawtooth')
     expect([...new Set(bass(8, 16).map((e) => e.value.cutoff))]).toEqual([450])
     expect([...new Set(bass(16, 24).map((e) => e.value.cutoff))]).toEqual([450])
@@ -139,21 +139,46 @@ describe('el remix Dies Irae en techno', () => {
     expect(STYLE_MUSIC.techno.kickTune).toBe('<c3 ab2 bb2 g2>')
     const c = code()
     expect(c).toContain('.note("<c3 ab2 bb2 g2>")')
-    const ev = await events(c, 50)
+    const ev = await events(c, 54)
     const kicks = ev.filter((e) => e.value.s === 'bd' && e.begin >= 0 && e.begin < 8)
     const noteOf = (bar: number) => [...new Set(kicks.filter((e) => Math.floor(e.begin) === bar).map((e) => String(e.value.note)))]
     expect([0, 1, 2, 3, 4].map(noteOf)).toEqual([['c3'], ['ab2'], ['bb2'], ['g2'], ['c3']])
   })
+  it('el Riser: ruido y un pad de otro color que se abren, la caja en roll y el último compás en silencio', async () => {
+    const riser = byName('Riser')
+    expect(riser.turns).toBe(4)
+    expect(riser.parts).toEqual({ bass: false, chords: false })
+    expect(riser.wow).toBeUndefined() // los 4 wowos del motor ya están en las otras células
+    expect(riser.lpf).toEqual([600, 1500, 4000, 12000])
+    const synths = riser.loops.filter((l) => l.instrument === 'mel').map((l) => l.synth)
+    expect(synths).toEqual(['riser', 'pad']) // ruido + pad (el tema va con 'lead')
+    expect(songCells().map((c) => c.name).indexOf('Riser')).toBe(songCells().map((c) => c.name).indexOf('DROP') - 1) // justo antes del drop
+    const ev = await events(code(), 54)
+    const at = (from: number, to: number) => ev.filter((e) => e.begin >= from && e.begin < to)
+    // compases 24–27: el ruido y el pad en los tres primeros, la caja aprieta, y el cuarto (27) en silencio total
+    for (const bar of [24, 25, 26]) {
+      expect(at(bar, bar + 1).some((e) => e.value.s === 'pink'), `ruido ${bar}`).toBe(true)
+      expect(at(bar, bar + 1).some((e) => e.value.s === 'supersaw'), `pad ${bar}`).toBe(true)
+    }
+    expect(at(27, 28)).toEqual([])
+    const snares = (bar: number) => at(bar, bar + 1).filter((e) => e.value.s === 'sd').length
+    expect([24, 25, 26, 27].map(snares)).toEqual([8, 16, 16, 0])
+    // el filtro sube compás a compás (el del ruido)
+    expect([24, 25, 26].map((bar) => at(bar, bar + 1).find((e) => e.value.s === 'pink')!.value.cutoff)).toEqual([600, 1500, 4000])
+    // y el drop cae justo después, con todo
+    expect(at(28, 29).some((e) => e.value.s === 'bd')).toBe(true)
+  })
   it('la estructura suena: el build sin bombo y el drop con él', async () => {
-    const ev = await events(code(), 50)
+    const ev = await events(code(), 54)
     const count = (key: string, from: number, to: number) => ev.filter((e) => e.begin >= from && e.begin < to && e.value.s === key).length
     expect(count('bd', 0, 8)).toBe(4 * 4 + 4 * 4) // Pulso y Hats: 4 por compás
     expect(count('bd', 16, 24)).toBe(0) // el Build no lleva bombo
-    expect(count('bd', 24, 32)).toBe(8 * 4) // el DROP sí
+    expect(count('bd', 24, 28)).toBe(0) // el Riser tampoco
+    expect(count('bd', 28, 36)).toBe(8 * 4) // el DROP sí
     expect(count('sawtooth', 0, 8)).toBeGreaterThan(0) // el bajo a corcheas
     expect(count('sawtooth', 8, 16)).toBeGreaterThan(0) // en "Entra el tema" también hay bajo (fuera del filtro del wowo)
     expect(count('sawtooth', 16, 24)).toBeGreaterThan(0) // en el build sí
-    expect(count('sawtooth', 24, 32)).toBeGreaterThan(0) // y en el drop
+    expect(count('sawtooth', 28, 36)).toBeGreaterThan(0) // y en el drop
   })
 })
 
@@ -176,8 +201,8 @@ describe('el motor: otra vez el remix del Himno', () => {
       cells: { list: song.cells, order: song.order, window: [{ cellId: song.order[2]!, from: 8, to: 16 }] },
     }
     const engine = songCode(st, 'engine')
-    // la marca por compás: ninguna en Pulso y Hats (4 + 4), el wowo de las células 3, 4, 6 y 7 en lo suyo
-    expect(engine).toContain('"~@4 ~@4 3@8 4@8 ~@8 ~@4 ~@4 ~@8 ~@2"')
+    // la marca por compás: ninguna en Pulso y Hats (4 + 4), el wowo de las células 3 y 4 en lo suyo, ninguna en el Riser
+    expect(engine).toContain('"~@4 ~@4 3@8 4@8 ~@4 ~@8 ~@4 ~@4 ~@8 ~@2"')
     expect(engine).toContain('{"bus":3,"wow":{"lpq":8,"lpenv":3,"lpa":0.005,"lpd":0.15},"lpf":[500,700,900,1200,1600,2100,2800,3600]}')
     // la compuerta del motor se engancha en el bus de la célula (su `bus` es el id de la célula), y el plan va en un
     // comentario (el motor no deja llamar a una función que no es de Strudel)

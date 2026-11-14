@@ -84,6 +84,8 @@ interface CellSpec {
   parts: Parts
   drums: Partial<Record<Instrument, string>>
   mel?: { notes: readonly Note[]; synth: MelodySynth }
+  /** más loops de melodía en la célula (el riser de ruido y su pad, §11) */
+  extra?: { notes: readonly Note[]; synth: MelodySynth }[]
   lpf?: number[]
   /** el "wowo" del filtro de la célula (spec 008, §9): resonancia y envolvente sobre el `lpf` */
   wow?: Wow
@@ -127,7 +129,7 @@ function buildSong(specs: readonly CellSpec[], groupSpecs: readonly GroupSpec[] 
       const tokens = pattern.split(' ')
       loops.push(loop(inst, tokens.length === 64 ? 4 : 1, tokens.flatMap((t, step) => (t === '~' ? [] : [{ pos: step, strength: 0.8 }]))))
     }
-    if (s.mel) loops.push(loop('mel', 4, s.mel.notes.map(([pos, dur, midi]) => ({ pos, dur, midi, strength: 0.8 })), s.mel.synth))
+    for (const m of [...(s.mel ? [s.mel] : []), ...(s.extra ?? [])]) loops.push(loop('mel', 4, m.notes.map(([pos, dur, midi]) => ({ pos, dur, midi, strength: 0.8 })), m.synth))
     return {
       id: i + 1,
       name: s.name,
@@ -207,12 +209,28 @@ const T = {
   hats16: Array(16).fill('hh').join(' '),
 }
 
+/**
+ * El build de verdad antes del drop (spec 008, §11): 4 compases, y el **último en silencio** (el aire antes de que caiga el
+ * drop). El riser es ruido rosa a negras que el filtro de la célula abre compás a compás, la caja en roll que se aprieta y un pad
+ * de otro color que sube Ab–Bb–D (la dominante, que pide el Do menor del drop).
+ */
+const RISER_NOISE: readonly Note[] = Array.from({ length: 12 }, (_, i) => [i * 4, 4, 60] as const)
+const RISER_PAD: readonly Note[] = [[0, 16, 56], [16, 16, 58], [32, 16, 62]]
+/** la caja del riser: corcheas, semicorcheas, semicorcheas y silencio (4 compases) */
+const RISER_ROLL = [
+  'sd ~ sd ~ sd ~ sd ~ sd ~ sd ~ sd ~ sd ~',
+  Array(16).fill('sd').join(' '),
+  Array(16).fill('sd').join(' '),
+  Array(16).fill('~').join(' '),
+].join(' ')
+
 /** El Dies Irae en techno: entra poco a poco (con wowo en el build) y estalla en el drop. */
 const DIES_TECHNO: CellSpec[] = [
   { name: 'Pulso', turns: 4, parts: { bass: true, chords: false }, drums: { bd: T.bd4 }, text: 'solo el pulso: bombo 4×4 y el bajo a corcheas' },
   { name: 'Hats', turns: 4, parts: { bass: true, chords: false }, drums: { bd: T.bd4, hh: T.hat }, text: '+ palmada y open hat a contratiempo' },
   { name: 'Entra el tema', turns: 8, parts: { bass: true, chords: false }, drums: { bd: T.bd4, sd: T.clap, hh: T.hat }, mel: { notes: DIES_A, synth: 'lead' }, lpf: [500, 700, 900, 1200, 1600, 2100, 2800, 3600], wow: WOW_PRESETS.acid, text: 'el tema con el wowo (el filtro se abre en cada golpe) sobre el bajo, que no pasa por el filtro' },
   { name: 'Build', turns: 8, parts: { bass: true, chords: false }, drums: { sd: T.roll, hh: T.hats16 }, mel: { notes: DIES_B, synth: 'lead' }, lpf: [1400, 1800, 2400, 3000, 3800, 4800, 6200, 8000], wow: WOW_PRESETS.house, text: 'sin bombo: la caja se acelera, el bajo en el wowo y el filtro se abre hasta 8 000 Hz (hasta el drop)' },
+  { name: 'Riser', turns: 4, parts: { bass: false, chords: false }, drums: { sd: RISER_ROLL }, extra: [{ notes: RISER_NOISE, synth: 'riser' }, { notes: RISER_PAD, synth: 'pad' }], lpf: [600, 1500, 4000, 12000], text: 'el build de verdad: ruido y pad que se abren, la caja en roll y el último compás en silencio' },
   { name: 'DROP', turns: 8, parts: { bass: true, chords: true }, drums: { bd: T.bd4, sd: T.clap, hh: T.hats16 }, mel: { notes: DIES_A, synth: 'lead' }, text: 'el drop: todo, bajo y acordes, el tema limpio y el platillo en semicorcheas' },
   { name: 'Groove', turns: 4, parts: { bass: true, chords: false }, drums: { bd: T.bd4, sd: T.clap, hh: T.hat }, mel: { notes: DIES_B, synth: 'lead' }, lpf: [2200, 2600, 3000, 3400], wow: WOW_PRESETS.house, text: 'el groove en paralelo al tema (segunda vuelta), con bajo' },
   { name: 'Build 2', turns: 4, parts: { bass: true, chords: false }, drums: { sd: T.roll, hh: T.hats16 }, mel: { notes: DIES_A, synth: 'lead' }, lpf: [2000, 2600, 3400, 4600], wow: WOW_PRESETS.acid, text: 'el segundo build, más corto' },
