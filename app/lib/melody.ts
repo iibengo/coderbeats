@@ -4,8 +4,9 @@
  * Seguridad: lo que se escribe en el código Strudel es siempre un nombre sacado de `STRUDEL_NOTE` a partir de un
  * entero validado; nunca un valor leído tal cual de lo guardado.
  */
-export type MelodySynth = 'lead' | 'piano' | 'pad'
-export const MELODY_SYNTHS: readonly MelodySynth[] = ['lead', 'piano', 'pad']
+/** `drone`: un sine con mucha reverb, para fondos (la demo del dembow); no es de los que se eligen para cantar */
+export type MelodySynth = 'lead' | 'piano' | 'pad' | 'drone'
+export const MELODY_SYNTHS: readonly MelodySynth[] = ['lead', 'piano', 'pad', 'drone']
 
 /** Rango MIDI que se admite en un loop de melodía o bajo (C1–C7). */
 export const MIDI_MIN = 24
@@ -24,6 +25,7 @@ export const REGISTER: Record<MelodySynth | 'bass', readonly [number, number]> =
   lead: [60, 84], // C4–C6
   piano: [48, 72], // C3–C5
   pad: [48, 72], // C3–C5
+  drone: [36, 60], // C2–C4
   bass: [28, 52], // E1–E3
 }
 
@@ -32,6 +34,7 @@ export const SYNTH_SOUND: Record<MelodySynth, string> = {
   piano: '.s("triangle").fm(1.5).fmh(2).decay(0.6).sustain(0.2).room(0.4)',
   lead: '.s("square").lpf(1800).decay(0.2).sustain(0.5).delay(0.25)',
   pad: '.s("supersaw").attack(0.08).release(0.6).lpf(1200).room(0.8)',
+  drone: '.s("sine").room(0.9)',
 }
 
 /** Golpe de una melodía: `pos` y `dur` en semicorcheas dentro del loop; `midi` entero. */

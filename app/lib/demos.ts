@@ -18,6 +18,12 @@ export const DEMOS: Record<StyleId, Record<Instrument, string>> = {
     sd: '~ ~ ~ ~ sd ~ ~ ~ ~ ~ ~ ~ sd ~ ~ ~',
     hh: 'hh ~ hh ~ hh ~ hh ~ hh ~ hh ~ hh ~ hh ~',
   },
+  // dembow: bombo a negras, caja en 3 6 11 14, platillo en semicorcheas (el patrón de la demo, sin la intro)
+  dembow: {
+    bd: 'bd ~ ~ ~ bd ~ ~ ~ bd ~ ~ ~ bd ~ ~ ~',
+    sd: '~ ~ ~ sd ~ ~ sd ~ ~ ~ ~ sd ~ ~ sd ~',
+    hh: 'hh hh hh hh hh hh hh hh hh hh hh hh hh hh hh hh',
+  },
   // house: bombo a negras, caja (palmada) en 2 y 4, platillo a contratiempo
   house: {
     bd: 'bd ~ ~ ~ bd ~ ~ ~ bd ~ ~ ~ bd ~ ~ ~',

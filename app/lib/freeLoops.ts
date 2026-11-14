@@ -1,5 +1,5 @@
 import { assistQuantize, laneGrid } from './assist'
-import { mergeMelody, type MelodyHit } from './melody'
+import { mergeMelody, type MelodyHit, type MelodySynth } from './melody'
 import type { ClosedPhrase, LoopLength } from './phrases'
 import type { Instrument, StyleId } from './types'
 
@@ -36,6 +36,8 @@ export interface FreeLoop {
   muted: boolean
   bornAt: number
   fromTemplate: boolean
+  /** solo melodía: sinte propio de este loop (la demo del dembow); sin él, el de la canción o el del estilo */
+  synth?: MelodySynth
   /**
    * Versión anterior a la que sustituye (modo "sustituye", §16.15): sigue sonando hasta
    * el compás de nacimiento de la nueva (`bornAt`), sin hueco ni solape.

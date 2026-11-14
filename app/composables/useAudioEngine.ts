@@ -10,6 +10,7 @@ import { analyzeEchoTest, type EchoTestResult } from '~/lib/echoGate'
 import {
   cellById,
   withoutCell,
+  DEMO_KIT,
   demoSong,
   emptySong,
   endBar,
@@ -1458,6 +1459,9 @@ export function useAudioEngine() {
         bgMode.value = 'manual'
         lastBgMode.value = 'manual'
       }
+      // el estilo puede traer su kit (dembow: 808)
+      const demoKit = DEMO_KIT[style.value]
+      if (demoKit && kit.value !== demoKit) setKit(demoKit)
       log('cell', `demo-canción de ${STYLES[style.value].label} cargada: ${demo.cells.map((c) => `${c.name} ${c.turns}`).join(' · ')}`)
       return replaceSong(demo)
     }

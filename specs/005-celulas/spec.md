@@ -726,3 +726,46 @@ Motivo: había botones sueltos en sitios distintos y con nombres parecidos (◎ 
 3. **Se quitan**: «∞ ▶ seguir canción» (colonia), «▶ seguir» de la chapa, «⌖ Fijar vista» (mover el mapa ya deja de seguir; el doble toque sobre la célula que se ve sigue fijando la vista) y «◎ centrar» (pasa a «Volver a la canción»).
 4. **La chapa** se queda en el aro y solo informa: vueltas, «∞» en bucle (tocarla en bucle no hace nada; se suelta con «Soltar bucle»), y el interruptor «grupo · suena / apagado» de una célula de un grupo.
 5. **«Apagar extras»** sale siempre que haya un grupo encendido, no solo en la colonia.
+
+---
+
+## 20. Estilo dembow y su demo (2026-11-14)
+
+Un cuarto estilo, **Dembow**, y su "Cargar demo" como canción de dos células que reproduce este código Strudel (el del usuario):
+
+```js
+setcpm(120/4)
+const acordes = note("<[b3,d4,f#4] [g3,b3,d4]>").s("triangle").attack(0.02).release(0.4).lpf(2000).room(0.4).gain(0.3)
+const bajo = note("<b1 g1>").struct("x ~ ~ ~ x ~ ~ ~ x ~ ~ ~ x ~ ~ ~").s("sawtooth").lpf(350).gain(0.5)
+const bateria = stack(s("bd ~ ~ ~ bd ~ ~ ~ bd ~ ~ ~ bd ~ ~ ~"), s("~ ~ ~ sd ~ ~ sd ~ ~ ~ ~ sd ~ ~ sd ~"), s("hh*16").gain(0.25)).bank("RolandTR808")
+const ambiente = stack(s("hh*8").gain(0.12).room(0.8), note("<b2 g2>").s("sine").room(0.9).gain(0.15))
+arrange([4, ambiente], [8, stack(acordes, bajo, bateria)])
+```
+
+### 20.1 El estilo
+
+- **120 bpm**, semicorcheas (`quantizeEvery` 1), **si menor** (B C# D E F# G A) y **kit 808**.
+- **Fondo:** acordes Bm–G (`<[b3,d4,f#4] [g3,b3,d4]>`, con su ataque, release, filtro y reverb) y bajo `b1`/`g1` con cuatro notas de un paso por compás (el `struct`). Son las líneas del código, tal cual.
+- **Rejilla de la ayuda:** bombo en 0 4 8 12, caja en 3 6 11 14 y platillo en semicorcheas (los pesos de `lib/styles.ts`).
+- **Melodía con la voz (spec 002):** la escala es la de si menor, con los acordes de Bm y G para los empates, y el sinte por defecto es el lead.
+
+### 20.2 La demo
+
+- **Intro** (4 vueltas): platillo en corcheas y el sine `<b2 g2>`; sin bajo ni acordes del fondo.
+- **Principal** (8 vueltas): bombo, caja y platillo con el patrón de arriba, con el bajo y los acordes del fondo.
+- Al cargarla, **el kit pasa a 808** (la demo lo trae; `DEMO_KIT` en `lib/cells.ts`). Con otros estilos, cargar la demo no cambia el kit.
+- El sine del ambiente es un **loop de melodía** (`'mel'`, 2 compases: si2 | sol2) con un **sinte propio** (`synth: 'drone'`, `.s("sine").room(0.9)`), un campo nuevo y opcional del loop. Se ve como una bola blanca en la Intro. No es un sinte que se elija para cantar.
+- Sin canción (estilos sin demo-canción) existe también la demo de una célula con el patrón principal (`DEMOS.dembow`).
+
+### 20.3 Cómo se comprobó la fidelidad
+
+`tests/unit/dembow.test.ts` evalúa **el código original** y **el código que muestra la app** con el intérprete de Strudel en Node y compara los eventos de los 12 ciclos: de la batería, el instante y qué sonido; de lo que tiene nota, además su duración, su nombre y su sinte. Coinciden todos (más de 250 eventos). También comprueba que el comparador no es vacuo y que los timbres (sinte, ataque, release, filtro y reverb de los acordes; filtro del bajo) son iguales.
+
+### 20.4 Lo que se aproxima (y no se puede igualar con el modelo de hoy)
+
+1. **Ganancias.** El código original pone ganancias fijas (platillo 0,25, ambiente 0,12, sine 0,15) y deja el bombo y la caja a 1. La app **mezcla sola** (1/√n y un balance por instrumento): en la Principal salen bombo 0,58, caja 0,51 y platillo 0,29. El platillo queda relativamente más fuerte (la mitad del bombo, frente a un cuarto en el original); el bajo y los acordes sí llevan sus ganancias originales (0,5 y 0,3). Habría que poder fijar la ganancia de un loop para igualarlo; no se hace.
+2. **Reverb por loop.** El platillo de la Intro lleva `room(0.8)`; la app no tiene efectos por loop (el "espacio" de ⋯ es global y va en todos los loops del bloque). No se reproduce.
+3. **Sidechain.** La app añade el sidechain del bombo (`duckorbit("2:3")`) sobre el bajo y los acordes cuando hay fondo; el original no lo tiene. En la Principal, el bajo y los acordes "respiran" con el bombo.
+4. **Muestra del 808.** El código mostrado lleva `.n(1)` en bombo y caja (el índice del 808 que usa la app, para que suene el mismo archivo en strudel.cc, §16.12 de la 001); el original usa el índice 0 por defecto, así que en strudel.cc esas dos muestras pueden ser otro archivo del banco.
+5. **Orbits y comentarios.** La app añade `.orbit()` y comentarios con el nombre de cada célula, y el platillo de la Intro dura 1/16 en vez de 1/8 por la rejilla de pasos (no importa para una muestra de un golpe). Sin `const` ni `stack` externos: es un único `arrange`.
+6. **Bola de la melodía en la Intro.** El sine aparece como un loop de melodía más: se puede silenciar, borrar o sustituir cantando (se perdería el sinte propio si se sustituye con la voz: la nueva melodía vuelve a tener el del estilo).

@@ -123,6 +123,7 @@ Sintes de superdough (los de serie: no hay que cargar soundfonts). **Por defecto
 | **piano** (eléctrico, FM) | `.s("triangle").fm(1.5).fmh(2).decay(0.6).sustain(0.2).room(0.4)` | hip hop 90 |
 | **lead** | `.s("square").lpf(1800).decay(0.2).sustain(0.5).delay(0.25)` | house |
 | **pad** | `.s("supersaw").attack(0.08).release(0.6).lpf(1200).room(0.8)` | drum and bass |
+| **drone** (solo en demos; p. ej. el dembow, spec 005 §20) | `.s("sine").room(0.9)`: un sine con reverb para fondos. Un loop de melodía puede llevar su propio sinte (`synth`); no es de los que se eligen para cantar | — |
 | **bajo** (con la voz) | el mismo timbre que el bajo del fondo del estilo (en dnb, el de tu reel: `.s("sawtooth").lpf(400).distort(0.3)`) | — |
 
 - Bus propio: **orbit 5** (melodía) y **orbit 6** (bajo con la voz). El sidechain del bombo también los empuja, **solo si hay loop de melodía (o de bajo) en ese bloque**: `DUCK` pasa de `.duckorbit("2:3")` a `"2:3:5"` / `"2:3:5:6"` según lo que haya, así el código de siempre no cambia y sus tests tampoco (`DUCK` es compartido por el código mostrado y el motor).

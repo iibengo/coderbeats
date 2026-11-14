@@ -135,6 +135,45 @@ export const STYLE_MUSIC: Record<StyleId, StyleMusic> = {
     ],
     synth: 'pad',
   },
+  // dembow (2026-11-14): 120 bpm, si menor, kit 808. Bombo a negras, caja en 3 6 11 14 (el "dembow"), platillo en semicorcheas.
+  dembow: {
+    key: 'si menor',
+    priors: {
+      bd: prior(0.03, { 0: 1, 4: 1, 8: 1, 12: 1 }),
+      sd: prior(0.04, { 3: 1, 6: 1, 11: 1, 14: 1 }),
+      hh: prior(1, {}),
+    },
+    templates: {
+      bd: 'bd ~ ~ ~ bd ~ ~ ~ bd ~ ~ ~ bd ~ ~ ~',
+      sd: '~ ~ ~ sd ~ ~ sd ~ ~ ~ ~ sd ~ ~ sd ~',
+      hh: 'hh hh hh hh hh hh hh hh hh hh hh hh hh hh hh hh',
+    },
+    background: {
+      // note("<b1 g1>").struct("x ~ ~ ~ x ~ ~ ~ x ~ ~ ~ x ~ ~ ~"): cuatro notas de un paso por compás
+      bass: {
+        bars: 2,
+        notes: [
+          { pos: 0, dur: 1, note: 'b1' },
+          { pos: 4, dur: 1, note: 'b1' },
+          { pos: 8, dur: 1, note: 'b1' },
+          { pos: 12, dur: 1, note: 'b1' },
+          { pos: 16, dur: 1, note: 'g1' },
+          { pos: 20, dur: 1, note: 'g1' },
+          { pos: 24, dur: 1, note: 'g1' },
+          { pos: 28, dur: 1, note: 'g1' },
+        ],
+        sound: '.s("sawtooth").lpf(350).gain(0.5)',
+      },
+      chords: ['note("<[b3,d4,f#4] [g3,b3,d4]>").s("triangle").attack(0.02).release(0.4).lpf(2000).room(0.4).gain(0.3)'],
+    },
+    // si menor: B C# D E F# G A
+    scale: [11, 1, 2, 4, 6, 7, 9],
+    chordTones: [
+      [11, 2, 6],
+      [7, 11, 2],
+    ],
+    synth: 'lead',
+  },
 }
 
 /** Pasos (0..15) con golpe de una plantilla. */

@@ -2,10 +2,10 @@ import { NO_PARTS, type Parts } from './background'
 import { DEMOS } from './demos'
 import type { FreeLoop, LoopsState } from './freeLoops'
 import type { LoopLength } from './phrases'
-import type { Instrument, StyleId } from './types'
+import type { Instrument, KitId, StyleId } from './types'
 import { isValidBpm } from './tempo'
 import { INSTRUMENTS } from './constants'
-import { isMidi } from './melody'
+import { isMidi, MELODY_SYNTHS, type MelodySynth } from './melody'
 
 /**
  * Células (spec 005): cada célula es un aro con sus loops, su bajo y sus acordes. Una canción es
@@ -225,6 +225,7 @@ export function isFreeLoop(x: unknown): x is FreeLoop {
   if (!isNum(x.id) || !isNum(x.phaseBar) || !isNum(x.bornAt) || !isBars(x.bars)) return false
   if (typeof x.instrument !== 'string' || !(x.instrument === 'mel' || INSTRUMENTS.includes(x.instrument as Instrument))) return false
   if (typeof x.muted !== 'boolean' || !isHits(x.instrument, x.hits)) return false
+  if (x.synth !== undefined && !(x.instrument === 'mel' && MELODY_SYNTHS.includes(x.synth as never))) return false
   const prev = x.prev
   return prev === undefined || (isObj(prev) && isHits(x.instrument, prev.hits) && isBars(prev.bars) && isNum(prev.phaseBar))
 }
@@ -276,6 +277,10 @@ interface SectionSpec {
   turns: Turns
   drums: Instrument[]
   parts: Parts
+  /** patrones de esta sección que sustituyen a los de `DEMOS` (16 tokens por instrumento) */
+  patterns?: Partial<Record<Instrument, string>>
+  /** una melodía de fondo de la sección (p. ej. el sine del dembow): notas [paso, duración, MIDI] y sinte propio */
+  melody?: { bars: 1 | 2 | 4; synth: MelodySynth; notes: readonly (readonly [number, number, number])[] }
 }
 
 /** intro 4 · subida 4 · drop 8 · final 2, con los loops del reel (`DEMOS.dnb`). */
@@ -287,14 +292,36 @@ const DNB_SONG: SectionSpec[] = [
   { name: 'final', turns: 2, drums: [], parts: { bass: false, chords: true } },
 ]
 
-export const SONG_DEMOS: Partial<Record<StyleId, SectionSpec[]>> = { dnb: DNB_SONG }
+/**
+ * Demo del dembow (2026-11-14): el código
+ *   arrange([4, ambiente], [8, stack(acordes, bajo, bateria)])
+ * en dos células. "Intro" (4 vueltas): platillo en corcheas y un sine `<b2 g2>` con reverb. "Principal" (8): acordes
+ * (Bm–G), bajo (b1/g1) y la batería 808 (bombo 0 4 8 12, caja 3 6 11 14, platillo en semicorcheas).
+ * Qué se aproxima y qué no, en la spec 005 (§20).
+ */
+const DEMBOW_SONG: SectionSpec[] = [
+  {
+    name: 'Intro',
+    turns: 4,
+    drums: ['hh'],
+    patterns: { hh: 'hh ~ hh ~ hh ~ hh ~ hh ~ hh ~ hh ~ hh ~' },
+    parts: { bass: false, chords: false },
+    melody: { bars: 2, synth: 'drone', notes: [[0, 16, 47], [16, 16, 43]] }, // b2 | g2
+  },
+  { name: 'Principal', turns: 8, drums: ['bd', 'sd', 'hh'], parts: { bass: true, chords: true } },
+]
 
-const demoLoop = (style: StyleId, instrument: Instrument, id: number): FreeLoop => ({
+export const SONG_DEMOS: Partial<Record<StyleId, SectionSpec[]>> = { dnb: DNB_SONG, dembow: DEMBOW_SONG }
+
+/** Kit con el que suena la demo-canción de un estilo, si tiene uno propio (al cargarla se elige). */
+export const DEMO_KIT: Partial<Record<StyleId, KitId>> = { dembow: '808' }
+
+const demoLoop = (style: StyleId, instrument: Instrument, id: number, pattern: string = DEMOS[style][instrument]): FreeLoop => ({
   id,
   instrument,
   bars: 1 as LoopLength,
   phaseBar: 0,
-  hits: DEMOS[style][instrument]
+  hits: pattern
     .split(' ')
     .map((t, step) => (t === '~' ? -1 : step))
     .filter((s) => s >= 0)
@@ -312,7 +339,24 @@ export function demoSong(style: StyleId): Song | null {
   const cells: Cell[] = spec.map((s, i) => ({
     id: i + 1,
     name: s.name,
-    loops: s.drums.map((inst) => demoLoop(style, inst, loopId++)),
+    loops: [
+      ...s.drums.map((inst) => demoLoop(style, inst, loopId++, s.patterns?.[inst])),
+      ...(s.melody
+        ? [
+            {
+              id: loopId++,
+              instrument: 'mel' as const,
+              bars: s.melody.bars,
+              phaseBar: 0,
+              hits: s.melody.notes.map(([pos, dur, midi]) => ({ pos, dur, midi, strength: 0.8 })),
+              muted: false,
+              bornAt: 0,
+              fromTemplate: false,
+              synth: s.melody.synth,
+            } satisfies FreeLoop,
+          ]
+        : []),
+    ],
     parts: { ...s.parts },
     turns: s.turns,
     // en una curva suave de izquierda a derecha, a distintas profundidades
