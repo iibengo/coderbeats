@@ -128,6 +128,8 @@ const ZOOM_KEY = 'coderbeats:aro:v1'
 let zoomRel = 1
 /** último zoom de cerca: al tocar una célula en la colonia se vuelve a él, y es el único que se guarda */
 let nearRel = 1
+/** zoom efectivo del frame anterior: para saber si se está alejando */
+let lastZEff = 1
 let settleTimer: ReturnType<typeof setTimeout> | null = null
 /** zoom en vivo durante un pellizco (con resistencia más allá de los límites), o null */
 let pinchLive: number | null = null
@@ -930,9 +932,11 @@ function tick() {
       colony.value = isColony
       // al volver a cerca, la cámara vuelve a seguir a la que suena
       if (!isColony) panned.value = false
-      // al alejarse a la colonia se suelta lo que se miraba: entrar es solo acercar, y la vista vuelve sola a la canción
-      else if (engine.viewAway.value) engine.followSong()
     }
+    // al alejar el zoom y asomar las demás células se suelta lo que se miraba: entrar es solo acercar, y la vista vuelve sola
+    // a la canción (si no, la célula de la que sales sigue con el foco y parece la que suena)
+    if (zEff < lastZEff - 1e-4 && crowdAlpha(zEff) > 0.01 && engine.viewAway.value) engine.followSong()
+    lastZEff = zEff
     panBlend = approachBlend(panBlend, panned.value && isColony ? 1 : 0, dt, reduced)
     const song = engine.song.value
     const dc = dragCell
