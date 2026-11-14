@@ -182,4 +182,21 @@ describe('melodyOfPhrase (de lo que oye el worker al loop)', () => {
     expect(melodyOfPhrase([{ ...heard(64, 2, 57), rms: 0.5 }], base).raw[0]!.strength).toBe(1)
     expect(melodyOfPhrase([], base)).toEqual({ raw: [], hits: [] })
   })
+
+  it('con legato y duración real: las notas sueltas se unen y la duración se acerca a lo cantado', () => {
+    // la 1.ª dura 2,6 pasos y la 2.ª empieza en el 4 (hueco de 1,4): legato la alarga hasta ahí; la 3.ª queda aparte (hueco de 4)
+    const sung = [heard(64, 2.6, 57.1), heard(68, 1.7, 60.2), heard(74, 2.2, 64)]
+    const plain = melodyOfPhrase(sung, base).hits
+    expect(plain.map((h) => h.dur)).toEqual([3, 2, 2])
+    const r = melodyOfPhrase(sung, { ...base, durGrid: 0.25, legatoGap: 2 }).hits
+    expect(r.map((h) => h.pos)).toEqual([0, 4, 10])
+    expect(r[0]!.dur).toBe(4) // alargada hasta el inicio de la siguiente
+    expect(r[1]!.dur).toBe(1.75) // la real: 1,7 a cuartos de paso (el hueco de 4,5 hasta la 3.ª es mayor que 2: no se une)
+    expect(r[2]!.dur).toBe(2.25)
+  })
+
+  it('sin las opciones nuevas, el resultado es el de siempre (la ayuda no cambia)', () => {
+    const sung = [heard(64, 2.6, 57.1), heard(68, 1.7, 60.2)]
+    expect(melodyOfPhrase(sung, base)).toEqual(melodyOfPhrase(sung, { ...base, legatoGap: undefined, durGrid: undefined }))
+  })
 })

@@ -3,6 +3,7 @@ import { emptySong, isFreeLoop, isSong, type Song } from '../../app/lib/cells'
 import type { FreeLoop, LoopHit } from '../../app/lib/freeLoops'
 import { loopGains } from '../../app/lib/mix'
 import { songCode, type SongState } from '../../app/lib/song'
+import { events } from '../helpers/strudelEval'
 
 let id = 0
 const drum = (instrument: 'bd' | 'sd' | 'hh', pos: number[], o: Partial<FreeLoop> = {}): FreeLoop => ({
@@ -111,5 +112,21 @@ describe('validación estricta de los loops de melodía', () => {
   it('un loop de melodía guardado con un id o bornAt malicioso tampoco entra', () => {
     expect(isFreeLoop({ ...J(ok), id: '1")||x//' })).toBe(false)
     expect(isFreeLoop({ ...J(ok), bornAt: '0)' })).toBe(false)
+  })
+})
+
+describe('duración real y legato en el código (compatible con strudel.cc)', () => {
+  it('las duraciones de cuarto de paso se escriben con pesos enteros y Strudel las toca con su duración exacta', async () => {
+    const m = mel([[0, 4, 57], [4, 1.75, 60], [10, 2.25, 64]])
+    const code = songCode(state([m]))
+    // rejilla fina: pesos en cuartos de paso (16 pasos = 64 partes)
+    expect(code).toContain('note("a3@16 c4@7 ~@17 e4@9 ~@15")')
+    const ev = (await events(code, 1)).filter((e) => e.value.note !== undefined)
+    // en un ciclo de 16 pasos: cada paso = 1/16 de ciclo
+    expect(ev.map((e) => [e.value.note, Math.round(e.begin * 16 * 100) / 100, Math.round((e.end - e.begin) * 16 * 100) / 100])).toEqual([
+      ['a3', 0, 4],
+      ['c4', 4, 1.75],
+      ['e4', 10, 2.25],
+    ])
   })
 })

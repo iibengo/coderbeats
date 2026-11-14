@@ -7,6 +7,7 @@
  * `.nudge()` no vale para sintes) y solo se corrige el registro.
  */
 import { isMidi, MIDI_MAX, MIDI_MIN, REGISTER, type MelodyHit, type MelodySynth } from './melody'
+import { applyLegato } from './melodyVariants'
 import { STYLE_MUSIC } from './styles'
 import type { StyleId } from './types'
 
@@ -224,6 +225,8 @@ export interface PhraseMelodyOptions extends AssistOptions {
   globalStep: (t: number) => number
   /** latencia de entrada (s): se resta al inicio de cada nota, como en la batería */
   latencySec: number
+  /** legato: se rellenan los huecos de hasta tantos pasos entre una nota y la siguiente (sin esto, como antes) */
+  legatoGap?: number
 }
 
 /**
@@ -241,5 +244,6 @@ export function melodyOfPhrase(notes: readonly HeardNote[], o: PhraseMelodyOptio
       strength: Math.min(1, n.rms * 20),
     }))
     .filter((n) => n.step >= lo && n.step < hi)
-  return { raw, hits: assistMelody(raw, o) }
+  const hits = assistMelody(raw, o)
+  return { raw, hits: o.legatoGap ? applyLegato(hits, o.legatoGap) : hits }
 }

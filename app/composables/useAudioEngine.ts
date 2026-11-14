@@ -814,6 +814,10 @@ interface WorkerNote {
   midi: number
   rms: number
 }
+/** Rejilla de la duración de las notas de la voz (pasos): un cuarto de paso, cerca de lo cantado (spec 002, §17). */
+const MELODY_DUR_GRID = 0.25
+/** Legato: se rellenan los huecos de hasta 2 pasos entre una nota y la siguiente (spec 002, §17). */
+const MELODY_LEGATO_GAP = 2
 let notesSeq = 0
 /** altura de la voz ahora, para el punto en vivo del aro; fuera de la reactividad (se lee en cada frame) */
 let livePitchState: { midi: number | null; at: number } = { midi: null, at: 0 }
@@ -856,6 +860,9 @@ function finishPhrase(closed: ClosedPhrase, bornAt: number, amend = false) {
       stepSeconds: stepSeconds(),
       globalStep: (t) => t0.globalStep(t),
       latencySec,
+      // el sonido de la melodía (spec 002, §17): la duración real de cada nota y legato en los huecos pequeños
+      durGrid: MELODY_DUR_GRID,
+      legatoGap: MELODY_LEGATO_GAP,
     })
     log('melody', `${raw.length} nota${raw.length === 1 ? '' : 's'} de la voz → ${melody.length} tras ${assist.value ? 'la ayuda' : 'el registro (sin ayuda)'}`)
     birth({ ...closed, melody }, bornAt, amend)
