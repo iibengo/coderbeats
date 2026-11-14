@@ -2,6 +2,7 @@ import { computed, reactive, ref, shallowRef } from 'vue'
 import { NO_PARTS, PART_ORBIT, planTransitions, targetParts, type BackgroundMode, type Part, type Parts } from '~/lib/background'
 import { KIT_ORDER, KITS, STYLES } from '~/lib/constants'
 import { MELODY_DECISION_SEC } from '~/lib/liveMelody'
+import type { MelodySynth } from '~/lib/melody'
 import { melodyOfPhrase } from '~/lib/melodyAssist'
 import { midiName } from '~/lib/noteScore'
 import { STYLE_MUSIC } from '~/lib/styles'
@@ -1507,6 +1508,31 @@ export function useAudioEngine() {
     return melodyActive.value && playing.value && performance.now() - livePitchState.at < 200 ? livePitchState.midi : null
   }
 
+  /**
+   * Un tono corto de prueba para el órgano de la melodía (spec 002, F2): suena al poner o mover una nota, con un timbre
+   * parecido al del sinte. No pasa por Strudel (es solo para oír qué nota se toca).
+   */
+  function previewNote(midi: number, synth: MelodySynth = STYLE_MUSIC[style.value].synth) {
+    const c = ctx
+    if (!c || c.state !== 'running') return
+    const t = c.currentTime
+    const wave = { piano: 'triangle', lead: 'square', pad: 'sawtooth', drone: 'sine' }[synth] as OscillatorType
+    const osc = c.createOscillator()
+    const lp = c.createBiquadFilter()
+    const g = c.createGain()
+    osc.type = wave
+    osc.frequency.value = 440 * 2 ** ((midi - 69) / 12)
+    lp.type = 'lowpass'
+    lp.frequency.value = synth === 'lead' ? 1800 : 2600
+    const peak = 0.16
+    g.gain.setValueAtTime(0, t)
+    g.gain.linearRampToValueAtTime(peak, t + (synth === 'pad' ? 0.06 : 0.008))
+    g.gain.exponentialRampToValueAtTime(0.0008, t + 0.42)
+    osc.connect(lp).connect(g).connect(c.destination)
+    osc.start(t)
+    osc.stop(t + 0.45)
+  }
+
   /** Solo desarrollo (dev/lab-aro): simula la altura de la voz para ver el punto en vivo sin micro. */
   function simulateLivePitch(midi: number | null) {
     livePitchState = { midi, at: performance.now() }
@@ -1979,6 +2005,7 @@ export function useAudioEngine() {
   const displayCode = () => songCode(songState(true), 'display')
 
   return {
+    previewNote,
     simulateLivePitch,
     livePitch,
     melodyActive,

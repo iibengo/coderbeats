@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { emptyLoops, type FreeLoop, type LoopsState } from '../../app/lib/freeLoops'
-import { addMelNote, melLoopOf, moveMelNote, resizeMelNote, setMelBars, snapMelMidi, snapMelStep, type MelEditOptions } from '../../app/lib/melodyEdit'
+import { addMelNote, gForBar, melLoopOf, moveMelNote, resizeMelNote, setMelBars, snapMelMidi, snapMelStep, type MelEditOptions } from '../../app/lib/melodyEdit'
 import { fitToScale, fracToMidi, isTonic, midiToFrac, nearestScaleNote, rangeOf, rowOf, scaleNotes } from '../../app/lib/melodyView'
 import { removeHit } from '../../app/lib/loopEdit'
 import { STYLE_MUSIC } from '../../app/lib/styles'
@@ -81,6 +81,17 @@ describe('crear notas', () => {
     expect(snapMelMidi(61.2, A)).toBe(62)
     expect(snapMelMidi(61.2, N)).toBe(61)
     expect(snapMelMidi(500, N)).toBe(96)
+  })
+})
+
+describe('gForBar (el órgano pide un compás del loop)', () => {
+  it('el compás g que hace sonar el compás b del loop, con y sin fase', () => {
+    const l = mel([[0, 2, 57]], { bars: 4, phaseBar: 3 })
+    expect(gForBar(l, 0)).toBe(3)
+    expect(gForBar(undefined, 2)).toBe(2)
+    // y añadir una nota en el compás 2 del loop cae en su posición 32 + paso
+    const r = addMelNote(st(l), 5, 60, gForBar(l, 2), A)!
+    expect(r.hit.pos).toBe(37)
   })
 })
 

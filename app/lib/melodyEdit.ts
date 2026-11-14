@@ -24,6 +24,9 @@ const mod = (a: number, n: number) => ((a % n) + n) % n
 const round2 = (x: number) => Math.round(x * 100) / 100
 const grid = (o: MelEditOptions) => (o.assist ? 1 : FINE_GRID)
 
+/** El compás global `g` que hace sonar el compás `bar` del loop (0..bars−1): lo que piden las funciones de edición. */
+export const gForBar = (loop: Pick<FreeLoop, 'phaseBar'> | undefined, bar: number): number => (loop?.phaseBar ?? 0) + bar
+
 /** El loop de melodía de la célula (el más reciente). */
 export const melLoopOf = (s: LoopsState): FreeLoop | undefined =>
   s.loops.filter((l) => l.instrument === 'mel').sort((a, b) => b.bornAt - a.bornAt || b.id - a.id)[0]

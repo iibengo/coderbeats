@@ -71,6 +71,7 @@ import type { LoopInstrument } from '~/lib/freeLoops'
 import { DEFAULT_THEME, themeById } from '~/themes'
 import type { VisualTheme } from '~/themes/types'
 import { AroCanvas, type AroDot, type AroFrame } from './AroCanvas'
+import MelodyOrgan from './MelodyOrgan.vue'
 
 const props = withDefaults(defineProps<{ themeId?: string }>(), { themeId: DEFAULT_THEME })
 const engine = useAudioEngine()
@@ -1244,9 +1245,17 @@ function melGhost(): { step: number; frac: number } | null {
   return { step: snapMelStep(w.step, o), frac: midiToFrac(snapMelMidi(fracToMidi(frac, range), o), range) }
 }
 
+/** El órgano de la melodía (spec 002, F2): se abre a pantalla completa desde el punto donde se tocó su franja. */
+const organ = ref<{ x: number; y: number } | null>(null)
+
 /** Tocar una franja vacía de batería: crea un golpe ahí, ya imantado. */
 function tapCreate(x: number, y: number) {
   if (!aro) return
+  // tocar la franja de la melodía la abre como un órgano (spec 002, F2)
+  if (aro.where(x, y).voice === 'mel' && !aro.pickSuggestion(x, y)) {
+    organ.value = { x, y }
+    return
+  }
   // tocar una sugerencia del estilo pone ese golpe, en su paso exacto (E3.3)
   const sug = aro.pickSuggestion(x, y)
   const w = aro.where(x, y)
@@ -1696,7 +1705,7 @@ const layoutInfo = () => {
     }),
   ].join(' · ')
 }
-defineExpose({ rendererName, layoutInfo, debugDots: () => aro?.debugDots() ?? [], aroWhere: (x: number, y: number) => aro?.where(x, y) })
+defineExpose({ openOrgan: (x: number, y: number) => (organ.value = { x, y }), organOpen: () => !!organ.value, rendererName, layoutInfo, debugDots: () => aro?.debugDots() ?? [], aroWhere: (x: number, y: number) => aro?.where(x, y) })
 </script>
 
 <template>
@@ -1836,6 +1845,7 @@ defineExpose({ rendererName, layoutInfo, debugDots: () => aro?.debugDots() ?? []
     </button>
 
     <slot />
+    <MelodyOrgan v-if="organ" :origin="organ" @close="organ = null" />
   </div>
 </template>
 
