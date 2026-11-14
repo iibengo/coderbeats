@@ -40,6 +40,8 @@ export type FromWorker =
   | { type: 'ignored'; time: number; instrument: Instrument; confidence: number; vol: number | null }
   /** una nota de la voz acaba de nacer (spec 002): `time` es su inicio */
   | { type: 'melodic'; time: number; midi: number }
+  /** la altura de la voz ahora (~30 por segundo, solo con melodía): `midi: null` si no hay voz */
+  | { type: 'pitch'; time: number; midi: number | null }
   /** un golpe que cayó dentro de una nota: es melodía, no batería (no se manda como golpe) */
   | { type: 'absorbed'; time: number }
   | { type: 'notes'; id: number; notes: { start: number; end: number; midi: number; rms: number }[] }

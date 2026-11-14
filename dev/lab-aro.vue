@@ -21,6 +21,17 @@ onMounted(() => {
   const song: Song = { ...s, cells: [{ ...s.cells[0]!, loops, parts: { bass: false, chords: false } }], nextLoopId: 10 }
   engine.setSong(song)
   engine.setMelody(true)
+  // ?live=60.2 simula tu voz a esa altura (MIDI) con el aro "sonando" (sin audio: solo para ver el dibujo)
+  if (query.live !== undefined) {
+    engine.playing.value = true
+    const t0 = performance.now()
+    setInterval(() => {
+      const base = Number(query.live)
+      // sube y baja entre notas de la escala para ver el destello al encajar
+      const m = query.wobble ? base + 3 * Math.sin((performance.now() - t0) / 700) : base
+      engine.simulateLivePitch(m)
+    }, 60)
+  }
 })
 </script>
 

@@ -31,6 +31,31 @@ function run(x: Float32Array, onsets: number[] = [], offsetFrames = 0) {
   return { lm, born, decisions }
 }
 
+describe('LiveMelody.lastPitch (punto en vivo)', () => {
+  const feed = (x: Float32Array, upTo: number) => {
+    const lm = new LiveMelody(SR)
+    for (let i = 0; i < Math.min(x.length, Math.round(upTo * SR)); i += CHUNK) lm.push(i, x.subarray(i, Math.min(x.length, i + CHUNK)))
+    return lm
+  }
+  const x = voice(SR, [{ silence: 0.5 }, { midi: 60, sec: 0.8 }, { midi: 64.4, sec: 0.8 }, { silence: 0.6 }])
+
+  it('sin audio o en silencio no hay voz', () => {
+    expect(new LiveMelody(SR).lastPitch().midi).toBeNull()
+    expect(feed(x, 0.4).lastPitch().midi).toBeNull()
+  })
+  it('cantando da la altura (decimal) de lo que suena ahora', () => {
+    expect(feed(x, 1.0).lastPitch().midi).toBeCloseTo(60, 0)
+    expect(feed(x, 1.8).lastPitch().midi).toBeCloseTo(64.4, 0)
+  })
+  it('al dejar de cantar vuelve a null', () => {
+    expect(feed(x, 2.6).lastPitch().midi).toBeNull()
+  })
+  it('un tono flojo (por debajo del volumen mínimo) no cuenta', () => {
+    const quiet = voice(SR, [{ midi: 60, sec: 1 }], { peakDb: -62 })
+    expect(feed(quiet, 0.9).lastPitch().midi).toBeNull()
+  })
+})
+
 describe('LiveMelody (sintético)', () => {
   it('una nota cantada se avisa unos 0,1 s después de empezar, con su altura', () => {
     const x = voice(SR, [{ silence: 0.5 }, { midi: 60, sec: 0.8 }, { silence: 0.5 }])

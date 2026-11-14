@@ -814,6 +814,8 @@ interface WorkerNote {
   rms: number
 }
 let notesSeq = 0
+/** altura de la voz ahora, para el punto en vivo del aro; fuera de la reactividad (se lee en cada frame) */
+let livePitchState: { midi: number | null; at: number } = { midi: null, at: 0 }
 const pendingNotes = new Map<number, (n: WorkerNote[]) => void>()
 
 /** Pide al worker las notas de la voz entre dos tiempos de contexto; si no contesta en 0,5 s, ninguna. */
@@ -915,6 +917,10 @@ function birth(phrase: ClosedPhrase, bornAt: number, amend = false) {
 function onWorkerMessage(m: FromWorker) {
   const c = ctx
   if (!c) return
+  if (m.type === 'pitch') {
+    livePitchState = { midi: m.midi, at: performance.now() }
+    return
+  }
   if (m.type === 'notes') {
     pendingNotes.get(m.id)?.(m.notes)
     pendingNotes.delete(m.id)
@@ -1496,6 +1502,16 @@ export function useAudioEngine() {
   }
 
   /** Enciende o apaga un carril de grabación (mantener un hueco de su franja, E4.1). */
+  /** La altura de la voz ahora (MIDI decimal) si hay voz y el dato es reciente; si no, null. */
+  function livePitch(): number | null {
+    return melodyActive.value && playing.value && performance.now() - livePitchState.at < 200 ? livePitchState.midi : null
+  }
+
+  /** Solo desarrollo (dev/lab-aro): simula la altura de la voz para ver el punto en vivo sin micro. */
+  function simulateLivePitch(midi: number | null) {
+    livePitchState = { midi, at: performance.now() }
+  }
+
   /** Enciende o apaga la melodía con la voz (⋯). En marcha, se aplica al momento. */
   function setMelody(on: boolean) {
     melodyOn.value = on
@@ -1963,6 +1979,9 @@ export function useAudioEngine() {
   const displayCode = () => songCode(songState(true), 'display')
 
   return {
+    simulateLivePitch,
+    livePitch,
+    melodyActive,
     melodyOn,
     melodyBlocked,
     setMelody,

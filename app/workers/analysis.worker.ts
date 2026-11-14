@@ -27,6 +27,8 @@ let queue: StreamOnset[] = []
 /** melodía con la voz (spec 002): altura en continuo y notas; null = apagada */
 let live: LiveMelody | null = null
 let melodyOn = false
+/** último instante (s) en el que se mandó la altura en vivo */
+let lastPitchPost = -Infinity
 
 const post = (m: FromWorker) => self.postMessage(m)
 
@@ -90,6 +92,11 @@ function onChunk(frame: number, data: Float32Array) {
     for (const o of onsets) live.addOnset((firstFrame + o.sample) / sampleRate)
     live.push(frame, data)
     for (const n of live.scan()) post({ type: 'melodic', time: n.start, midi: n.midi })
+    if (live.time - lastPitchPost >= 0.03) {
+      lastPitchPost = live.time
+      const p = live.lastPitch()
+      post({ type: 'pitch', time: p.time, midi: p.midi })
+    }
   }
   processQueue()
 }

@@ -62,7 +62,7 @@ import { allArmed } from '~/lib/lanes'
 import { approachTilt, followBase, parallaxOffset, tiltTarget, toFront, type AroView, type Tilt } from '~/lib/aro/view'
 import { addHit, moveHit, removeHit, type EditOptions } from '~/lib/loopEdit'
 import { STYLE_MUSIC } from '~/lib/styles'
-import { midiToFrac, rangeOf, scaleNotes } from '~/lib/melodyView'
+import { fitToScale, midiToFrac, rangeOf, scaleNotes } from '~/lib/melodyView'
 import { VOICE_HEX, type Voice } from '~/lib/palette'
 import { INSTRUMENTS } from '~/lib/constants'
 import type { Instrument } from '~/lib/types'
@@ -260,6 +260,13 @@ const targetWeights = computed<Weights>(() => {
   return { ...allWeights(1), bass: bass ? 1 : 0, mel: mel ? 1 : 0 }
 })
 let weights: Weights = { ...allWeights(1), bass: 0, mel: 0 }
+/** el punto de tu voz en vivo: su altura en el registro y si encaja en la escala (spec 002, F2) */
+function liveDot(): { frac: number; fit: boolean } | null {
+  const midi = engine.livePitch()
+  if (midi === null) return null
+  const range = rangeOf(loops.value.loops.find((l) => l.instrument === 'mel')?.synth ?? STYLE_MUSIC[style.value].synth)
+  return { frac: midiToFrac(midi, range), fit: fitToScale(midi, style.value).fit }
+}
 /** guías de la franja de la melodía: las notas de la escala del estilo en el registro de su sinte */
 const melGuides = computed(() => {
   const range = rangeOf(loops.value.loops.find((l) => l.instrument === 'mel')?.synth ?? STYLE_MUSIC[style.value].synth)
@@ -927,6 +934,7 @@ function tick() {
       playing: playing.value,
       phase: clock.barPhase,
       dots: ringDots.value,
+      live: liveDot(),
       melGuides: melGuides.value,
       phraseDots: phraseDots.value,
       highlight: highlight.value,

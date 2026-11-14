@@ -135,6 +135,8 @@ export interface AroFrame {
   guide: GuideOptions
   /** sugerencias del estilo en las franjas de batería vacías */
   suggestions: GuideSpot[]
+  /** punto de altura en vivo (spec 002, F2): su posición 0..1 en la franja y si encaja en la escala; null = sin voz */
+  live?: { frac: number; fit: boolean } | null
   /** franja de la melodía: posiciones 0..1 de las notas de la escala del estilo (guías muy tenues) */
   melGuides?: number[]
   /** carriles que graban si no son todos (E4.3); null = todos (lo normal: nada que marcar) */
@@ -174,6 +176,8 @@ export interface AroFrame {
 
 /** margen (fracción de la franja) que la melodía deja arriba y abajo para que sus notas no toquen el borde */
 const MEL_MARGIN = 0.1
+/** duración del destello al encajar en la escala (s) */
+const LIVE_FLASH_S = 0.35
 /** radio del punto en reposo por voz (px) */
 const DOT_R: Record<Voice, number> = { bd: 5, bass: 4, sd: 4.5, mel: 3.6, hh: 4 }
 /** duración del encendido al sonar (s) */
@@ -248,6 +252,8 @@ export class AroCanvas {
   private spawns = new Map<string, number>()
   private pops: { x: number; y: number; voice: Voice; born: number }[] = []
   private lastNow = 0
+  /** punto de altura en vivo: posición suavizada, opacidad, estela y último destello */
+  private liveS = { frac: 0.5, alpha: 0, fit: false, flash: -1e9, trail: [] as { th: number; u: number; t: number }[] }
   /** vista del último frame: los toques (pantalla) se traducen a la posición de frente */
   private view: AroView = FRONT
   private stepSec = 0.17
@@ -484,6 +490,82 @@ export class AroCanvas {
   }
 
   /** La otra gota de una transición: franjas, golpes y centro, sin aguja ni nada que se toque. */
+  /**
+   * El punto de tu voz en vivo (spec 002, F2): en la franja de la melodía, en el ángulo de la aguja, a la altura de lo
+   * que cantas, con una estela corta que dibuja el contorno. Al encajar en una nota de la escala (±0,3 semitonos) da un
+   * destello: un anillo que se abre y el punto un poco mayor. Con movimiento reducido, solo el punto y su color.
+   */
+  private drawLive(f: AroFrame, layout: Layout, head: number, now: number, frames: number) {
+    const S = this.liveS
+    const x = this.ctx
+    const target = f.live && f.playing && f.weights.mel >= 0.3 ? f.live : null
+    const k = 1 - Math.pow(1 - (f.reduced ? 1 : 0.35), frames)
+    if (target) {
+      S.frac += (target.frac - S.frac) * k
+      S.alpha += (1 - S.alpha) * Math.min(1, 0.5 * frames)
+      if (target.fit && !S.fit) S.flash = now
+      S.fit = target.fit
+    } else {
+      S.alpha *= Math.pow(0.82, frames)
+      S.fit = false
+    }
+    if (S.alpha < 0.02) {
+      S.trail.length = 0
+      return
+    }
+    const { a, b } = layout.mel
+    const u = a + (b - a) * (MEL_MARGIN + (1 - 2 * MEL_MARGIN) * S.frac)
+    if (target && !f.reduced) {
+      S.trail.push({ th: head, u, t: now })
+      while (S.trail.length && now - S.trail[0]!.t > 0.5) S.trail.shift()
+    }
+    const col = VOICE_RGB_CSS.mel
+    // estela: segmentos que se apagan
+    if (!f.reduced) {
+      for (let i = 1; i < S.trail.length; i++) {
+        const p = S.trail[i - 1]!
+        const q = S.trail[i]!
+        const dth = ((q.th - p.th + Math.PI * 3) % TAU) - Math.PI
+        if (Math.abs(dth) > 0.6) continue // la aguja dio la vuelta
+        x.strokeStyle = `rgba(${col},${(1 - (now - q.t) / 0.5) * 0.5 * S.alpha})`
+        x.lineWidth = 1.6
+        x.beginPath()
+        const [x0, y0] = this.at(p.th, p.u)
+        const [x1, y1] = this.at(q.th, q.u)
+        x.moveTo(x0, y0)
+        x.lineTo(x1, y1)
+        x.stroke()
+      }
+    }
+    const [px, py] = this.at(head, u)
+    const since = now - S.flash
+    const fl = !f.reduced && since >= 0 && since < LIVE_FLASH_S ? since / LIVE_FLASH_S : -1
+    if (fl >= 0) {
+      x.strokeStyle = `rgba(${col},${(1 - fl) * 0.8 * S.alpha})`
+      x.lineWidth = 1.5
+      x.beginPath()
+      x.arc(px, py, 5 + fl * 16, 0, TAU)
+      x.stroke()
+    }
+    const r = (S.fit ? 5.2 : 4) + (fl >= 0 ? (1 - fl) * 2 : 0)
+    // halo suave y punto; encajado, más brillante y con un aro fino
+    x.fillStyle = `rgba(${col},${0.12 * S.alpha})`
+    x.beginPath()
+    x.arc(px, py, r + 5, 0, TAU)
+    x.fill()
+    x.fillStyle = `rgba(${col},${(S.fit ? 1 : 0.7) * S.alpha})`
+    x.beginPath()
+    x.arc(px, py, r, 0, TAU)
+    x.fill()
+    if (S.fit) {
+      x.strokeStyle = `rgba(${col},${0.6 * S.alpha})`
+      x.lineWidth = 1
+      x.beginPath()
+      x.arc(px, py, r + 3, 0, TAU)
+      x.stroke()
+    }
+  }
+
   private drawGhost(g: AroGhost, f: AroFrame, level: 0 | 1 | 2 = 0) {
     const x = this.ctx
     const { geo } = g
@@ -1032,6 +1114,9 @@ export class AroCanvas {
         x.stroke()
       }
     }
+
+    // punto de altura en vivo: sube y baja en la franja de la melodía, por donde pasa la aguja
+    this.drawLive(f, layout, head, now, frames)
 
     // golpes: puntos; el bajo, rayita con el arco de su duración
     let dragged: { d: AroDot; px: number; py: number; r: number } | null = null

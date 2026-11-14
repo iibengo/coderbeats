@@ -109,6 +109,21 @@ export class LiveMelody {
     this.announced = this.announced.filter((t) => t >= cut)
   }
 
+  /**
+   * La altura de la voz ahora (para el punto en vivo): la mediana de los últimos 3 frames con voz, o `midi: null` si
+   * el último no tiene voz (probabilidad o volumen bajos). `time` es el instante del último frame.
+   */
+  lastPitch(minRms = 0.004): { time: number; midi: number | null } {
+    const n = this.times.length
+    if (!n) return { time: 0, midi: null }
+    const voiced = (i: number) => this.prob[i]! >= 0.6 && this.rms[i]! >= minRms && !Number.isNaN(this.midi[i]!)
+    if (!voiced(n - 1)) return { time: this.times[n - 1]!, midi: null }
+    const v: number[] = []
+    for (let i = Math.max(0, n - 3); i < n; i++) if (voiced(i)) v.push(this.midi[i]!)
+    v.sort((a, b) => a - b)
+    return { time: this.times[n - 1]!, midi: v[v.length >> 1]! }
+  }
+
   /** Un onset de energía (s): ayuda a separar notas repetidas y da su inicio. */
   addOnset(time: number): void {
     this.onsets.push(time)
