@@ -32,6 +32,13 @@ export interface Cell {
    * menos valores que vueltas, vale el último. Sin él, el filtro de siempre.
    */
   lpf?: number[]
+  /**
+   * Grupos en paralelo que esta célula de la canción **enciende** al empezar (ids de grupo; spec 005, §22): siempre desde su
+   * primera célula, en esa línea de compás. Solo vale en las células de la canción.
+   */
+  groupOn?: number[]
+  /** Grupos en paralelo que **apaga** al empezar (spec 005, §22). Si un mismo grupo está en las dos, se reinicia. */
+  groupOff?: number[]
   /** posición en el mapa (unidades = radio de una gota) y profundidad 0..1 (0 = delante) */
   at: { x: number; y: number; depth: number }
 }
@@ -242,6 +249,7 @@ const isCell = (x: unknown): x is Cell => {
   const parts = x.parts
   if (!isObj(parts) || typeof parts.bass !== 'boolean' || typeof parts.chords !== 'boolean') return false
   if (x.lpf !== undefined && !isLpf(x.lpf)) return false
+  if ((x.groupOn !== undefined && !isGroupIds(x.groupOn)) || (x.groupOff !== undefined && !isGroupIds(x.groupOff))) return false
   const at = x.at
   if (!isObj(at) || !isNum(at.x) || !isNum(at.y) || !isNum(at.depth)) return false
   return Array.isArray(x.loops) && x.loops.every(isFreeLoop)
@@ -249,6 +257,9 @@ const isCell = (x: unknown): x is Cell => {
 
 /** Filtro por vuelta: de 1 a 32 números finitos entre 60 y 20 000 Hz. */
 const isLpf = (v: unknown): boolean => Array.isArray(v) && v.length >= 1 && v.length <= 32 && v.every((n) => isNum(n) && n >= 60 && n <= 20000)
+
+/** Ids de grupo de los disparadores: de 1 a 16 enteros mayores que 0 (el 0 es la canción). */
+const isGroupIds = (v: unknown): boolean => Array.isArray(v) && v.length >= 1 && v.length <= 16 && v.every((n) => Number.isInteger(n) && n >= 1)
 
 const isIdList = (v: unknown): boolean => Array.isArray(v) && v.every(isNum)
 
@@ -457,8 +468,39 @@ export function withGroupOn(song: Song, gid: number, on: boolean): Song | null {
 const withOrder = (song: Song, gid: number, order: number[]): Song =>
   gid === MAIN ? { ...song, order } : { ...song, groups: song.groups.map((g) => (g.id === gid ? { ...g, order } : g)) }
 
-/** Quita los grupos en paralelo que se han quedado sin células. */
-const dropEmpty = (song: Song): Song => ({ ...song, groups: song.groups.filter((g) => g.order.length > 0) })
+/**
+ * Quita de los disparadores (`groupOn`, `groupOff`) los grupos que ya no existen; si una lista se queda vacía, desaparece.
+ * Así un grupo borrado no deja disparadores colgando.
+ */
+export function withoutDeadTriggers(cells: Cell[], groups: readonly Pick<Group, 'id'>[]): Cell[] {
+  const alive = new Set(groups.map((g) => g.id))
+  return cells.map((c) => {
+    if (!c.groupOn && !c.groupOff) return c
+    const { groupOn, groupOff, ...rest } = c
+    const on = groupOn?.filter((id) => alive.has(id)) ?? []
+    const off = groupOff?.filter((id) => alive.has(id)) ?? []
+    return { ...rest, ...(on.length ? { groupOn: on } : {}), ...(off.length ? { groupOff: off } : {}) }
+  })
+}
+
+/** Quita los grupos en paralelo que se han quedado sin células (y los disparadores que los apuntaban). */
+const dropEmpty = (song: Song): Song => {
+  const groups = song.groups.filter((g) => g.order.length > 0)
+  return { ...song, groups, cells: withoutDeadTriggers(song.cells, groups) }
+}
+
+/**
+ * Qué grupos enciende y apaga la célula `cellId` al empezar (spec 005, §22). Solo cuentan las células de la canción y
+ * los grupos que existen y no son la canción. Un grupo en las dos listas se enciende (se reinicia), no se apaga.
+ */
+export function groupTriggers(song: Pick<Song, 'cells' | 'order' | 'groups'>, cellId: number): { on: number[]; off: number[] } {
+  const cell = song.cells.find((c) => c.id === cellId)
+  if (!cell || !song.order.includes(cellId)) return { on: [], off: [] }
+  const alive = new Set(song.groups.map((g) => g.id))
+  const on = [...new Set(cell.groupOn ?? [])].filter((id) => alive.has(id))
+  const off = [...new Set(cell.groupOff ?? [])].filter((id) => alive.has(id) && !on.includes(id))
+  return { on, off }
+}
 
 // ── crear y borrar células (spec 005, §7.1, fase 3.2) ─────────────────────────────
 /** profundidad de la célula nueva: la curva de la demo, para que no queden todas a la misma */
@@ -648,5 +690,5 @@ export function normalizeSong(raw: Song): Song {
     groups.push({ id: gid, order: [c.id], on: l?.free === true && l.on === true })
   }
   const maxId = Math.max(0, ...groups.map((g) => g.id))
-  return { ...raw, cells, order, groups, nextGroupId: Math.max(nextId, maxId + 1) }
+  return { ...raw, cells: withoutDeadTriggers(cells, groups), order, groups, nextGroupId: Math.max(nextId, maxId + 1) }
 }
