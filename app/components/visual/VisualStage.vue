@@ -758,6 +758,19 @@ function updateMarkers(base: DropGeo, cam: { x: number; y: number }, nextId: num
 
 // ── bucle rAF ────────────────────────────────────────────────────────────────────
 let raf = 0
+/**
+ * Reposo (auditoría M1): sin sonar y sin que nadie toque nada ni cambie nada durante unos segundos, se dibuja
+ * a ~20 fps en vez de a 60 (menos batería). Cualquier toque, tecla, rueda, cambio de la canción o de lo que
+ * suena lo despierta al instante.
+ */
+const IDLE_AFTER_MS = 3000
+const IDLE_FRAME_MS = 40
+let lastActivity = performance.now()
+let lastFrameAt = 0
+const wake = () => (lastActivity = performance.now())
+const WAKE_EVENTS = ['pointerdown', 'pointermove', 'wheel', 'keydown', 'touchstart'] as const
+watch([playing, engine.song, loops, bgParts, bgMode, style, engine.viewCellId, looping], wake)
+watch(fx, wake, { deep: true })
 let lastBeat = -1
 let lastT = 0
 const frameMs: number[] = []
@@ -781,6 +794,10 @@ const pulseScale = (el: HTMLElement, nowMs: number): number =>
 
 function tick() {
   raf = requestAnimationFrame(tick)
+  const frameNow = performance.now()
+  // en reposo se salta de cada tres frames dos (el navegador sigue a 60: el trabajo va a ~20)
+  if (!playing.value && frameNow - lastActivity > IDLE_AFTER_MS && frameNow - lastFrameAt < IDLE_FRAME_MS - 3) return
+  lastFrameAt = frameNow
   const t = performance.now() / 1000
   const dt = lastT ? Math.min(0.05, t - lastT) : 1 / 60
   lastT = t
@@ -969,13 +986,16 @@ onMounted(() => {
   mountTheme()
   offVisual = engine.onVisual(onEngineVisual)
   window.addEventListener('resize', measure)
+  for (const e of WAKE_EVENTS) window.addEventListener(e, wake, { passive: true, capture: true })
   document.addEventListener('gesturestart', noSafariZoom)
+  wake()
   raf = requestAnimationFrame(tick)
 })
 onBeforeUnmount(() => {
   cancelAnimationFrame(raf)
   offVisual?.()
   window.removeEventListener('resize', measure)
+  for (const e of WAKE_EVENTS) window.removeEventListener(e, wake, { capture: true })
   document.removeEventListener('gesturestart', noSafariZoom)
   theme?.dispose()
   document.documentElement.style.overflow = savedOverflow[0]
