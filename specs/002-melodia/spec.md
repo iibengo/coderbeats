@@ -238,7 +238,7 @@ Una línea por loop de voz, en mini-notación con duraciones (`@n` en semicorche
    6. una línea de bajo grave con "dum";
    7. beatbox y "na" mezclados en la misma frase ("bum na ts na");
    8. beatbox solo ("bum pff ts"), para medir falsas melodías;
-   9. **"na" con el fondo sonando por los altavoces (sin cascos)**, para medir la fuga (criterio 9).
+   9. **"na" con el fondo sonando por los altavoces (sin cascos)**, para medir la fuga (criterio 9): 5 s sin cantar (solo el fondo) y luego "na" en la do mi. Todo lo que se detecte en los 5 primeros segundos es fuga.
    Solo las tomas 1, 2, 7 y 8 deciden la fase 1; el resto afina.
 3. **Test de tus tomas** (`tests/unit/voice-fixtures.test.ts`): si existen las tomas locales, mide el % de notas con la **clase de altura correcta** y el **inicio a ≤ 1 celda**. Si no existen, se salta. **Objetivo**: ≥ 90 % con ayuda y ≥ 80 % sin ayuda. Además mide la **confusión melodía ↔ batería** en las tomas 7 y 8. En la fase 0 solo informa; los umbrales de fallo se ponen con tus datos en la fase 1.
 4. **Tests sintéticos** (siempre):

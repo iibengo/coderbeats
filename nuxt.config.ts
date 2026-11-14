@@ -1,4 +1,5 @@
 import { fileURLToPath } from 'node:url'
+import labTake from './dev/labTake'
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
@@ -10,15 +11,21 @@ export default defineNuxtConfig({
   typescript: { strict: true },
 
   // Todo el audio corre en el navegador: la página no se renderiza en el servidor.
-  routeRules: { '/': { ssr: false }, ...(process.env.NODE_ENV === 'production' ? {} : { '/spike': { ssr: false } }) },
+  routeRules: { '/': { ssr: false }, ...(process.env.NODE_ENV === 'production' ? {} : { '/spike': { ssr: false }, '/lab/voz': { ssr: false } }) },
 
-  // /spike (banco de pruebas de Strudel) vive en dev/ y solo existe con `nuxt dev`: no entra en el build
+  // Páginas de desarrollo (en dev/): /spike (banco de pruebas de Strudel) y /lab/voz (laboratorio de voz, spec 002).
+  // Solo existen con `nuxt dev`: no entran en el build.
   hooks: {
     'pages:extend'(pages) {
       if (process.env.NODE_ENV === 'production') return
-      pages.push({ name: 'spike', path: '/spike', file: fileURLToPath(new URL('./dev/spike.vue', import.meta.url)) })
+      const dev = (f: string) => fileURLToPath(new URL(`./dev/${f}`, import.meta.url))
+      pages.push({ name: 'spike', path: '/spike', file: dev('spike.vue') })
+      pages.push({ name: 'lab-voz', path: '/lab/voz', file: dev('lab-voz.vue') })
     },
   },
+
+  // Ruta de desarrollo que guarda las tomas del laboratorio en tests/fixtures/voice/ (solo `nuxt dev`)
+  nitro: process.env.NODE_ENV === 'production' ? {} : { devHandlers: [{ route: '/_lab/take', handler: labTake }] },
 
   app: {
     head: {

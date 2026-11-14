@@ -22,3 +22,36 @@ export function encodeWav(samples: Float32Array, sampleRate: number): ArrayBuffe
   }
   return out
 }
+
+/** Lee un WAV PCM de 16 bits (el que escribe `encodeWav`); si hay varios canales, el primero. Null si no lo entiende. */
+export function decodeWav(buf: ArrayBuffer): { samples: Float32Array; sampleRate: number } | null {
+  if (buf.byteLength < 44) return null
+  const v = new DataView(buf)
+  const tag = (o: number) => String.fromCharCode(v.getUint8(o), v.getUint8(o + 1), v.getUint8(o + 2), v.getUint8(o + 3))
+  if (tag(0) !== 'RIFF' || tag(8) !== 'WAVE') return null
+  let channels = 0
+  let sampleRate = 0
+  let bits = 0
+  let format = 0
+  for (let o = 12; o + 8 <= buf.byteLength; ) {
+    const id = tag(o)
+    const size = v.getUint32(o + 4, true)
+    if (id === 'fmt ') {
+      format = v.getUint16(o + 8, true)
+      channels = v.getUint16(o + 10, true)
+      sampleRate = v.getUint32(o + 12, true)
+      bits = v.getUint16(o + 22, true)
+    } else if (id === 'data') {
+      if (format !== 1 || bits !== 16 || channels < 1 || !sampleRate) return null
+      const frames = Math.floor(Math.min(size, buf.byteLength - o - 8) / (2 * channels))
+      const samples = new Float32Array(frames)
+      for (let i = 0; i < frames; i++) {
+        const s = v.getInt16(o + 8 + i * 2 * channels, true)
+        samples[i] = s < 0 ? s / 0x8000 : s / 0x7fff
+      }
+      return { samples, sampleRate }
+    }
+    o += 8 + size + (size % 2)
+  }
+  return null
+}

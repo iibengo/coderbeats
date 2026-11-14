@@ -2,6 +2,8 @@ import type { Config } from 'tailwindcss'
 import { INK, VOICE_HEX } from './app/lib/palette'
 
 export default {
+  // las páginas de desarrollo (dev/: /lab/voz, /spike) también usan clases; en producción no se escanean
+  ...(process.env.NODE_ENV === 'production' ? {} : { content: ['./dev/**/*.vue'] }),
   theme: {
     extend: {
       colors: {
