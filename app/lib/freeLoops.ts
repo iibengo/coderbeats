@@ -1,4 +1,5 @@
 import { assistQuantize, laneGrid } from './assist'
+import { mergeMelody, type MelodyHit } from './melody'
 import type { ClosedPhrase, LoopLength } from './phrases'
 import type { Instrument, StyleId } from './types'
 
@@ -103,7 +104,7 @@ const plainHits = (hits: CandidateHit[]): LoopHit[] => hits.map(({ alt: _alt, ..
 export function candidatesFromPhrase(phrase: ClosedPhrase, o: BirthOptions): Candidate[] {
   const total = phrase.bars * 16
   const byInst = new Map<Instrument, ClosedPhrase['hits']>()
-  for (const h of phrase.hits) byInst.set(h.instrument, [...(byInst.get(h.instrument) ?? []), h])
+  for (const h of phrase.hits) if (h.instrument !== 'mel') byInst.set(h.instrument, [...(byInst.get(h.instrument) ?? []), h])
   const out: Candidate[] = []
   for (const [instrument, hits] of byInst) {
     const base = { instrument, bars: phrase.bars, phaseBar: phrase.startBar - (o.cellStart ?? 0), muted: false, bornAt: o.bornAt }
@@ -136,6 +137,9 @@ export function candidatesFromPhrase(phrase: ClosedPhrase, o: BirthOptions): Can
   }
   return out
 }
+
+const sameMelody = (a: MelodyHit[], b: MelodyHit[]) =>
+  a.length === b.length && a.every((h, i) => Math.abs(h.pos - b[i]!.pos) < 1e-6 && h.midi === b[i]!.midi && Math.abs(h.dur - b[i]!.dur) < 1e-6)
 
 const sameHits = (a: LoopHit[], b: LoopHit[]) => a.length === b.length && a.every((h, i) => Math.abs(h.pos - b[i]!.pos) < 1e-6)
 
@@ -190,7 +194,7 @@ export function addPhrase(state: LoopsState, phrase: ClosedPhrase, o: BirthOptio
 
   // la rejilla de la ayuda se adapta a cada carril (E5.1)
   const fineLanes = new Set<Instrument>()
-  for (const inst of new Set(phrase.hits.map((h) => h.instrument))) {
+  for (const inst of new Set(phrase.hits.map((h) => h.instrument).filter((i): i is Instrument => i !== 'mel'))) {
     const own = o.amend ? loops.find((l) => l.instrument === inst && l.bornAt === o.bornAt) : undefined
     const existing = own ?? newestOf(inst)
     if (existing && laneGrid(o.quantizeEvery, (own?.prev ? { ...own, ...own.prev } : existing).hits) === 1) fineLanes.add(inst)
@@ -239,6 +243,52 @@ export function addPhrase(state: LoopsState, phrase: ClosedPhrase, o: BirthOptio
     const loop: FreeLoop = { ...c, id: nextId++ }
     loops.push(loop)
     events.push({ type: 'born', loop })
+  }
+  // la melodía de la frase (spec 002): un solo loop 'mel' por célula, que sustituye o completa como la batería
+  if (phrase.melody?.length) {
+    const cand = {
+      instrument: 'mel' as const,
+      bars: phrase.bars,
+      phaseBar: phrase.startBar - (o.cellStart ?? 0),
+      muted: false,
+      bornAt: o.bornAt,
+      fromTemplate: false,
+      hits: phrase.melody,
+    }
+    const own = o.amend ? loops.find((l) => l.instrument === 'mel' && l.bornAt === o.bornAt) : undefined
+    const existing = own ?? newestOf('mel')
+    const asMel = (hits: LoopHit[]) => hits as MelodyHit[]
+    if (existing) {
+      let loop: FreeLoop | null = null
+      if (repeat === 'complete') {
+        const base = own?.prev ? { ...own, ...own.prev } : existing
+        const m = mergeMelody({ ...base, hits: asMel(base.hits) }, cand)
+        if (!(own ? sameMelody(m.hits, asMel(own.hits)) : m.added === 0)) {
+          const prev = own ? existing.prev : existing.muted ? undefined : { hits: existing.hits, bars: existing.bars, phaseBar: existing.phaseBar }
+          loop = { ...existing, bars: m.bars, phaseBar: m.phaseBar, hits: m.hits, muted: false, bornAt: o.bornAt, fromTemplate: false, ...(prev ? { prev } : {}) }
+          if (!prev) delete loop.prev
+          events.push({ type: 'completed', loop, added: m.added })
+        }
+      } else {
+        const prev = own ? existing.prev : existing.muted ? undefined : { hits: existing.hits, bars: existing.bars, phaseBar: existing.phaseBar }
+        loop = { ...cand, id: existing.id, muted: own ? existing.muted : false, ...(prev ? { prev } : {}) }
+        events.push({ type: 'replaced', loop })
+      }
+      if (loop) {
+        const done = loop
+        loops = loops.map((l) => (l.id === existing.id ? done : l))
+      }
+    } else {
+      if (loops.length >= MAX_LOOPS) {
+        const byAge = [...loops].sort((a, b) => a.bornAt - b.bornAt || a.id - b.id)
+        const victim = byAge.find((l) => l.muted) ?? byAge[0]!
+        loops = loops.filter((l) => l.id !== victim.id)
+        events.push({ type: 'removed', id: victim.id, reason: 'limit' })
+      }
+      const loop: FreeLoop = { ...cand, id: nextId++ }
+      loops.push(loop)
+      events.push({ type: 'born', loop })
+    }
   }
   return { state: { loops, nextId }, events }
 }

@@ -1,3 +1,4 @@
+import type { MelodyHit } from './melody'
 import type { Instrument } from './types'
 
 export type LoopLength = 1 | 2 | 4
@@ -5,7 +6,8 @@ export type LoopLength = 1 | 2 | 4
 export interface PhraseHit {
   /** tiempo de contexto ya corregido de latencia */
   tCorr: number
-  instrument: Instrument
+  /** `'mel'`: una nota de la melodía con la voz (spec 002); solo cuenta como actividad de la frase */
+  instrument: Instrument | 'mel'
   strength: number
   confidence: number
 }
@@ -29,6 +31,8 @@ export interface ClosedPhrase {
   /** longitud del loop: span redondeado hacia arriba a 1, 2 o 4 (y ≤ maxBars) */
   bars: LoopLength
   hits: (PhraseHit & { globalStep: number })[]
+  /** la melodía ya pasada por la ayuda, si la frase tiene (la rellena el motor al nacer; spec 002, §8) */
+  melody?: MelodyHit[]
 }
 
 /**
@@ -42,7 +46,7 @@ export function expectedCloseBar(startBar: number, lastStep: number, o: PhraseOp
 
 export interface PhraseSnapshot {
   startBar: number
-  hits: { instrument: Instrument; globalStep: number }[]
+  hits: { instrument: Instrument | 'mel'; globalStep: number }[]
   closeBar: number
 }
 

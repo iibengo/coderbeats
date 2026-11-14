@@ -94,3 +94,35 @@ export function melodyMini(hits: readonly MelodyHit[], bars: number, phaseBar: n
   const unique = rot.slice(0, period(rot))
   return unique.length === 1 ? unique[0]! : `<${unique.map((b) => `[${b}]`).join(' ')}>`
 }
+
+/**
+ * Overdub de una melodía ("completa", spec 002, §5): añade las notas de `add` al loop `base`. Monofónica: una nota
+ * nueva solo entra en huecos libres; si empieza dentro de una existente se descarta, y si empieza en un hueco se
+ * recorta contra la siguiente (y contra la línea de compás). Si `add` es más largo, el patrón base se repite.
+ */
+export function mergeMelody(
+  base: { bars: 1 | 2 | 4; phaseBar: number; hits: readonly MelodyHit[] },
+  add: { bars: 1 | 2 | 4; phaseBar: number; hits: readonly MelodyHit[] },
+): { bars: 1 | 2 | 4; phaseBar: number; hits: MelodyHit[]; added: number } {
+  const bars = Math.max(base.bars, add.bars) as 1 | 2 | 4
+  const total = bars * 16
+  const hits: MelodyHit[] = []
+  for (let k = 0; k < bars / base.bars; k++) for (const h of base.hits) hits.push({ ...h, pos: h.pos + k * base.bars * 16 })
+  hits.sort((a, b) => a.pos - b.pos)
+  let added = 0
+  const incoming = add.hits
+    .map((h) => ({ ...h, pos: mod(h.pos + (add.phaseBar - base.phaseBar) * 16, total) }))
+    .sort((a, b) => a.pos - b.pos)
+  for (const h of incoming) {
+    // ¿empieza dentro de una nota que ya suena?
+    if (hits.some((x) => x.pos <= h.pos + 1e-9 && h.pos < x.pos + x.dur - 1e-9)) continue
+    const next = hits.find((x) => x.pos > h.pos)
+    const barEnd = (Math.floor(h.pos / 16 + 1e-9) + 1) * 16
+    const dur = Math.min(h.dur, (next?.pos ?? Infinity) - h.pos, barEnd - h.pos, total - h.pos)
+    if (dur < 0.25 - 1e-9) continue
+    hits.push({ ...h, dur })
+    hits.sort((a, b) => a.pos - b.pos)
+    added++
+  }
+  return { bars, phaseBar: base.phaseBar, hits, added }
+}
