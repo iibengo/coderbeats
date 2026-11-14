@@ -408,6 +408,7 @@ function onPulse(cycle: number, t: number) {
     }
     if (changed) reevaluate()
   }
+  syncRunning()
   later(() => {
     // la vista sigue a la canción, salvo que se esté en una célula de un grupo en paralelo (a menos que se haya viajado a propósito)
     if (entered && (consumed || !viewAway())) showCell(entered.cellId, entered.startBar)
@@ -520,6 +521,13 @@ const groupPlays = new Map<number, GroupPlay>()
 const jumpBarNow = (): number => Math.max(nextBarLine(), lastPulseCycle + 1)
 
 /** Al dar a Play suenan, desde el compás 0 y por su primera célula, los grupos que estaban encendidos. */
+/** Cuántos grupos en paralelo suenan ahora (también los que encendió un disparador y no la marca «encendido»). Para la interfaz. */
+const groupsRunning = ref(0)
+function syncRunning() {
+  const n = [...groupPlays.values()].filter((gp) => isRunning(gp)).length
+  if (n !== groupsRunning.value) groupsRunning.value = n
+}
+
 function startGroupPlays() {
   groupPlays.clear()
   for (const g of liveSong().groups) if (g.on && g.order.length) groupPlays.set(g.id, startGroup(g.order[0]!, 0))
@@ -537,6 +545,7 @@ function applyGroupTriggers(cellId: number, line: number) {
   if (!on.length && !off.length) return
   groupPlays.clear()
   for (const [gid, gp] of next) groupPlays.set(gid, gp)
+  syncRunning()
   log('cell', `«${cell?.name ?? `célula ${cellId}`}» ${on.length ? `enciende el grupo ${on.join(', ')}` : ''}${on.length && off.length ? ' y ' : ''}${off.length ? `apaga el ${off.join(', ')}` : ''} (compás ${line})`)
   reevaluate()
 }
@@ -643,6 +652,7 @@ function stopExtras() {
     const line = jumpBarNow()
     for (const [gid, gp] of groupPlays) groupPlays.set(gid, stopGroup(gp, line))
   }
+  syncRunning()
   log('cell', 'extras apagados')
   reevaluate()
 }
@@ -1250,6 +1260,7 @@ export function useAudioEngine() {
     cursor = null
     sweep = 0
     groupPlays.clear()
+    syncRunning()
     pinned.value = false
     loop = false
     jump = null
@@ -1464,6 +1475,7 @@ export function useAudioEngine() {
     // lo guardado antes de los grupos se migra (una libre → un grupo de una célula; una suelta, uno apagado)
     const next = normalizeSong(withValidBpm(raw))
     groupPlays.clear()
+    syncRunning()
     pinned.value = false
     const first = cellById(next, next.order[0]!)!
     song.value = next
@@ -2149,7 +2161,7 @@ export function useAudioEngine() {
     pinView,
     viewGroup: computed(() => groupIdOf(song.value, viewCellId.value) ?? MAIN),
     viewGroupOn: computed(() => groupOn(song.value, groupIdOf(song.value, viewCellId.value) ?? MAIN)),
-    extrasOn: computed(() => song.value.groups.some((g) => g.on)),
+    extrasOn: computed(() => song.value.groups.some((g) => g.on) || groupsRunning.value > 0),
     groupOf: (id: number): number => groupIdOf(song.value, id) ?? MAIN,
     groupHeads,
     tapGroupCell,

@@ -520,7 +520,9 @@ function cellScene(
   // las sueltas (fuera del orden: sin hilos y sin sonar) se ven tenues en la colonia (enmienda 1, §15.1)
   const orderIds = engine.song.value.order
   // los grupos (§16): la canción y los que suenan a la vez; de cada célula, el suyo
-  const groupList = [{ gid: MAIN, order: orderIds, on: true }, ...engine.song.value.groups.map((g) => ({ gid: g.id, order: g.order, on: g.on }))]
+  // «suena» = encendido con la marca o por el disparador de una célula de la canción (§22)
+  const running = new Set((playing.value ? engine.groupHeads() : []).map((h) => h.gid))
+  const groupList = [{ gid: MAIN, order: orderIds, on: true }, ...engine.song.value.groups.map((g) => ({ gid: g.id, order: g.order, on: g.on || running.has(g.id) }))]
   const groupOfId = new Map<number, (typeof groupList)[number]>()
   for (const g of groupList) for (const cid of g.order) groupOfId.set(cid, g)
   // dónde va cada grupo en paralelo que suena: su célula actual, para su anillo y sus puntitos
