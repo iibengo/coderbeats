@@ -91,9 +91,9 @@ export function isSavedSong(x: unknown): x is SavedSong {
   const fx = o.fx as Record<string, unknown> | null
   return (
     typeof o.style === 'string' &&
-    o.style in STYLES &&
+    Object.hasOwn(STYLES, o.style) &&
     typeof o.kit === 'string' &&
-    o.kit in KITS &&
+    Object.hasOwn(KITS, o.kit) &&
     BG_MODES.includes(o.bgMode as BackgroundMode) &&
     !!fx &&
     typeof fx === 'object' &&

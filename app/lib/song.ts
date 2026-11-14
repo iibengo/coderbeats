@@ -1,4 +1,4 @@
-import { STYLES, KITS } from './constants'
+import { STYLES, KITS, INSTRUMENTS } from './constants'
 import { loopGains, fmtGain } from './mix'
 import { filterDjf, spaceParams, warmthShape } from './gestures'
 import { STYLE_MUSIC } from './styles'
@@ -54,6 +54,13 @@ export type SongMode = 'display' | 'engine'
 export const ENGINE_GLOBAL = '__cb'
 
 const mod = (a: number, n: number) => ((a % n) + n) % n
+/**
+ * Defensa en profundidad (spec 006): todo lo que se escribe en el código que se evalúa pasa por aquí.
+ * Un número que no es finito (p. ej. un string guardado) se queda en 0 en vez de entrar como texto.
+ */
+export const safeNum = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) ? v : 0)
+/** Texto para un comentario `//`: sin saltos de línea ni caracteres de control; solo letras, números y puntuación suave. */
+export const safeLabel = (v: unknown): string => (typeof v === 'string' ? v.replace(/[^\p{L}\p{N} ·_.,'()-]/gu, '').slice(0, 60) : '')
 const round3 = (x: number) => Math.round(x * 1000) / 1000
 const IND = '  '
 
@@ -64,19 +71,22 @@ export function loopTokens(
   loop: Pick<FreeLoop, 'bars' | 'phaseBar' | 'hits' | 'instrument'>,
   stepSeconds: number,
 ): { s: string[]; nudge: string[] | null } {
-  const total = loop.bars * 16
+  const bars = safeNum(loop.bars)
+  const total = bars * 16
   const slots: (string | null)[] = new Array(total).fill(null)
   const nudges: number[] = new Array(total).fill(0)
-  for (const h of loop.hits) {
+  const instrument = INSTRUMENTS.includes(loop.instrument) ? loop.instrument : null
+  for (const h of instrument ? loop.hits : []) {
+    if (!Number.isFinite(h.pos)) continue
     const step = mod(Math.round(h.pos), total)
     if (slots[step] !== null) continue
-    slots[step] = loop.instrument
+    slots[step] = instrument
     nudges[step] = round3((h.pos - Math.round(h.pos)) * stepSeconds)
   }
   // ciclo j de Strudel (j mod bars) ← compás (j − phaseBar) mod bars del loop
   const rot = (arr: string[]) =>
-    Array.from({ length: loop.bars }, (_, j) => {
-      const k = mod(j - loop.phaseBar, loop.bars)
+    Array.from({ length: bars }, (_, j) => {
+      const k = mod(j - safeNum(loop.phaseBar), bars)
       return arr.slice(k * 16, k * 16 + 16)
     }).flat()
   const s = rot(slots.map((x) => x ?? '~'))
@@ -96,7 +106,7 @@ function loopLine(
 ): string {
   const kit = KITS[st.kit]
   const base = version === 'prev' && loop.prev ? { ...loop, ...loop.prev } : loop
-  const src = phaseOffset ? { ...base, phaseBar: base.phaseBar + phaseOffset } : base
+  const src = phaseOffset ? { ...base, phaseBar: safeNum(base.phaseBar) + safeNum(phaseOffset) } : base
   const { s, nudge } = loopTokens(src, stepSeconds)
   let line = `s("${tokensToMini(s)}").bank("${kit.strudelBank}")`
   const n = kit.sampleIndex[loop.instrument]
@@ -105,8 +115,9 @@ function loopLine(
   if (Math.abs(gain - 1) > 0.005) line += `.gain(${fmtGain(gain)})`
   if (loop.instrument === 'bd' && duck) line += DUCK
   if (mode === 'engine') {
-    const cond = version === 'prev' ? `h.whole.begin < ${loop.bornAt}` : `h.whole.begin >= ${loop.bornAt}`
-    line += `.color("l${loop.id}").filterHaps((h) => ${cond})`
+    const born = safeNum(loop.bornAt)
+    const cond = version === 'prev' ? `h.whole.begin < ${born}` : `h.whole.begin >= ${born}`
+    line += `.color("l${safeNum(loop.id)}").filterHaps((h) => ${cond})`
   }
   return loop.muted ? `// ${line}` : line
 }
@@ -149,7 +160,7 @@ function backgroundLines(st: SongState, bass: boolean, chords: boolean, engine: 
   return out
 }
 
-const cellLabel = (c: Pick<Cell, 'id' | 'name'>) => c.name ?? `célula ${c.id}`
+const cellLabel = (c: Pick<Cell, 'id' | 'name'>) => safeLabel(c.name) || `célula ${safeNum(c.id)}`
 
 /**
  * Los grupos de células que suenan en paralelo a la canción (§16): cada uno, su propio `stack` con su fase
@@ -168,8 +179,8 @@ function groupLines(st: SongState, mode: SongMode, duck: boolean, ind: string): 
         if (!cell) continue
         const inner = loopsLines(cell.loops, st, mode, duck, ind + IND, seg.from)
         if (!inner.length) continue
-        const range = seg.to === null ? `h.whole.begin >= ${seg.from}` : `h.whole.begin >= ${seg.from} && h.whole.begin < ${seg.to}`
-        out.push(`${ind}// grupo ${item.id} · ${cellLabel(cell)} · compases ${seg.from}–${seg.to === null ? '…' : seg.to - 1}`)
+        const range = seg.to === null ? `h.whole.begin >= ${safeNum(seg.from)}` : `h.whole.begin >= ${safeNum(seg.from)} && h.whole.begin < ${safeNum(seg.to)}`
+        out.push(`${ind}// grupo ${safeNum(item.id)} · ${cellLabel(cell)} · compases ${safeNum(seg.from)}–${seg.to === null ? '…' : safeNum(seg.to) - 1}`)
         out.push(`${ind}stack(`, ...inner, `${ind}).filterHaps((h) => ${range}),`)
       }
       continue
@@ -179,15 +190,15 @@ function groupLines(st: SongState, mode: SongMode, duck: boolean, ind: string): 
     if (cells.length === 1) {
       const inner = loopsLines(cells[0]!.loops, st, mode, duck, ind + IND, 0)
       if (!inner.length) continue
-      out.push(`${ind}// grupo ${item.id} · ${cellLabel(cells[0]!)}`, `${ind}stack(`, ...inner, `${ind}),`)
+      out.push(`${ind}// grupo ${safeNum(item.id)} · ${cellLabel(cells[0]!)}`, `${ind}stack(`, ...inner, `${ind}),`)
       continue
     }
-    out.push(`${ind}// grupo ${item.id}`, `${ind}arrange(`)
+    out.push(`${ind}// grupo ${safeNum(item.id)}`, `${ind}arrange(`)
     for (const cell of cells) {
       const lines = loopsLines(cell.loops, st, mode, duck, ind + IND + IND, 0)
-      out.push(`${ind}${IND}// ${cellLabel(cell)} · ${cell.turns} vuelta${cell.turns === 1 ? '' : 's'}`)
-      if (!lines.length) out.push(`${ind}${IND}[${cell.turns}, silence],`)
-      else out.push(`${ind}${IND}[${cell.turns}, stack(`, ...lines, `${ind}${IND})],`)
+      out.push(`${ind}${IND}// ${cellLabel(cell)} · ${safeNum(cell.turns)} vuelta${safeNum(cell.turns) === 1 ? '' : 's'}`)
+      if (!lines.length) out.push(`${ind}${IND}[${safeNum(cell.turns)}, silence],`)
+      else out.push(`${ind}${IND}[${safeNum(cell.turns)}, stack(`, ...lines, `${ind}${IND})],`)
     }
     out.push(`${ind}),`)
   }
@@ -202,7 +213,7 @@ export function songCode(st: SongState, mode: SongMode = 'display'): string {
   const music = STYLE_MUSIC[st.style]
   const engine = mode === 'engine'
   const g = ENGINE_GLOBAL
-  const out: string[] = [`setcpm(${st.bpm ?? style.bpm}/4)`, 'stack(']
+  const out: string[] = [`setcpm(${safeNum(st.bpm ?? style.bpm)}/4)`, 'stack(']
 
   const bgOn = st.background.mode !== 'off'
   const showBass = engine ? bgOn : st.background.parts.bass
@@ -224,8 +235,8 @@ export function songCode(st: SongState, mode: SongMode = 'display'): string {
       if (!cell) continue
       const inner = loopsLines(cell.loops, st, mode, duck, IND + IND, seg.from)
       if (!inner.length) continue
-      const range = seg.to === null ? `h.whole.begin >= ${seg.from}` : `h.whole.begin >= ${seg.from} && h.whole.begin < ${seg.to}`
-      out.push(`${IND}// ${cellLabel(cell)} · compases ${seg.from}–${seg.to === null ? '…' : seg.to - 1}`)
+      const range = seg.to === null ? `h.whole.begin >= ${safeNum(seg.from)}` : `h.whole.begin >= ${safeNum(seg.from)} && h.whole.begin < ${safeNum(seg.to)}`
+      out.push(`${IND}// ${cellLabel(cell)} · compases ${safeNum(seg.from)}–${seg.to === null ? '…' : safeNum(seg.to) - 1}`)
       out.push(`${IND}stack(`, ...inner, `${IND}).filterHaps((h) => ${range}),`)
     }
   } else if (st.loops.length) {
@@ -253,7 +264,7 @@ function songArrangeCode(st: SongState): string {
   const music = STYLE_MUSIC[st.style]
   const { list, order } = st.cells!
   const bgOn = st.background.mode !== 'off'
-  const out: string[] = [`setcpm(${st.bpm ?? style.bpm}/4)`, `// ${style.label.toLowerCase()} · ${music.key}`, 'arrange(']
+  const out: string[] = [`setcpm(${safeNum(st.bpm ?? style.bpm)}/4)`, `// ${style.label.toLowerCase()} · ${music.key}`, 'arrange(']
   const ind = IND + IND
   const freeBlock = groupLines(st, 'display', bgOn && list.some((c) => c.parts.bass || c.parts.chords), IND)
   for (const id of order) {
@@ -262,9 +273,9 @@ function songArrangeCode(st: SongState): string {
     const bass = bgOn && cell.parts.bass
     const chords = bgOn && cell.parts.chords
     const lines = [...backgroundLines(st, bass, chords, false, ind), ...loopsLines(cell.loops, st, 'display', bass || chords, ind)]
-    out.push(`${IND}// ${cellLabel(cell)} · ${cell.turns} vuelta${cell.turns === 1 ? '' : 's'}`)
-    if (!lines.length) out.push(`${IND}[${cell.turns}, silence],`)
-    else out.push(`${IND}[${cell.turns}, stack(`, ...lines, `${IND})],`)
+    out.push(`${IND}// ${cellLabel(cell)} · ${safeNum(cell.turns)} vuelta${safeNum(cell.turns) === 1 ? '' : 's'}`)
+    if (!lines.length) out.push(`${IND}[${safeNum(cell.turns)}, silence],`)
+    else out.push(`${IND}[${safeNum(cell.turns)}, stack(`, ...lines, `${IND})],`)
   }
   const djf = filterDjf(st.fx.filter)
   if (freeBlock.length) {

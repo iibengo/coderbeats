@@ -4,6 +4,7 @@ import type { FreeLoop, LoopsState } from './freeLoops'
 import type { LoopLength } from './phrases'
 import type { Instrument, StyleId } from './types'
 import { isValidBpm } from './tempo'
+import { INSTRUMENTS } from './constants'
 
 /**
  * Células (spec 005): cada célula es un aro con sus loops, su bajo y sus acordes. Una canción es
@@ -189,7 +190,6 @@ export function windowAt(song: Song, cursor: Cursor, o: { loop?: boolean; jump?:
 export const songBars = (song: Song): number =>
   song.order.reduce((s, id) => s + (cellById(song, id)?.turns ?? 0), 0)
 
-/** Valida una canción leída del almacenamiento (forma mínima). */
 /**
  * Siguiente número de vueltas al tocar el número de una célula (§7.1): 1 → 2 → 4 → 8 → 1, sin bajar nunca
  * del loop más largo (`minT`): con un loop de 4 compases, solo 4 y 8.
@@ -203,20 +203,56 @@ export function nextTurns(current: Turns, minT: Turns): Turns {
 /** La canción con un tempo válido: un tempo guardado roto se quita (vuelve el del estilo) sin descartar la canción. */
 export const withValidBpm = (s: Song): Song => (s.bpm === null || isValidBpm(s.bpm) ? s : { ...s, bpm: null })
 
+const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)
+const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v)
+const isHit = (h: unknown): boolean => isObj(h) && isNum(h.pos) && isNum(h.strength)
+const isHits = (a: unknown): boolean => Array.isArray(a) && a.every(isHit)
+const isBars = (v: unknown): boolean => v === 1 || v === 2 || v === 4
+
+/**
+ * ¿Es un loop con la forma exacta? Estos campos acaban escritos en el código Strudel que se evalúa, así que
+ * ids y números deben ser números finitos, el instrumento uno de la lista y los compases 1, 2 o 4.
+ */
+export function isFreeLoop(x: unknown): x is FreeLoop {
+  if (!isObj(x)) return false
+  if (!isNum(x.id) || !isNum(x.phaseBar) || !isNum(x.bornAt) || !isBars(x.bars)) return false
+  if (typeof x.instrument !== 'string' || !INSTRUMENTS.includes(x.instrument as Instrument)) return false
+  if (typeof x.muted !== 'boolean' || !isHits(x.hits)) return false
+  const prev = x.prev
+  return prev === undefined || (isObj(prev) && isHits(prev.hits) && isBars(prev.bars) && isNum(prev.phaseBar))
+}
+
+const isCell = (x: unknown): x is Cell => {
+  if (!isObj(x) || !isNum(x.id)) return false
+  if (x.name !== undefined && typeof x.name !== 'string') return false
+  if (!TURNS.includes(x.turns as Turns)) return false
+  const parts = x.parts
+  if (!isObj(parts) || typeof parts.bass !== 'boolean' || typeof parts.chords !== 'boolean') return false
+  const at = x.at
+  if (!isObj(at) || !isNum(at.x) || !isNum(at.y) || !isNum(at.depth)) return false
+  return Array.isArray(x.loops) && x.loops.every(isFreeLoop)
+}
+
+const isIdList = (v: unknown): boolean => Array.isArray(v) && v.every(isNum)
+
+/**
+ * Valida una canción leída del almacenamiento (o, más adelante, de un enlace). Estricta: cada célula y cada
+ * loop con su forma exacta (ver `isFreeLoop`); lo que no valga no se abre, pero tampoco se borra.
+ */
 export function isSong(x: unknown): x is Song {
-  if (!x || typeof x !== 'object') return false
-  const s = x as Song
+  if (!isObj(x)) return false
+  const s = x as unknown as Song
   return (
     s.version === 1 &&
     Array.isArray(s.cells) &&
     s.cells.length > 0 &&
-    Array.isArray(s.order) &&
+    s.cells.every(isCell) &&
+    isIdList(s.order) &&
     s.order.length > 0 &&
     s.order.every((id) => s.cells.some((c) => c.id === id)) &&
-    (s.groups === undefined || Array.isArray(s.groups)) &&
-    s.cells.every((c) => Array.isArray(c.loops) && TURNS.includes(c.turns)) &&
-    typeof s.nextCellId === 'number' &&
-    typeof s.nextLoopId === 'number'
+    (s.groups === undefined || (Array.isArray(s.groups) && s.groups.every((g) => isObj(g) && isIdList(g.order)))) &&
+    isNum(s.nextCellId) &&
+    isNum(s.nextLoopId)
   )
 }
 

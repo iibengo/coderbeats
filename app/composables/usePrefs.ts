@@ -3,6 +3,7 @@ import { isSong, songFromLoops, storableSong } from '~/lib/cells'
 import type { LoopsState } from '~/lib/freeLoops'
 import { restoreImageDelay } from '~/lib/imageDelay'
 import { migrateRepeatMode } from '~/lib/prefsMigration'
+import { isStoredPrefs } from '~/lib/prefsGuard'
 import type { LoopLength } from '~/lib/phrases'
 import type { SongFx } from '~/lib/song'
 import type { KitId, StyleId } from '~/lib/types'
@@ -52,7 +53,7 @@ function write(key: string, value: unknown) {
   }
 }
 
-const isPrefs = (x: unknown): x is StudioPrefs => !!x && typeof x === 'object' && (x as StudioPrefs).version === 1
+const isPrefs = (x: unknown): x is StudioPrefs => isStoredPrefs(x)
 const isLoops = (x: unknown): x is LoopsState =>
   !!x && typeof x === 'object' && Array.isArray((x as LoopsState).loops) && typeof (x as LoopsState).nextId === 'number'
 
