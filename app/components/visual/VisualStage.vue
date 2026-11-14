@@ -527,6 +527,8 @@ function cellScene(
   for (const g of groupList) for (const cid of g.order) groupOfId.set(cid, g)
   // dónde va cada grupo en paralelo que suena: su célula actual, para su anillo y sus puntitos
   const headBy = new Map((playing.value ? engine.groupHeads() : []).map((h) => [h.cellId, h]))
+  // con una célula de un grupo a la vista no hay plan de la canción: su progreso se sigue dibujando en su célula
+  const songHead = playing.value && !plan ? engine.songHead() : null
   const headProgress = (h: { start: number; end: number }, turns: number): number =>
     Number.isFinite(h.end) ? (cellProgress(pos, h.start, h.end) ?? 0) : ((((pos - h.start) % turns) + turns) % turns) / turns
   const here = all.find((c) => c.id === engine.viewCellId.value)
@@ -604,7 +606,9 @@ function cellScene(
           geo: placed.get(c.id)!,
           weights: weightsOf(c),
           dots: crowdDots(c),
-          ...(groupOfId.get(c.id)?.gid !== MAIN && groupOfId.get(c.id)
+          ...(songHead && c.id === songHead.cellId
+            ? { ring: 'on' as const, ringProgress: headProgress(songHead, c.turns) }
+            : groupOfId.get(c.id)?.gid !== MAIN && groupOfId.get(c.id)
             ? groupOfId.get(c.id)!.on
               ? headBy.get(c.id)
                 ? { ring: 'on' as const, ringProgress: headProgress(headBy.get(c.id)!, c.turns) }
@@ -710,6 +714,7 @@ function cellScene(
             const turn = turnIndex(pos, start, n)
             return n > 8 ? { ...base, alpha: 0.7 * k, text: `${turn + 1}/${n}` } : { ...base, alpha: 0.7 * k, dots: { turns: n, turn } }
           }
+          if (songHead && c.id === songHead.cellId) return sounding(songHead.start, c.turns)
           if (live && plan && c.id === plan.cur.id) return looped ? { ...base, text: '∞', alpha: 0.8 * k } : sounding(plan.start, plan.cur.turns)
           const head = headBy.get(c.id)
           if (head && groupOfId.get(c.id)?.gid !== MAIN) return sounding(head.start, c.turns)

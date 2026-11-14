@@ -2042,6 +2042,15 @@ export function useAudioEngine() {
   }
 
   /**
+   * Dónde va la canción (el grupo principal): su célula que suena, desde qué compás y hasta cuál. Sirve para dibujar su
+   * progreso cuando se está mirando otra cosa (una célula de un grupo en paralelo), donde `cellPlan` no vale.
+   */
+  function songHead(): { cellId: number; start: number; end: number } | null {
+    if (!playing.value || !multi() || !cursor) return null
+    return { cellId: cursor.cellId, start: cursor.startBar, end: jump ? jump.startBar : loop ? Infinity : endBar(liveSong(), { cursor, loop, jump }) }
+  }
+
+  /**
    * Dónde va cada grupo en paralelo que suena (para su anillo de progreso y sus puntitos): la célula que suena, desde
    * qué compás y hasta cuál (Infinity si se repite sin fin o se queda en una célula mientras se ve).
    */
@@ -2164,6 +2173,7 @@ export function useAudioEngine() {
     extrasOn: computed(() => song.value.groups.some((g) => g.on) || groupsRunning.value > 0),
     groupOf: (id: number): number => groupIdOf(song.value, id) ?? MAIN,
     groupHeads,
+    songHead,
     tapGroupCell,
     toggleGroup,
     stopExtras,
