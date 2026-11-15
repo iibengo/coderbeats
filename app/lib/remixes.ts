@@ -317,6 +317,25 @@ const ODE_GROUPS: GroupSpec[] = [
   { on: ['Subidón', 'Subidón 2'], off: ['Break', 'Final'], cells: [{ name: 'Himno A agudo', turns: 4, mel: { notes: up(ODE_A, 12), synth: 'lead' } }, { name: 'Himno A2 agudo', turns: 4, mel: { notes: up(ODE_A2, 12), synth: 'lead' } }] },
 ]
 
+
+// ── «Wow»: una pieza original de techno de 60 s (32 compases a 128 bpm): intro, entra, subida, drop y final ────────────────────
+/** el gancho del drop (do menor, 4 compases): la célula do–mi♭–sol, la subida al si♭ y la bajada que cierra */
+const WOW_HOOK: readonly Note[] = [
+  [0, 2, 72], [2, 2, 75], [4, 4, 79], [8, 4, 77], [12, 4, 75],
+  [16, 2, 72], [18, 2, 75], [20, 4, 79], [24, 4, 82], [28, 4, 79],
+  [32, 2, 77], [34, 2, 75], [36, 4, 74], [40, 4, 72], [44, 4, 75],
+  [48, 4, 74], [52, 4, 72], [56, 8, 67],
+]
+/** el impacto grave al caer el drop (`boom`, a la raíz do) */
+const WOW_IMPACT: readonly Note[] = [[0, 16, 36]]
+const WOW: CellSpec[] = [
+  { name: 'Intro', turns: 8, parts: { bass: false, chords: false }, drums: { bd: T.bd4, hh: T.hat }, lpf: [400, 500, 600, 750, 900, 1100, 1300, 1600], text: 'bombo y open hat con el filtro cerrado que se abre despacio' },
+  { name: 'Entra', turns: 8, parts: { bass: true, chords: false }, drums: { bd: T.bd4, sd: MZ_CLAP_FILL, hh: T.hat }, lpf: [1800, 2200, 2700, 3300, 4000, 5000, 6200, 8000], text: '+ bajo y palmada, con un redoble cada 4 compases' },
+  { name: 'Subida', turns: 4, parts: { bass: false, chords: false }, drums: { sd: RISER_ROLL }, extra: [{ notes: RISER_NOISE, synth: 'riser' }, { notes: RISER_PAD, synth: 'pad' }], lpf: [600, 1500, 4000, 12000], text: 'sin bombo: ruido y pad que suben, la caja en roll y el último compás en silencio' },
+  { name: 'Drop', turns: 8, parts: { bass: true, chords: true }, drums: { bd: T.bd4, sd: MZ_CLAP_FILL, hh: T.hats16 }, mel: { notes: WOW_HOOK, synth: 'lead' }, extra: [{ notes: MZ_CRASH, synth: 'crash' }, { notes: WOW_IMPACT, synth: 'boom' }], text: 'todo: bajo, acordes, el gancho, platillo e impacto grave al caer' },
+  { name: 'Final', turns: 4, parts: { bass: false, chords: true }, drums: {}, lpf: [1800, 1100, 650, 350], text: 'solo los acordes, que se apagan' },
+]
+
 export const REMIXES: readonly Remix[] = [
   {
     id: 'oda-alegria-dembow',
@@ -341,6 +360,18 @@ export const REMIXES: readonly Remix[] = [
     key: 'Do menor',
     info: { cells: DIES_TECHNO.map((s) => ({ name: s.name, turns: s.turns, text: s.text })) },
     build: () => buildSong(DIES_TECHNO),
+  },
+  {
+    id: 'wow-techno',
+    title: 'Wow (60 s)',
+    composer: 'coderbeats',
+    years: '2026',
+    publicDomain: 'Pieza original de coderbeats (ritmo, bajo, acordes, gancho y estructura).',
+    style: 'techno',
+    kit: 'electro',
+    key: 'Do menor',
+    info: { cells: WOW.map((s) => ({ name: s.name, turns: s.turns, text: s.text })) },
+    build: () => buildSong(WOW),
   },
   {
     id: 'sinfonia-40-techno',
