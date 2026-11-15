@@ -115,15 +115,15 @@ function cancelRename() {
 }
 
 /** Borrar (✓ con confirmación): sale al momento y se puede deshacer unos segundos. */
-function removeEntry(e: Entry) {
-  if (!confirm(`¿Borrar «${e.name}»? Se puede deshacer unos segundos.`)) return
+async function removeEntry(e: Entry) {
+  if (!(await askConfirm(`¿Borrar «${e.name}»? Se puede deshacer unos segundos.`))) return
   library.remove(e.id)
 }
 
 /** Abre una guardada (spec 006, §4.3): avisa si lo de ahora no está guardado. */
 async function openEntry(e: Entry) {
   if (!e.saved) return
-  if (isUnsaved(engine.snapshot(), reference.value) && !confirm(`¿Abrir «${e.saved.name}»? Tu canción de ahora no está guardada.`)) return
+  if (isUnsaved(engine.snapshot(), reference.value) && !(await askConfirm(`¿Abrir «${e.saved.name}»? Tu canción de ahora no está guardada.`))) return
   await engine.openSaved(e.saved)
   library.setCurrent(e.saved.id)
   open.value = false

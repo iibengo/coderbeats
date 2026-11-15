@@ -15,7 +15,7 @@ watch(open, (o) => o && library.load())
 
 /** Abre un remix: reemplaza la canción de ahora (avisa si no está guardada) y no queda "viniendo de" ninguna guardada. */
 async function openRemix(r: Remix) {
-  if (isUnsaved(engine.snapshot(), reference.value) && !confirm(`¿Abrir el remix «${r.title}»? Tu canción de ahora no está guardada.`)) return
+  if (isUnsaved(engine.snapshot(), reference.value) && !(await askConfirm(`¿Abrir el remix «${r.title}»? Tu canción de ahora no está guardada.`))) return
   await engine.openRemix(r)
   library.setCurrent(null)
   open.value = false

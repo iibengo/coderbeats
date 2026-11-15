@@ -80,3 +80,10 @@ Nota: la «pantalla en blanco» de una sesión antigua fue, casi seguro, la cach
 5. **Fundir:** en Componer, arrastra una célula sobre otra, mantén ~1 s y suelta; «↶ deshacer».
 6. **Tutorial:** borra los datos del sitio (o «Repetir la guía y el tutorial»), haz un bum, arrastra un golpe, llévalo al centro.
 7. **Voz con cascos:** la onda alrededor del aro y el aviso con Bluetooth.
+
+
+---
+
+## Actualización (2026-11-16): el «bloqueo» al cambiar de canción
+**Resuelto como falso positivo de la prueba, y arreglado un riesgo real.** El «bloqueo» reproducido en Chrome de escritorio era el **cuadro nativo `confirm()`** («Tu canción de ahora no está guardada») que Chrome sin pantalla no cierra: la página parecía colgada (y por eso también ocurría en la versión vieja). Desde parado no salía el cuadro y abría bien. **No era un fallo del motor.**
+Aun así, es posible que sea lo que viste en el móvil: los cuadros nativos pueden **bloquearse o suprimirse** («evitar más cuadros de esta página») y entonces abrir un remix o una canción **no hacía nada sin avisar**. Se sustituyeron los 8 `confirm()` de la app por un **cuadro propio** (`useConfirm` + `ConfirmDialog`). Comprobado en Chrome (`tests/browser/cambio-cancion.mjs`): con una demo sonando, abrir un remix pide confirmación, al cancelar no cambia nada y al aceptar abre las 12 células y sigue sonando, sin cuadros nativos. Si en el móvil sigue sin iniciar el play tras cambiar de canción, sería otra causa (p. ej. carga de muestras del kit nuevo): pásame el error de la consola.

@@ -54,8 +54,8 @@ async function copyDiag() {
 }
 
 /** Demo del estilo actual; si ya hay loops, se pide confirmación antes de reemplazarlos (§16.20). */
-function loadDemo() {
-  if ((loops.value.loops.length || multi.value) && !confirm('¿Reemplazar tu canción por la demo de este estilo?')) return
+async function loadDemo() {
+  if ((loops.value.loops.length || multi.value) && !(await askConfirm('¿Reemplazar tu canción por la demo de este estilo?'))) return
   engine.loadDemo()
   library.setCurrent(null)
   open.value = false
@@ -63,7 +63,7 @@ function loadDemo() {
 
 /** Prueba de rendimiento (diagnóstico): la demo repetida hasta 8 o 16 células. */
 async function stressDemo(count: 8 | 16) {
-  if ((loops.value.loops.length || multi.value) && !confirm(`¿Reemplazar tu canción por la demo de prueba de ${count} células?`)) return
+  if ((loops.value.loops.length || multi.value) && !(await askConfirm(`¿Reemplazar tu canción por la demo de prueba de ${count} células?`))) return
   if (await engine.loadStressDemo(count)) {
     library.setCurrent(null)
     open.value = false
@@ -76,8 +76,8 @@ function addFree() {
 }
 
 /** "Borrar todo" pide confirmación y se puede deshacer unos segundos (spec 005, §7.1). */
-function clearAll() {
-  if ((loops.value.loops.length || multi.value) && !confirm('¿Borrar toda la canción?')) return
+async function clearAll() {
+  if ((loops.value.loops.length || multi.value) && !(await askConfirm('¿Borrar toda la canción?'))) return
   engine.clearAll()
   library.setCurrent(null)
 }

@@ -35,8 +35,8 @@ const tutorial = useTutorial(() => stage.value as never, (a, b) => pilot.demoHan
 function startPreview(t?: { song: Song; style: StyleId; kit: KitId; title?: string }) {
   void pilot.preview(t ?? { song: engine.snapshot().song, style: engine.style.value, kit: engine.kit.value, title: 'Tu canción' })
 }
-function startPilot() {
-  if ((engine.loops.value.loops.length || engine.multi.value) && !confirm('El piloto sustituye lo que tienes ahora (guárdalo antes en «Mis canciones» si quieres conservarlo). ¿Seguir?')) return
+async function startPilot() {
+  if ((engine.loops.value.loops.length || engine.multi.value) && !(await askConfirm('El piloto sustituye lo que tienes ahora (guárdalo antes en «Mis canciones» si quieres conservarlo). ¿Seguir?'))) return
   void pilot.start(Date.now() % 1000)
 }
 
@@ -123,8 +123,8 @@ async function openSharedLink() {
   if (!payload) return
   history.replaceState(null, '', location.pathname + location.search)
   const saved = await decodeShare(payload)
-  if (!saved) return void alert('El enlace de la canción no es válido.')
-  if (!confirm(`Abrir la canción compartida «${saved.name}»? Sustituye lo que tienes ahora (guárdalo antes en «Mis canciones» si quieres conservarlo).`)) return
+  if (!saved) return void alert("El enlace de la canción no es válido.")
+  if (!(await askConfirm(`Abrir la canción compartida «${saved.name}»? Sustituye lo que tienes ahora (guárdalo antes en «Mis canciones» si quieres conservarlo).`))) return
   await engine.openSaved(saved)
 }
 onMounted(() => {
@@ -246,5 +246,6 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
   >
     {{ tutorial.text.value.big }}<span v-if="tutorial.text.value.count" class="ml-3 text-xs text-white/50">{{ tutorial.text.value.count }}</span>
   </button>
+  <ConfirmDialog />
   <PilotLayer :paused="pilotState.paused" @pause="pilot.togglePause()" @skip="pilot.skip()" @stop="pilot.stop('user')" />
 </template>
