@@ -4,7 +4,7 @@ import type { ClosedPhrase, LoopLength } from './phrases'
 import type { Instrument, StyleId } from './types'
 
 /** Lo que suena en un loop: batería o (spec 002) la melodía con la voz. */
-export type LoopInstrument = Instrument | 'mel'
+export type LoopInstrument = Instrument | 'mel' | 'voz'
 
 export const MAX_LOOPS = 8
 
@@ -26,6 +26,15 @@ export interface LoopHit {
   dur?: number
 }
 
+/** La referencia a un audio de voz: el audio vive en IndexedDB, aquí solo su identificador (patrón estricto, `voiceLoop.ts`). */
+export interface VoiceRef {
+  audio: string
+  /** tempo al que se grabó (bpm) */
+  bpm: number
+  /** frecuencia de las muestras guardadas (Hz) */
+  sampleRate: number
+}
+
 export interface FreeLoop {
   id: number
   instrument: LoopInstrument
@@ -36,6 +45,8 @@ export interface FreeLoop {
   muted: boolean
   bornAt: number
   fromTemplate: boolean
+  /** solo voz (spec 007 §7): el audio guardado (IndexedDB) y cómo se grabó; el loop no lleva golpes */
+  voice?: VoiceRef
   /** solo melodía: sinte propio de este loop (la demo del dembow); sin él, el de la canción o el del estilo */
   synth?: MelodySynth
   /**

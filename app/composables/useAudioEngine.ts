@@ -1,4 +1,7 @@
 import { computed, reactive, ref, shallowRef } from 'vue'
+import { encodeWav } from '~/lib/wav'
+import { loadVoice, saveVoice } from '~/lib/voiceStore'
+import { fromPcm16, newVoiceId, prepareTake, type VoiceBars } from '~/lib/voiceLoop'
 import { FX_DURATION, FxLimiter, fxToLoops, fxValue, type FxEvent, type FxKind } from '~/lib/stageFx'
 import { timelineToSong, type BarLayers } from '~/lib/liveCompose'
 import { NO_PARTS, PART_ORBIT, planTransitions, targetParts, type BackgroundMode, type Part, type Parts } from '~/lib/background'
@@ -259,6 +262,31 @@ let liveTimeline: BarLayers[] = []
 function cancelLive() {
   liveRec.value = null
   liveTimeline = []
+}
+/** Pista de voz (spec 007): `armed` espera la línea de compás, `recording` graba, `saving` corta y guarda. */
+const voiceRec = ref<'idle' | 'armed' | 'recording' | 'saving'>('idle')
+let voiceCancel = false
+/** muestras de voz ya registradas en superdough (por identificador) */
+const voiceReady = new Set<string>()
+async function registerVoice(id: string, samples: Float32Array, sampleRate: number) {
+  if (voiceReady.has(id)) return
+  const url = URL.createObjectURL(new Blob([encodeWav(samples, sampleRate)], { type: 'audio/wav' }))
+  await (globalThis as unknown as { samples: (m: object) => Promise<void> }).samples({ [id]: [url] })
+  voiceReady.add(id)
+}
+/** Antes de evaluar: las muestras de voz que usan los loops (de la sesión o de una canción guardada) se leen del almacén y se registran. */
+async function ensureVoices() {
+  const s = liveSong()
+  for (const l of s.cells.flatMap((c) => c.loops)) {
+    const id = l.instrument === 'voz' ? l.voice?.audio : undefined
+    if (!id || voiceReady.has(id)) continue
+    const v = await loadVoice(id)
+    if (!v) {
+      log('error', `voz: falta el audio ${id} (audio no disponible)`)
+      continue
+    }
+    await registerVoice(id, fromPcm16(new Int16Array(v.pcm)), v.sampleRate)
+  }
 }
 /** Escenario (spec 011 §13.1): la pantalla entera dispara golpes de efecto. */
 const stageOn = ref(false)
@@ -824,6 +852,7 @@ function reevaluate() {
     evalQueued = false
     try {
       armWowo()
+      await ensureVoices()
       await S!.evaluate(WOW_PRELUDE + '\n' + songCode(songState(), 'engine'), playing.value)
     } catch (e) {
       log('error', `evaluate: ${e instanceof Error ? e.message : String(e)}`)
@@ -1127,6 +1156,8 @@ function onWorkerMessage(m: FromWorker) {
     return
   }
   const uiMs = (c.currentTime - m.time) * 1000
+  // con la voz grabando, el carril es exclusivo: ni golpes ni notas (spec 007 §4.1)
+  if (voiceRec.value !== 'idle' && (m.type === 'hit' || m.type === 'melodic' || m.type === 'absorbed')) return log('unknown', 'ignorado: grabando voz', uiMs)
   if (m.type === 'absorbed') return log('melody', 'golpe dentro de una nota: es melodía, no batería', uiMs)
   if (m.type === 'melodic') return mode.value === 'componer' ? log('unknown', 'ignorado: modo Componer (melodía)', uiMs) : onMelodic(m, uiMs)
   if (m.type === 'echo') return log('echo', `eco descartado (${m.strength.toFixed(3)})`, uiMs)
@@ -2392,6 +2423,71 @@ export function useAudioEngine() {
       msUntil: (time: number): number => (ctx ? (time + outputLatency() - ctx.currentTime) * 1000 : 0),
       /** «Saltar al final»: la demo de una célula del estilo (lo único que no es un gesto). */
       skipToEnd: () => loadDemo(),
+    },
+    voiceRec,
+    /** ¿Se puede grabar la voz? Sonando, una sola célula, y sin fuga del fondo al micro (cascos). */
+    canVoice: computed(() => playing.value && !isMulti(song.value) && !melodyBlocked.value),
+    /**
+     * «Grabar voz» (spec 007 F1, simplificada): arranca en la siguiente línea de compás y graba `bars` compases fijos (1, 2 o 4); al acabar corta la toma alineada
+     * (con la latencia corregida), la guarda en IndexedDB y nace el loop de voz en la línea siguiente. Otra pulsación mientras espera o graba, lo cancela.
+     */
+    recordVoice: async (bars: VoiceBars = 2): Promise<boolean> => {
+      if (voiceRec.value !== 'idle') {
+        voiceCancel = true
+        return false
+      }
+      const c = ctx
+      if (!c || !clock || !playing.value || isMulti(song.value)) return false
+      if (melodyBlocked.value) {
+        say('Para grabar la voz hacen falta cascos (se oye el fondo por el micro)')
+        return false
+      }
+      if (loops.value.loops.length >= MAX_LOOPS) {
+        say('No caben más loops (8)')
+        return false
+      }
+      voiceCancel = false
+      const bar = nextBarLine() + 1
+      const start = barTime(bar)
+      voiceRec.value = 'armed'
+      say('Canta desde el siguiente compás')
+      startCapture()
+      const len = (bars * 16 * stepSeconds())
+      const wake = (t: number) => new Promise<void>((r) => setTimeout(r, Math.max(0, (t - (ctx?.currentTime ?? 0)) * 1000)))
+      await wake(start)
+      if (!voiceCancel) voiceRec.value = 'recording'
+      await wake(start + len + latencySec + 0.35)
+      voiceRec.value = 'saving'
+      const cap = await stopCapture()
+      try {
+        if (voiceCancel || !playing.value) return false
+        const take = prepareTake({ buffer: cap.buffer, startTime: cap.startTime, sampleRate: c.sampleRate }, start, bars, bpm.value, latencySec)
+        if (!take) {
+          say('No se oyó voz: no se guarda')
+          return false
+        }
+        const id = newVoiceId()
+        const res = await saveVoice({ id, pcm: take.pcm.buffer as ArrayBuffer, sampleRate: take.sampleRate, envelope: take.envelope, createdAt: Date.now() })
+        if (res === 'rejected') {
+          say('La toma pesa demasiado: no se guarda')
+          return false
+        }
+        await registerVoice(id, fromPcm16(take.pcm), take.sampleRate)
+        const born = Math.max(bar + bars, nextBarLine())
+        const lid = loops.value.nextId
+        loops.value = {
+          nextId: lid + 1,
+          loops: [...loops.value.loops, { id: lid, instrument: 'voz', bars, phaseBar: bar, hits: [], muted: false, bornAt: born, fromTemplate: false, voice: { audio: id, bpm: bpm.value, sampleRate: take.sampleRate } }],
+        }
+        log('born', `voz grabada: ${bars} compases desde el ${bar}, nace en el ${born}${res === 'memory' ? ' (solo en esta sesión: sin almacenamiento)' : ''}`)
+        say(res === 'memory' ? 'Voz grabada (solo vale hasta cerrar: no hay almacenamiento)' : 'Voz grabada')
+        reevaluate()
+        updateBackground()
+        return true
+      } finally {
+        voiceRec.value = 'idle'
+        voiceCancel = false
+      }
     },
     stageOn,
     fxRec,

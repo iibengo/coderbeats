@@ -5,6 +5,7 @@ import type { LoopLength } from './phrases'
 import type { Instrument, KitId, StyleId } from './types'
 import { isValidBpm } from './tempo'
 import { INSTRUMENTS } from './constants'
+import { isVoiceId } from './voiceLoop'
 import { isMidi, MELODY_SYNTHS, type MelodySynth } from './melody'
 import { isWow, type Wow } from './wow'
 
@@ -241,7 +242,15 @@ const isBars = (v: unknown): boolean => v === 1 || v === 2 || v === 4
 export function isFreeLoop(x: unknown): x is FreeLoop {
   if (!isObj(x)) return false
   if (!isNum(x.id) || !isNum(x.phaseBar) || !isNum(x.bornAt) || !isBars(x.bars)) return false
-  if (typeof x.instrument !== 'string' || !(x.instrument === 'mel' || INSTRUMENTS.includes(x.instrument as Instrument))) return false
+  if (typeof x.instrument !== 'string' || !(x.instrument === 'mel' || x.instrument === 'voz' || INSTRUMENTS.includes(x.instrument as Instrument))) return false
+  // la voz (spec 007 §7): sin golpes y con la referencia al audio, de patrón estricto (el identificador acaba escrito en el código Strudel)
+  if (x.instrument === 'voz') {
+    const v = x.voice
+    if (!Array.isArray(x.hits) || x.hits.length !== 0 || !isObj(v) || !isVoiceId(v.audio) || !isNum(v.bpm) || v.bpm < 20 || v.bpm > 400) return false
+    if (!isNum(v.sampleRate) || !Number.isInteger(v.sampleRate) || v.sampleRate < 8000 || v.sampleRate > 96000) return false
+    return typeof x.muted === 'boolean' && x.synth === undefined && x.prev === undefined
+  }
+  if (x.voice !== undefined) return false
   if (typeof x.muted !== 'boolean' || !isHits(x.instrument, x.hits)) return false
   if (x.synth !== undefined && !(x.instrument === 'mel' && MELODY_SYNTHS.includes(x.synth as never))) return false
   const prev = x.prev

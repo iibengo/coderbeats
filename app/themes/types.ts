@@ -76,6 +76,7 @@ export const INSTRUMENT_RGB: Record<LoopInstrument | 'bass' | 'chords', [number,
   sd: unit(VOICE_HEX.sd),
   hh: unit(VOICE_HEX.hh),
   mel: unit(VOICE_HEX.mel),
+  voz: unit(VOICE_HEX.mel),
   bass: [0.85, 0.85, 0.9],
   chords: [0.85, 0.85, 0.9],
 }

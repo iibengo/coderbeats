@@ -235,3 +235,20 @@ Hito: te enseño los números antes de seguir.
 8. **El afinado y los acordes:** la escala del estilo (propuesta, como la melodía), o también el acorde de cada compás como destino prioritario.
 9. **Voz en una célula de la canción con varias células:** hoy no se graba con la canción avanzando (005 §4.4); ¿aquí se permite grabar *entrando* en bucle? Igual que la batería (propuesta).
 10. **¿Mis canciones debería avisar de lo que pesa el audio** (p. ej. "esta canción ocupa 12 MB") y dejar borrar solo el audio?
+
+## 16. Implementado: una primera rebanada (2026-11-15) y decisiones a revisar
+
+**Qué hay** (`lib/voiceLoop.ts`, `lib/voiceStore.ts`, `FreeLoop` con `instrument: 'voz'` y `voice`, botón «🎤 Voz» en Jugar): corte alineado al compás con la latencia corregida, fundidos de 5 ms, normalización a −3 dBFS, 24 kHz/16 bits, envolvente, identificador de patrón estricto, validación en `isFreeLoop` (con tests de inyección), línea comentada en el código mostrado, línea `s("<id>").slow(n).loopAt(n).clip(1)` en el del motor, guardado en IndexedDB con tope de 3 MB por toma y 60 MB en total, y la muestra registrada en superdough desde una URL de blob.
+**Comprobado en Chrome con el micro de mentira** (un pitido): pulsar «🎤 Voz» arma, graba 2 compases desde la línea siguiente, guarda 256 000 bytes en IndexedDB, nace el loop de voz (bola) y superdough carga la muestra sin errores. **No** se ha oído nada (alineación real con tu voz y cascos, costura del bucle, deriva tras muchas vueltas, nivel de la mezcla, latencia con Bluetooth).
+
+Decisiones tomadas por lo más simple (a revisar):
+1. **Sin detector de voz ni frase de voz:** la toma dura **2 compases fijos** desde la línea de compás siguiente (no se elige 1/4 todavía; `recordVoice(bars)` ya lo admite). Otra pulsación cancela.
+2. **Reproducción por Strudel (camino A, §6.2)** sin pasar por el laboratorio de la fase 0: no se ha medido la deriva ni la costura. Si falla de oído, se pasa al camino B.
+3. **Carril exclusivo (§4.1):** mientras graba, el motor ignora los golpes y las notas del micro.
+4. **Solo con cascos:** se bloquea si la prueba de eco detectó fuga (`melodyBlocked`). El aviso de Bluetooth (§5.2) no está.
+5. **Solo en una célula** (no con una canción de varias): igual que la batería.
+6. **Sin franja visual (F2):** el loop de voz es una bola más; el aro no dibuja su onda (la envolvente se calcula y se guarda con el audio, sin usar).
+7. **Sin capas ni «sustituye» (F3):** cada toma es un loop más (hasta 8 loops en total).
+8. **Sin recolección de audios (F4):** **no se borra nunca** el audio que ya no usa ninguna canción (`collectVoice` existe y está probada la parte pura, pero no se llama: borrar audio por un recuento incompleto de las canciones guardadas podría perder tomas). Mis canciones guarda la referencia, y al abrir se leen los audios del almacén; si falta uno, se anota en el diagnóstico (el aviso «audio no disponible» en la bola no está).
+9. **Sin autotune** (como se pidió) y sin cambio de tempo (§6.3: con otro tempo cambiaría de altura, sin aviso).
+10. Con **un loop de voz**, «Convertir en canción», las variaciones y «Grabar canción» lo tratan como un loop cualquiera (se copia con su mismo audio); **no se ha probado** con voz.

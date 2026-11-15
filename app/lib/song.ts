@@ -1,3 +1,4 @@
+import { isVoiceId } from './voiceLoop'
 import { STYLES, KITS, INSTRUMENTS } from './constants'
 import { loopGains, fmtGain } from './mix'
 import { filterDjf, spaceParams, warmthShape } from './gestures'
@@ -75,6 +76,8 @@ const IND = '  '
 
 /** Orbit (bus) de la melodía con la voz (spec 002, §6). */
 export const MELODY_ORBIT = 5
+/** orbit de la voz grabada (spec 007 §6.4) */
+export const VOICE_ORBIT = 7
 const duckWith = (orbits: string) => `.duckorbit("${orbits}").duckdepth(0.6).duckattack(0.15)`
 /** Sidechain del bombo sobre el bajo y los acordes; con melodía en el mismo bloque, también sobre ella. */
 export const DUCK = duckWith('2:3')
@@ -135,7 +138,16 @@ function loopLine(
   const base = version === 'prev' && loop.prev ? { ...loop, ...loop.prev } : loop
   const src = phaseOffset ? { ...base, phaseBar: safeNum(base.phaseBar) + safeNum(phaseOffset) } : base
   let line: string
-  if (loop.instrument === 'mel') {
+  if (loop.instrument === 'voz') {
+    // la voz grabada (spec 007): el audio no vive en el código (IndexedDB); en el mostrado, una línea comentada. El identificador pasa por el patrón estricto.
+    const id = loop.voice?.audio
+    const n = safeNum(loop.bars)
+    if (mode !== 'engine' || !isVoiceId(id)) line = '// voz: audio guardado en este navegador (no suena en strudel.cc)'
+    else {
+      line = `s("${id}")${n > 1 ? `.slow(${n})` : ''}.loopAt(${n}).clip(1)${n > 1 && safeNum(loop.phaseBar) % n ? `.late(${((safeNum(loop.phaseBar) % n) + n) % n})` : ''}.orbit(${VOICE_ORBIT})`
+      if (Math.abs(gain - 1) > 0.005) line += `.gain(${fmtGain(gain)})`
+    }
+  } else if (loop.instrument === 'mel') {
     // melodía con la voz (spec 002): nombres de nota de una tabla, pesos numéricos; nada leído se escribe tal cual
     const synth = loop.synth ?? st.melodySynth ?? STYLE_MUSIC[st.style].synth
     const hits = src.hits.map((h) => ({ pos: h.pos, strength: h.strength, midi: h.midi as number, dur: h.dur as number }))

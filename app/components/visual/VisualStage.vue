@@ -209,7 +209,7 @@ const actionsStyle = computed(() =>
 const hasActions = computed(() => engine.playing.value || !!engine.proposal.value || looping.value || engine.extrasOn.value || showFollow.value || !!engine.undoInfo.value)
 /** posición de cada bola en la fila, por orden de instrumento (bombo, caja, platillo, melodía) */
 const rowSlots = computed(() => {
-  const rank = (i: LoopInstrument) => (i === 'mel' ? INSTRUMENTS.length : INSTRUMENTS.indexOf(i))
+  const rank = (i: LoopInstrument) => (i === 'mel' ? INSTRUMENTS.length : i === 'voz' ? INSTRUMENTS.length + 1 : INSTRUMENTS.indexOf(i))
   const order = [...loops.value.loops].sort((a, b) => rank(a.instrument) - rank(b.instrument) || a.id - b.id)
   if (compact.value) {
     // en horizontal, en columna a la izquierda, debajo del estilo
@@ -238,7 +238,7 @@ function dotsOf(ls: readonly FreeLoop[], g: number): AroDot[] {
     for (const h of l.hits) {
       if (h.pos < bar * 16 - 0.5 || h.pos >= bar * 16 + 15.5) continue
       const step = h.pos - bar * 16
-      const dot: AroDot = { key: dotKey(l.id, h.pos), loopId: l.id, step, pos: h.pos, voice: l.instrument, muted: l.muted }
+      const dot: AroDot = { key: dotKey(l.id, h.pos), loopId: l.id, step, pos: h.pos, voice: l.instrument === 'voz' ? 'mel' : l.instrument, muted: l.muted }
       // la melodía: arco con su duración, a la altura de su nota (spec 002, F2)
       if (range && h.midi !== undefined) {
         dot.midi = h.midi
@@ -328,7 +328,7 @@ const setBall = (p: Part) => (el: Element | ComponentPublicInstance | null) => {
   else ballEls.delete(p)
 }
 /** Latido de una bola al sonar (§16.17, punto 5): el bombo, el más fuerte; el platillo, el más ligero. */
-const PULSE_AMP: Record<LoopInstrument | 'bass' | 'chords', number> = { bd: 0.3, sd: 0.25, hh: 0.2, mel: 0.16, bass: 0.18, chords: 0.14 }
+const PULSE_AMP: Record<LoopInstrument | 'bass' | 'chords', number> = { bd: 0.3, sd: 0.25, hh: 0.2, mel: 0.16, bass: 0.18, chords: 0.14, voz: 0.16 }
 const PULSE_MS = 220
 const pulse = (el: HTMLElement | undefined, instrument: keyof typeof PULSE_AMP) => {
   if (!el) return
@@ -391,7 +391,7 @@ function onEngineVisual(h: Parameters<Parameters<typeof engine.onVisual>[0]>[0])
   const g = { x: gg.cx, y: gg.cy }
   if (h.kind === 'heard' && h.instrument !== 'bass' && h.instrument !== 'chords') {
     guideHeard++
-    const p = aro?.pointOf(h.instrument, h.step ?? 0) ?? { x: g.x, y: g.y }
+    const p = aro?.pointOf(h.instrument === 'voz' ? 'mel' : h.instrument, h.step ?? 0) ?? { x: g.x, y: g.y }
     theme.hit({ kind: 'heard', time: h.time, loopId: null, instrument: h.instrument, x: p.x, y: p.y, strength: h.strength * soft() })
     return
   }
@@ -1911,7 +1911,7 @@ function stageDown(e: PointerEvent) {
   setTimeout(() => (waves.value = waves.value.filter((w) => w.id !== id)), 1100)
 }
 
-const fill: Record<LoopInstrument, string> = { bd: VOICE_HEX.bd, sd: VOICE_HEX.sd, hh: VOICE_HEX.hh, mel: VOICE_HEX.mel }
+const fill: Record<LoopInstrument, string> = { bd: VOICE_HEX.bd, sd: VOICE_HEX.sd, hh: VOICE_HEX.hh, mel: VOICE_HEX.mel, voz: VOICE_HEX.mel }
 /** medidas reales de la ventana, para el diagnóstico (§16.18) */
 const layoutInfo = () => {
   const r = root.value?.getBoundingClientRect()
@@ -2039,6 +2039,7 @@ defineExpose({ pointOf: (voice: Voice, step: number) => aro?.pointOf(voice, step
         <button class="act-btn" aria-label="aceptar la variación (también tocando la copia)" @click="engine.acceptProposal()">✓</button>
       </template>
       <button v-if="engine.playing.value" class="act-btn" :aria-label="mode === 'jugar' ? 'Escenario: toda la pantalla dispara golpes de efecto' : 'Efectos: los toques en el fondo disparan golpes de efecto'" @click="engine.setStage(true)">{{ mode === 'jugar' ? '⚡ Escenario' : '⚡ Efectos' }}</button>
+      <button v-if="mode === 'jugar' && (engine.canVoice.value || engine.voiceRec.value !== 'idle')" class="act-btn" :data-on="engine.voiceRec.value !== 'idle'" :aria-label="engine.voiceRec.value === 'idle' ? 'grabar tu voz en bucle (2 compases, con cascos)' : 'cancelar la grabación de voz'" @click="engine.recordVoice(2)">{{ engine.voiceRec.value === 'idle' ? '🎤 Voz' : engine.voiceRec.value === 'armed' ? 'Espera el compás…' : engine.voiceRec.value === 'recording' ? '● Cantando' : 'Guardando…' }}</button>
       <button v-if="mode === 'jugar' && (engine.canLive.value || engine.liveRec.value)" class="act-btn" :data-on="!!engine.liveRec.value" :aria-label="engine.liveRec.value ? 'terminar la grabación y convertirla en células' : 'grabar canción: enciende y apaga capas al ritmo'" @click="engine.toggleLive()">{{ engine.liveRec.value ? `■ ${engine.liveRec.value.bars} compases` : '● Grabar canción' }}</button>
       <button v-if="engine.canConvert.value && mode === 'jugar' && !engine.liveRec.value" class="act-btn" aria-label="convertir este loop en una canción con la estructura del estilo" @click="engine.convertSong()">✦ Convertir en canción</button>
       <template v-if="engine.suggestion.value && mode === 'jugar'">

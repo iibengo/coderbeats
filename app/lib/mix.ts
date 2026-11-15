@@ -1,7 +1,7 @@
 import type { FreeLoop, LoopInstrument } from './freeLoops'
 
 /** Balance fijo por instrumento, en dB. La melodía va algo por debajo de la batería (se afina de oído). */
-export const INSTRUMENT_BALANCE_DB: Record<LoopInstrument, number> = { bd: 0, sd: -1, hh: -6, mel: -3 }
+export const INSTRUMENT_BALANCE_DB: Record<LoopInstrument, number> = { bd: 0, sd: -1, hh: -6, mel: -3, voz: -2 }
 
 export const dbToGain = (db: number): number => 10 ** (db / 20)
 
