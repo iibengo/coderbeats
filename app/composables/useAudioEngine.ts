@@ -1,4 +1,5 @@
 import { computed, reactive, ref, shallowRef } from 'vue'
+import { FX_DURATION, FxLimiter, fxToLoops, fxValue, type FxEvent, type FxKind } from '~/lib/stageFx'
 import { timelineToSong, type BarLayers } from '~/lib/liveCompose'
 import { NO_PARTS, PART_ORBIT, planTransitions, targetParts, type BackgroundMode, type Part, type Parts } from '~/lib/background'
 import { KIT_ORDER, KITS, kitFromSaved, STYLES } from '~/lib/constants'
@@ -259,6 +260,12 @@ function cancelLive() {
   liveRec.value = null
   liveTimeline = []
 }
+/** Escenario (spec 011 §13.1): la pantalla entera dispara golpes de efecto. */
+const stageOn = ref(false)
+const fxLimiter = new FxLimiter()
+/** golpes apuntados mientras se graba la capa de efectos, o `null` */
+const fxRec = ref<{ count: number } | null>(null)
+let fxEvents: FxEvent[] = []
 const suggestDismissed = new Set<number>()
 /** si canta, manda su voz: no se sugiere hasta pasados 2 compases desde la última nota cantada */
 let voiceHoldUntil = 0
@@ -1777,7 +1784,7 @@ export function useAudioEngine() {
     const c = ctx
     if (!c || c.state !== 'running') return
     const t = c.currentTime
-    const wave = { piano: 'triangle', lead: 'square', pad: 'sawtooth', drone: 'sine', riser: 'sawtooth', crash: 'sawtooth' }[synth] as OscillatorType
+    const wave = { piano: 'triangle', lead: 'square', pad: 'sawtooth', drone: 'sine', riser: 'sawtooth', crash: 'sawtooth', boom: 'sine', impacto: 'sine' }[synth] as OscillatorType
     const osc = c.createOscillator()
     const lp = c.createBiquadFilter()
     const g = c.createGain()
@@ -2365,6 +2372,63 @@ export function useAudioEngine() {
       await replaceSong(next)
       say(`Tu canción: ${next.order.length} partes${hadSuggestion ? ' (con la melodía sugerida)' : ''}. Ábrela en Componer para retocarla`)
       log('cell', `convertida en canción: ${next.order.map((id) => next.cells.find((c) => c.id === id)?.name).join(' · ')}`)
+      return true
+    },
+    stageOn,
+    fxRec,
+    setStage: (on: boolean) => {
+      stageOn.value = on
+      if (!on) {
+        fxRec.value = null
+        fxEvents = []
+      }
+    },
+    /**
+     * Un golpe de efecto, **al instante** (sin esperar a la rejilla). `false` si pasa del tope por segundo o no se puede sonar. Se registra como salida para que
+     * el micro no lo cuente como golpe de voz (EchoGate), y si se graba, se apunta.
+     */
+    fireFx: (kind: FxKind): boolean => {
+      const c = ctx
+      if (!c || !S || c.state !== 'running' || !fxLimiter.take(c.currentTime)) return false
+      const t = c.currentTime + 0.01
+      // (`@strudel/web` reexporta `superdough`, aunque sus tipos no lo declaran)
+      void (S as unknown as { superdough: (v: object, t: number, d: number) => Promise<unknown> }).superdough(fxValue(kind, style.value), t, FX_DURATION[kind])
+      toWorker({ type: 'output', times: [t] })
+      if (fxRec.value && clock) {
+        fxEvents.push({ kind, time: t })
+        fxRec.value = { count: fxEvents.length }
+      }
+      return true
+    },
+    /** «Grabar efectos»: apunta los golpes; al terminar pasan a la célula como loops de melodía de 4 compases (uno por tipo), cuantizados a la semicorchea. */
+    toggleFxRec: (): boolean => {
+      if (!fxRec.value) {
+        if (!playing.value) {
+          say('Pon la música en marcha para grabar los efectos')
+          return false
+        }
+        fxEvents = []
+        fxRec.value = { count: 0 }
+        return true
+      }
+      const events = fxEvents
+      fxEvents = []
+      fxRec.value = null
+      if (!clock || !events.length) return false
+      const made = fxToLoops(events, style.value, barTime(0), stepSeconds(), 4)
+      const room = MAX_LOOPS - loops.value.loops.length
+      const keep = made.slice(0, Math.max(0, room))
+      if (!keep.length) {
+        say('No caben más loops (8): quita alguno para grabar efectos')
+        return false
+      }
+      const born = nextBarLine()
+      let id = loops.value.nextId
+      const added: FreeLoop[] = keep.map((l) => ({ id: id++, instrument: 'mel', bars: 4, phaseBar: 0, hits: l.hits, synth: l.synth, muted: false, bornAt: born, fromTemplate: false }))
+      loops.value = { nextId: id, loops: [...loops.value.loops, ...added] }
+      reevaluate()
+      updateBackground()
+      say(`Efectos grabados: ${added.length} ${added.length === 1 ? 'capa' : 'capas'}${keep.length < made.length ? ' (no cupieron todas)' : ''}`)
       return true
     },
     liveRec,

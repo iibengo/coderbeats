@@ -363,6 +363,16 @@ Es el contrario de Jugar (una gota pequeña y concentrada): aquí **no hay gota*
 **Decisiones (2026-11-15):** (1) **un botón «Escenario» dentro de Jugar**; el **selector sigue siendo Jugar | Componer** (dos modos). (2) El **barrido** se hace **manteniendo pulsado** un lado (más simple que arrastrar). (3) **Cuantizar al grabar, activado por defecto.** (4) **Cuatro zonas** (las de la tabla).
 **Opcional, sin decidir cuándo:** en **Componer**, un botón **«⚡ Efectos»** que, **mientras está encendido**, convierte los toques en el fondo en golpes de efecto **en vez de crear células** (así el escenario también se puede tocar sobre el mapa, sin cambiar de modo).
 
+
+**Implementado (2026-11-15; `lib/stageFx.ts`, botón «⚡ Escenario» en Jugar con la música sonando).** Decisiones a revisar (lo más simple, sin consultar):
+- **Sonidos:** dos sintes nuevos, `boom` e `impacto`, ambos sobre `sbd` (bombo de síntesis de superdough, con caída de tono); la nota es la raíz del estilo una octava abajo (`kickTune`). El **crash** es el de 008 y el **barrido** es el `riser`. Se afinan de oído (sin oírlos).
+- **Sonar al instante:** `superdough` se llama directo (≈ 10 ms de margen), sin pasar por la rejilla; cada golpe se avisa al `EchoGate` (`output`) para que el micro no lo cuente como voz.
+- **Tope:** 6 golpes por segundo (`FxLimiter`); el resto se descartan. **Zona muerta:** 14 px alrededor de los botones. **Barrido:** al pulsar un lado suena 2 s (no sigue al dedo ni dura lo que se mantiene pulsado).
+- **Onda de color:** un anillo CSS (rosa/lila/azul de la paleta) que crece hasta cruzar la pantalla, opacidad máx. 0,55, sin parpadeo; con «movimiento reducido» solo un cambio suave de brillo. **No** hay todavía el disco en perspectiva tipo LED, ni estela, ni encendido en el drop (queda para después).
+- **Grabar efectos:** «● Grabar efectos» apunta los golpes; al parar pasan a la célula como loops de melodía de 4 compases (uno por tipo), cuantizados a la semicorchea sobre la rejilla global (`phaseBar` 0). Si no caben (8 loops), se avisa. Sin «↶ deshacer» (se quitan como cualquier loop).
+- **«⚡ Efectos» en Componer:** la misma pantalla de Escenario (capa a pantalla completa con «✕ Salir»); mientras está encendida **no se pueden mover las células** (más simple que repartir los toques). Lo anotado como opcional queda hecho a medias: sin distinguir el fondo de las células.
+- **Sin probar** de oído ni de dedo (volumen, bombeo del limitador con tres bombos seguidos, latencia, legibilidad de las zonas).
+
 ## 15. Lo implementado (2026-11-14) y dónde está
 
 | Fase | Commit | Dónde |

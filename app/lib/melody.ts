@@ -5,8 +5,8 @@
  * entero validado; nunca un valor leído tal cual de lo guardado.
  */
 /** `drone`: un sine con mucha reverb, para fondos (la demo del dembow); no es de los que se eligen para cantar */
-export type MelodySynth = 'lead' | 'piano' | 'pad' | 'drone' | 'riser' | 'crash'
-export const MELODY_SYNTHS: readonly MelodySynth[] = ['lead', 'piano', 'pad', 'drone', 'riser', 'crash']
+export type MelodySynth = 'lead' | 'piano' | 'pad' | 'drone' | 'riser' | 'crash' | 'boom' | 'impacto'
+export const MELODY_SYNTHS: readonly MelodySynth[] = ['lead', 'piano', 'pad', 'drone', 'riser', 'crash', 'boom', 'impacto']
 
 /** Rango MIDI que se admite en un loop de melodía o bajo (C1–C7). */
 export const MIDI_MIN = 24
@@ -28,6 +28,8 @@ export const REGISTER: Record<MelodySynth | 'bass', readonly [number, number]> =
   drone: [36, 60], // C2–C4
   riser: [48, 72], // ruido: la altura no cuenta (spec 008, §11)
   crash: [48, 72], // ruido: la altura no cuenta (spec 008, §12)
+  boom: [24, 48], // golpes de efecto del Escenario (spec 011 §13.1): la nota es la raíz
+  impacto: [24, 48],
   bass: [28, 52], // E1–E3
 }
 
@@ -40,6 +42,9 @@ export const SYNTH_SOUND: Record<MelodySynth, string> = {
   // ruido rosa para los builds (spec 008, §11): la nota solo marca cuándo suena; el filtro de la célula lo abre
   // el platillo del drop (spec 008, §12): ruido blanco de ataque inmediato y cola larga, sin graves; la nota solo marca cuándo suena
   crash: '.s("white").attack(0.001).decay(1.1).sustain(0).release(0.3).hpf(3500).gain(0.45).room(0.45)',
+  // golpes de efecto del Escenario (spec 011 §13.1): un bombo de síntesis (`sbd`) muy grave; la nota es la raíz del acorde
+  boom: '.s("sbd").decay(1.6).pdecay(0.35).penv(12).gain(0.8).room(0.3)',
+  impacto: '.s("sbd").decay(0.9).pdecay(0.12).penv(24).shape(0.4).gain(0.9)',
   riser: '.s("pink").attack(0.12).decay(0.2).sustain(0.7).release(0.05).gain(0.6).room(0.3)',
 }
 
