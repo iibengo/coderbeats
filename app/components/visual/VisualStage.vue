@@ -63,7 +63,7 @@ import { loopBarAt, type FreeLoop } from '~/lib/freeLoops'
 import { describeImageDelay } from '~/lib/imageDelay'
 import { dragValue, lockAxis, type Axis } from '~/lib/gestures'
 import { allArmed } from '~/lib/lanes'
-import { approachTilt, followBase, parallaxOffset, tiltTarget, toFront, type AroView, type Tilt } from '~/lib/aro/view'
+import { approachTilt, followBase, parallaxOffset, tiltTarget, toFront, toScreen as frontToScreen, type AroView, type Tilt } from '~/lib/aro/view'
 import { addHit, moveHit, removeHit, type EditOptions } from '~/lib/loopEdit'
 import { moveMelNote, resizeMelNote, snapMelMidi, snapMelStep, type MelEditOptions } from '~/lib/melodyEdit'
 import { STYLE_MUSIC } from '~/lib/styles'
@@ -1912,7 +1912,42 @@ const layoutInfo = () => {
     }),
   ].join(' · ')
 }
-defineExpose({ pointOf: (voice: Voice, step: number) => aro?.pointOf(voice, step) ?? null, rootEl: () => root.value, switchMode, openOrgan: (x: number, y: number) => (organ.value = { x, y }), organOpen: () => !!organ.value, rendererName, layoutInfo, debugDots: () => aro?.debugDots() ?? [], aroWhere: (x: number, y: number) => aro?.where(x, y) })
+/** Para el piloto: dónde está el asa de una célula en la pantalla y un sitio de agua vacía donde soltarla (solo en la colonia). */
+function colonyPoints(): { cell: (id: number) => { x: number; y: number } | null; handle: (id: number) => { x: number; y: number } | null; water: () => { x: number; y: number } | null } {
+  const pk = colonyPick
+  const sc = (x: number, y: number) => (pk ? frontToScreen(x, y, aroView, 0, pk.cy) : [x, y])
+  return {
+    cell: (id) => {
+      const d = pk?.discs.find((q) => q.id === id)
+      if (!d) return null
+      const [x, y] = sc(d.x, d.y)
+      return { x: x!, y: y! }
+    },
+    handle: (id) => {
+      const h = pk?.handles.find((q) => q.id === id)
+      if (!h) return null
+      const [x, y] = sc(h.x, h.y)
+      return { x: x!, y: y! }
+    },
+    water: () => {
+      if (!pk) return null
+      const f = pk.free
+      let best: { x: number; y: number; d: number } | null = null
+      for (let i = 1; i < 12; i++)
+        for (let j = 1; j < 12; j++) {
+          // sitio cómodo: en el centro y en la mitad de abajo (lejos de los bordes y de la cabecera)
+          const x = f.x0 + ((f.x1 - f.x0) * (0.25 + (0.5 * i) / 12))
+          const y = f.y0 + ((f.y1 - f.y0) * (0.5 + (0.4 * j) / 12))
+          const d = Math.min(...pk.discs.map((c) => Math.hypot(c.x - x, c.y - y) - c.r), 1e9)
+          if (!best || d > best.d) best = { x, y, d }
+        }
+      if (!best) return null
+      const [x, y] = sc(best.x, best.y)
+      return { x: x!, y: y! }
+    },
+  }
+}
+defineExpose({ colonyPoints, pointOf: (voice: Voice, step: number) => aro?.pointOf(voice, step) ?? null, rootEl: () => root.value, switchMode, openOrgan: (x: number, y: number) => (organ.value = { x, y }), organOpen: () => !!organ.value, rendererName, layoutInfo, debugDots: () => aro?.debugDots() ?? [], aroWhere: (x: number, y: number) => aro?.where(x, y) })
 </script>
 
 <template>

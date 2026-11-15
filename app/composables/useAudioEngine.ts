@@ -2460,6 +2460,31 @@ export function useAudioEngine() {
         if (melodyOn.value !== saved.melody) setMelody(saved.melody)
         refreshSuggestion()
       },
+      /** El id de la última célula del orden (la que se acaba de crear o copiar). */
+      lastCell: (): number => song.value.order[song.value.order.length - 1]!,
+      /**
+       * «Cambio lo necesario»: la célula del orden nº `index` toma el contenido de `src` (loops con ids nuevos, partes, vueltas, nombre, filtro, wowo). Lo que ningún gesto hace.
+       * Devuelve si cuadra: el resultado es siempre el contenido de `src`.
+       */
+      fillCell: (index: number, src: Cell): boolean => {
+        const s = liveSong()
+        const id = s.order[index]
+        if (id === undefined) return false
+        let next = withVariation(s, id, src)
+        next = { ...next, cells: next.cells.map((c) => (c.id === id ? { ...c, name: src.name, turns: src.turns } : c)) }
+        const name = src.name
+        if (!name) next = { ...next, cells: next.cells.map((c) => (c.id === id ? (({ name: _n, ...r }) => r)(c) as Cell : c)) }
+        setSong(next)
+        reevaluate()
+        return true
+      },
+      /** ¿Lo construido (las células, en orden) tiene la misma música que `target`? Si no, se apunta en el registro. */
+      songMatches: (target: Song): boolean => {
+        const sig = (x: Song) => JSON.stringify(x.order.map((id) => { const c = x.cells.find((q) => q.id === id)!; return [c.turns, c.parts, c.lpf ?? null, c.wow ?? null, c.loops.map((l) => [l.instrument, l.bars, l.synth ?? null, l.hits.map((h) => [h.pos, h.midi ?? 0, h.dur ?? 0])])] }))
+        const ok = sig(liveSong()) === sig({ ...target, order: target.order, cells: target.cells })
+        log(ok ? 'cell' : 'error', ok ? 'piloto: las células construidas son idénticas a la canción' : 'piloto: las células no cuadraban con la canción (se corrige al poner la canción entera)')
+        return ok
+      },
       /** Copia profunda de lo del usuario (canción, estilo, kit, fondo, efectos, si sonaba) para devolverlo tal cual al acabar o parar. */
       snapshotUser: () => ({
         song: JSON.parse(JSON.stringify(liveSong())) as Song,

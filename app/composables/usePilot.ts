@@ -6,12 +6,13 @@
 import { reactive } from 'vue'
 import { imperfections, pause, rng, trajectory, type Pt } from '~/lib/pilot'
 import { outcomeOf, PILOT_SCRIPTS, type PilotScript, type PilotStep, type PilotTarget } from '~/lib/pilotScripts'
-import { previewScript, showBars } from '~/lib/previewScript'
-import { songBars, type Song } from '~/lib/cells'
+import { previewScript } from '~/lib/previewScript'
+import { nextDepth, songBars, type Song } from '~/lib/cells'
 import type { KitId, StyleId } from '~/lib/types'
 import type { Voice } from '~/lib/palette'
 
 interface StageApi {
+  colonyPoints: () => { cell: (id: number) => Pt | null; handle: (id: number) => Pt | null; water: () => Pt | null }
   pointOf: (voice: Voice, step: number) => { x: number; y: number } | null
   rootEl: () => HTMLElement | null
 }
@@ -34,6 +35,7 @@ const POINTER_ID = 9001
 const MAGNET_PX = 20
 let cancelled = false
 let running = false
+let curTarget: { song: Song; style: StyleId; kit: KitId } | null = null
 let user: ReturnType<ReturnType<typeof useAudioEngine>['pilot']['snapshotUser']> | null = null
 let saved: ReturnType<ReturnType<typeof useAudioEngine>['pilot']['begin']> | null = null
 
@@ -62,6 +64,10 @@ export function usePilot(getStage: () => StageApi | null) {
     if (t.t === 'ball') {
       const el = document.querySelector(`.bg-ball[aria-label^="${t.part === 'bass' ? 'bajo' : 'acordes'}"]`)
       return el ? { p: center(el), el, width: 44 } : null
+    }
+    if (t.t === 'label') {
+      const el = [...document.querySelectorAll('button')].find((b) => b.getAttribute('aria-label') === t.label)
+      return el ? { p: center(el), el, width: 70 } : null
     }
     const stage = getStage()
     const p = stage?.pointOf(t.voice as Voice, t.step)
@@ -152,6 +158,19 @@ export function usePilot(getStage: () => StageApi | null) {
     await wait(engine.pilot.msUntil(t0 + 16 * c.stepSec) + 200)
   }
 
+  /**
+   * Crear y enganchar la célula siguiente (plan B, decisión a revisar): **desde los datos**, con una animación simple (la célula nueva cae en el mapa, después de la última del orden,
+   * y el dedo se queda quieto). El dedo fantasma solo hace los gestos de dentro de una célula. Los gestos de la colonia (copiar con el asa y enganchar con otro arrastre)
+   * se probaron y funcionan a mano, pero no se consiguió encadenarlos de forma fiable dentro del guion.
+   */
+  async function copyGesture(_rand: () => number) {
+    const last = engine.song.value.cells.find((c) => c.id === engine.pilot.lastCell())
+    const at = last ? { x: last.at.x + 3, y: Math.sin(engine.song.value.cells.length * 1.3) * 1.2, depth: nextDepth(engine.song.value.cells.length) } : { x: 0, y: 0, depth: 0 }
+    state.finger.shown = false
+    engine.addCell(at)
+    await wait(900)
+  }
+
   async function runStep(step: PilotStep, rand: () => number) {
     if (step.do === 'caption') state.caption = step.text
     else if (step.do === 'tap') {
@@ -160,6 +179,12 @@ export function usePilot(getStage: () => StageApi | null) {
     } else if (step.do === 'mouth') {
       if (step.caption) state.caption = step.caption
       await mouth(step)
+    } else if (step.do === 'copy') await copyGesture(rand)
+    else if (step.do === 'fill') {
+      const t = curTarget
+      const id = t?.song.order[step.cell]
+      const cell = t?.song.cells.find((c) => c.id === id)
+      if (cell) engine.pilot.fillCell(step.cell, cell)
     } else if (step.do === 'wait') {
       const c = engine.pilot.clock()
       await wait(c ? step.bars * c.stepSec * 16 * 1000 : step.bars * 2000)
@@ -203,6 +228,7 @@ export function usePilot(getStage: () => StageApi | null) {
     const script = preview?.script ?? PILOT_SCRIPTS[id as keyof typeof PILOT_SCRIPTS]
     if (!script || running) return false
     user = preview ? engine.pilot.snapshotUser() : null
+    curTarget = preview?.target ?? null
     running = true
     cancelled = false
     state.reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -225,12 +251,14 @@ export function usePilot(getStage: () => StageApi | null) {
       }
       // al terminar entero: la canción debe ser idéntica a la demo (si no, se corrige y queda en el registro)
       if (!cancelled) engine.pilot.verify(script)
-      // previsualizar: al final, la canción entera (de los datos) sonando unos compases
+      // previsualizar: se comprueba que las células construidas son idénticas a la canción y, al final, suena entera de principio a fin, por todas sus células
       if (!cancelled && preview) {
+        engine.pilot.songMatches(preview.target.song)
+        engine.setMode('jugar')
         state.caption = 'La canción entera'
         await engine.pilot.showSong(preview.target)
         const c = engine.pilot.clock()
-        await wait((c ? c.stepSec * 16 : 2) * showBars(songBars(preview.target.song)) * 1000)
+        await wait((c ? c.stepSec * 16 : 2) * songBars(preview.target.song) * 1000)
       }
     } finally {
       running = false

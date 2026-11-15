@@ -11,7 +11,7 @@ const songs: [string, Song, StyleId][] = [
   ...REMIXES.map((r) => [`remix ${r.id}`, r.build(), r.style] as [string, Song, StyleId]),
   ['una célula con loops', { ...emptySong(), cells: [{ ...emptySong().cells[0]!, loops: demoState('techno', 1, 0).loops, parts: { bass: true, chords: false } }], nextLoopId: 4 }, 'techno'],
 ]
-const ALLOWED = new Set(['caption', 'tap', 'mouth', 'wait'])
+const ALLOWED = new Set(['caption', 'tap', 'mouth', 'wait', 'copy', 'fill'])
 
 describe('previsualizar cualquier canción (spec 009)', () => {
   it.each(songs)('%s: el guion solo usa gestos que existen y empieza dando a Play', (_n, song, style) => {
@@ -36,6 +36,16 @@ describe('previsualizar cualquier canción (spec 009)', () => {
     const dirty = { loops: [...demoState(style, 20, 2).loops.map((l) => ({ ...l, hits: [...l.hits, { pos: 7.4, strength: 1 }] })), { ...demoState(style, 30, 0).loops[0]!, id: 40, instrument: 'mel' as const }], nextId: 41 }
     const fixed = correctLoops(dirty, s.final, 4)
     expect(checkOutcome(fixed, s.final.parts, s.final).ok).toBe(true)
+  })
+  it.each(songs)('%s: construye la canción completa: una célula por cada una del orden (la primera y una copia por cada siguiente), en orden', (_n, song, style) => {
+    const s = previewScript(song, style, 'electro')
+    const copies = s.steps.filter((x) => x.do === 'copy').length
+    const fills = s.steps.filter((x) => x.do === 'fill').map((x) => (x as { cell: number }).cell)
+    expect(copies).toBe(Math.min(song.order.length, 16) - 1)
+    expect(fills).toEqual(Array.from({ length: copies + 1 }, (_, i) => i))
+    // el orden de los pasos: cada copia va seguida de su relleno
+    const seq = s.steps.filter((x) => x.do === 'copy' || x.do === 'fill').map((x) => x.do)
+    expect(seq.join(',')).toBe(['fill', ...Array.from({ length: copies }, () => ['copy', 'fill']).flat()].join(','))
   })
   it('lo que no se puede con un gesto (golpe a medio paso, 4 compases) no se inventa', () => {
     expect(gestureSteps([{ pos: 2.5 }], 1)).toBeNull()

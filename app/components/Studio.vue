@@ -17,9 +17,12 @@ prefs.load()
 prefs.startSaving()
 useSuggestions()
 // (solo desarrollo: para las pruebas con el navegador)
-if (import.meta.dev && import.meta.client) (window as unknown as Record<string, unknown>).__engine = engine
+if (import.meta.dev && import.meta.client) {
+  ;(window as unknown as Record<string, unknown>).__engine = engine
+  ;(window as unknown as Record<string, unknown>).__stage = () => stage.value
+}
 // piloto automático (spec 009): un dedo fantasma que construye la demo con gestos reales
-const pilot = usePilot(() => (stage.value as unknown as { pointOf: never; rootEl: never } | null))
+const pilot = usePilot(() => stage.value as never)
 const pilotState = usePilotState()
 /** «👁 Previsualizar»: la canción que hay (o una guardada de Mis canciones) se construye sola; al acabar o parar, todo como estaba. */
 function startPreview(t?: { song: Song; style: StyleId; kit: KitId; title?: string }) {

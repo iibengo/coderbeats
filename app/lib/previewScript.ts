@@ -4,7 +4,7 @@
  * construye con la boca (≥ 8 golpes) o tocando el aro, y el fondo con las bolas. Lo que la interfaz no puede hacer con un gesto (melodía, loops de 4 compases,
  * voz, filtro, grupos, las demás células) **no se inventa**: se enseña al final con la canción entera, restaurada desde los datos.
  */
-import { cellById, type Song } from './cells'
+import { cellById, MAX_CELLS, type Song } from './cells'
 import type { PilotScript, PilotStep } from './pilotScripts'
 import type { Instrument, KitId, StyleId } from './types'
 
@@ -37,8 +37,15 @@ export function previewScript(song: Song, style: StyleId, kit: KitId, title = 'T
   if (parts.chords) steps.push({ do: 'tap', on: { t: 'ball', part: 'chords' }, caption: '+ acordes' })
   if (parts.bass) steps.push({ do: 'tap', on: { t: 'ball', part: 'bass' }, caption: '+ bajo' })
   steps.push({ do: 'wait', bars: 2 })
-  const rest = song.order.slice(1).map((id) => cellById(song, id)?.name).filter(Boolean)
-  steps.push({ do: 'caption', text: rest.length ? `Después: ${rest.join(' · ')}` : 'Y suena entera' })
+  // la primera célula se completa con lo que ningún gesto hace (melodía, loops de 4 compases, filtro…)
+  steps.push({ do: 'caption', text: 'lo que falta de esta parte' }, { do: 'fill', cell: 0 })
+  // cada célula siguiente, en orden: en Componer se copia la anterior (asa → agua vacía) y se cambia lo necesario
+  const rest = song.order.slice(1)
+  if (rest.length) steps.push({ do: 'tap', on: { t: 'label', label: 'Componer' } }, { do: 'wait', bars: 1 })
+  rest.slice(0, MAX_CELLS - 1).forEach((id, i) => {
+    steps.push({ do: 'caption', text: `${cellById(song, id)?.name ?? `parte ${i + 2}`}: creo y engancho la siguiente` }, { do: 'copy' }, { do: 'fill', cell: i + 1 })
+  })
+  if (song.groups.length) steps.push({ do: 'caption', text: 'y los grupos que suenan a la vez' })
   return { version: 1, id: 'preview', title, style, kit, steps, final: { loops, parts } }
 }
 

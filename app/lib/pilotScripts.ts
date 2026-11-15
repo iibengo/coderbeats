@@ -11,6 +11,8 @@ export type PilotTarget =
   | { t: 'play' }
   | { t: 'ball'; part: 'bass' | 'chords' }
   | { t: 'strip'; voice: Instrument; step: number }
+  /** un botón por su `aria-label` exacto (los del selector de modo) */
+  | { t: 'label'; label: string }
 
 export type PilotStep =
   /** un rótulo (apagable) */
@@ -20,6 +22,10 @@ export type PilotStep =
   /** «grabar con la boca»: el bocadillo dice `says` en cada golpe y la frase empieza en la línea de compás */
   | { do: 'mouth'; instrument: Instrument; steps: number[]; says: string; caption?: string }
   | { do: 'wait'; bars: number }
+  /** en Componer: arrastra el asa de la última célula a agua vacía (copiarla) → una célula nueva al final del orden */
+  | { do: 'copy' }
+  /** «cambio lo necesario»: la célula nº `cell` del orden de la canción toma sus loops, partes, vueltas y filtro (lo que ningún gesto hace) */
+  | { do: 'fill'; cell: number }
 
 export interface PilotScript {
   version: 1
