@@ -87,3 +87,25 @@ Nota: la «pantalla en blanco» de una sesión antigua fue, casi seguro, la cach
 ## Actualización (2026-11-16): el «bloqueo» al cambiar de canción
 **Resuelto como falso positivo de la prueba, y arreglado un riesgo real.** El «bloqueo» reproducido en Chrome de escritorio era el **cuadro nativo `confirm()`** («Tu canción de ahora no está guardada») que Chrome sin pantalla no cierra: la página parecía colgada (y por eso también ocurría en la versión vieja). Desde parado no salía el cuadro y abría bien. **No era un fallo del motor.**
 Aun así, es posible que sea lo que viste en el móvil: los cuadros nativos pueden **bloquearse o suprimirse** («evitar más cuadros de esta página») y entonces abrir un remix o una canción **no hacía nada sin avisar**. Se sustituyeron los 8 `confirm()` de la app por un **cuadro propio** (`useConfirm` + `ConfirmDialog`). Comprobado en Chrome (`tests/browser/cambio-cancion.mjs`): con una demo sonando, abrir un remix pide confirmación, al cancelar no cambia nada y al aceptar abre las 12 células y sigue sonando, sin cuadros nativos. Si en el móvil sigue sin iniciar el play tras cambiar de canción, sería otra causa (p. ej. carga de muestras del kit nuevo): pásame el error de la consola.
+
+---
+
+## Tercera tanda (2026-11-16) — plan autónomo, cola 1–4
+
+| Commit | Qué |
+|---|---|
+| `68f2fea` | Cuadro de confirmación propio en vez de `window.confirm` (el «bloqueo» de las pruebas era el cuadro nativo sin cerrar; en el móvil los nativos pueden suprimirse). |
+| `d17ed9b` | Remix nuevo **«Wow (60 s)»**: techno original de 32 compases (intro, entra, subida con riser, drop con gancho, crash e impacto, final). |
+| `2f7b35d` | **Spec 014 fase 1:** «Producción» en ⋯ (swing y matices de volumen, apagado por defecto). |
+| `85d68b7` | **Spec 015 fases 0–1:** «🎹 Agua» (teclado de agua fuera del aro, escala del estilo, acorde en los tiempos fuertes) + «● Grabar» como loop de melodía. |
+| `fb85450` | **Vídeo fase 4:** exportar la previsualización. |
+| `8a08c96`, `2b290d4`, `f711b99` | Specs 015 y 014 y el plan autónomo (`specs/PLAN-AUTONOMO.md`, `PLAN-AUTONOMO-2.md`). |
+
+**Sin oír ni ver en un móvil** (como siempre): lo comprobado en Chrome está en `tests/browser/` (`cambio-cancion`, `agua`, `video-previsualizacion`…). **Pendiente** de la cola: 014 fases 1b–3 (variación en plantillas, automatización, transiciones), la zona muerta del teclado de agua, fluido, célula de melodía y las mejoras pequeñas: ver `specs/PLAN-AUTONOMO-2.md`.
+
+### Qué probar en el móvil (esta tanda)
+1. **Abrir un remix con una canción sonando** (ya con el cuadro propio): ¿pide confirmación, abre y suena?
+2. **Remix «Wow (60 s)»** en Remixes: ¿se oye como una canción? ¿Qué falla («el drop no pega», «el bajo tapa el bombo»)?
+3. **«Producción»** en ⋯ con una canción sonando: ¿se nota el swing y los matices? ¿Mejor o peor?
+4. **«🎹 Agua»** (Jugar, sonando): toca el fondo fuera del aro; ¿suena al instante, a notas que encajan? «● Grabar» y comprueba la melodía.
+5. **«🎬 Exportar vídeo» → «La previsualización»** en el iPhone.
