@@ -25,6 +25,10 @@ if (import.meta.dev && import.meta.client) {
 // piloto automático (spec 009): un dedo fantasma que construye la demo con gestos reales
 const pilot = usePilot(() => stage.value as never)
 const pilotState = usePilotState()
+// exportar vídeo (spec 013)
+const videoOpen = ref(false)
+const exporter = useVideoExport(() => (stage.value as unknown as { videoSource: () => never } | null)?.videoSource() ?? null)
+if (import.meta.dev && import.meta.client) (window as unknown as Record<string, unknown>).__video = exporter
 // tutorial jugando (spec 001 §14.1): mano fantasma y pistas en su momento
 const tutorial = useTutorial(() => stage.value as never, (a, b) => pilot.demoHand(a, b))
 /** «👁 Previsualizar»: la canción que hay (o una guardada de Mis canciones) se construye sola; al acabar o parar, todo como estaba. */
@@ -229,7 +233,8 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
 
   <LibrarySheet v-model:open="libraryOpen" @preview="(t) => startPreview(t)" />
   <RemixSheet v-model:open="remixOpen" />
-  <SettingsSheet v-model:open="settingsOpen" :renderer="renderer" :layout="layoutInfo" @recalibrate="(w) => emit('recalibrate', w)" @pilot="startPilot" @preview="startPreview()" />
+  <SettingsSheet v-model:open="settingsOpen" :renderer="renderer" :layout="layoutInfo" @recalibrate="(w) => emit('recalibrate', w)" @pilot="startPilot" @preview="startPreview()" @video="videoOpen = true" />
+  <VideoSheet v-model:open="videoOpen" :exporter="exporter" />
   <button
     v-if="tutorial.text.value && !pilotState.active"
     class="tutorial-line absolute left-1/2 z-10 -translate-x-1/2 rounded-full bg-black/45 px-5 py-2 text-sm text-white/90 backdrop-blur"

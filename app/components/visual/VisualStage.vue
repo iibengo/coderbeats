@@ -854,6 +854,8 @@ watch(fx, wake, { deep: true })
 let lastBeat = -1
 let lastT = 0
 const frameMs: number[] = []
+/** al final de cada frame, tras dibujar el agua y el aro (el vídeo copia ahí los lienzos: un lienzo WebGL solo se puede copiar justo después de pintarlo) */
+let frameHook: (() => void) | null = null
 let quality = 1
 let governor = initialGovernor()
 let aroDetail = 1
@@ -1035,6 +1037,7 @@ function tick() {
     aro.draw(f)
     updateChapa(colony.value ? null : plan, clock.bar + clock.barPhase, !colony.value)
   }
+  frameHook?.()
   frameMs.push(performance.now() - t0)
   if (frameMs.length >= 120) {
     const p95 = [...frameMs].sort((a, b) => a - b)[Math.floor(frameMs.length * 0.95)]!
@@ -1970,7 +1973,19 @@ function colonyPoints(): { cell: (id: number) => { x: number; y: number } | null
     },
   }
 }
-defineExpose({ colonyPoints, pointOf: (voice: Voice, step: number) => aro?.pointOf(voice, step) ?? null, rootEl: () => root.value, switchMode, openOrgan: (x: number, y: number) => (organ.value = { x, y }), organOpen: () => !!organ.value, rendererName, layoutInfo, debugDots: () => aro?.debugDots() ?? [], aroWhere: (x: number, y: number) => aro?.where(x, y) })
+/** Para exportar vídeo (spec 013): los lienzos de la escena (agua y aro, sin botones) y el gancho de cada frame. */
+function videoSource() {
+  return {
+    water: canvasHost.value?.querySelector('canvas') ?? null,
+    aro: aroEl.value ?? null,
+    width: view.w,
+    height: view.h,
+    setHook: (f: (() => void) | null) => {
+      frameHook = f
+    },
+  }
+}
+defineExpose({ videoSource, colonyPoints, pointOf: (voice: Voice, step: number) => aro?.pointOf(voice, step) ?? null, rootEl: () => root.value, switchMode, openOrgan: (x: number, y: number) => (organ.value = { x, y }), organOpen: () => !!organ.value, rendererName, layoutInfo, debugDots: () => aro?.debugDots() ?? [], aroWhere: (x: number, y: number) => aro?.where(x, y) })
 </script>
 
 <template>

@@ -164,6 +164,9 @@ interface StrudelHap {
 type PilotSaved = { suggestions: boolean; melody: boolean; assist: boolean; bgMode: BackgroundMode; bgManual: Parts; style: StyleId; kit: KitId; mode: Mode }
 // ── Estado de módulo (una sola página, solo cliente) ───────────────────────────
 let ctx: AudioContext | null = null
+/** el final de la cadena maestra (tras el techo): de ahí sale una derivación para grabar el audio de la app en vídeo (spec 013); el micro nunca entra */
+let masterEnd: AudioNode | null = null
+let videoTap: MediaStreamAudioDestinationNode | null = null
 let S: StrudelModule | null = null
 let stream: MediaStream | null = null
 let capture: AudioWorkletNode | null = null
@@ -1279,6 +1282,7 @@ export function useAudioEngine() {
     const limiter = new DynamicsCompressorNode(ctx, { threshold: -6, knee: 0, ratio: 20, attack: 0.001, release: 0.1 })
     const ceiling = new GainNode(ctx, { gain: 10 ** (-1 / 20) })
     masterIn.connect(saturator).connect(limiter).connect(ceiling).connect(ctx.destination)
+    masterEnd = ceiling
     const masterGlue = async () => {
       try {
         await ctx!.audioWorklet.addModule(`${useRuntimeConfig().app.baseURL}worklets/master-glue.js`)
@@ -2534,6 +2538,15 @@ export function useAudioEngine() {
       say(lost ? `Fundidas · ${lost} no entraron (↶ deshacer lo devuelve todo)` : 'Fundidas')
       log('cell', `célula ${aId} fundida en ${bId}: ${r.dropped.hits} golpes iguales, ${r.dropped.notes} notas que no cupieron`)
       return true
+    },
+    /** El audio de la app (lo que se oye, sin el micro) como un flujo para grabarlo en vídeo. `null` si todavía no hay audio. */
+    videoAudio: (): MediaStream | null => {
+      if (!ctx || !masterEnd) return null
+      if (!videoTap) {
+        videoTap = ctx.createMediaStreamDestination()
+        masterEnd.connect(videoTap)
+      }
+      return videoTap.stream
     },
     voiceRec,
     voiceEnv,

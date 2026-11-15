@@ -93,3 +93,15 @@ Un botón **«🎬 Exportar vídeo»** que graba **la visualización** (la gota,
 3. ¿Tope de duración: 3 min? ¿Se quiere poder grabar más escribiendo a OPFS?
 4. ¿La marca «coderbeats», encendida o apagada por defecto? (propuesta: apagada).
 5. ¿Se ofrece también **solo audio** (wav/m4a) con el mismo botón?
+
+## 12. Implementado (2026-11-15): fases 1–3 en Chrome de escritorio; **sin probar en iOS**
+
+`lib/videoExport.ts` (puro, con tests: formatos, elección del tipo, encuadre «cubrir», tamaño estimado, tope, nombre), `composables/useVideoExport.ts` y `components/VideoSheet.vue` (⋯ → «🎬 Exportar vídeo»). Un lienzo de salida 2D se redibuja en **cada frame** (gancho al final del frame de `VisualStage`, justo tras pintar el agua WebGL y el aro) copiando los dos lienzos de la escena **sin botones**; el audio sale de una derivación del final de la cadena maestra (`engine.videoAudio()`; el micro no entra). `captureStream(30)` + `MediaRecorder` (tipo por `isTypeSupported`: mp4 H.264/AAC → mp4 → webm vp9/vp8), 4 Mbit/s a 720 y 8 a 1080 + 128 kbit/s de audio, trozos de 1 s. Empieza en la siguiente línea de compás y dura los compases elegidos (célula: 2/4/8) o la canción entera (arranca desde el principio; tope de 3 min). Formatos vertical 9:16 y cuadrado 1:1; marca «coderbeats» opcional (apagada). Al perder el foco se para y se guarda lo grabado. Al acabar: vista previa, «Guardar» (descarga) y «Compartir» (`navigator.share({ files })` si se puede).
+**Comprobado en Chrome (`tests/browser/video.mjs`):** célula de 2 compases en vertical 720 → `video/mp4`, 720×1280, 3,74 s (2 compases a 128 bpm: 3,75 s), 360 KB, con imagen (no en blanco) y con sonido (RMS 0,24).
+**Pendiente / decisiones a revisar:**
+- **iOS/Safari sin probar** (`captureStream`, mp4, compartir archivos, el audio con Bluetooth): hace falta la fase 0 en un iPhone real. Si falla, el fallback WebCodecs (§4) no está hecho.
+- **Previsualización (fase 4)** y el botón en Mis canciones: sin hacer. «Cámara deformada por el agua»: sin hacer.
+- No se ha medido el rendimiento mientras graba (30 fps fijos; el vigilante de frames sigue activo y podría bajar el detalle dentro del vídeo, §5: no se congela).
+- El encuadre es «cubrir» centrado de la ventana (no una escena recompuesta): en cuadrado se recorta arriba y abajo; el aro queda en el centro.
+- La canción completa no se probó en Chrome (solo la célula); con grupos en paralelo graba lo que suene.
+- El tipo `mp4` que da este Chrome 135 no es el que dará Chrome antiguo (webm) ni Safari (solo mp4): la elección es por soporte.
