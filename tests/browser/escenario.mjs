@@ -1,0 +1,23 @@
+import { open, labels, sleep, clickLabel, clickExact } from './lib.mjs'
+const { b, p, errs } = await open()
+await clickLabel(p, 'ajustes'); await sleep(600)
+await clickLabel(p, 'Cargar demo'); await sleep(1000)
+await clickExact(p, 'tocar'); await sleep(5000)
+await p.screenshot({ path: 'g1.png' })
+// Escenario
+await clickLabel(p, 'Escenario'); await sleep(500)
+await p.touchscreen.tap(200, 700); await sleep(250)
+await p.touchscreen.tap(200, 150); await sleep(150)
+await p.screenshot({ path: 'g2.png' })
+const waves = await p.$$eval('.stage-wave', e => e.length)
+console.log('ondas', waves)
+await clickLabel(p, 'grabar efectos'); await sleep(300)
+for (const [x,y] of [[200,700],[200,400],[200,150]]) { await p.touchscreen.tap(x,y); await sleep(900) }
+console.log((await labels(p)).filter(x=>/golpes|efectos|salir/i.test(x)))
+await clickLabel(p, 'terminar y guardar'); await sleep(1200)
+await clickLabel(p, 'salir del Escenario'); await sleep(500)
+console.log((await labels(p)).filter(x=>/loop|aviso/.test(x)))
+console.log('aviso', await p.$eval('.notice', e => e.textContent).catch(()=>null))
+await p.screenshot({ path: 'g3.png' })
+console.log('errors', errs)
+await b.close()
