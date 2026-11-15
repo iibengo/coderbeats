@@ -905,3 +905,8 @@ Puro, en `lib/cells.ts`: `mergeCells(song, aId, bId): { song: Song; dropped: { n
 
 Al copiar una célula (arrastrar el asa a agua vacía, §15), la copia puede salir con una **variación propuesta** (más energía, menos energía, variar la melodía, redoble de caja), marcada y **bajo el control de la persona**: tocarla = aceptar, «↻ otra» = otra variación,
 y nunca se pierde nada (es una célula suelta, con «↶ deshacer»). El detalle (qué hace cada variación, las funciones puras, los chips) está en la **spec 012 §5**; las variaciones también son la base de «Convertir en canción» (011 §14.2).
+
+### 21.12 Implementado (2026-11-15): M1, M2 y un M3 simple
+
+`lib/mergeCells.ts` (`mergeCells(song, aId, bId)`, con 13 tests: instrumentos en una o en las dos, mismo paso a más y menos de media semicorchea, longitudes y fases distintas, silenciados, fondo, vueltas, melodías con hueco/recorte/sinte, ids únicos y todas las células de los remixes); motor `engine.mergeCellsInto` con «↶ deshacer» (registro `all`); gesto en la colonia: **arrastrar una célula hasta cubrir otra (a menos de 0,75 de radio en el mapa) y mantenerla quieta ≥ 0,8 s antes de soltar**. Comprobado en Chrome (`tests/browser/fundir.mjs`: 4 → 3 células y deshacer → 4).
+Decisiones a revisar: (a) **sin el anillo azul ni la animación de disolución** (solo el aviso «Fundidas · N no entraron»); (b) tras fundir, la canción se vuelve a poner (**si sonaba, arranca de nuevo desde el principio**), no pasa a B en la línea de compás; (c) la atracción de B no está: B se aparta como siempre, y por eso el solape se mide con la posición de reposo; (d) «no entraron» cuenta golpes iguales y notas de melodía descartadas.

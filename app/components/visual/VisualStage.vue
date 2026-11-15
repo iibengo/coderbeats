@@ -495,6 +495,9 @@ const onScreen = (g: DropGeo): boolean => {
  */
 let dragState: { id: number; px: number; py: number; grab: Point } | null = null
 let dragCell: { id: number; x: number; y: number } | null = null
+/** desde cuándo está quieta la célula arrastrada (< 12 px): mantener 0,8 s sobre otra la funde (spec 005 §21) */
+let dragStill: { t: number; x: number; y: number } | null = null
+const MERGE_HOLD_MS = 800
 /** últimas posiciones de la célula arrastrada (en el mapa): de ellas sale la velocidad al soltar */
 const dragTrail: Sample[] = []
 /** física sutil (§7.1): las unidas por hilo se dejan llevar, las cercanas se apartan, la movida se desliza al soltar */
@@ -596,6 +599,7 @@ function cellScene(
       const f = clampToRect({ x: fx, y: fy }, base.free)
       const m = toMap(f.x, f.y, dc.at.depth)
       dragCell = { id: dc.id, x: m.x + dragState.grab.x, y: m.y + dragState.grab.y }
+      if (!dragStill || Math.hypot(dragCell.x - dragStill.x, dragCell.y - dragStill.y) * base.R > 12) dragStill = { t: performance.now(), x: dragCell.x, y: dragCell.y }
       dragTrail.push({ t: performance.now(), x: dragCell.x, y: dragCell.y })
       if (dragTrail.length > 12) dragTrail.shift()
     }
@@ -1544,6 +1548,14 @@ function endCellDrag(commit: boolean) {
   dragState = null
   dragCell = null
   dragTrail.length = 0
+  const still = dragStill
+  dragStill = null
+  // fundir (spec 005 §21): soltar tras mantener quieta ≥ 0,8 s la célula cubriendo más de la mitad de otra
+  if (commit && moved && still && performance.now() - still.t >= MERGE_HOLD_MS && colonyPick) {
+    // se mide en el mapa, con la posición de reposo de las demás (las cercanas se apartan al acercarse: lo que cuenta es dónde están)
+    const over = engine.song.value.cells.find((c) => c.id !== moved.id && Math.hypot(c.at.x - moved.x, c.at.y - moved.y) < 0.75)
+    if (over && engine.mergeCellsInto(moved.id, over.id)) return
+  }
   if (!commit || !moved) return
   camEaseUntil = performance.now() + CAM_EASE_MS
   const cell = engine.song.value.cells.find((c) => c.id === moved.id)

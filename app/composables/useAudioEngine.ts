@@ -1,4 +1,5 @@
 import { computed, reactive, ref, shallowRef } from 'vue'
+import { mergeCells as mergeCellsPure } from '~/lib/mergeCells'
 import { bluetoothWarning } from '~/lib/voiceWarn'
 import { encodeWav } from '~/lib/wav'
 import { loadVoice, saveVoice } from '~/lib/voiceStore'
@@ -2518,6 +2519,21 @@ export function useAudioEngine() {
       },
       /** «Saltar al final»: la demo de una célula del estilo (lo único que no es un gesto). */
       skipToEnd: () => loadDemo(),
+    },
+    /**
+     * Fundir (spec 005 §21): A se añade a B y A desaparece; «↶ deshacer» devuelve las dos. Decisión simple: la canción se vuelve a poner (si sonaba, arranca de nuevo
+     * desde el principio) en lugar de pasar a B en la línea de compás.
+     */
+    mergeCellsInto: (aId: number, bId: number): boolean => {
+      const base = liveSong()
+      const r = mergeCellsPure(base, aId, bId)
+      if (!r) return false
+      setUndo({ kind: 'all', song: base })
+      void replaceSong(r.song)
+      const lost = r.dropped.hits + r.dropped.notes
+      say(lost ? `Fundidas · ${lost} no entraron (↶ deshacer lo devuelve todo)` : 'Fundidas')
+      log('cell', `célula ${aId} fundida en ${bId}: ${r.dropped.hits} golpes iguales, ${r.dropped.notes} notas que no cupieron`)
+      return true
     },
     voiceRec,
     voiceEnv,
