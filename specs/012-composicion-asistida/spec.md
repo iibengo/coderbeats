@@ -187,7 +187,7 @@ Así: **mejorar una variación mejora la conversión**, y la conversión **se pr
 | **S2 ✔** | `suggestMelody` (puro, hecho: `lib/suggestMelody.ts`, `suggestMelody.test.ts`) con tests: determinista, todo en escala, nota de acorde en los apoyos, termina en la tónica, 4 compases, dentro del registro, **semillas distintas dan melodías distintas**, y para **cada estilo y cada remix** | Se afina **sin interfaz**, mirando las notas que salen |
 | **S3 ✔** | (hecho: `lib/suggestion.ts`, `composables/useSuggestions.ts`, motor, `AroCanvas` `melSuggest`, ⋯ «Sugerencias») La sugerida **a la vista y a oídas**: fantasma en la franja, suena suave, aceptar, «otra», «✕», y **la voz manda**; ajuste en ⋯; el paso «toca la franja» de la guía | Es lo que se prueba **a mano** |
 | **S4 ✔** | `varyCell` (puro, hecho: `lib/variations.ts`, `variations.test.ts`) con tests: **la original no cambia**, cada tipo hace lo que dice, **todo sigue siendo una célula válida** (`isCell`), idempotencia razonable, para cada estilo y remix | Es el cimiento de §5 y de §6 |
-| **S5** | **Copia con variación** en Componer: propuesta marcada, chips, aceptar, «otra», deshacer | Interfaz sobre S4 |
+| **S5 ✔** | **Copia con variación** en Componer (hecho: `engine.proposal`, `withVariation`, chips y anillo a trazos): propuesta marcada, chips, aceptar, «otra», deshacer | Interfaz sobre S4 |
 | **S6** | **Convertir en canción** (011 §14.2) con `songTemplates` sobre S4 y la sugerida | Cierra el círculo |
 | (luego) | **Componer en directo** (011 §14.1) | Usa lo anterior: nombrar partes y variaciones |
 

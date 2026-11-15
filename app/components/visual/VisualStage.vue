@@ -48,6 +48,7 @@ import {
 import { Drift, GLIDE_TAU, glideEnd, linkedIds, releaseVelocity, type Sample } from '~/lib/aro/drift'
 import { readJson, writeJson } from '~/lib/storage'
 import { cellStrip, MODE_HINT, type Mode } from '~/lib/modes'
+import { VARIATION_LABELS } from '~/lib/variations'
 import { allLanesFilled, rewardFrame } from '~/lib/reward'
 import { advanceGuide, GUIDE_DONE, GUIDE_START, guideLine, guideVisible, type GuideState } from '~/lib/firstMinute'
 import CellStrip from '../CellStrip.vue'
@@ -204,7 +205,7 @@ const actionsStyle = computed(() =>
     ? { right: `${view.w - sideX.value.right + 40}px`, top: '50%', transform: 'translateY(-50%)', flexDirection: 'column' as const, alignItems: 'flex-end' }
     : { left: '0', right: '0', bottom: `${ACTIONS_FROM_BOTTOM - 16}px`, justifyContent: 'center' },
 )
-const hasActions = computed(() => looping.value || engine.extrasOn.value || showFollow.value || !!engine.undoInfo.value || (!!engine.suggestion.value && mode.value === 'jugar'))
+const hasActions = computed(() => !!engine.proposal.value || looping.value || engine.extrasOn.value || showFollow.value || !!engine.undoInfo.value || (!!engine.suggestion.value && mode.value === 'jugar'))
 /** posición de cada bola en la fila, por orden de instrumento (bombo, caja, platillo, melodía) */
 const rowSlots = computed(() => {
   const rank = (i: LoopInstrument) => (i === 'mel' ? INSTRUMENTS.length : INSTRUMENTS.indexOf(i))
@@ -1013,6 +1014,7 @@ function tick() {
       lanes: allArmed(engine.lanes.value) ? null : engine.lanes.value,
       hold: holdProgress(),
       holdRing: colonyHold(),
+      proposalRing: proposalRing(),
       view: (aroView = stepView(dt)),
       crowdDetail: crowdLevel,
       guide: { assist: engine.assist.value, quantizeEvery: STYLES[style.value].quantizeEvery },
@@ -1297,6 +1299,14 @@ function dropStretch(dot: AroDot, x: number, y: number) {
   if (r) engine.editLoops(r.state)
 }
 
+/** Dónde dibujar el anillo a trazos de la copia con una variación propuesta (spec 012, §5): solo en Componer. */
+function proposalRing(): { x: number; y: number; r: number } | null {
+  const p = engine.proposal.value
+  if (!p || !colony.value || !colonyPick) return null
+  const d = colonyPick.discs.find((c) => c.id === p.cellId)
+  return d ? { x: d.x, y: d.y, r: d.r } : null
+}
+
 /** La melodía sugerida (spec 012): las notas del compás que suena, para dibujarlas en fantasma en la franja de la melodía. */
 function suggestDots(bar: number): { step: number; frac: number; dur: number }[] | null {
   const sg = engine.suggestion.value
@@ -1454,6 +1464,7 @@ function onMove(e: PointerEvent) {
       else if (gs.cellId === null) panMap(p.x - gs.lx, p.y - gs.ly)
       else {
         if (!dragState) dragTrail.length = 0
+        if (engine.proposal.value?.cellId === gs.cellId) engine.acceptProposal() // moverla = aceptarla (nunca se pierde nada)
         dragState = { id: gs.cellId, px: p.x, py: p.y, grab: gs.grab }
       }
     }
@@ -1637,6 +1648,11 @@ function tapWater(x: number, y: number) {
  * entra: el zoom vuelve a cerca, a la célula.
  */
 function tapCell(id: number) {
+  // tocar la copia con una variación propuesta = aceptarla (spec 012, §5)
+  if (engine.proposal.value?.cellId === id) {
+    engine.acceptProposal()
+    return
+  }
   const now = performance.now()
   if (isDoubleTap(lastTap, id, now)) {
     lastTap = null
@@ -1981,6 +1997,18 @@ defineExpose({ switchMode, openOrgan: (x: number, y: number) => (organ.value = {
         <template v-if="colony">◎ Centrar</template>
         <template v-else>Editando · {{ editingName }} ▶ Seguir la canción</template>
       </button>
+      <template v-if="engine.proposal.value">
+        <button
+          v-for="k in engine.proposal.value.kinds"
+          :key="k"
+          class="act-btn"
+          :data-on="engine.proposal.value.kind === k"
+          :aria-label="`variación: ${VARIATION_LABELS[k]}`"
+          @click="k === 'same' ? engine.acceptProposal() : engine.setProposalKind(k)"
+        >{{ VARIATION_LABELS[k] }}</button>
+        <button class="act-btn" aria-label="probar otra variación de este tipo" @click="engine.otherProposal()">↻ otra</button>
+        <button class="act-btn" aria-label="aceptar la variación (también tocando la copia)" @click="engine.acceptProposal()">✓</button>
+      </template>
       <template v-if="engine.suggestion.value && mode === 'jugar'">
         <button class="act-btn" aria-label="melodía sugerida: probar otra" @click="engine.otherSuggestion()">↻ Otra melodía</button>
         <button class="act-btn" aria-label="no proponer esta melodía" @click="engine.dismissSuggestion()">✕</button>
@@ -2072,6 +2100,8 @@ defineExpose({ switchMode, openOrgan: (x: number, y: number) => (organ.value = {
 /* zona de acciones: una fila (o columna en horizontal) de botones del mismo estilo */
 .actions {
   display: flex;
+  flex-wrap: wrap;
+  max-width: calc(100vw - 24px);
   gap: 8px;
   pointer-events: none;
 }
@@ -2090,6 +2120,10 @@ defineExpose({ switchMode, openOrgan: (x: number, y: number) => (organ.value = {
   font-size: 12px;
   letter-spacing: 0.03em;
   white-space: nowrap;
+}
+.act-btn[data-on='true'] {
+  background: #f496bc;
+  color: #0b0b0f;
 }
 .act-btn[data-kind='undo'] {
   border-color: rgb(255 255 255 / 0.4);

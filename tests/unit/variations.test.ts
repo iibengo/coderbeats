@@ -160,3 +160,29 @@ describe('variaciones de una célula (spec 012, §5): puras, del estilo y sin to
     for (const k of KINDS) expect(VARIATION_LABELS[k].length).toBeGreaterThan(0)
   })
 })
+
+describe('poner una variación en la copia (spec 012, §5.1)', () => {
+  it('la copia conserva su id, nombre, vueltas y posición, trae los loops de la variación con ids nuevos y la canción sigue siendo válida; la dada no cambia', async () => {
+    const { withCopy } = await import('../../app/lib/cells')
+    const { withVariation } = await import('../../app/lib/variations')
+    const song = remixById('dies-irae-techno')!.build()
+    const src = song.cells.find((c) => c.name === 'Hats')!
+    const copied = withCopy(song, src.id, { x: 3, y: 3 })!
+    const before = JSON.stringify(copied.song)
+    const variant = varyCell(src, 'more', 0, 'techno')
+    const next = withVariation(copied.song, copied.id, variant)
+    expect(JSON.stringify(copied.song)).toBe(before)
+    const cell = next.cells.find((c) => c.id === copied.id)!
+    expect(cell.name).toBe(`${src.name} copia`)
+    expect(cell.turns).toBe(src.turns)
+    expect(cell.at).toEqual({ x: 3, y: 3, depth: src.at.depth })
+    expect(cell.parts).toEqual({ bass: true, chords: true })
+    expect(cell.loops.length).toBe(variant.loops.length)
+    const ids = next.cells.flatMap((c) => c.loops.map((l) => l.id))
+    expect(new Set(ids).size).toBe(ids.length) // ningún id repetido en toda la canción
+    expect(next.nextLoopId).toBeGreaterThan(Math.max(...ids))
+    expect(isSong(next)).toBe(true)
+    // una célula que no existe: la canción no cambia
+    expect(withVariation(copied.song, 999, variant)).toBe(copied.song)
+  })
+})

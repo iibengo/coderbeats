@@ -6,7 +6,7 @@
  */
 import { STYLES } from './constants'
 import { MAX_LOOPS, type FreeLoop, type LoopHit } from './freeLoops'
-import { type Cell } from './cells'
+import { cellById, type Cell, type Song } from './cells'
 import { MIDI_MAX, MIDI_MIN } from './melody'
 import { snapToScale } from './melodyAssist'
 import { rangeOf } from './melodyView'
@@ -258,4 +258,23 @@ export function variationOrder(cell: Cell, lastOfGroup = false): VariationKind[]
   const full = (['bd', 'sd', 'hh'] as const).every((i) => cell.loops.some((l) => l.instrument === i && l.hits.length)) && cell.parts.bass && cell.parts.chords
   const base: VariationKind[] = lastOfGroup ? ['more', 'fill', 'melody', 'less', 'same'] : full ? ['less', 'melody', 'fill', 'more', 'same'] : cell.loops.some((l) => l.instrument === 'mel') ? ['melody', 'more', 'less', 'fill', 'same'] : ['more', 'less', 'fill', 'melody', 'same']
   return base.filter((k) => canVary(cell, k))
+}
+
+/**
+ * Pone el contenido de una variación en una célula de la canción (la copia propuesta): sus loops (con ids nuevos, para no repetirlos), partes y filtro;
+ * la célula conserva su id, nombre, vueltas, posición y disparadores. Devuelve la canción nueva (la dada no cambia), o la misma si no hay esa célula.
+ */
+export function withVariation(song: Song, cellId: number, variant: Cell): Song {
+  const target = cellById(song, cellId)
+  if (!target) return song
+  let loopId = song.nextLoopId
+  const { lpf: _l, wow: _w, ...rest } = target
+  const cell: Cell = {
+    ...rest,
+    loops: variant.loops.map((l) => ({ ...cloneLoop(l), id: loopId++, bornAt: 0 })),
+    parts: { ...variant.parts },
+    ...(variant.lpf ? { lpf: [...variant.lpf] } : {}),
+    ...(variant.wow ? { wow: { ...variant.wow } } : {}),
+  }
+  return { ...song, cells: song.cells.map((c) => (c.id === cellId ? cell : c)), nextLoopId: loopId }
 }

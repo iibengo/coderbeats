@@ -172,6 +172,8 @@ export interface AroFrame {
   threadDrag?: { from: { x: number; y: number }; to: { x: number; y: number }; target: { x: number; y: number; r: number } | null; ghostR: number | null } | null
   /** colonia: mantener una célula la borra; el anillo se completa alrededor de ella (p = 0..1) */
   holdRing?: { x: number; y: number; r: number; p: number } | null
+  /** colonia: la copia con una variación propuesta (spec 012, §5): un anillo a trazos alrededor de ella hasta que se acepta */
+  proposalRing?: { x: number; y: number; r: number } | null
   /** la célula que se ve es de un grupo en paralelo: su anillo (a trazos si está apagado; con su progreso si suena) */
   groupRing?: { mode: 'on' | 'off'; progress: number | null } | null
   /** colonia: cuánto se ha llenado el anillo de la que suena (0..1); null = en bucle, sin avanzar */
@@ -579,6 +581,7 @@ export class AroCanvas {
       if (f.groupRing) this.drawGroupRing(f.groupRing)
       if (f.labels?.length) this.drawLabels(f.labels)
       if (f.holdRing && f.holdRing.p > 0.08) this.drawHoldRing(f.holdRing)
+      if (f.proposalRing) this.drawProposalRing(f.proposalRing)
       if (f.handles?.length) this.drawHandles(f.handles)
       if (f.threadDrag) this.drawThreadDrag(f.threadDrag)
     } finally {
@@ -922,6 +925,20 @@ export class AroCanvas {
       x.stroke()
       x.setLineDash([])
     }
+  }
+
+  /** La copia con una variación propuesta (spec 012): un anillo a trazos, lento, que invita a tocarla para aceptarla. */
+  private drawProposalRing(p: { x: number; y: number; r: number }) {
+    const x = this.ctx
+    x.save()
+    x.strokeStyle = 'rgba(255,255,255,0.55)'
+    x.lineWidth = 1.3
+    x.setLineDash([5, 5])
+    x.lineDashOffset = -(performance.now() / 90) % 10
+    x.beginPath()
+    x.arc(p.x, p.y, p.r + 6, 0, TAU)
+    x.stroke()
+    x.restore()
   }
 
   /** Anillo fino que se completa alrededor de la célula que se mantiene pulsada (se borra al llegar a 1). */

@@ -10,6 +10,7 @@ import { STYLE_MUSIC } from '~/lib/styles'
 import { GLUE_WARM, saturationCurve } from '~/lib/masterChain'
 import { DEFAULT_MODE, type Mode } from '~/lib/modes'
 import { sameSuggestion, suggestFor, type Suggestion } from '~/lib/suggestion'
+import { varyCell, variationOrder, withVariation, type VariationKind } from '~/lib/variations'
 import { demoState } from '~/lib/demos'
 import { analyzeEchoTest, type EchoTestResult } from '~/lib/echoGate'
 import {
@@ -227,6 +228,19 @@ const suggestions = ref(true)
 const suggestion = shallowRef<Suggestion | null>(null)
 /** la semilla en curso de cada ritmo («otra» la sube: secuencia fija y reproducible) y los ritmos cuya sugerencia se descartó */
 const suggestSeeds = new Map<number, number>()
+
+/** La variación propuesta al copiar una célula (spec 012, §5): la copia ya la lleva puesta y marcada; tocarla la acepta. No está en la canción. */
+export interface Proposal {
+  /** la copia */
+  cellId: number
+  kind: VariationKind
+  seed: number
+  /** la original tal como era al copiar (cada «otra» parte de ella, no de la propuesta anterior) */
+  source: Cell
+  /** las variaciones que se ofrecen, en orden */
+  kinds: VariationKind[]
+}
+const proposal = shallowRef<Proposal | null>(null)
 const suggestDismissed = new Set<number>()
 /** si canta, manda su voz: no se sugiere hasta pasados 2 compases desde la última nota cantada */
 let voiceHoldUntil = 0
@@ -1877,6 +1891,35 @@ export function useAudioEngine() {
     return r.id
   }
 
+  /** Al copiar, la copia sale con una variación puesta y marcada (spec 012, §5). Solo con «Sugerencias» encendido. */
+  function startProposal(cellId: number, srcId: number) {
+    const s = liveSong()
+    const src = cellById(s, srcId)
+    if (!src) return
+    const g = groupIdOf(s, srcId)
+    const order = g === null ? [] : orderOf(s, g)
+    const kinds = variationOrder(src, order.length > 0 && order[order.length - 1] === srcId)
+    const first = kinds[0]
+    if (!first || first === 'same') return
+    proposal.value = { cellId, kind: first, seed: 0, source: JSON.parse(JSON.stringify(src)) as Cell, kinds }
+    applyProposal()
+  }
+
+  /** Pone la variación en curso en la copia. */
+  function applyProposal() {
+    const p = proposal.value
+    if (!p) return
+    const s = liveSong()
+    if (!cellById(s, p.cellId)) {
+      proposal.value = null // la copia ya no existe (se borró)
+      return
+    }
+    song.value = withVariation(s, p.cellId, varyCell(p.source, p.kind, p.seed, style.value))
+    loops.value = { ...loops.value, nextId: Math.max(loops.value.nextId, song.value.nextLoopId) }
+    log('cell', `copia ${p.cellId}: «${p.kind}» (semilla ${p.seed})`)
+    reevaluate()
+  }
+
   /**
    * Copia la célula `srcId` en `at` (mapa): la copia es un grupo nuevo de una célula, apagado (§16.3): no
    * suena hasta que se toca. Devuelve su id, o null con 16 células.
@@ -1892,6 +1935,7 @@ export function useAudioEngine() {
     // los ids de loop de la copia no deben repetirse con los que se creen en la célula que se ve
     loops.value = { ...loops.value, nextId: Math.max(loops.value.nextId, r.song.nextLoopId) }
     log('cell', `célula ${srcId} copiada en la ${r.id}, grupo ${r.groupId} apagado`)
+    if (suggestions.value) startProposal(r.id, srcId)
     reevaluate()
     return r.id
   }
@@ -2251,9 +2295,27 @@ export function useAudioEngine() {
     guideNonce,
     suggestions,
     suggestion,
+    proposal,
+    /** Otra variación del mismo tipo (la siguiente de la secuencia fija), partiendo de la original. */
+    otherProposal: () => {
+      if (!proposal.value) return
+      proposal.value = { ...proposal.value, seed: proposal.value.seed + 1 }
+      applyProposal()
+    },
+    /** Cambia el tipo de variación (+ energía, − energía…), desde su primera posibilidad. */
+    setProposalKind: (kind: VariationKind) => {
+      if (!proposal.value) return
+      proposal.value = { ...proposal.value, kind, seed: 0 }
+      applyProposal()
+    },
+    /** Tocar la copia = aceptar: se quita la marca y los chips; la célula se queda como está. */
+    acceptProposal: () => {
+      proposal.value = null
+    },
     /** Enciende o apaga «Sugerencias» (spec 012, §3.4): apagado, se retira lo propuesto y no se propone nada. */
     setSuggestions: (on: boolean) => {
       suggestions.value = on
+      if (!on) proposal.value = null // apagado, no se propone nada (lo propuesto se queda como está)
       refreshSuggestion()
     },
     refreshSuggestion,
@@ -2302,6 +2364,7 @@ export function useAudioEngine() {
     setMode: (m: Mode) => {
       if (mode.value !== m) log('cell', `modo: ${m}`)
       mode.value = m
+      proposal.value = null // al salir de Componer, lo propuesto se da por aceptado
     },
     style,
     assist,
