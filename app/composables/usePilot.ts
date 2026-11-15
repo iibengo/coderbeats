@@ -20,6 +20,8 @@ interface StageApi {
 /** Estado visible (lo pinta `PilotLayer`). Compartido: solo hay un piloto. */
 const state = reactive({
   active: false,
+  /** la mano fantasma del tutorial: solo el dedo, sin barra ni rótulos */
+  demo: false,
   paused: false,
   finger: { x: -100, y: -100, down: false, shown: false },
   caption: '',
@@ -288,5 +290,22 @@ export function usePilot(getStage: () => StageApi | null) {
   /** «👁 Previsualizar»: construye `target` (cualquier canción) como un guion generado de sus datos, y al acabar o parar devuelve lo del usuario. */
   const preview = (target: { song: Song; style: StyleId; kit: KitId; title?: string }, seed = Date.now() % 1000) =>
     start(seed, target.style, { script: previewScript(target.song, target.style, target.kit, target.title), target })
-  return { preview, start, skip, stop, togglePause: () => (state.paused = !state.paused), available: (style: string) => style in PILOT_SCRIPTS, outcomeOf }
+  /** La mano fantasma del tutorial (spec 001 §14.1): el dedo va de `from` a `to` con la curva de siempre, sin tocar nada (solo enseña). */
+  async function demoHand(from: Pt, to: Pt, seed = 7) {
+    if (state.active || state.demo) return
+    state.demo = true
+    state.reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    cancelled = false
+    const rand = rng(seed)
+    state.finger = { x: from.x, y: from.y, down: false, shown: true }
+    await wait(500)
+    state.finger.down = true
+    await moveTo(to, rand, 40, false)
+    await wait(300)
+    state.finger.down = false
+    await wait(300)
+    state.finger.shown = false
+    state.demo = false
+  }
+  return { demoHand, preview, start, skip, stop, togglePause: () => (state.paused = !state.paused), available: (style: string) => style in PILOT_SCRIPTS, outcomeOf }
 }

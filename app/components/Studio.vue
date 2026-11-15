@@ -24,6 +24,8 @@ if (import.meta.dev && import.meta.client) {
 // piloto automático (spec 009): un dedo fantasma que construye la demo con gestos reales
 const pilot = usePilot(() => stage.value as never)
 const pilotState = usePilotState()
+// tutorial jugando (spec 001 §14.1): mano fantasma y pistas en su momento
+const tutorial = useTutorial(() => stage.value as never, (a, b) => pilot.demoHand(a, b))
 /** «👁 Previsualizar»: la canción que hay (o una guardada de Mis canciones) se construye sola; al acabar o parar, todo como estaba. */
 function startPreview(t?: { song: Song; style: StyleId; kit: KitId; title?: string }) {
   void pilot.preview(t ?? { song: engine.snapshot().song, style: engine.style.value, kit: engine.kit.value, title: 'Tu canción' })
@@ -214,5 +216,16 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
   <LibrarySheet v-model:open="libraryOpen" @preview="(t) => startPreview(t)" />
   <RemixSheet v-model:open="remixOpen" />
   <SettingsSheet v-model:open="settingsOpen" :renderer="renderer" :layout="layoutInfo" @recalibrate="(w) => emit('recalibrate', w)" @pilot="startPilot" @preview="startPreview()" />
+  <button
+    v-if="tutorial.text.value && !pilotState.active"
+    class="tutorial-line absolute left-1/2 z-10 -translate-x-1/2 rounded-full bg-black/45 px-5 py-2 text-sm text-white/90 backdrop-blur"
+    style="bottom: calc(max(0.5rem, env(safe-area-inset-bottom)) + 150px)"
+    aria-live="polite"
+    aria-label="tutorial: toca para saltarlo"
+    @pointerdown.stop
+    @click="tutorial.skip()"
+  >
+    {{ tutorial.text.value.big }}<span v-if="tutorial.text.value.count" class="ml-3 text-xs text-white/50">{{ tutorial.text.value.count }}</span>
+  </button>
   <PilotLayer :paused="pilotState.paused" @pause="pilot.togglePause()" @skip="pilot.skip()" @stop="pilot.stop('user')" />
 </template>

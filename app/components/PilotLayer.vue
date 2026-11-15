@@ -6,12 +6,12 @@ const emit = defineEmits<{ pause: []; skip: []; stop: [] }>()
 </script>
 
 <template>
-  <div v-if="state.active" class="pilot" aria-live="polite">
+  <div v-if="state.active || state.demo" class="pilot" aria-live="polite">
     <div v-if="state.finger.shown" class="finger" :data-down="state.finger.down" :data-reduced="state.reduced" :style="{ transform: `translate(${state.finger.x - 18}px, ${state.finger.y - 18}px)` }" />
-    <div v-if="state.bubble" class="bubble">{{ state.bubble }}</div>
-    <div v-if="state.captions && state.caption" class="caption">{{ state.caption }}</div>
-    <div class="tag">piloto automático · demo · micro bloqueado 🎙✕</div>
-    <div class="bar" data-pilot-bar>
+    <div v-if="state.active && state.bubble" class="bubble">{{ state.bubble }}</div>
+    <div v-if="state.active && state.captions && state.caption" class="caption">{{ state.caption }}</div>
+    <div v-if="state.active" class="tag">piloto automático · demo · micro bloqueado 🎙✕</div>
+    <div v-if="state.active" class="bar" data-pilot-bar>
       <button :aria-label="paused ? 'reanudar el piloto' : 'pausar el piloto'" @click="emit('pause')">{{ paused ? '▶' : '⏸' }}</button>
       <button aria-label="saltar al final: la canción terminada" @click="emit('skip')">⏭</button>
       <button aria-label="detener el piloto y seguir tocando" @click="emit('stop')">✕</button>

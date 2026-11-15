@@ -1456,3 +1456,8 @@ En el código, `hh*16` aparece desplegado en 16 golpes (`hh hh … hh`): es lo m
   - paso ocupado → paso de la rejilla más cercano, o nada si también está ocupado;
   - lo mismo dentro de una frase.
   - La migración de prefs, en `usePrefs`.
+
+#### Tutorial jugando: implementado (2026-11-15)
+
+`lib/tutorial.ts` (puro, con tests) + `composables/useTutorial.ts` + la mano fantasma del piloto (`usePilot.demoHand`). Pasos 2 y 3: «Arrastra un golpe» (2/3, avanza cuando se mueve uno: misma cantidad de golpes, otras posiciones) y «Llévalo al centro para borrarlo» (3/3, avanza cuando hay menos golpes); la mano enseña el gesto cada 9 s sin tocar nada. Pistas una sola vez (por dispositivo, `coderbeats:tutorial:v1`): «Mantén un carril para grabar solo ahí» (≥ 2 loops) y «Aleja con dos dedos para ver tu canción» (≥ 2 células). Tocar la frase lo salta; «Repetir la guía y el tutorial» en ⋯.
+Decisiones a revisar: el **paso 1** («Dale a Play y haz bum») no se repite: lo cubre la guía del primer minuto (011 §12.2); el tutorial **empieza cuando esa guía acaba** y suena algo; los usuarios que ya la tenían hecha verán el tutorial una vez; el gesto de arrastrar no se pudo comprobar en Chrome con el micro de mentira (llena el carril de bombo): se comprobó por el motor (`tests/browser/tutorial.mjs`), la mano y los textos sí se ven.

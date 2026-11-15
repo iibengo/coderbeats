@@ -280,7 +280,7 @@ watch(open, (o) => {
             <span class="text-xs text-neutral-500">de un loop a intro, subida, drop y final del estilo (con «deshacer»).</span>
           </div>
           <div class="flex items-center gap-3">
-            <button class="shrink-0 rounded-full border border-white/15 px-4 py-2" @click="engine.restartGuide(); open = false">Repetir la guía</button>
+            <button class="shrink-0 rounded-full border border-white/15 px-4 py-2" @click="engine.restartGuide(); restartTutorial(); open = false">Repetir la guía y el tutorial</button>
             <span class="text-xs text-neutral-500">el primer minuto: bum · pff · ts, y tus golpes aparecen (con la canción vacía).</span>
           </div>
           <div class="flex items-center gap-3">
