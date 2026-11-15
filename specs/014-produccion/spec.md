@@ -58,3 +58,7 @@ Datos puros con tests (swing, variación, automatización como funciones de comp
 1. ¿Las mejoras se aplican a todas las canciones o con un interruptor «Producción»?
 2. ¿Objetivo de volumen por defecto (−14 LUFS) o más fuerte?
 3. ¿Se quiere un modo «A/B» para comparar con y sin producción?
+
+## 7. Implementado (2026-11-16): fase 1
+
+`lib/production.ts` (puro, con tests) y el interruptor **«Producción» en ⋯** (apagado por defecto: las canciones guardadas y compartidas **no cambian solas**; se guarda por dispositivo en los ajustes). Con él: **swing** (el paso impar, la semicorchea de contratiempo, se retrasa 0,16 de semicorchea con `.nudge()`) y **matices de volumen** (`.gain("…")` por paso: el bombo firme casi sin variar, la caja poco, el platillo más; tiempos fuertes más fuertes y contratiempos más suaves; variación fija por paso, repetible; siempre entre 0,6 y 1). Se expresa en Strudel normal, así que **el código mostrado suena igual en strudel.cc**. Valores prudentes (`DEFAULT_PRODUCTION`), a afinar de oído. **Sin oír.** Pendiente de la spec: reglas de variación en las plantillas, automatización por compás, transiciones, y las fases 4–9. Decisión simple: el swing y los matices son fijos (sin deslizadores todavía).

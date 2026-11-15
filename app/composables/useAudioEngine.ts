@@ -1,4 +1,5 @@
 import { computed, reactive, ref, shallowRef } from 'vue'
+import { DEFAULT_PRODUCTION } from '~/lib/production'
 import { mergeCells as mergeCellsPure } from '~/lib/mergeCells'
 import { bluetoothWarning } from '~/lib/voiceWarn'
 import { encodeWav } from '~/lib/wav'
@@ -238,6 +239,8 @@ const mode = ref<Mode>(DEFAULT_MODE)
 const guideNonce = ref(0)
 /** «Sugerencias» (spec 012, §3.4): la melodía sugerida y las variaciones; apagado, no se propone nada. Separado de «Ayuda» (`assist`) */
 const suggestions = ref(true)
+/** producción opcional (spec 014): swing y matices de volumen; apagada por defecto (las canciones no cambian solas) */
+const production = ref(false)
 /** la melodía sugerida que se ve y suena en fantasma (sin aceptar); no está en la canción */
 const suggestion = shallowRef<Suggestion | null>(null)
 /** la semilla en curso de cada ritmo («otra» la sube: secuencia fija y reproducible) y los ritmos cuya sugerencia se descartó */
@@ -841,6 +844,7 @@ function songState(display = false): SongState {
     background: { mode: bgMode.value, parts: bgParts.value },
     metronome: metronome.value,
     fx: { ...fx },
+    ...(production.value ? { production: DEFAULT_PRODUCTION } : {}),
     ...(!display && suggestion.value && !multi() ? { suggestion: { hits: suggestion.value.hits, synth: suggestion.value.synth } } : {}),
   }
   // los grupos en paralelo: en el motor, sus tramos; en el código que se enseña, los encendidos enteros
@@ -2392,6 +2396,11 @@ export function useAudioEngine() {
     mode,
     guideNonce,
     suggestions,
+    production,
+    setProduction: (on: boolean) => {
+      production.value = on
+      reevaluate()
+    },
     suggestion,
     proposal,
     notice,

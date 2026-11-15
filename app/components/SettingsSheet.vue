@@ -206,6 +206,10 @@ watch(open, (o) => {
             <span>Sugerencias <span class="text-xs text-neutral-500">melodía sugerida y variaciones</span></span>
             <input type="checkbox" :checked="engine.suggestions.value" @change="engine.setSuggestions(($event.target as HTMLInputElement).checked)" />
           </label>
+          <label class="flex items-center justify-between">
+            <span>Producción <span class="text-xs text-neutral-500">swing y matices de volumen (beta)</span></span>
+            <input type="checkbox" :checked="engine.production.value" @change="engine.setProduction(($event.target as HTMLInputElement).checked)" />
+          </label>
           <div class="grid gap-0.5">
             <label class="flex items-center justify-between">
               <span>Melodía con la voz <span class="text-xs text-neutral-500">beta</span></span>

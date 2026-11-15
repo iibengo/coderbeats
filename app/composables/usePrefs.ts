@@ -42,6 +42,8 @@ export interface StudioPrefs {
   mode?: Mode
   /** sugerencias (spec 012, §3.4): melodía sugerida y variaciones; por defecto encendidas */
   suggestions?: boolean
+  /** producción (spec 014): swing y matices; por defecto apagada */
+  production?: boolean
 }
 
 const isPrefs = (x: unknown): x is StudioPrefs => isStoredPrefs(x)
@@ -65,6 +67,7 @@ export function usePrefs() {
       engine.bgMode.value = p.bgMode
       engine.mode.value = modeFromSaved(p.mode)
       engine.suggestions.value = p.suggestions ?? true
+      engine.production.value = p.production === true
       if (p.bgManual) engine.setBackgroundManual(p.bgManual)
       engine.setPhraseOptions({ mode: p.phraseMode, closeBeats: p.phraseCloseBeats, maxBars: p.maxPhraseBars })
       // 'accumulate' (antes de §16.19) y el "sustituye" por defecto de antes de §16.21 pasan a 'complete'
@@ -109,6 +112,7 @@ export function usePrefs() {
           melody: engine.melodyOn.value,
           mode: engine.mode.value,
           suggestions: engine.suggestions.value,
+          production: engine.production.value,
         }) satisfies StudioPrefs,
       (p) => writeJson(PREFS_KEY, p),
       { deep: true },

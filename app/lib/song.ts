@@ -1,6 +1,7 @@
 import { isVoiceId } from './voiceLoop'
 import { STYLES, KITS, INSTRUMENTS } from './constants'
 import { loopGains, fmtGain } from './mix'
+import { clampProduction, humanGains, swingNudges, type Production } from './production'
 import { filterDjf, spaceParams, warmthShape } from './gestures'
 import { STYLE_MUSIC } from './styles'
 import { tokensToMini } from './strudel'
@@ -21,6 +22,8 @@ export interface SongFx {
 }
 
 export interface SongState {
+  /** producción opcional (spec 014): swing y matices; sin ella, el código de siempre */
+  production?: Production
   loops: FreeLoop[]
   style: StyleId
   /** tempo de la canción (spec 005, §6); sin él, el del estilo */
@@ -98,9 +101,11 @@ const plainLpf = (lpf: string) => lpf || plainEngineLpf
 
 /** Tokens de s() y de nudge() (rotados a la fase global) de un loop. */
 export function loopTokens(
-  loop: Pick<FreeLoop, 'bars' | 'phaseBar' | 'hits'> & { instrument: string },
+  loop: Pick<FreeLoop, 'bars' | 'phaseBar' | 'hits'> & { instrument: string; id?: number },
   stepSeconds: number,
-): { s: string[]; nudge: string[] | null } {
+  /** producción opcional (spec 014): swing y matices de volumen */
+  production?: Production,
+): { s: string[]; nudge: string[] | null; gains: string[] | null } {
   const bars = safeNum(loop.bars)
   const total = bars * 16
   const slots: (string | null)[] = new Array(total).fill(null)
@@ -120,8 +125,14 @@ export function loopTokens(
       return arr.slice(k * 16, k * 16 + 16)
     }).flat()
   const s = rot(slots.map((x) => x ?? '~'))
+  let gains: string[] | null = null
+  if (production && instrument) {
+    const p = clampProduction(production)
+    if (p.swing > 0) swingNudges(total, p.swing, stepSeconds).forEach((d, i) => (nudges[i] = round3(nudges[i]! + d)))
+    if (p.humanize > 0) gains = rot(humanGains(instrument, total, p.humanize, safeNum(loop.id ?? 1)).map(String))
+  }
   const hasNudge = nudges.some((n) => n !== 0)
-  return { s, nudge: hasNudge ? rot(nudges.map((n) => String(n))) : null }
+  return { s, nudge: hasNudge ? rot(nudges.map((n) => String(n))) : null, gains }
 }
 
 function loopLine(
@@ -155,12 +166,14 @@ function loopLine(
     if (Math.abs(gain - 1) > 0.005) line += `.gain(${fmtGain(gain)})`
   } else {
     const kit = KITS[st.kit]
-    const { s, nudge } = loopTokens(src, stepSeconds)
+    const { s, nudge, gains } = loopTokens({ ...src, id: loop.id }, stepSeconds, st.production)
     line = `s("${tokensToMini(s)}")${kit.strudelBank ? `.bank("${kit.strudelBank}")` : ''}`
     const n = kit.sampleIndex[loop.instrument]
     if (n !== 0) line += `.n(${n})`
     if (nudge) line += `.nudge("${tokensToMini(nudge)}")`
-    if (Math.abs(gain - 1) > 0.005) line += `.gain(${fmtGain(gain)})`
+    // con producción, el volumen por paso (el de la mezcla × el matiz); sin ella, el volumen del loop de siempre
+    if (gains) line += `.gain("${tokensToMini(gains.map((g) => fmtGain(gain * Number(g))))}")`
+    else if (Math.abs(gain - 1) > 0.005) line += `.gain(${fmtGain(gain)})`
     // el bombo afinado a la raíz del acorde de cada compás, si el estilo lo pide (spec 008, §10)
     const tune = loop.instrument === 'bd' ? STYLE_MUSIC[st.style].kickTune : undefined
     if (tune) line += `.note("${tune}")`
