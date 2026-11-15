@@ -76,3 +76,38 @@ export function outcomeOf(script: PilotScript): PilotScript['final'] {
   }
   return { loops, parts }
 }
+
+import type { FreeLoop, LoopsState } from './freeLoops'
+
+/** ¿Lo construido es idéntico a lo que declara el guion? Cada instrumento con exactamente sus pasos (enteros), ningún loop de más, y el fondo. */
+export function checkOutcome(state: LoopsState, parts: { bass: boolean; chords: boolean }, final: PilotScript['final']): { ok: boolean; diff: string[] } {
+  const diff: string[] = []
+  const want = Object.entries(final.loops) as [Instrument, number[]][]
+  for (const l of state.loops) if (!(l.instrument in final.loops)) diff.push(`loop de más: ${l.instrument}`)
+  for (const [inst, steps] of want) {
+    const ls = state.loops.filter((l) => l.instrument === inst)
+    if (ls.length !== 1) {
+      diff.push(`${inst}: ${ls.length} loops`)
+      continue
+    }
+    const l = ls[0]!
+    const got = l.hits.map((h) => h.pos).sort((a, b) => a - b)
+    if (l.bars !== 1 || got.length !== steps.length || got.some((p, i) => p !== steps[i])) diff.push(`${inst}: ${got.join(',')} ≠ ${steps.join(',')}`)
+  }
+  if (parts.bass !== final.parts.bass || parts.chords !== final.parts.chords) diff.push('fondo distinto')
+  return { ok: diff.length === 0, diff }
+}
+
+/** Deja exactamente los loops del guion (los de más se quitan, los que faltan se crean, los golpes en su paso exacto), conservando ids y nacimiento de los que ya estaban. */
+export function correctLoops(state: LoopsState, final: PilotScript['final'], bornAt: number): LoopsState {
+  let nextId = state.nextId
+  const loops: FreeLoop[] = []
+  for (const [inst, steps] of Object.entries(final.loops) as [Instrument, number[]][]) {
+    const old = state.loops.find((l) => l.instrument === inst)
+    loops.push({
+      id: old?.id ?? nextId++, instrument: inst, bars: 1, phaseBar: 0, muted: false, bornAt: old?.bornAt ?? bornAt, fromTemplate: false,
+      hits: steps.map((pos) => ({ pos, strength: 0.8 })),
+    })
+  }
+  return { loops, nextId }
+}

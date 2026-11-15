@@ -2,6 +2,7 @@ import { computed, reactive, ref, shallowRef } from 'vue'
 import { encodeWav } from '~/lib/wav'
 import { loadVoice, saveVoice } from '~/lib/voiceStore'
 import { fromPcm16, newVoiceId, prepareTake, type VoiceBars } from '~/lib/voiceLoop'
+import { checkOutcome, correctLoops, type PilotScript } from '~/lib/pilotScripts'
 import { FX_DURATION, FxLimiter, fxToLoops, fxValue, type FxEvent, type FxKind } from '~/lib/stageFx'
 import { timelineToSong, type BarLayers } from '~/lib/liveCompose'
 import { NO_PARTS, PART_ORBIT, planTransitions, targetParts, type BackgroundMode, type Part, type Parts } from '~/lib/background'
@@ -158,6 +159,7 @@ interface StrudelHap {
   value: Record<string, unknown>
 }
 
+type PilotSaved = { suggestions: boolean; melody: boolean; assist: boolean; bgMode: BackgroundMode; bgManual: Parts; style: StyleId; kit: KitId; mode: Mode }
 // ── Estado de módulo (una sola página, solo cliente) ───────────────────────────
 let ctx: AudioContext | null = null
 let S: StrudelModule | null = null
@@ -1143,9 +1145,12 @@ function birth(phrase: ClosedPhrase, bornAt: number, amend = false) {
   updateBackground()
 }
 
-function onWorkerMessage(m: FromWorker) {
+/** Piloto automático en marcha (modo estricto): el micro real no cuenta; solo valen los golpes que mete el guion. */
+let pilotStrict = false
+function onWorkerMessage(m: FromWorker, fromPilot = false) {
   const c = ctx
   if (!c) return
+  if (pilotStrict && !fromPilot) return
   if (m.type === 'pitch') {
     livePitchState = { midi: m.midi, at: performance.now() }
     return
@@ -1958,6 +1963,7 @@ export function useAudioEngine() {
 
   /** Tocar la sugerida = aceptarla: pasa a ser un loop de melodía normal (nacerá en la siguiente línea de compás, en su mismo sitio). */
   function acceptSuggestion(): boolean {
+    if (pilotStrict) return false
     const sg = suggestion.value
     if (!sg || loops.value.loops.length >= MAX_LOOPS) return false
     const id = loops.value.nextId
@@ -1975,6 +1981,7 @@ export function useAudioEngine() {
 
   /** Al copiar, la copia sale con una variación puesta y marcada (spec 012, §5). Solo con «Sugerencias» encendido. */
   function startProposal(cellId: number, srcId: number) {
+    if (pilotStrict) return
     const s = liveSong()
     const src = cellById(s, srcId)
     if (!src) return
@@ -2418,9 +2425,41 @@ export function useAudioEngine() {
       },
       /** Un golpe «oído» en el instante de contexto `time` (se entrega ya, con el retraso del micro de mentira). */
       hear: (instrument: Instrument, time: number) =>
-        onWorkerMessage({ type: 'hit', time: time + latencySec, instrument, confidence: 0.95, strength: 0.3, vol: 1, decisionMs: 30 }),
+        onWorkerMessage({ type: 'hit', time: time + latencySec, instrument, confidence: 0.95, strength: 0.3, vol: 1, decisionMs: 30 }, true),
       /** ¿Cuánto falta (ms) para la hora de contexto `time`? (con la latencia de salida) */
       msUntil: (time: number): number => (ctx ? (time + outputLatency() - ctx.currentTime) * 1000 : 0),
+      /**
+       * Empieza el modo estricto: sin sugerencias, variaciones ni melodía con la voz, y el micro real no graba nada. Devuelve cómo estaba todo para `end`.
+       */
+      begin: () => {
+        const saved = { suggestions: suggestions.value, melody: melodyOn.value, assist: assist.value, bgMode: bgMode.value, bgManual: { ...bgManual.value }, style: style.value, kit: kit.value, mode: mode.value }
+        // las ayudas (sugerencias, variaciones) pueden verse, para enseñar cómo funcionan, pero **no se aplican**: solo cuenta lo que pone el guion
+        pilotStrict = true
+        if (melodyOn.value) setMelody(false)
+        return saved
+      },
+      /** Comprueba que lo construido es idéntico al guion; si no, lo corrige (y lo apunta en el registro). Devuelve si cuadraba. */
+      verify: (script: PilotScript): boolean => {
+        const r = checkOutcome(loops.value, bgManual.value, script.final)
+        if (r.ok) {
+          log('cell', 'piloto: la canción es idéntica a la demo')
+          return true
+        }
+        log('error', `piloto: no cuadraba con la demo (${r.diff.join('; ')}): corregido`)
+        const next = correctLoops(loops.value, script.final, nextBarLine())
+        loops.value = next
+        bgManual.value = { ...script.final.parts }
+        reevaluate()
+        updateBackground()
+        return false
+      },
+      /** Termina el modo estricto y deja los ajustes del usuario como estaban (lo construido se queda). */
+      end: (saved: PilotSaved) => {
+        pilotStrict = false
+        assist.value = saved.assist
+        if (melodyOn.value !== saved.melody) setMelody(saved.melody)
+        refreshSuggestion()
+      },
       /** «Saltar al final»: la demo de una célula del estilo (lo único que no es un gesto). */
       skipToEnd: () => loadDemo(),
     },

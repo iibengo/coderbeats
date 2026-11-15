@@ -31,6 +31,7 @@ const POINTER_ID = 9001
 const MAGNET_PX = 20
 let cancelled = false
 let running = false
+let saved: ReturnType<ReturnType<typeof useAudioEngine>['pilot']['begin']> | null = null
 
 export function usePilotState() {
   return state
@@ -207,6 +208,7 @@ export function usePilot(getStage: () => StageApi | null) {
     window.addEventListener('pointerdown', onUserTouch, true)
     window.addEventListener('keydown', onUserTouch, true)
     try {
+      saved = engine.pilot.begin()
       await prepare(script)
       const rand = rng(seed)
       for (const [i, step] of script.steps.entries()) {
@@ -216,8 +218,12 @@ export function usePilot(getStage: () => StageApi | null) {
         // pausa entre acciones de duración variable (más larga ante un cambio de sección: una espera)
         if (!cancelled && step.do !== 'wait' && step.do !== 'caption') await wait(pause('between', rand) * 1000)
       }
+      // al terminar entero: la canción debe ser idéntica a la demo (si no, se corrige y queda en el registro)
+      if (!cancelled) engine.pilot.verify(script)
     } finally {
       running = false
+      if (saved) engine.pilot.end(saved)
+      saved = null
       stop('end')
     }
     return !cancelled
@@ -226,6 +232,8 @@ export function usePilot(getStage: () => StageApi | null) {
   /** «Saltar al final»: la demo del estilo (lo único que no es un gesto); suelta el control. */
   async function skip() {
     cancelled = true
+    if (saved) engine.pilot.end(saved)
+    saved = null
     await engine.pilot.skipToEnd()
     stop('end')
   }
