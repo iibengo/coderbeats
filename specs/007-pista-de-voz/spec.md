@@ -252,3 +252,7 @@ Decisiones tomadas por lo más simple (a revisar):
 8. **Sin recolección de audios (F4):** **no se borra nunca** el audio que ya no usa ninguna canción (`collectVoice` existe y está probada la parte pura, pero no se llama: borrar audio por un recuento incompleto de las canciones guardadas podría perder tomas). Mis canciones guarda la referencia, y al abrir se leen los audios del almacén; si falta uno, se anota en el diagnóstico (el aviso «audio no disponible» en la bola no está).
 9. **Sin autotune** (como se pidió) y sin cambio de tempo (§6.3: con otro tempo cambiaría de altura, sin aviso).
 10. Con **un loop de voz**, «Convertir en canción», las variaciones y «Grabar canción» lo tratan como un loop cualquiera (se copia con su mismo audio); **no se ha probado** con voz.
+
+## 17. F2 (onda) y aviso de Bluetooth (2026-11-15)
+
+La **onda de la voz** (§8) se dibuja en `AroCanvas.drawVoices`: la envolvente del compás que suena, en barritas radiales por fuera del aro (una vuelta = un compás), más brillo en lo que la aguja ya pasó, tomas superpuestas más tenues y apagadas si el loop está silenciado. La envolvente se guarda con el audio (IndexedDB) y se carga al abrir una canción. Decisión simple: **por fuera del aro** (no es una franja más con peso propio) y en verde agua fijo; no crece mientras se graba. El **aviso de Bluetooth** (`lib/voiceWarn.ts`): con una ida y vuelta calibrada > 120 ms se avisa al grabar (se puede grabar igualmente); no se mira la frecuencia del micro. Comprobado en Chrome (se ve la onda); sin ver en un móvil ni con voz real.

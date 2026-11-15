@@ -1019,6 +1019,7 @@ function tick() {
       hold: holdProgress(),
       holdRing: colonyHold(),
       proposalRing: proposalRing(),
+      voices: voiceWaves(clock.bar),
       view: (aroView = stepView(dt)),
       crowdDetail: crowdLevel,
       guide: { assist: engine.assist.value, quantizeEvery: STYLES[style.value].quantizeEvery },
@@ -1892,6 +1893,16 @@ function onUp(e: PointerEvent, cancelled = false) {
 
 /** iOS: sin el zoom propio de Safari con dos dedos (E1.5) */
 const noSafariZoom = (e: Event) => e.preventDefault()
+
+/** las ondas de las tomas de voz de la célula que se ve (su envolvente, calculada una vez al nacer) */
+function voiceWaves(bar: number): { env: Float32Array; bars: number; bar: number; muted: boolean }[] {
+  const out: { env: Float32Array; bars: number; bar: number; muted: boolean }[] = []
+  for (const l of loops.value.loops) {
+    const env = l.instrument === 'voz' && l.voice ? engine.voiceEnv.value[l.voice.audio] : undefined
+    if (env) out.push({ env, bars: l.bars, bar: bar - l.phaseBar, muted: l.muted })
+  }
+  return out
+}
 
 const fill: Record<LoopInstrument, string> = { bd: VOICE_HEX.bd, sd: VOICE_HEX.sd, hh: VOICE_HEX.hh, mel: VOICE_HEX.mel, voz: VOICE_HEX.mel }
 /** medidas reales de la ventana, para el diagnóstico (§16.18) */

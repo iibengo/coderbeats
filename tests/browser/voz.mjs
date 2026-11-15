@@ -15,6 +15,6 @@ const r = await p.evaluate(async () => {
 })
 console.log(JSON.stringify(r))
 await sleep(5000)
-await p.screenshot({ path: 'voz.png' })
+await p.screenshot({ path: '/tmp/voz.png' })
 console.log('errs', errs)
 await b.close()

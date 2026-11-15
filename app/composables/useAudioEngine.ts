@@ -1,4 +1,5 @@
 import { computed, reactive, ref, shallowRef } from 'vue'
+import { bluetoothWarning } from '~/lib/voiceWarn'
 import { encodeWav } from '~/lib/wav'
 import { loadVoice, saveVoice } from '~/lib/voiceStore'
 import { fromPcm16, newVoiceId, prepareTake, type VoiceBars } from '~/lib/voiceLoop'
@@ -266,6 +267,8 @@ function cancelLive() {
   liveTimeline = []
 }
 /** Pista de voz (spec 007): `armed` espera la línea de compás, `recording` graba, `saving` corta y guarda. */
+/** la envolvente de cada audio de voz (para dibujar su onda en el aro) */
+const voiceEnv = shallowRef<Record<string, Float32Array>>({})
 const voiceRec = ref<'idle' | 'armed' | 'recording' | 'saving'>('idle')
 let voiceCancel = false
 /** muestras de voz ya registradas en superdough (por identificador) */
@@ -288,6 +291,7 @@ async function ensureVoices() {
       continue
     }
     await registerVoice(id, fromPcm16(new Int16Array(v.pcm)), v.sampleRate)
+    voiceEnv.value = { ...voiceEnv.value, [id]: new Float32Array(v.envelope) }
   }
 }
 /** Escenario (spec 011 §13.1): la pantalla entera dispara golpes de efecto. */
@@ -2516,6 +2520,7 @@ export function useAudioEngine() {
       skipToEnd: () => loadDemo(),
     },
     voiceRec,
+    voiceEnv,
     /** ¿Se puede grabar la voz? Sonando, una sola célula, y sin fuga del fondo al micro (cascos). */
     canVoice: computed(() => playing.value && !isMulti(song.value) && !melodyBlocked.value),
     /**
@@ -2537,11 +2542,14 @@ export function useAudioEngine() {
         say('No caben más loops (8)')
         return false
       }
+      // con Bluetooth la voz puede quedar desalineada: se avisa, pero se puede grabar
+      const warn = bluetoothWarning(Math.max(roundTripMs.value, latencySec * 1000))
+      if (warn) say(warn)
       voiceCancel = false
       const bar = nextBarLine() + 1
       const start = barTime(bar)
       voiceRec.value = 'armed'
-      say('Canta desde el siguiente compás')
+      if (!warn) say('Canta desde el siguiente compás')
       startCapture()
       const len = (bars * 16 * stepSeconds())
       const wake = (t: number) => new Promise<void>((r) => setTimeout(r, Math.max(0, (t - (ctx?.currentTime ?? 0)) * 1000)))
@@ -2564,6 +2572,7 @@ export function useAudioEngine() {
           return false
         }
         await registerVoice(id, fromPcm16(take.pcm), take.sampleRate)
+        voiceEnv.value = { ...voiceEnv.value, [id]: take.envelope }
         const born = Math.max(bar + bars, nextBarLine())
         const lid = loops.value.nextId
         loops.value = {

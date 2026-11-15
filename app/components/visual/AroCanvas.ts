@@ -174,6 +174,8 @@ export interface AroFrame {
   holdRing?: { x: number; y: number; r: number; p: number } | null
   /** colonia: la copia con una variación propuesta (spec 012, §5): un anillo a trazos alrededor de ella hasta que se acepta */
   proposalRing?: { x: number; y: number; r: number } | null
+  /** ondas de la voz grabada (spec 007 F2): su envolvente, los compases del loop, el compás de ahora dentro de él y si está silenciada */
+  voices?: { env: Float32Array; bars: number; bar: number; muted: boolean }[]
   /** la célula que se ve es de un grupo en paralelo: su anillo (a trazos si está apagado; con su progreso si suena) */
   groupRing?: { mode: 'on' | 'off'; progress: number | null } | null
   /** colonia: cuánto se ha llenado el anillo de la que suena (0..1); null = en bucle, sin avanzar */
@@ -582,6 +584,7 @@ export class AroCanvas {
       if (f.labels?.length) this.drawLabels(f.labels)
       if (f.holdRing && f.holdRing.p > 0.08) this.drawHoldRing(f.holdRing)
       if (f.proposalRing) this.drawProposalRing(f.proposalRing)
+      if (f.voices?.length) this.drawVoices(f.voices, f.phase)
       if (f.handles?.length) this.drawHandles(f.handles)
       if (f.threadDrag) this.drawThreadDrag(f.threadDrag)
     } finally {
@@ -928,6 +931,37 @@ export class AroCanvas {
   }
 
   /** La copia con una variación propuesta (spec 012): un anillo a trazos, lento, que invita a tocarla para aceptarla. */
+  /**
+   * La onda de la voz (spec 007 §8): la envolvente del compás que suena, en barritas radiales por fuera del aro (una vuelta = un compás); más brillo en el trozo que
+   * la aguja ya pasó. Varias tomas se superponen, más tenues. La envolvente se calcula una vez al nacer el loop: aquí solo se recorre.
+   */
+  private drawVoices(vs: NonNullable<AroFrame['voices']>, phase: number) {
+    const x = this.ctx
+    x.save()
+    x.lineCap = 'round'
+    x.lineWidth = 2
+    const alpha = Math.max(0.25, 0.8 / vs.length)
+    for (const v of vs) {
+      const per = Math.floor(v.env.length / Math.max(1, v.bars))
+      const from = (((v.bar % v.bars) + v.bars) % v.bars) * per
+      for (let i = 0; i < per; i++) {
+        const k = i / per
+        const th = stepAngle(k * 16)
+        const e = Math.min(1, v.env[from + i] ?? 0)
+        if (e < 0.03) continue
+        const [x0, y0] = this.at(th, 1.03)
+        const [x1, y1] = this.at(th, 1.03 + 0.04 + e * 0.22)
+        const lit = k <= phase
+        x.strokeStyle = `rgba(160,235,210,${(v.muted ? 0.15 : lit ? alpha : alpha * 0.45).toFixed(2)})`
+        x.beginPath()
+        x.moveTo(x0, y0)
+        x.lineTo(x1, y1)
+        x.stroke()
+      }
+    }
+    x.restore()
+  }
+
   private drawProposalRing(p: { x: number; y: number; r: number }) {
     const x = this.ctx
     x.save()
