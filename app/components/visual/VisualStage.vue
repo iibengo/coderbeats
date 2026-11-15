@@ -205,7 +205,7 @@ const actionsStyle = computed(() =>
     ? { right: `${view.w - sideX.value.right + 40}px`, top: '50%', transform: 'translateY(-50%)', flexDirection: 'column' as const, alignItems: 'flex-end' }
     : { left: '0', right: '0', bottom: `${ACTIONS_FROM_BOTTOM - 16}px`, justifyContent: 'center' },
 )
-const hasActions = computed(() => !!engine.proposal.value || looping.value || engine.extrasOn.value || showFollow.value || !!engine.undoInfo.value || (!!engine.suggestion.value && mode.value === 'jugar'))
+const hasActions = computed(() => !!engine.proposal.value || (engine.canConvert.value && mode.value === 'jugar') || looping.value || engine.extrasOn.value || showFollow.value || !!engine.undoInfo.value || (!!engine.suggestion.value && mode.value === 'jugar'))
 /** posición de cada bola en la fila, por orden de instrumento (bombo, caja, platillo, melodía) */
 const rowSlots = computed(() => {
   const rank = (i: LoopInstrument) => (i === 'mel' ? INSTRUMENTS.length : INSTRUMENTS.indexOf(i))
@@ -2009,6 +2009,7 @@ defineExpose({ switchMode, openOrgan: (x: number, y: number) => (organ.value = {
         <button class="act-btn" aria-label="probar otra variación de este tipo" @click="engine.otherProposal()">↻ otra</button>
         <button class="act-btn" aria-label="aceptar la variación (también tocando la copia)" @click="engine.acceptProposal()">✓</button>
       </template>
+      <button v-if="engine.canConvert.value && mode === 'jugar'" class="act-btn" aria-label="convertir este loop en una canción con la estructura del estilo" @click="engine.convertSong()">✦ Convertir en canción</button>
       <template v-if="engine.suggestion.value && mode === 'jugar'">
         <button class="act-btn" aria-label="melodía sugerida: probar otra" @click="engine.otherSuggestion()">↻ Otra melodía</button>
         <button class="act-btn" aria-label="no proponer esta melodía" @click="engine.dismissSuggestion()">✕</button>
@@ -2072,6 +2073,8 @@ defineExpose({ switchMode, openOrgan: (x: number, y: number) => (organ.value = {
     >
       {{ guideText }}
     </button>
+
+    <div v-if="engine.notice.value" class="notice pointer-events-none absolute left-1/2 -translate-x-1/2 rounded-full bg-black/60 px-4 py-2 text-xs text-white/85 backdrop-blur" style="top: calc(max(0.5rem, env(safe-area-inset-top)) + 130px); max-width: 90vw; text-align: center" role="status">{{ engine.notice.value }}</div>
 
     <div v-if="modeHint" class="mode-hint pointer-events-none absolute left-1/2 -translate-x-1/2 rounded-full bg-black/60 px-4 py-2 text-xs text-white/80 backdrop-blur" style="top: calc(max(0.5rem, env(safe-area-inset-top)) + 96px)" role="status">{{ modeHint }}</div>
 

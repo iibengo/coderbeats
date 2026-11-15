@@ -268,6 +268,10 @@ watch(open, (o) => {
             <button class="flex-1 rounded-full border border-white/15 py-2" @click="loadDemo">Cargar demo</button>
           </div>
           <div class="flex items-center gap-3">
+            <button class="shrink-0 rounded-full border border-white/15 px-4 py-2 disabled:opacity-40" :disabled="!engine.canConvert.value" @click="engine.convertSong(); open = false">Convertir en canción</button>
+            <span class="text-xs text-neutral-500">de un loop a intro, subida, drop y final del estilo (con «deshacer»).</span>
+          </div>
+          <div class="flex items-center gap-3">
             <button class="shrink-0 rounded-full border border-white/15 px-4 py-2" @click="engine.restartGuide(); open = false">Repetir la guía</button>
             <span class="text-xs text-neutral-500">el primer minuto: bum · pff · ts, y tus golpes aparecen (con la canción vacía).</span>
           </div>

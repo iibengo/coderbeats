@@ -1,6 +1,6 @@
 # 012 · Composición asistida: melodía sugerida y copia con variación
 
-> Estado: **propuesta, sin programar** (2026-11-14). Para que la decidas: §9 reúne lo que hay que elegir; §8 es cómo lo haría, por fases.
+> Estado: **hechas S1–S6 (2026-11-15); falta probarlas a mano** (§8). Para que la decidas: §9 reúne lo que hay que elegir; §8 es cómo lo haría, por fases.
 > Parte de: 002 (melodía con la voz), 003 (el aro), 005 (células, copiar §15), 011 (modos; §14 «convertir en canción»), 010 (sonidos).
 > Decidido (2026-11-15): las sugerencias **siguen el estilo actual** (escala, tempo y patrones típicos, §3.2b) y tienen **un interruptor propio en ⋯, «Sugerencias»**, separado de «Ayuda»; apagado, **no se propone nada** (§3.4).
 > Principio común: **la app propone, la persona manda.** Todo sale **en fantasma** (tenue, hueco, suave), **tocar = aceptar** y **«otra» = probar otra**.
@@ -188,7 +188,7 @@ Así: **mejorar una variación mejora la conversión**, y la conversión **se pr
 | **S3 ✔** | (hecho: `lib/suggestion.ts`, `composables/useSuggestions.ts`, motor, `AroCanvas` `melSuggest`, ⋯ «Sugerencias») La sugerida **a la vista y a oídas**: fantasma en la franja, suena suave, aceptar, «otra», «✕», y **la voz manda**; ajuste en ⋯; el paso «toca la franja» de la guía | Es lo que se prueba **a mano** |
 | **S4 ✔** | `varyCell` (puro, hecho: `lib/variations.ts`, `variations.test.ts`) con tests: **la original no cambia**, cada tipo hace lo que dice, **todo sigue siendo una célula válida** (`isCell`), idempotencia razonable, para cada estilo y remix | Es el cimiento de §5 y de §6 |
 | **S5 ✔** | **Copia con variación** en Componer (hecho: `engine.proposal`, `withVariation`, chips y anillo a trazos): propuesta marcada, chips, aceptar, «otra», deshacer | Interfaz sobre S4 |
-| **S6** | **Convertir en canción** (011 §14.2) con `songTemplates` sobre S4 y la sugerida | Cierra el círculo |
+| **S6 ✔** | **Convertir en canción** (hecho: `lib/songTemplates.ts`, `engine.convertSong`, botón en ⋯ y en Jugar) (011 §14.2) con `songTemplates` sobre S4 y la sugerida | Cierra el círculo |
 | (luego) | **Componer en directo** (011 §14.1) | Usa lo anterior: nombrar partes y variaciones |
 
 **Lo primero que haría es S1**: es lo único que **ya está roto** (un fallo que dio una melodía que nadie cantó) y es pequeño: dos cambios en el detector y dos tests de señales.

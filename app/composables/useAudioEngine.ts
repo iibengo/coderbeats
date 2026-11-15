@@ -11,6 +11,8 @@ import { GLUE_WARM, saturationCurve } from '~/lib/masterChain'
 import { DEFAULT_MODE, type Mode } from '~/lib/modes'
 import { sameSuggestion, suggestFor, type Suggestion } from '~/lib/suggestion'
 import { varyCell, variationOrder, withVariation, type VariationKind } from '~/lib/variations'
+import { convertToSong } from '~/lib/songTemplates'
+import { MIN_RHYTHM_HITS } from '~/lib/suggestion'
 import { demoState } from '~/lib/demos'
 import { analyzeEchoTest, type EchoTestResult } from '~/lib/echoGate'
 import {
@@ -241,6 +243,14 @@ export interface Proposal {
   kinds: VariationKind[]
 }
 const proposal = shallowRef<Proposal | null>(null)
+/** Un aviso corto para la persona (se ve unos segundos sobre la gota) */
+const notice = ref('')
+let noticeTimer: ReturnType<typeof setTimeout> | null = null
+function say(text: string) {
+  notice.value = text
+  if (noticeTimer) clearTimeout(noticeTimer)
+  noticeTimer = setTimeout(() => (notice.value = ''), 4500)
+}
 const suggestDismissed = new Set<number>()
 /** si canta, manda su voz: no se sugiere hasta pasados 2 compases desde la última nota cantada */
 let voiceHoldUntil = 0
@@ -1891,6 +1901,23 @@ export function useAudioEngine() {
     return r.id
   }
 
+  /** Tocar la sugerida = aceptarla: pasa a ser un loop de melodía normal (nacerá en la siguiente línea de compás, en su mismo sitio). */
+  function acceptSuggestion(): boolean {
+    const sg = suggestion.value
+    if (!sg || loops.value.loops.length >= MAX_LOOPS) return false
+    const id = loops.value.nextId
+    const born = nextBarLine()
+    loops.value = {
+      nextId: id + 1,
+      loops: [...loops.value.loops, { id, instrument: 'mel', bars: 4, phaseBar: 0, hits: sg.hits.map((h) => ({ pos: h.pos, dur: h.dur, midi: h.midi, strength: h.strength })), muted: false, bornAt: born, fromTemplate: false }],
+    }
+    log('melody', `melodía sugerida aceptada (${sg.hits.length} notas, semilla ${sg.seed})`)
+    suggestion.value = null
+    reevaluate()
+    updateBackground()
+    return true
+  }
+
   /** Al copiar, la copia sale con una variación puesta y marcada (spec 012, §5). Solo con «Sugerencias» encendido. */
   function startProposal(cellId: number, srcId: number) {
     const s = liveSong()
@@ -2296,6 +2323,33 @@ export function useAudioEngine() {
     suggestions,
     suggestion,
     proposal,
+    notice,
+    /** ¿Se puede convertir lo que hay en una canción? Una sola célula con un ritmo hecho (spec 011 §14.2). */
+    canConvert: computed(
+      () =>
+        !isMulti(song.value) &&
+        loops.value.loops.filter((l) => l.instrument !== 'mel').reduce((n, l) => n + l.hits.length, 0) >= MIN_RHYTHM_HITS,
+    ),
+    /**
+     * «Convertir en canción»: de un loop a la estructura del estilo (Intro, Entra, Subida, Drop, Final), con «↶ deshacer». Si había una melodía sugerida, se acepta
+     * para que el Drop la lleve (con aviso). La célula de ahora se queda como el Drop.
+     */
+    convertSong: async (): Promise<boolean> => {
+      if (isMulti(song.value)) return false
+      const hadSuggestion = !!suggestion.value
+      if (hadSuggestion) acceptSuggestion()
+      const base = liveSong()
+      const next = convertToSong(base, style.value)
+      if (!next) {
+        say('Hace falta un ritmo para convertirlo en canción')
+        return false
+      }
+      setUndo({ kind: 'all', song: base })
+      await replaceSong(next)
+      say(`Tu canción: ${next.order.length} partes${hadSuggestion ? ' (con la melodía sugerida)' : ''}. Ábrela en Componer para retocarla`)
+      log('cell', `convertida en canción: ${next.order.map((id) => next.cells.find((c) => c.id === id)?.name).join(' · ')}`)
+      return true
+    },
     /** Otra variación del mismo tipo (la siguiente de la secuencia fija), partiendo de la original. */
     otherProposal: () => {
       if (!proposal.value) return
@@ -2320,21 +2374,7 @@ export function useAudioEngine() {
     },
     refreshSuggestion,
     /** Tocar la sugerida = aceptarla: pasa a ser un loop de melodía normal (nacerá en la siguiente línea de compás, en su mismo sitio). */
-    acceptSuggestion: (): boolean => {
-      const sg = suggestion.value
-      if (!sg || loops.value.loops.length >= MAX_LOOPS) return false
-      const id = loops.value.nextId
-      const born = nextBarLine()
-      loops.value = {
-        nextId: id + 1,
-        loops: [...loops.value.loops, { id, instrument: 'mel', bars: 4, phaseBar: 0, hits: sg.hits.map((h) => ({ pos: h.pos, dur: h.dur, midi: h.midi, strength: h.strength })), muted: false, bornAt: born, fromTemplate: false }],
-      }
-      log('melody', `melodía sugerida aceptada (${sg.hits.length} notas, semilla ${sg.seed})`)
-      suggestion.value = null
-      reevaluate()
-      updateBackground()
-      return true
-    },
+    acceptSuggestion,
     /** «↻ otra»: la siguiente sugerencia de este ritmo (secuencia fija). */
     otherSuggestion: () => {
       const sg = suggestion.value

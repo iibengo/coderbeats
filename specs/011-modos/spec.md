@@ -234,7 +234,7 @@ Las otras cinco, decididas por lo más simple:
 | **5** | **Primer minuto guiado** (§12.2) | tests de la máquina de pasos (pura); a mano: arranque con la app vacía |
 | **6** | **Recompensa** cuando todos los carriles tienen algo (§12.3) | test de la condición (pura); a mano |
 | **7** | Limpieza y documentación. **`pinned`/`viewAway` se quedan**: ya solo los activa «editando» (doble toque en Componer), que es el único estado raro que queda (§3.4) | tests de todo |
-| **8** | **Convertir en canción** (§14.2): de un loop a la estructura completa | tests de la función pura; a mano |
+| **8 ✔** | **Convertir en canción** (§14.2): de un loop a la estructura completa (hecho con la 012 S6) | tests de la función pura; a mano |
 | **9** | **Componer en directo** (§14.1): grabar canción tocando las capas | tests de la línea de tiempo y del convertidor; a mano |
 
 ## 12. Añadidos a Jugar (2026-11-14)
