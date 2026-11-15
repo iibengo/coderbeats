@@ -7,12 +7,12 @@ const props = defineProps<{ exporter: ReturnType<typeof useVideoExport> }>()
 const engine = useAudioEngine()
 const state = useVideoState()
 
-const what = ref<'cell' | 'song'>('cell')
+const what = ref<'cell' | 'song' | 'preview'>('cell')
 const bars = ref(4)
 const format = ref<VideoFormat>('vertical')
 const size = ref<VideoSize>(720)
 const mark = ref(false)
-const seconds = computed(() => (what.value === 'song' ? secondsFor(songBarsNow(), engine.bpm.value) : secondsFor(bars.value, engine.bpm.value)))
+const seconds = computed(() => (what.value === 'preview' ? 90 : what.value === 'song' ? secondsFor(songBarsNow(), engine.bpm.value) : secondsFor(bars.value, engine.bpm.value)))
 const songBarsNow = () => engine.snapshot().song.order.reduce((n, id) => n + (engine.song.value.cells.find((c) => c.id === id)?.turns ?? 0), 0)
 const supported = import.meta.client ? props.exporter.supported() : true
 
@@ -39,7 +39,7 @@ async function go() {
         <template v-else>
           <div class="mb-3 grid gap-3">
             <label class="flex items-center justify-between gap-3">Qué grabar
-              <select v-model="what" class="rounded-lg border border-white/15 bg-black/30 px-3 py-2"><option value="cell">La célula actual</option><option value="song">La canción completa</option></select>
+              <select v-model="what" class="rounded-lg border border-white/15 bg-black/30 px-3 py-2"><option value="cell">La célula actual</option><option value="song">La canción completa</option><option value="preview">La previsualización (se construye sola)</option></select>
             </label>
             <label v-if="what === 'cell'" class="flex items-center justify-between gap-3">Compases
               <select v-model.number="bars" class="rounded-lg border border-white/15 bg-black/30 px-3 py-2"><option :value="2">2</option><option :value="4">4</option><option :value="8">8</option></select>

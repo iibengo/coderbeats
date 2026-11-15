@@ -105,3 +105,7 @@ Un botón **«🎬 Exportar vídeo»** que graba **la visualización** (la gota,
 - El encuadre es «cubrir» centrado de la ventana (no una escena recompuesta): en cuadrado se recorta arriba y abajo; el aro queda en el centro.
 - La canción completa no se probó en Chrome (solo la célula); con grupos en paralelo graba lo que suene.
 - El tipo `mp4` que da este Chrome 135 no es el que dará Chrome antiguo (webm) ni Safari (solo mp4): la elección es por soporte.
+
+## 13. Fase 4 (2026-11-16): exportar la previsualización
+
+En «🎬 Exportar vídeo» hay un tercer origen, **«La previsualización (se construye sola)»**: arranca el piloto (009 §13: micro bloqueado, ayudas tenues, etiqueta «piloto automático · demo» dentro del vídeo) y graba hasta que termina (o hasta el tope de 3 min, o parar). Al acabar, todo vuelve como estaba (lo hace el piloto). Comprobado en Chrome (`tests/browser/video-previsualizacion.mjs`): demo de dembow, cuadrado 720 → 49 s, 720×720, 5,9 MB, y la canción del usuario igual que antes. Decisiones a revisar: empieza **ya** (no espera la línea de compás: el piloto arranca la música); el aviso de tamaño usa 90 s estimados; **el botón en Mis canciones sigue sin hacer** (se previsualiza la canción abierta, no una guardada sin abrir); iOS sin probar.

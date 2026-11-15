@@ -27,13 +27,13 @@ const pilot = usePilot(() => stage.value as never)
 const pilotState = usePilotState()
 // exportar vídeo (spec 013)
 const videoOpen = ref(false)
-const exporter = useVideoExport(() => (stage.value as unknown as { videoSource: () => never } | null)?.videoSource() ?? null)
+const exporter = useVideoExport(() => (stage.value as unknown as { videoSource: () => never } | null)?.videoSource() ?? null, () => startPreview())
 if (import.meta.dev && import.meta.client) (window as unknown as Record<string, unknown>).__video = exporter
 // tutorial jugando (spec 001 §14.1): mano fantasma y pistas en su momento
 const tutorial = useTutorial(() => stage.value as never, (a, b) => pilot.demoHand(a, b))
 /** «👁 Previsualizar»: la canción que hay (o una guardada de Mis canciones) se construye sola; al acabar o parar, todo como estaba. */
 function startPreview(t?: { song: Song; style: StyleId; kit: KitId; title?: string }) {
-  void pilot.preview(t ?? { song: engine.snapshot().song, style: engine.style.value, kit: engine.kit.value, title: 'Tu canción' })
+  return pilot.preview(t ?? { song: engine.snapshot().song, style: engine.style.value, kit: engine.kit.value, title: 'Tu canción' })
 }
 async function startPilot() {
   if ((engine.loops.value.loops.length || engine.multi.value) && !(await askConfirm('El piloto sustituye lo que tienes ahora (guárdalo antes en «Mis canciones» si quieres conservarlo). ¿Seguir?'))) return

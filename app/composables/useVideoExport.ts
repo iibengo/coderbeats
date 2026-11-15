@@ -5,7 +5,7 @@
  */
 import { reactive } from 'vue'
 import { songBars } from '~/lib/cells'
-import { AUDIO_BPS, coverRect, estimateBytes, fileName, outputSize, pickMime, secondsFor, VIDEO_BPS, type VideoFormat, type VideoSize } from '~/lib/videoExport'
+import { MAX_SECONDS, AUDIO_BPS, coverRect, estimateBytes, fileName, outputSize, pickMime, secondsFor, VIDEO_BPS, type VideoFormat, type VideoSize } from '~/lib/videoExport'
 
 interface Source {
   water: HTMLCanvasElement | null
@@ -20,7 +20,7 @@ const state = reactive({ phase: 'idle' as VideoPhase, elapsed: 0, total: 0, mess
 export const useVideoState = () => state
 
 export interface VideoOptions {
-  what: 'cell' | 'song'
+  what: 'cell' | 'song' | 'preview'
   /** compases de la célula (what = 'cell') */
   bars: number
   format: VideoFormat
@@ -31,7 +31,8 @@ export interface VideoOptions {
 
 let stopFlag: (() => void) | null = null
 
-export function useVideoExport(getSource: () => Source | null) {
+export function useVideoExport(getSource: () => Source | null, runPreview?: () => Promise<unknown>) {
+  const pilot = usePilotState()
   const engine = useAudioEngine()
   const support = () => (typeof MediaRecorder === 'undefined' ? null : pickMime((t) => MediaRecorder.isTypeSupported(t)))
 
@@ -50,19 +51,27 @@ export function useVideoExport(getSource: () => Source | null) {
     Object.assign(state, { phase: 'waiting', elapsed: 0, message: 'Esperando la línea de compás…', url: '', name: '', bytes: 0 })
     try {
       // la música tiene que estar sonando: la canción entera arranca desde el principio; la célula, tal como suena
-      if (o.what === 'song' && engine.playing.value) engine.stop()
-      if (!engine.playing.value) await engine.play()
-      let c = engine.pilot.clock()
-      for (let i = 0; i < 40 && !c; i++) {
-        await wait(150)
-        c = engine.pilot.clock()
+      const preview = o.what === 'preview'
+      if (preview && !runPreview) throw new Error('la previsualización no está disponible')
+      if (!preview) {
+        if (o.what === 'song' && engine.playing.value) engine.stop()
+        if (!engine.playing.value) await engine.play()
+        let c = engine.pilot.clock()
+        for (let i = 0; i < 40 && !c; i++) {
+          await wait(150)
+          c = engine.pilot.clock()
+        }
+        if (!c) throw new Error('la música no arrancó')
       }
-      if (!c) throw new Error('la música no arrancó')
       const bpm = engine.bpm.value
-      const seconds = o.what === 'song' ? secondsFor(songBars(engine.snapshot().song), bpm) : secondsFor(o.bars, bpm)
+      // la previsualización dura lo que tarde en construirse (hasta el tope); lo demás, los compases pedidos
+      const seconds = preview ? MAX_SECONDS : o.what === 'song' ? secondsFor(songBars(engine.snapshot().song), bpm) : secondsFor(o.bars, bpm)
       state.total = seconds
-      // empieza en la siguiente línea de compás
-      await wait(engine.pilot.msUntil(c.at(c.bar)))
+      // empieza en la siguiente línea de compás (la previsualización empieza ya: el piloto arranca la música)
+      if (!preview) {
+        const c = engine.pilot.clock()!
+        await wait(engine.pilot.msUntil(c.at(c.bar)))
+      }
 
       const { w, h } = outputSize(o.format, o.size)
       const out = document.createElement('canvas')
@@ -108,6 +117,16 @@ export function useVideoExport(getSource: () => Source | null) {
         if (rec.state !== 'inactive') rec.stop()
       }
       stopFlag = stopNow
+      // previsualización: se lanza el piloto y se para cuando termina (o se para con un toque / el botón)
+      if (preview) {
+        void runPreview!()
+        let started = false
+        const watcher = setInterval(() => {
+          if (pilot.active) started = true
+          else if (started) stopNow()
+        }, 300)
+        void done.then(() => clearInterval(watcher))
+      }
       // en segundo plano se queda sin audio ni frames: se para y se guarda lo grabado
       const onHide = () => document.hidden && stopNow()
       document.addEventListener('visibilitychange', onHide)
