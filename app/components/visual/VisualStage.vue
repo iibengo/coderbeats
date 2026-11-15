@@ -192,7 +192,7 @@ const strip = computed(() => (mode.value === 'jugar' ? cellStrip(engine.song.val
 const stripStyle = computed(() =>
   compact.value
     ? 'bottom: max(0.5rem, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); width: min(40vw, 220px)'
-    : 'top: calc(max(0.75rem, env(safe-area-inset-top)) + 46px); left: 50%; transform: translateX(-50%); width: min(60vw, 260px)',
+    : 'top: calc(max(0.5rem, env(safe-area-inset-top)) + 100px); left: 50%; transform: translateX(-50%); width: min(60vw, 260px)',
 )
 function pickStrip(id: number) {
   // como un toque en la colonia: ir a esa parte (salta en la siguiente línea de compás y queda en bucle); otro toque suelta el bucle
