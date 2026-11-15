@@ -19,7 +19,12 @@ export interface PitchOptions {
   median: number
 }
 
-export const DEFAULT_PITCH_OPTIONS: PitchOptions = { frame: 2048, hop: 256, fmin: 65, fmax: 1000, threshold: 0.15, median: 7 }
+/**
+ * `fmin` = **80 Hz** (spec 012, F1): por debajo (≈ MIDI 39) no se canta, y ahí caen el **bajo** del techno (do₂ = 65 Hz), el **bombo** del kit Electrónico (≈ 63 Hz)
+ * y el b₁ del dembow. Con 65 Hz, cualquier fuga de ellos por el micro salía como notas de melodía que nadie cantó. La voz cantada grave (do₃ = 130 Hz) y las
+ * semicorcheas se siguen detectando igual (tests en `leak.test.ts`).
+ */
+export const DEFAULT_PITCH_OPTIONS: PitchOptions = { frame: 2048, hop: 256, fmin: 80, fmax: 1000, threshold: 0.15, median: 7 }
 
 export interface PitchTrack {
   sampleRate: number

@@ -15,10 +15,10 @@ const WINDOW_SEC = 3
 const KEEP_SEC = 20
 const SCAN_EVERY_SEC = 0.05
 /**
- * Una nota se avisa en cuanto existe (≥ 0,1 s). Alguna avisada será un fragmento de entrada que luego se absorbe: solo
+ * Una nota se avisa en cuanto existe (≥ 0,15 s; spec 012, F3: menos fragmentos y «bum» breves). Alguna avisada será un fragmento de entrada que luego se absorbe: solo
  * cuenta como actividad de la frase; lo que se usa al nacer el loop es el registro final (`notesBetween`).
  */
-const ANNOUNCE_AFTER_SEC = 0.1
+const ANNOUNCE_AFTER_SEC = 0.15
 
 export type LiveNote = Note
 
@@ -171,6 +171,12 @@ export class LiveMelody {
     return born
   }
 
+  /** La nota en la que cae el onset (con margen para el ataque), si hay alguna. Hay que haber hecho `scan` tras `onset + MELODY_DECISION_SEC`. */
+  noteAt(onset: number): LiveNote | null {
+    const n = this.log.find((x) => onset >= x.start - ONSET_LEAD_SEC && onset < x.end)
+    return n ? { ...n } : null
+  }
+
   /** ¿Cae el onset dentro de una nota (con margen para el ataque)? Hay que haber hecho `scan` tras `onset + MELODY_DECISION_SEC`. */
   isMelodic(onset: number): boolean {
     return melodicOnsets([onset], this.log, ONSET_LEAD_SEC)[0]!
@@ -191,5 +197,57 @@ export class LiveMelody {
     this.onsets = []
     this.log = []
     this.lastScan = -Infinity
+  }
+}
+
+// ── La puerta de batería (spec 012, F2) ───────────────────────────────────────────────────────────
+/** Una nota más corta que esto, con un golpe de batería reconocido en su ataque, es el golpe (un «bum» con tono), no melodía (s). */
+export const MAX_DRUM_NOTE_SEC = 0.3
+/** Confianza mínima del clasificador para que un golpe dentro de una nota corta cuente como batería. */
+export const DRUM_GATE_CONF = 0.6
+/** Cuánto se retiene el aviso de una nota hasta soltarlo (s): se espera a que se decida el golpe de su ataque (el onset llega hasta 0,1 s después del inicio y su decisión tarda `MELODY_DECISION_SEC`). */
+export const RELEASE_AFTER_SEC = MELODY_DECISION_SEC + 0.15
+
+/**
+ * ¿Qué es un onset que cae dentro de una nota? Antes se **absorbía siempre como melodía** (y el «bum» con tono perdía su bombo y creaba una nota).
+ * Ahora: si la nota es **corta** y el clasificador lo reconoce como **batería con confianza**, es **un golpe** (`'drum'`); si no, es de la nota (`'melody'`).
+ */
+export function decideOnset(note: Pick<Note, 'start' | 'end'>, hit: { instrument: string; confidence: number } | null): 'drum' | 'melody' {
+  if (hit && hit.instrument !== 'unknown' && hit.confidence >= DRUM_GATE_CONF && note.end - note.start < MAX_DRUM_NOTE_SEC) return 'drum'
+  return 'melody'
+}
+
+/**
+ * Retiene los avisos de notas hasta que se sepa si su ataque era un golpe de batería (`drumAt`). Suelta solo las que no lo eran. Las notas se apuntan
+ * con su tiempo verdadero: el retraso es solo del aviso (≈ 0,5 s), no de dónde caen en el compás.
+ */
+export class NoteGate {
+  private held: LiveNote[] = []
+  private drums: number[] = []
+
+  hold(notes: readonly LiveNote[]): void {
+    this.held.push(...notes)
+  }
+
+  /** El onset en `time` (s) era un golpe de batería dentro de una nota corta. */
+  drumAt(time: number): void {
+    this.drums.push(time)
+  }
+
+  /** Las notas cuyo ataque ya está decidido y que **no** eran un golpe. */
+  release(now: number): LiveNote[] {
+    const out: LiveNote[] = []
+    const rest: LiveNote[] = []
+    for (const n of this.held) (n.start + RELEASE_AFTER_SEC <= now ? out : rest).push(n)
+    this.held = rest
+    const keep = (n: LiveNote) => !(n.end - n.start < MAX_DRUM_NOTE_SEC && this.drums.some((t) => t >= n.start - ONSET_LEAD_SEC && t <= n.start + 0.1))
+    // los golpes viejos ya no sirven
+    this.drums = this.drums.filter((t) => t > now - 5)
+    return out.filter(keep)
+  }
+
+  reset(): void {
+    this.held = []
+    this.drums = []
   }
 }

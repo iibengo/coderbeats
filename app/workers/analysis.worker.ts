@@ -6,7 +6,7 @@ import { decideLane } from '../lib/lanes'
 import type { Instrument } from '../lib/types'
 import { EchoGate } from '../lib/echoGate'
 import { extractFeatures } from '../lib/features'
-import { LiveMelody, MELODY_DECISION_SEC } from '../lib/liveMelody'
+import { decideOnset, LiveMelody, MELODY_DECISION_SEC, NoteGate } from '../lib/liveMelody'
 import { StreamingOnsetDetector, type StreamOnset } from '../lib/streamingOnsets'
 import { relativeVolume, volumeRefs, type VolumeRefs } from '../lib/volume'
 import { FEATURE_SPAN, type FromWorker, type ToWorker } from '../lib/workerProtocol'
@@ -27,6 +27,8 @@ let queue: StreamOnset[] = []
 /** melodía con la voz (spec 002): altura en continuo y notas; null = apagada */
 let live: LiveMelody | null = null
 let melodyOn = false
+/** retiene el aviso de cada nota hasta saber si su ataque era un golpe de batería (spec 012, F2) */
+const noteGate = new NoteGate()
 /** último instante (s) en el que se mandó la altura en vivo */
 let lastPitchPost = -Infinity
 
@@ -42,16 +44,25 @@ function processQueue() {
     const o = queue.shift()!
     const time = (firstFrame + o.sample) / sampleRate
     const decisionMs = ((received - o.sample) / sampleRate) * 1000
-    if (live?.isMelodic(time)) {
-      post({ type: 'absorbed', time })
-      continue
-    }
-    if (gate?.isEcho(time, o.strength)) {
+    const inNote = live?.noteAt(time) ?? null
+    if (!inNote && gate?.isEcho(time, o.strength)) {
       post({ type: 'echo', time, strength: o.strength })
       continue
     }
     const features = extractFeatures(detector.slice(o.sample, FEATURE_SPAN), sampleRate, 0)
     const c = classifier?.classify(features)
+    if (inNote) {
+      // un golpe dentro de una nota: antes siempre era melodía; ahora, si la nota es corta y es batería con confianza, es el golpe (spec 012, F2)
+      if (decideOnset(inNote, c ? { instrument: c.instrument, confidence: c.confidence } : null) === 'melody') {
+        post({ type: 'absorbed', time })
+        continue
+      }
+      noteGate.drumAt(time)
+      if (gate?.isEcho(time, o.strength)) {
+        post({ type: 'echo', time, strength: o.strength })
+        continue
+      }
+    }
     let instrument = c?.instrument ?? 'unknown'
     let confidence = c?.confidence ?? 0
     // carriles que graban (E4.2): lo de un carril apagado se ignora, salvo si duda con uno encendido
@@ -91,7 +102,8 @@ function onChunk(frame: number, data: Float32Array) {
   if (live) {
     for (const o of onsets) live.addOnset((firstFrame + o.sample) / sampleRate)
     live.push(frame, data)
-    for (const n of live.scan()) post({ type: 'melodic', time: n.start, midi: n.midi })
+    noteGate.hold(live.scan())
+    for (const n of noteGate.release(live.time)) post({ type: 'melodic', time: n.start, midi: n.midi })
     if (live.time - lastPitchPost >= 0.03) {
       lastPitchPost = live.time
       const p = live.lastPitch()
@@ -103,6 +115,7 @@ function onChunk(frame: number, data: Float32Array) {
 
 function setMelody(on: boolean) {
   melodyOn = on
+  noteGate.reset()
   if (on && !live) live = new LiveMelody(sampleRate)
   else if (!on) live = null
   else live?.reset()

@@ -183,7 +183,7 @@ Así: **mejorar una variación mejora la conversión**, y la conversión **se pr
 
 | Fase | Qué | Por qué en este orden |
 |---|---|---|
-| **S1** | **Arreglos F1 y F2** (la fuga y el «bum» con tono) con sus tests de señales; F3 si cuadra | Es un **error real**, independiente de lo nuevo, y la melodía sugerida **no tiene sentido** si la falsa sigue saliendo |
+| **S1 ✔** | **Arreglos F1, F2 y F3** (hechos, `leak.test.ts`) (la fuga y el «bum» con tono) con sus tests de señales; F3 si cuadra | Es un **error real**, independiente de lo nuevo, y la melodía sugerida **no tiene sentido** si la falsa sigue saliendo |
 | **S2** | `suggestMelody` (puro) con tests: determinista, todo en escala, nota de acorde en los apoyos, termina en la tónica, 4 compases, dentro del registro, **semillas distintas dan melodías distintas**, y para **cada estilo y cada remix** | Se afina **sin interfaz**, mirando las notas que salen |
 | **S3** | La sugerida **a la vista y a oídas**: fantasma en la franja, suena suave, aceptar, «otra», «✕», y **la voz manda**; ajuste en ⋯; el paso «toca la franja» de la guía | Es lo que se prueba **a mano** |
 | **S4** | `varyCell` (puro) con tests: **la original no cambia**, cada tipo hace lo que dice, **todo sigue siendo una célula válida** (`isCell`), idempotencia razonable, para cada estilo y remix | Es el cimiento de §5 y de §6 |
