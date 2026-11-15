@@ -1189,6 +1189,7 @@ type Gesture =
       /** ya se cumplió el tiempo de mantener: al soltar no se crea nada */
       held: boolean
     }
+  | { kind: 'keys'; id: number }
   | { kind: 'fx'; id: number; x0: number; y0: number; filter: number; space: number; axis: Axis }
   | {
       kind: 'two'
@@ -1457,7 +1458,11 @@ function onDown(e: PointerEvent) {
     gesture = { kind: 'aro-tap', id: e.pointerId, x0: x, y0: y, t: performance.now(), moved: false, lane, held: false }
     armLoop()
   }
-  else if (mouse) gesture = { kind: 'fx', id: e.pointerId, x0: x, y0: y, filter: fx.filter, space: fx.space, axis: null }
+  else if (engine.keysOn.value && mode.value === 'jugar' && !colony.value) {
+    // teclado de agua (spec 015): un dedo fuera del aro toca notas de la escala del estilo
+    gesture = { kind: 'keys', id: e.pointerId }
+    engine.keysPlay(x / view.w, y / view.h)
+  } else if (mouse) gesture = { kind: 'fx', id: e.pointerId, x0: x, y0: y, filter: fx.filter, space: fx.space, axis: null }
   else gesture = null
 }
 
@@ -1487,6 +1492,8 @@ function onMove(e: PointerEvent) {
     }
     gs.lx = p.x
     gs.ly = p.y
+  } else if (gs.kind === 'keys' && gs.id === e.pointerId) {
+    engine.keysPlay(p.x / view.w, p.y / view.h, true)
   } else if (gs.kind === 'fx' && gs.id === e.pointerId) {
     const dx = p.x - gs.x0
     const dy = p.y - gs.y0
@@ -1895,7 +1902,7 @@ function onUp(e: PointerEvent, cancelled = false) {
       else tapWater(gs.x0, gs.y0)
     }
     gesture = null
-  } else if (gs?.kind === 'fx' && gs.id === e.pointerId) gesture = null
+  } else if ((gs?.kind === 'fx' || gs?.kind === 'keys') && gs.id === e.pointerId) gesture = null
   pointers.delete(e.pointerId)
   // al levantar un dedo del pellizco, termina
   if (gs?.kind === 'two' && gs.mode === 'pinch') endPinch()
@@ -2096,6 +2103,8 @@ defineExpose({ videoSource, colonyPoints, pointOf: (voice: Voice, step: number) 
       </template>
       <button v-if="engine.playing.value" class="act-btn" :aria-label="mode === 'jugar' ? 'Escenario: toda la pantalla dispara golpes de efecto' : 'Efectos: los toques en el fondo disparan golpes de efecto'" @click="engine.setStage(true)">{{ mode === 'jugar' ? '⚡ Escenario' : '⚡ Efectos' }}</button>
       <button v-if="mode === 'jugar' && !pilotState.active && (engine.canConvert.value || engine.multi.value)" class="act-btn" aria-label="previsualizar: tu canción se construye sola" @click="emit('preview')">👁 Previsualizar</button>
+      <button v-if="mode === 'jugar' && engine.playing.value" class="act-btn" :data-on="engine.keysOn.value" aria-label="teclado de agua: tocar el fondo hace sonar notas de la escala" @click="engine.setKeys(!engine.keysOn.value)">🎹 Agua</button>
+      <button v-if="mode === 'jugar' && engine.keysOn.value" class="act-btn" :data-on="!!engine.keysRec.value" :aria-label="engine.keysRec.value ? 'terminar y guardar lo tocado como melodía' : 'grabar lo que toques en el agua como melodía'" @click="engine.toggleKeysRec()">{{ engine.keysRec.value ? `■ ${engine.keysRec.value.count} notas` : '● Grabar' }}</button>
       <button v-if="mode === 'jugar' && (engine.canVoice.value || engine.voiceRec.value !== 'idle')" class="act-btn" :data-on="engine.voiceRec.value !== 'idle'" :aria-label="engine.voiceRec.value === 'idle' ? 'grabar tu voz en bucle (2 compases, con cascos)' : 'cancelar la grabación de voz'" @click="engine.recordVoice(2)">{{ engine.voiceRec.value === 'idle' ? '🎤 Voz' : engine.voiceRec.value === 'armed' ? 'Espera el compás…' : engine.voiceRec.value === 'recording' ? '● Cantando' : 'Guardando…' }}</button>
       <button v-if="mode === 'jugar' && (engine.canLive.value || engine.liveRec.value)" class="act-btn" :data-on="!!engine.liveRec.value" :aria-label="engine.liveRec.value ? 'terminar la grabación y convertirla en células' : 'grabar canción: enciende y apaga capas al ritmo'" @click="engine.toggleLive()">{{ engine.liveRec.value ? `■ ${engine.liveRec.value.bars} compases` : '● Grabar canción' }}</button>
       <button v-if="engine.canConvert.value && mode === 'jugar' && !engine.liveRec.value" class="act-btn" aria-label="convertir este loop en una canción con la estructura del estilo" @click="engine.convertSong()">✦ Convertir en canción</button>

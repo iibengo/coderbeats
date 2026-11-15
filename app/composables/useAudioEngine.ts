@@ -1,4 +1,5 @@
 import { computed, reactive, ref, shallowRef } from 'vue'
+import { brightnessAtY, keysToHits, noteAtX, scaleNotes, type KeyEvent } from '~/lib/waterKeys'
 import { DEFAULT_PRODUCTION } from '~/lib/production'
 import { mergeCells as mergeCellsPure } from '~/lib/mergeCells'
 import { bluetoothWarning } from '~/lib/voiceWarn'
@@ -301,6 +302,11 @@ async function ensureVoices() {
     voiceEnv.value = { ...voiceEnv.value, [id]: new Float32Array(v.envelope) }
   }
 }
+/** Teclado de agua (spec 015): tocar el fondo fuera del aro suena notas de la escala del estilo; se puede grabar como melodía */
+const keysOn = ref(false)
+const keysRec = ref<{ count: number } | null>(null)
+let keyEvents: KeyEvent[] = []
+let lastKey = { midi: -1, at: 0 }
 /** Escenario (spec 011 §13.1): la pantalla entera dispara golpes de efecto. */
 const stageOn = ref(false)
 const fxLimiter = new FxLimiter()
@@ -2626,6 +2632,69 @@ export function useAudioEngine() {
         voiceRec.value = 'idle'
         voiceCancel = false
       }
+    },
+    keysOn,
+    keysRec,
+    setKeys: (on: boolean) => {
+      keysOn.value = on
+      if (!on) {
+        keysRec.value = null
+        keyEvents = []
+      }
+    },
+    /**
+     * Una nota del agua (fx, fy en 0..1 de la pantalla), **al instante**: horizontal = nota de la escala (en los tiempos fuertes, del acorde), vertical = brillo. Arrastrando solo suena al
+     * cambiar de nota (y no más de ~8 por segundo). Registrada como salida para el micro (EchoGate) y, si se graba, apuntada.
+     */
+    keysPlay: (fx: number, fy: number, drag = false): boolean => {
+      const c = ctx
+      if (!c || !S || c.state !== 'running') return false
+      const stepSec = stepSeconds()
+      const bar = clock ? Math.floor((c.currentTime - clock.time) / clock.barSec) + clock.cycle : 0
+      const step = clock ? Math.floor((((c.currentTime - barTime(bar)) / stepSec) % 16 + 16) % 16) : 0
+      const midi = noteAtX(fx, scaleNotes(style.value), style.value, bar, step % 4 === 0)
+      if (drag && midi === lastKey.midi && c.currentTime - lastKey.at < 0.4) return false
+      if (c.currentTime - lastKey.at < 0.12) return false
+      lastKey = { midi, at: c.currentTime }
+      const t = c.currentTime + 0.01
+      const synth = STYLE_MUSIC[style.value].synth
+      const wave = { piano: 'triangle', lead: 'square', pad: 'sawtooth', drone: 'sine' }[synth as 'piano'] ?? 'triangle'
+      void (S as unknown as { superdough: (v: object, t: number, d: number) => Promise<unknown> }).superdough(
+        { s: wave, note: midi, lpf: brightnessAtY(fy), attack: 0.005, decay: 0.3, sustain: 0.3, release: 0.3, gain: 0.5, room: 0.3 }, t, 0.35,
+      )
+      toWorker({ type: 'output', times: [t] })
+      if (keysRec.value && clock) {
+        keyEvents.push({ time: t, midi })
+        keysRec.value = { count: keyEvents.length }
+      }
+      return true
+    },
+    /** «Grabar»: apunta lo tocado; al terminar pasa a la célula como un loop de melodía de 4 compases (cuantizado), sustituyendo al que hubiera. */
+    toggleKeysRec: (): boolean => {
+      if (!keysRec.value) {
+        if (!playing.value) return false
+        keyEvents = []
+        keysRec.value = { count: 0 }
+        return true
+      }
+      const events = keyEvents
+      keyEvents = []
+      keysRec.value = null
+      if (!clock || !events.length) return false
+      const hits = keysToHits(events, barTime(0), stepSeconds(), 4)
+      const born = nextBarLine()
+      const old = loops.value.loops.find((l) => l.instrument === 'mel')
+      const id = old?.id ?? loops.value.nextId
+      const loop: FreeLoop = { id, instrument: 'mel', bars: 4, phaseBar: 0, hits, muted: false, bornAt: born, fromTemplate: false, ...(old?.synth ? { synth: old.synth } : {}), ...(old ? { prev: { hits: old.hits, bars: old.bars, phaseBar: old.phaseBar } } : {}) }
+      if (!old && loops.value.loops.length >= MAX_LOOPS) {
+        say('No caben más loops (8): quita alguno para grabar la melodía')
+        return false
+      }
+      loops.value = { nextId: old ? loops.value.nextId : id + 1, loops: old ? loops.value.loops.map((l) => (l.id === id ? loop : l)) : [...loops.value.loops, loop] }
+      reevaluate()
+      updateBackground()
+      say(`Melodía grabada: ${hits.length} notas${old ? ' (sustituye a la anterior)' : ''}`)
+      return true
     },
     stageOn,
     fxRec,
