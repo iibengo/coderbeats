@@ -2460,6 +2460,33 @@ export function useAudioEngine() {
         if (melodyOn.value !== saved.melody) setMelody(saved.melody)
         refreshSuggestion()
       },
+      /** Copia profunda de lo del usuario (canción, estilo, kit, fondo, efectos, si sonaba) para devolverlo tal cual al acabar o parar. */
+      snapshotUser: () => ({
+        song: JSON.parse(JSON.stringify(liveSong())) as Song,
+        style: style.value, kit: kit.value, bgMode: bgMode.value, bgManual: { ...bgManual.value }, fx: { ...fx }, playing: playing.value,
+      }),
+      restoreUser: async (u: { song: Song; style: StyleId; kit: KitId; bgMode: BackgroundMode; bgManual: Parts; fx: SongFx; playing: boolean }) => {
+        const was = playing.value
+        if (was) stop()
+        style.value = u.style
+        kit.value = u.kit
+        bgMode.value = u.bgMode
+        if (u.bgMode !== 'off') lastBgMode.value = u.bgMode
+        setFx(u.fx)
+        setSong(JSON.parse(JSON.stringify(u.song)) as Song)
+        bgManual.value = { ...u.bgManual }
+        if (u.playing) await play()
+        log('cell', 'previsualización terminada: tu canción, como estaba')
+      },
+      /** Pone la canción previsualizada entera, sonando (la demostración final). */
+      showSong: async (t: { song: Song; style: StyleId; kit: KitId }) => {
+        if (playing.value) stop()
+        style.value = t.style
+        kit.value = t.kit
+        bgMode.value = 'manual'
+        setSong(JSON.parse(JSON.stringify(t.song)) as Song)
+        await play()
+      },
       /** «Saltar al final»: la demo de una célula del estilo (lo único que no es un gesto). */
       skipToEnd: () => loadDemo(),
     },

@@ -3,7 +3,8 @@
 import { STYLES } from '~/lib/constants'
 import { usableLatencyMs } from '~/lib/latency'
 import { TEMPO_RESET_MS, TEMPO_TAPS } from '~/lib/tempo'
-import type { StyleId } from '~/lib/types'
+import type { Song } from '~/lib/cells'
+import type { KitId, StyleId } from '~/lib/types'
 import ModeSwitch from './ModeSwitch.vue'
 import VisualStage from './visual/VisualStage.vue'
 
@@ -20,6 +21,10 @@ if (import.meta.dev && import.meta.client) (window as unknown as Record<string, 
 // piloto automático (spec 009): un dedo fantasma que construye la demo con gestos reales
 const pilot = usePilot(() => (stage.value as unknown as { pointOf: never; rootEl: never } | null))
 const pilotState = usePilotState()
+/** «👁 Previsualizar»: la canción que hay (o una guardada de Mis canciones) se construye sola; al acabar o parar, todo como estaba. */
+function startPreview(t?: { song: Song; style: StyleId; kit: KitId; title?: string }) {
+  void pilot.preview(t ?? { song: engine.snapshot().song, style: engine.style.value, kit: engine.kit.value, title: 'Tu canción' })
+}
 function startPilot() {
   if ((engine.loops.value.loops.length || engine.multi.value) && !confirm('El piloto sustituye lo que tienes ahora (guárdalo antes en «Mis canciones» si quieres conservarlo). ¿Seguir?')) return
   void pilot.start(Date.now() % 1000)
@@ -107,7 +112,7 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
 </script>
 
 <template>
-  <VisualStage ref="stage">
+  <VisualStage ref="stage" @preview="startPreview()">
     <!-- estilo -->
     <nav
       class="flex gap-3 text-xs tracking-wide"
@@ -203,8 +208,8 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
     </button>
   </VisualStage>
 
-  <LibrarySheet v-model:open="libraryOpen" />
+  <LibrarySheet v-model:open="libraryOpen" @preview="(t) => startPreview(t)" />
   <RemixSheet v-model:open="remixOpen" />
-  <SettingsSheet v-model:open="settingsOpen" :renderer="renderer" :layout="layoutInfo" @recalibrate="(w) => emit('recalibrate', w)" @pilot="startPilot" />
+  <SettingsSheet v-model:open="settingsOpen" :renderer="renderer" :layout="layoutInfo" @recalibrate="(w) => emit('recalibrate', w)" @pilot="startPilot" @preview="startPreview()" />
   <PilotLayer :paused="pilotState.paused" @pause="pilot.togglePause()" @skip="pilot.skip()" @stop="pilot.stop('user')" />
 </template>

@@ -1,8 +1,18 @@
 <script setup lang="ts">
 // Mis canciones (spec 006): guardar la de ahora con nombre automático editable, y abrir las guardadas.
+import type { Song } from '~/lib/cells'
+import { kitFromSaved } from '~/lib/constants'
+import type { KitId, StyleId } from '~/lib/types'
 import { addSong, autoName, dateText, isEmptySong, isUnsaved, makeSaved, newId, replaceSong, sortedEntries, summaryText, type Entry } from '~/lib/library'
 
 const open = defineModel<boolean>('open', { required: true })
+const emit = defineEmits<{ preview: [{ song: Song; style: StyleId; kit: KitId; title: string }] }>()
+/** «👁 Previsualizar» una guardada: se construye sola sin abrirla (al acabar, lo que tenías sigue igual) */
+function previewEntry(e: Entry) {
+  if (!e.saved) return
+  open.value = false
+  emit('preview', { song: e.saved.song, style: e.saved.style, kit: (kitFromSaved(e.saved.kit) ?? 'electro') as KitId, title: e.saved.name })
+}
 const engine = useAudioEngine()
 const library = useLibrary()
 const { lib, error, currentId, removed } = library
@@ -158,6 +168,7 @@ async function openEntry(e: Entry) {
               <span class="block truncate text-white">{{ e.name }}</span>
               <span class="block truncate text-xs text-neutral-500">{{ summaryText(e.saved) }} · {{ dateText(e.savedAt) }}</span>
             </button>
+            <button v-if="e.saved" class="shrink-0 rounded-full border border-white/15 px-3 py-1 text-xs" aria-label="previsualizar: la canción se construye sola" @click="previewEntry(e)">👁</button>
             <div v-else class="min-w-0 flex-1 rounded-lg px-3 py-2 text-left opacity-60">
               <span class="block truncate text-white">{{ e.name }}</span>
               <span class="block truncate text-xs text-amber-300">no se puede abrir</span>

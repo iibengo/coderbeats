@@ -8,7 +8,7 @@ import type { PhraseMode, RepeatMode } from '~/composables/useAudioEngine'
 
 const open = defineModel<boolean>('open', { required: true })
 const props = defineProps<{ renderer: string; layout: () => string }>()
-const emit = defineEmits<{ recalibrate: ['latency' | 'sounds']; pilot: [] }>()
+const emit = defineEmits<{ recalibrate: ['latency' | 'sounds']; pilot: []; preview: [] }>()
 const engine = useAudioEngine()
 // lo que reemplaza la canción la desvincula de la guardada de la que venía (spec 006, §10.4): así "Guardar" no machaca una guardada
 const library = useLibrary()
@@ -266,6 +266,10 @@ watch(open, (o) => {
               Borrar todo
             </button>
             <button class="flex-1 rounded-full border border-white/15 py-2" @click="loadDemo">Cargar demo</button>
+          </div>
+          <div class="flex items-center gap-3">
+            <button class="shrink-0 rounded-full border border-white/15 px-4 py-2 disabled:opacity-40" :disabled="!loops.loops.length && !multi" @click="emit('preview'); open = false">👁 Previsualizar</button>
+            <span class="text-xs text-neutral-500">tu canción se construye sola, paso a paso (micro bloqueado); al acabar o parar, todo como estaba.</span>
           </div>
           <div v-if="engine.style.value === 'dembow'" class="flex items-center gap-3">
             <button class="shrink-0 rounded-full border border-white/15 px-4 py-2" @click="emit('pilot'); open = false">▶ Ver cómo se construye</button>

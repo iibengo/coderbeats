@@ -80,6 +80,7 @@ import { governorStep, initialGovernor } from '~/lib/frameGovernor'
 import StageOverlay from './StageOverlay.vue'
 
 const props = withDefaults(defineProps<{ themeId?: string }>(), { themeId: DEFAULT_THEME })
+const emit = defineEmits<{ preview: [] }>()
 const engine = useAudioEngine()
 const { loops, playing, phrase, fx, bgParts, bgMode, bgManual, style, currentBar, looping } = engine
 
@@ -2021,6 +2022,7 @@ defineExpose({ pointOf: (voice: Voice, step: number) => aro?.pointOf(voice, step
         <button class="act-btn" aria-label="aceptar la variación (también tocando la copia)" @click="engine.acceptProposal()">✓</button>
       </template>
       <button v-if="engine.playing.value" class="act-btn" :aria-label="mode === 'jugar' ? 'Escenario: toda la pantalla dispara golpes de efecto' : 'Efectos: los toques en el fondo disparan golpes de efecto'" @click="engine.setStage(true)">{{ mode === 'jugar' ? '⚡ Escenario' : '⚡ Efectos' }}</button>
+      <button v-if="mode === 'jugar' && !pilotState.active && (engine.canConvert.value || engine.multi.value)" class="act-btn" aria-label="previsualizar: tu canción se construye sola" @click="emit('preview')">👁 Previsualizar</button>
       <button v-if="mode === 'jugar' && (engine.canVoice.value || engine.voiceRec.value !== 'idle')" class="act-btn" :data-on="engine.voiceRec.value !== 'idle'" :aria-label="engine.voiceRec.value === 'idle' ? 'grabar tu voz en bucle (2 compases, con cascos)' : 'cancelar la grabación de voz'" @click="engine.recordVoice(2)">{{ engine.voiceRec.value === 'idle' ? '🎤 Voz' : engine.voiceRec.value === 'armed' ? 'Espera el compás…' : engine.voiceRec.value === 'recording' ? '● Cantando' : 'Guardando…' }}</button>
       <button v-if="mode === 'jugar' && (engine.canLive.value || engine.liveRec.value)" class="act-btn" :data-on="!!engine.liveRec.value" :aria-label="engine.liveRec.value ? 'terminar la grabación y convertirla en células' : 'grabar canción: enciende y apaga capas al ritmo'" @click="engine.toggleLive()">{{ engine.liveRec.value ? `■ ${engine.liveRec.value.bars} compases` : '● Grabar canción' }}</button>
       <button v-if="engine.canConvert.value && mode === 'jugar' && !engine.liveRec.value" class="act-btn" aria-label="convertir este loop en una canción con la estructura del estilo" @click="engine.convertSong()">✦ Convertir en canción</button>

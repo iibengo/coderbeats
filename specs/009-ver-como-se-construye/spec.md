@@ -201,3 +201,9 @@ Decisiones tomadas por lo más simple (a revisar):
 7. Con **movimiento reducido** el dedo salta de un sitio a otro.
 8. **Pendiente de la §8:** colonia, melodía y órgano (F2), remixes y modo vídeo (F3), grabar sesiones (F4); el guion de dnb; los dos dedos del pellizco.
 9. Se añadió un gancho **solo de desarrollo** (`window.__engine`) para las pruebas con el navegador.
+
+## 13. «👁 Previsualizar» para cualquier canción (2026-11-15)
+
+`lib/previewScript.ts` genera el guion desde los datos de una canción (demo, remix o Mis canciones): primera célula, capa a capa (batería de un compás en pasos enteros: con la boca si tiene ≥ 8 golpes, tocando el aro si menos; luego las bolas del fondo) y al final la canción entera sonando (≤ 8 compases). **Lo que ningún gesto de la interfaz puede hacer** (melodía, loops de 4 compases, voz, filtro, grupos, las demás células) **no se inventa**: se enseña con la canción entera, puesta desde los datos.
+Estricto: micro bloqueado (etiqueta «micro bloqueado»), ayudas tenues e intocables, nada de aceptar sugerencias ni variaciones, comprobación y corrección de lo construido contra el guion. **Al terminar o parar con un toque, todo vuelve** (canción, estilo, kit, fondo, efectos y si sonaba: `snapshotUser`/`restoreUser`, también si algo falla). Botones: «👁 Previsualizar» en Jugar (acciones y ⋯) y 👁 por entrada en Mis canciones (se construye sin abrirla).
+Comprobado: tests con todos los remixes, demos y una canción de una célula (`tests/unit/previewScript.test.ts`) y en Chrome (`tests/browser/previsualizar.mjs`, con sugerencias encendidas: canción idéntica al terminar y tras parar). No se ha probado el 👁 de Mis canciones en el navegador ni se ha visto en un móvil.

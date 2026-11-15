@@ -6,6 +6,9 @@
 import { reactive } from 'vue'
 import { imperfections, pause, rng, trajectory, type Pt } from '~/lib/pilot'
 import { outcomeOf, PILOT_SCRIPTS, type PilotScript, type PilotStep, type PilotTarget } from '~/lib/pilotScripts'
+import { previewScript, showBars } from '~/lib/previewScript'
+import { songBars, type Song } from '~/lib/cells'
+import type { KitId, StyleId } from '~/lib/types'
 import type { Voice } from '~/lib/palette'
 
 interface StageApi {
@@ -31,6 +34,7 @@ const POINTER_ID = 9001
 const MAGNET_PX = 20
 let cancelled = false
 let running = false
+let user: ReturnType<ReturnType<typeof useAudioEngine>['pilot']['snapshotUser']> | null = null
 let saved: ReturnType<ReturnType<typeof useAudioEngine>['pilot']['begin']> | null = null
 
 export function usePilotState() {
@@ -195,9 +199,10 @@ export function usePilot(getStage: () => StageApi | null) {
     stop('user')
   }
 
-  async function start(seed = 1, id = engine.style.value) {
-    const script = PILOT_SCRIPTS[id as keyof typeof PILOT_SCRIPTS]
+  async function start(seed = 1, id = engine.style.value, preview?: { script: PilotScript; target: { song: Song; style: StyleId; kit: KitId } }) {
+    const script = preview?.script ?? PILOT_SCRIPTS[id as keyof typeof PILOT_SCRIPTS]
     if (!script || running) return false
+    user = preview ? engine.pilot.snapshotUser() : null
     running = true
     cancelled = false
     state.reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -220,8 +225,21 @@ export function usePilot(getStage: () => StageApi | null) {
       }
       // al terminar entero: la canción debe ser idéntica a la demo (si no, se corrige y queda en el registro)
       if (!cancelled) engine.pilot.verify(script)
+      // previsualizar: al final, la canción entera (de los datos) sonando unos compases
+      if (!cancelled && preview) {
+        state.caption = 'La canción entera'
+        await engine.pilot.showSong(preview.target)
+        const c = engine.pilot.clock()
+        await wait((c ? c.stepSec * 16 : 2) * showBars(songBars(preview.target.song)) * 1000)
+      }
     } finally {
       running = false
+      // previsualizar: pase lo que pase (terminar, parar con un toque, un fallo), todo vuelve a como lo tenía el usuario
+      if (user) {
+        const u = user
+        user = null
+        await engine.pilot.restoreUser(u)
+      }
       if (saved) engine.pilot.end(saved)
       saved = null
       stop('end')
@@ -234,9 +252,13 @@ export function usePilot(getStage: () => StageApi | null) {
     cancelled = true
     if (saved) engine.pilot.end(saved)
     saved = null
-    await engine.pilot.skipToEnd()
+    // en una previsualización, saltar = terminar y devolver lo del usuario (lo hace el `finally` de `start`)
+    if (!user) await engine.pilot.skipToEnd()
     stop('end')
   }
 
-  return { start, skip, stop, togglePause: () => (state.paused = !state.paused), available: (style: string) => style in PILOT_SCRIPTS, outcomeOf }
+  /** «👁 Previsualizar»: construye `target` (cualquier canción) como un guion generado de sus datos, y al acabar o parar devuelve lo del usuario. */
+  const preview = (target: { song: Song; style: StyleId; kit: KitId; title?: string }, seed = Date.now() % 1000) =>
+    start(seed, target.style, { script: previewScript(target.song, target.style, target.kit, target.title), target })
+  return { preview, start, skip, stop, togglePause: () => (state.paused = !state.paused), available: (style: string) => style in PILOT_SCRIPTS, outcomeOf }
 }
