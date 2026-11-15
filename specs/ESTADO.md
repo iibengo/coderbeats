@@ -39,3 +39,44 @@ Además de los tests, esta vez **sí he probado la interfaz con Chrome sin panta
 4. **Voz (con cascos de cable):** «🎤 Voz», canta 2 compases desde el siguiente. ¿Cae **en el compás**? ¿El bucle no tiene clic ni se desfasa tras un minuto? ¿Suena a buen nivel? Cierra y abre la app: ¿sigue sonando la voz?
 5. **Lo de ayer (012):** la fuga del bajo en techno (beatbox sin melodía fantasma), la melodía sugerida (aceptar, ↻, ✕, cantar), copiar con variación en Componer y «✦ Convertir en canción» + «↶ Deshacer».
 6. Rendimiento: ¿baja el detalle si va lento y vuelve a subir al rato?
+
+---
+
+# Segunda tanda (2026-11-15, noche) — cola 3 → 9
+
+Todo en `main`, **sin push**; un commit por parte con tests (996), `nuxt typecheck` y `nuxt build` en verde. Además, **cada parte se comprobó en Chrome** con los guiones de `tests/browser/` (micro de mentira; nada se oyó ni se vio en un móvil).
+
+| # | Commit | Qué |
+|---|---|---|
+| — | `aa612e5`, `5f5affb` | Piloto **estricto** (micro real ignorado, no se aceptan sugerencias/variaciones, comprobación y corrección final, ajustes restaurados) y ayudas **tenues e intocables** mientras corre; etiqueta «micro bloqueado». |
+| 3 | `d979965`, `68e33e9` | **«👁 Previsualizar»** (Jugar, ⋯ y Mis canciones): guion generado de los datos de cualquier canción; **construye la canción completa** (primera célula con el dedo; cada siguiente se crea y engancha **desde los datos**, plan B) y la toca entera; al acabar o parar con un toque, **todo vuelve** como estaba. Probado con la Sinfonía 40 (12 células). |
+| 4 | `3deac7b` | **Tutorial jugando** (001 §14.1): «arrastra un golpe» → «llévalo al centro», mano fantasma del piloto, y las pistas del carril y de alejar (una vez). |
+| 5 | `ce58ac1` | La tira de células baja bajo el selector Jugar \| Componer. |
+| 6 | `2153013` | **Voz:** onda en círculo alrededor del aro y aviso de Bluetooth (ida y vuelta > 120 ms). |
+| 7 | `9f3bbe1` | **Fundir células** (005 §21): `mergeCells` puro, deshacer, gesto de arrastrar y mantener 0,8 s. |
+| 8 | `892b30a` | **Biblioteca:** buscador y grupos por estilo; **compartir por enlace** (solo datos, validado como lo guardado, topes, tests de inyección). |
+| 9 | `03ac74a` | **Exportar vídeo** (013, fases 1–3): agua y aro sin botones + audio de la app; vertical/cuadrado; célula o canción; guardar/compartir. Comprobado: mp4 720×1280, duración exacta, con imagen y sonido. |
+
+## ⚠ Pendiente: bloqueo al cambiar de canción mientras suena
+Reproducido en **Chrome de escritorio** (con el servidor de desarrollo): con una demo sonando, abrir un remix desde «Remixes» deja la página sin responder (el depurador no llega a pausarla; con la CPU ralentizada 4× el objetivo llega a cerrarse). **También ocurre en la versión de antes de toda la cola (`90d42e6`)**, así que no lo causó lo de hoy. Desde parado, los tres remixes abren bien (3 s). Sospechas sin confirmar: la cadena `replaceSong` (parar → `setSong` → `play`) con los observadores (`useSuggestions`, `usePrefs`) al cambiar de estilo/kit con música; carga de muestras del kit nuevo. Se probó que **no es** `ensureVoices` ni el vigilante de frames. Para seguir: `PORT=3999 node tests/browser/repro-bloqueo-cambio.mjs` (y `repro-bloqueo-pila.mjs`), y bisecar dentro de `replaceSong`/`play`. Puede ser lo que ves en el móvil («se queda bloqueado y no inicia el play»): **solución provisional: parar antes de abrir otra canción**.
+Nota: la «pantalla en blanco» de una sesión antigua fue, casi seguro, la caché del service worker (la prueba de recargar con datos guardados no se rompe).
+
+## No hecho / saltado
+- Previsualizar: sin gestos de colonia con el dedo (copiar/enganchar con el asa funciona a mano pero no encadenado en el guion; `colonyPoints()` queda expuesto) ni grupos en paralelo con gestos.
+- Voz: tomas fijas de 2 compases, sin detector de voz, sin capas, sin recolección de audios (a propósito), sin autotune; las voces **no viajan** en el enlace compartido.
+- Fundir: sin animación ni anillo azul; si sonaba, la canción arranca de nuevo.
+- Vídeo: **sin probar en iOS**; sin previsualización (fase 4) ni cámara deformada; sin fallback WebCodecs; rendimiento al grabar sin medir.
+- Tutorial: el arrastre real con el dedo no se pudo comprobar con el micro de mentira (llena el carril de bombo): se comprobó por el motor.
+- Partir `useAudioEngine.ts` / `AroCanvas.ts` y perfilar el rendimiento por frame: siguen sin tocar.
+
+## Decisiones a revisar (cada una, en su spec)
+009 §12–§13 (previsualizar), 001 «Tutorial jugando: implementado», 007 §17, 005 §21.12, 006 «Implementado: buscador…», 013 §12.
+
+## Qué probar en el móvil, en este orden
+1. **El bloqueo:** abre una demo, dale a Play y abre un remix. ¿Se cuelga? ¿Y si paras antes?
+2. **Previsualizar:** con el remix de Mozart, ⋯ → «👁 Previsualizar». ¿Se ve construir célula a célula y suena entera? Páralo con un toque: tu canción debe quedar como estaba.
+3. **Exportar vídeo:** ⋯ → «🎬 Exportar vídeo», célula de 4 compases en vertical. ¿Se graba, se reproduce y se puede guardar/compartir en Safari del iPhone?
+4. **Compartir por enlace:** 🔗 en una canción guardada → ábrela en otra pestaña/dispositivo; confirma y mira que sea idéntica.
+5. **Fundir:** en Componer, arrastra una célula sobre otra, mantén ~1 s y suelta; «↶ deshacer».
+6. **Tutorial:** borra los datos del sitio (o «Repetir la guía y el tutorial»), haz un bum, arrastra un golpe, llévalo al centro.
+7. **Voz con cascos:** la onda alrededor del aro y el aviso con Bluetooth.
