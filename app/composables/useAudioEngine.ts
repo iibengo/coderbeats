@@ -2374,6 +2374,25 @@ export function useAudioEngine() {
       log('cell', `convertida en canción: ${next.order.map((id) => next.cells.find((c) => c.id === id)?.name).join(' · ')}`)
       return true
     },
+    /**
+     * Piloto automático (spec 009): lo que necesita el guion del motor. **No llama a funciones internas de edición**: solo da la hora del reloj de compases y mete
+     * golpes «oídos» por el mismo camino que el worker de análisis (`onWorkerMessage`), como si los hubiera oído el micro.
+     */
+    pilot: {
+      /** el reloj: el compás que viene, su hora de contexto, lo que dura un paso y la hora ahora. `null` si no suena. */
+      clock: (): { bar: number; at: (bar: number) => number; stepSec: number; now: number } | null => {
+        const c = ctx
+        if (!c || !clock) return null
+        return { bar: nextBarLine(), at: barTime, stepSec: stepSeconds(), now: c.currentTime }
+      },
+      /** Un golpe «oído» en el instante de contexto `time` (se entrega ya, con el retraso del micro de mentira). */
+      hear: (instrument: Instrument, time: number) =>
+        onWorkerMessage({ type: 'hit', time: time + latencySec, instrument, confidence: 0.95, strength: 0.3, vol: 1, decisionMs: 30 }),
+      /** ¿Cuánto falta (ms) para la hora de contexto `time`? (con la latencia de salida) */
+      msUntil: (time: number): number => (ctx ? (time + outputLatency() - ctx.currentTime) * 1000 : 0),
+      /** «Saltar al final»: la demo de una célula del estilo (lo único que no es un gesto). */
+      skipToEnd: () => loadDemo(),
+    },
     stageOn,
     fxRec,
     setStage: (on: boolean) => {

@@ -185,3 +185,19 @@ Un guion **corto** (~45–60 s a 120 bpm) que construye lo que la demo de dembow
 6. **¿Dónde está el botón?** Junto a "Cargar demo" en ⋯ y en la hoja de Remixes, junto a "Abrir".
 7. **Guiones escritos a mano o derivados:** a mano en la fase 1–3 (control total de la historia); derivar los de remixes simples a partir de la canción (la idea de la versión anterior de esta spec) queda para más adelante, junto con la grabación (fase 4).
 8. **Vídeo:** la app **no graba vídeo** (lo hace la grabación de pantalla del sistema); el modo vídeo solo limpia la pantalla. ¿Se quiere una cuenta atrás de 3 s antes de empezar, para dar tiempo a pulsar "grabar"? (propuesta: sí, apagable).
+
+## 12. Implementado: fase 1 (2026-11-15) y decisiones a revisar
+
+**Qué hay:** `lib/pilot.ts` (humanización pura: semilla, trayectoria curva con perfil de campana y Fitts, temblor que se apaga al llegar, pausas log-normales, imperfecciones recuperables; con tests), `lib/pilotScripts.ts` (el guion de la demo del dembow, con un test de que construye la célula Principal), `composables/usePilot.ts` (el conductor: fabrica `PointerEvent` reales sobre las bolas, Play y el aro; la boca mete golpes «oídos» por `onWorkerMessage`), `components/PilotLayer.vue` (dedo, bocadillo, rótulo, etiqueta «piloto automático · demo» y barra ⏸ ⏭ ✕) y el botón «▶ Ver cómo se construye» en ⋯ (solo en dembow).
+**Comprobado en Chrome (sin pantalla, micro de mentira):** el piloto construye exactamente bombo 0·4·8·12, platillo a 16 y caja 3·6·11·14 con bajo y acordes; un toque real lo detiene dejando la canción; pausar congela dedo y guion; ⏭ deja la demo del estilo. **No** se ha visto el movimiento del dedo a ojo en un móvil ni oído el resultado.
+
+Decisiones tomadas por lo más simple (a revisar):
+1. **Sin «modo piloto» del motor ni `PilotWorker`:** el piloto solo se lanza dentro del estudio (tras el arranque normal, que ya tiene micro). Los golpes de la boca entran por el mismo camino que los del worker (`onWorkerMessage`), pero el worker real sigue vivo: con ruido en el micro se podrían colar golpes ajenos.
+2. **Guion en orden con esperas en compases**, no con `at` absolutos (§4.4). La boca espera a la línea de compás (a la siguiente, si faltan < 0,6 s).
+3. **Pausar** congela dedo y guion, pero **la música sigue** (decisión 2 del §11, alternativa «lo más simple»).
+4. **⏭ Saltar al final** carga la demo del estilo (`loadDemo`), que en dembow es la canción de varias células, no solo la Principal.
+5. **Sustituye lo que haya:** pide confirmación si hay loops; el piloto empieza con el estilo y el kit del guion, sin loops y con el fondo apagado.
+6. **La guía del primer minuto** (011 §12.2) se calla mientras el piloto actúa (si no, enciende el fondo ella sola).
+7. Con **movimiento reducido** el dedo salta de un sitio a otro.
+8. **Pendiente de la §8:** colonia, melodía y órgano (F2), remixes y modo vídeo (F3), grabar sesiones (F4); el guion de dnb; los dos dedos del pellizco.
+9. Se añadió un gancho **solo de desarrollo** (`window.__engine`) para las pruebas con el navegador.

@@ -15,6 +15,15 @@ const prefs = usePrefs()
 prefs.load()
 prefs.startSaving()
 useSuggestions()
+// (solo desarrollo: para las pruebas con el navegador)
+if (import.meta.dev && import.meta.client) (window as unknown as Record<string, unknown>).__engine = engine
+// piloto automático (spec 009): un dedo fantasma que construye la demo con gestos reales
+const pilot = usePilot(() => (stage.value as unknown as { pointOf: never; rootEl: never } | null))
+const pilotState = usePilotState()
+function startPilot() {
+  if ((engine.loops.value.loops.length || engine.multi.value) && !confirm('El piloto sustituye lo que tienes ahora (guárdalo antes en «Mis canciones» si quieres conservarlo). ¿Seguir?')) return
+  void pilot.start(Date.now() % 1000)
+}
 
 // una calibración guardada que salió ≤ 0 (imposible) no se usa; no se borra, y repetirla la sustituye
 watchEffect(() => engine.setLatency(usableLatencyMs(calibration.data.value?.latency?.ms) / 1000, calibration.data.value?.latency?.ms))
@@ -196,5 +205,6 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
 
   <LibrarySheet v-model:open="libraryOpen" />
   <RemixSheet v-model:open="remixOpen" />
-  <SettingsSheet v-model:open="settingsOpen" :renderer="renderer" :layout="layoutInfo" @recalibrate="(w) => emit('recalibrate', w)" />
+  <SettingsSheet v-model:open="settingsOpen" :renderer="renderer" :layout="layoutInfo" @recalibrate="(w) => emit('recalibrate', w)" @pilot="startPilot" />
+  <PilotLayer :paused="pilotState.paused" @pause="pilot.togglePause()" @skip="pilot.skip()" @stop="pilot.stop('user')" />
 </template>

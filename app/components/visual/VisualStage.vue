@@ -1383,7 +1383,12 @@ function onDown(e: PointerEvent) {
     engine.tapTempo()
     return
   }
-  ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+  // (un puntero sintético, el del piloto automático, no se puede capturar: no pasa nada, el gesto sigue)
+  try {
+    ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+  } catch {
+    /* sin captura */
+  }
   pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY })
   const mouse = e.pointerType === 'mouse'
   if (!mouse && pointers.size === 2) {
@@ -1703,14 +1708,16 @@ const guideDone = () => !!readJson(GUIDE_KEY, (x): x is { done: true } => !!x &&
 const guide = ref<GuideState>(guideDone() ? GUIDE_DONE : GUIDE_START)
 /** golpes que el micro ha oído desde que empezó la guía */
 let guideHeard = 0
-const guideText = computed(() => (mode.value === 'jugar' && guideVisible(guide.value) ? guideLine(guide.value.step, engine.melodyOn.value, !!engine.suggestion.value) : ''))
+// con el piloto automático en marcha, la guía no habla ni toca el fondo (el piloto lo hace todo)
+const pilotState = usePilotState()
+const guideText = computed(() => (!pilotState.active && mode.value === 'jugar' && guideVisible(guide.value) ? guideLine(guide.value.step, engine.melodyOn.value, !!engine.suggestion.value) : ''))
 function guideTo(next: GuideState) {
   if (next === guide.value) return
   const was = guide.value.step
   guide.value = next
   if (was === 'wait' && next.step === 'listen') {
     guideHeard = 0
-    engine.guideBackground() // «Escucha»: suena el fondo y la gota espera
+    if (!pilotState.active) engine.guideBackground() // «Escucha»: suena el fondo y la gota espera
   }
   if (next.step === 'done') writeJson(GUIDE_KEY, { done: true })
 }
@@ -1923,7 +1930,7 @@ const layoutInfo = () => {
     }),
   ].join(' · ')
 }
-defineExpose({ switchMode, openOrgan: (x: number, y: number) => (organ.value = { x, y }), organOpen: () => !!organ.value, rendererName, layoutInfo, debugDots: () => aro?.debugDots() ?? [], aroWhere: (x: number, y: number) => aro?.where(x, y) })
+defineExpose({ pointOf: (voice: Voice, step: number) => aro?.pointOf(voice, step) ?? null, rootEl: () => root.value, switchMode, openOrgan: (x: number, y: number) => (organ.value = { x, y }), organOpen: () => !!organ.value, rendererName, layoutInfo, debugDots: () => aro?.debugDots() ?? [], aroWhere: (x: number, y: number) => aro?.where(x, y) })
 </script>
 
 <template>
