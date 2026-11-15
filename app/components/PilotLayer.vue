@@ -10,7 +10,7 @@ const emit = defineEmits<{ pause: []; skip: []; stop: [] }>()
     <div v-if="state.finger.shown" class="finger" :data-down="state.finger.down" :data-reduced="state.reduced" :style="{ transform: `translate(${state.finger.x - 18}px, ${state.finger.y - 18}px)` }" />
     <div v-if="state.bubble" class="bubble">{{ state.bubble }}</div>
     <div v-if="state.captions && state.caption" class="caption">{{ state.caption }}</div>
-    <div class="tag">piloto automático · demo</div>
+    <div class="tag">piloto automático · demo · micro bloqueado 🎙✕</div>
     <div class="bar" data-pilot-bar>
       <button :aria-label="paused ? 'reanudar el piloto' : 'pausar el piloto'" @click="emit('pause')">{{ paused ? '▶' : '⏸' }}</button>
       <button aria-label="saltar al final: la canción terminada" @click="emit('skip')">⏭</button>

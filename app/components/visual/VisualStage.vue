@@ -1918,6 +1918,7 @@ defineExpose({ pointOf: (voice: Voice, step: number) => aro?.pointOf(voice, step
   <div
     ref="root"
     class="touch-none bg-ink select-none"
+    :data-pilot="pilotState.active"
     style="position: fixed; inset: 0; overflow: hidden"
     @pointerdown.capture="touched"
     @pointerup.capture="released"
@@ -2117,6 +2118,15 @@ defineExpose({ pointOf: (voice: Voice, step: number) => aro?.pointOf(voice, step
   box-shadow: 0 0 10px rgb(244 150 188 / 0.6);
 }
 /* zona de acciones: una fila (o columna en horizontal) de botones del mismo estilo */
+.stage-root[data-pilot='true'] .actions,
+[data-pilot='true'] .actions,
+[data-pilot='true'] .notice {
+  opacity: 0.28;
+  pointer-events: none !important;
+}
+[data-pilot='true'] .actions * {
+  pointer-events: none !important;
+}
 .actions {
   display: flex;
   flex-wrap: wrap;
