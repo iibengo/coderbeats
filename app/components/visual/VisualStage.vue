@@ -204,7 +204,7 @@ const actionsStyle = computed(() =>
     ? { right: `${view.w - sideX.value.right + 40}px`, top: '50%', transform: 'translateY(-50%)', flexDirection: 'column' as const, alignItems: 'flex-end' }
     : { left: '0', right: '0', bottom: `${ACTIONS_FROM_BOTTOM - 16}px`, justifyContent: 'center' },
 )
-const hasActions = computed(() => looping.value || engine.extrasOn.value || showFollow.value || !!engine.undoInfo.value)
+const hasActions = computed(() => looping.value || engine.extrasOn.value || showFollow.value || !!engine.undoInfo.value || (!!engine.suggestion.value && mode.value === 'jugar'))
 /** posición de cada bola en la fila, por orden de instrumento (bombo, caja, platillo, melodía) */
 const rowSlots = computed(() => {
   const rank = (i: LoopInstrument) => (i === 'mel' ? INSTRUMENTS.length : INSTRUMENTS.indexOf(i))
@@ -1003,6 +1003,7 @@ function tick() {
       dots: ringDots.value,
       live: liveDot(),
       melGhost: melGhost(),
+      melSuggest: suggestDots(clock.bar),
       melGuides: melGuides.value,
       phraseDots: phraseDots.value,
       highlight: highlight.value,
@@ -1296,6 +1297,15 @@ function dropStretch(dot: AroDot, x: number, y: number) {
   if (r) engine.editLoops(r.state)
 }
 
+/** La melodía sugerida (spec 012): las notas del compás que suena, para dibujarlas en fantasma en la franja de la melodía. */
+function suggestDots(bar: number): { step: number; frac: number; dur: number }[] | null {
+  const sg = engine.suggestion.value
+  if (!sg || mode.value !== 'jugar') return null
+  const b = ((Math.floor(bar) % 4) + 4) % 4
+  const range = rangeOf(sg.synth)
+  return sg.hits.filter((h) => h.pos >= b * 16 && h.pos < b * 16 + 16).map((h) => ({ step: h.pos - b * 16, frac: midiToFrac(h.midi, range), dur: h.dur }))
+}
+
 /** Dónde caería la nota de la melodía que se arrastra: el paso y la nota de la escala ya imantados (el fantasma). */
 function melGhost(): { step: number; frac: number } | null {
   const gs = gesture
@@ -1318,6 +1328,8 @@ function tapCreate(x: number, y: number) {
   if (!aro) return
   // tocar la franja de la melodía la abre como un órgano (spec 002, F2)
   if (aro.where(x, y).voice === 'mel' && !aro.pickSuggestion(x, y)) {
+    // con una melodía sugerida a la vista, tocar la franja la acepta (spec 012); si no, se abre el órgano
+    if (engine.suggestion.value && engine.acceptSuggestion()) return
     organ.value = { x, y }
     return
   }
@@ -1674,7 +1686,7 @@ const guideDone = () => !!readJson(GUIDE_KEY, (x): x is { done: true } => !!x &&
 const guide = ref<GuideState>(guideDone() ? GUIDE_DONE : GUIDE_START)
 /** golpes que el micro ha oído desde que empezó la guía */
 let guideHeard = 0
-const guideText = computed(() => (mode.value === 'jugar' && guideVisible(guide.value) ? guideLine(guide.value.step, engine.melodyOn.value) : ''))
+const guideText = computed(() => (mode.value === 'jugar' && guideVisible(guide.value) ? guideLine(guide.value.step, engine.melodyOn.value, !!engine.suggestion.value) : ''))
 function guideTo(next: GuideState) {
   if (next === guide.value) return
   const was = guide.value.step
@@ -1969,6 +1981,10 @@ defineExpose({ switchMode, openOrgan: (x: number, y: number) => (organ.value = {
         <template v-if="colony">◎ Centrar</template>
         <template v-else>Editando · {{ editingName }} ▶ Seguir la canción</template>
       </button>
+      <template v-if="engine.suggestion.value && mode === 'jugar'">
+        <button class="act-btn" aria-label="melodía sugerida: probar otra" @click="engine.otherSuggestion()">↻ Otra melodía</button>
+        <button class="act-btn" aria-label="no proponer esta melodía" @click="engine.dismissSuggestion()">✕</button>
+      </template>
       <button v-if="engine.undoInfo.value" class="act-btn" data-kind="undo" aria-label="deshacer el último borrado" @click="engine.undo()">
         ↶ Deshacer
       </button>

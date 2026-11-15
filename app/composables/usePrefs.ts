@@ -40,6 +40,8 @@ export interface StudioPrefs {
   melody?: boolean
   /** el modo (spec 011): Jugar o Componer; por dispositivo, no se guarda con la canción */
   mode?: Mode
+  /** sugerencias (spec 012, §3.4): melodía sugerida y variaciones; por defecto encendidas */
+  suggestions?: boolean
 }
 
 const isPrefs = (x: unknown): x is StudioPrefs => isStoredPrefs(x)
@@ -62,6 +64,7 @@ export function usePrefs() {
       engine.metronome.value = p.metronome && !engine.echo.value?.bleed
       engine.bgMode.value = p.bgMode
       engine.mode.value = modeFromSaved(p.mode)
+      engine.suggestions.value = p.suggestions ?? true
       if (p.bgManual) engine.setBackgroundManual(p.bgManual)
       engine.setPhraseOptions({ mode: p.phraseMode, closeBeats: p.phraseCloseBeats, maxBars: p.maxPhraseBars })
       // 'accumulate' (antes de §16.19) y el "sustituye" por defecto de antes de §16.21 pasan a 'complete'
@@ -105,6 +108,7 @@ export function usePrefs() {
           imageFineMs: engine.imageFineMs.value,
           melody: engine.melodyOn.value,
           mode: engine.mode.value,
+          suggestions: engine.suggestions.value,
         }) satisfies StudioPrefs,
       (p) => writeJson(PREFS_KEY, p),
       { deep: true },

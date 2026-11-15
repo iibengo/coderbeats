@@ -29,8 +29,8 @@ export interface GuideFacts {
 export const GUIDE_START: GuideState = { step: 'wait', sinceBar: 0 }
 export const GUIDE_DONE: GuideState = { step: 'done', sinceBar: 0 }
 
-/** La frase de cada paso (una sola a la vez, pequeña). `voice`: la melodía con la voz está activada. */
-export function guideLine(step: GuideStep, voice: boolean): string {
+/** La frase de cada paso (una sola a la vez, pequeña). `voice`: la melodía con la voz está activada; `suggest`: hay una melodía sugerida a la vista (spec 012). */
+export function guideLine(step: GuideStep, voice: boolean, suggest = false): string {
   switch (step) {
     case 'listen':
       return 'Escucha'
@@ -39,6 +39,7 @@ export function guideLine(step: GuideStep, voice: boolean): string {
     case 'appear':
       return 'En la siguiente vuelta aparecen tus golpes'
     case 'sing':
+      if (suggest) return voice ? 'Canta «na», o toca la melodía sugerida' : 'Toca la melodía sugerida'
       return voice ? 'Ahora canta «na»' : 'Toca la franja de la melodía'
     default:
       return ''

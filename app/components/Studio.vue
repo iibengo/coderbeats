@@ -14,6 +14,7 @@ const calibration = useCalibration()
 const prefs = usePrefs()
 prefs.load()
 prefs.startSaving()
+useSuggestions()
 
 // una calibración guardada que salió ≤ 0 (imposible) no se usa; no se borra, y repetirla la sustituye
 watchEffect(() => engine.setLatency(usableLatencyMs(calibration.data.value?.latency?.ms) / 1000, calibration.data.value?.latency?.ms))

@@ -22,6 +22,7 @@ export function isStoredPrefs(x: unknown): boolean {
     typeof p.metronome === 'boolean' &&
     (p.melody === undefined || typeof p.melody === 'boolean') &&
     (p.mode === undefined || isMode(p.mode)) &&
+    (p.suggestions === undefined || typeof p.suggestions === 'boolean') &&
     BG_MODES.includes(p.bgMode as string) &&
     (p.phraseMode === 'silence' || p.phraseMode === 'bar') &&
     typeof p.repeatMode === 'string' &&

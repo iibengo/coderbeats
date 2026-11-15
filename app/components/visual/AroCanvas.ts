@@ -145,6 +145,8 @@ export interface AroFrame {
   suggestions: GuideSpot[]
   /** al arrastrar una nota de la melodía: dónde caería (paso y altura 0..1 en el registro, ya imantados) */
   melGhost?: { step: number; frac: number } | null
+  /** la melodía sugerida (spec 012): las notas del compás que suena, en fantasma (círculos huecos muy tenues) sobre la franja de la melodía; sin ella, null */
+  melSuggest?: { step: number; frac: number; dur: number }[] | null
   /** punto de altura en vivo (spec 002, F2): su posición 0..1 en la franja y si encaja en la escala; null = sin voz */
   live?: { frac: number; fit: boolean } | null
   /** franja de la melodía: posiciones 0..1 de las notas de la escala del estilo (guías muy tenues) */
@@ -1219,6 +1221,26 @@ export class AroCanvas {
       x.beginPath()
       x.arc(px, py, DOT_R[s.voice] * 0.9, 0, TAU)
       x.stroke()
+    }
+
+    // la melodía sugerida: círculos huecos y muy tenues en la franja de la melodía, con un arco fino de lo que dura (spec 012)
+    if (f.melSuggest?.length && f.weights.mel >= 0.3) {
+      const { a: ma, b: mb } = layout.mel
+      for (const n of f.melSuggest) {
+        const u = ma + (mb - ma) * (MEL_MARGIN + (1 - 2 * MEL_MARGIN) * n.frac)
+        const [gx, gy] = this.at(stepAngle(n.step), u)
+        x.strokeStyle = `rgba(${VOICE_RGB_CSS.mel},${0.38 * f.weights.mel})`
+        x.lineWidth = 1.1
+        x.beginPath()
+        x.arc(gx, gy, DOT_R.mel + 1, 0, TAU)
+        x.stroke()
+        if (n.dur > 1.5) {
+          x.strokeStyle = `rgba(${VOICE_RGB_CSS.mel},${0.16 * f.weights.mel})`
+          x.beginPath()
+          this.arcPath(u, stepAngle(n.step), stepAngle(Math.min(16, n.step + n.dur)))
+          x.stroke()
+        }
+      }
     }
 
     // fantasma: un solo círculo hueco donde caerá el golpe que arrastras (E3.3)

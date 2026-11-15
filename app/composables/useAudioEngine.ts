@@ -9,6 +9,7 @@ import type { Remix } from '~/lib/remixes'
 import { STYLE_MUSIC } from '~/lib/styles'
 import { GLUE_WARM, saturationCurve } from '~/lib/masterChain'
 import { DEFAULT_MODE, type Mode } from '~/lib/modes'
+import { sameSuggestion, suggestFor, type Suggestion } from '~/lib/suggestion'
 import { demoState } from '~/lib/demos'
 import { analyzeEchoTest, type EchoTestResult } from '~/lib/echoGate'
 import {
@@ -68,6 +69,7 @@ import {
   addPhrase,
   clearLoops,
   emptyLoops,
+  MAX_LOOPS,
   prunePrev,
   removeLoop,
   toggleMute,
@@ -219,6 +221,16 @@ const kit = ref<KitId>('electro')
 const mode = ref<Mode>(DEFAULT_MODE)
 /** cuenta las veces que se pide repetir el primer minuto guiado (spec 011, §12.2); la gota lo vigila */
 const guideNonce = ref(0)
+/** «Sugerencias» (spec 012, §3.4): la melodía sugerida y las variaciones; apagado, no se propone nada. Separado de «Ayuda» (`assist`) */
+const suggestions = ref(true)
+/** la melodía sugerida que se ve y suena en fantasma (sin aceptar); no está en la canción */
+const suggestion = shallowRef<Suggestion | null>(null)
+/** la semilla en curso de cada ritmo («otra» la sube: secuencia fija y reproducible) y los ritmos cuya sugerencia se descartó */
+const suggestSeeds = new Map<number, number>()
+const suggestDismissed = new Set<number>()
+/** si canta, manda su voz: no se sugiere hasta pasados 2 compases desde la última nota cantada */
+let voiceHoldUntil = 0
+let voiceHoldTimer: ReturnType<typeof setTimeout> | null = null
 const style = ref<StyleId>('hiphop90')
 const assist = ref(true)
 const metronome = ref(true)
@@ -744,6 +756,7 @@ function songState(display = false): SongState {
     background: { mode: bgMode.value, parts: bgParts.value },
     metronome: metronome.value,
     fx: { ...fx },
+    ...(!display && suggestion.value && !multi() ? { suggestion: { hits: suggestion.value.hits, synth: suggestion.value.synth } } : {}),
   }
   // los grupos en paralelo: en el motor, sus tramos; en el código que se enseña, los encendidos enteros
   const s = liveSong()
@@ -1114,11 +1127,38 @@ function onWorkerMessage(m: FromWorker) {
 }
 
 /** Nace una nota de la voz (spec 002): cuenta como actividad de la frase; las notas se piden al cerrarla. */
+/** Se cantó una nota: la voz manda, así que se retira la sugerida y no vuelve hasta 2 compases después (spec 012, §3.1). */
+function holdVoice() {
+  voiceHoldUntil = performance.now() + stepSeconds() * 16 * 2 * 1000
+  if (suggestion.value) refreshSuggestion()
+  if (voiceHoldTimer) clearTimeout(voiceHoldTimer)
+  voiceHoldTimer = setTimeout(refreshSuggestion, stepSeconds() * 16 * 2 * 1000 + 50)
+}
+
+/** Recalcula la melodía sugerida (spec 012): la decide `suggestFor`; si cambia, se reevalúa el motor para que suene en fantasma. */
+function refreshSuggestion() {
+  const next = suggestFor({
+    enabled: suggestions.value,
+    jugar: mode.value === 'jugar',
+    multi: multi(),
+    loops: loops.value.loops,
+    style: style.value,
+    bpm: bpm.value,
+    seeds: suggestSeeds,
+    dismissed: suggestDismissed,
+    voiceHold: performance.now() < voiceHoldUntil,
+  })
+  if (sameSuggestion(suggestion.value, next)) return
+  suggestion.value = next
+  reevaluate()
+}
+
 function onMelodic(m: Extract<FromWorker, { type: 'melodic' }>, uiMs: number) {
   const name = `${midiName(m.midi)} (${m.midi.toFixed(1)})`
   if (!playing.value || !tracker) return log('stopped', `nota ${name} sin loop en marcha`, uiMs)
   if (multi() && !loop && !viewAway()) return log('unknown', `ignorado: canción avanzando (nota ${name})`, uiMs)
   log('melody', `nota ${name}`, uiMs)
+  holdVoice()
   const gs = tracker.globalStep(m.time - latencySec)
   visualListeners.forEach((f) =>
     f({ kind: 'heard', loopId: null, instrument: 'mel', time: m.time, strength: 0.6, step: ((gs % 16) + 16) % 16 }),
@@ -2209,6 +2249,44 @@ export function useAudioEngine() {
     kit,
     mode,
     guideNonce,
+    suggestions,
+    suggestion,
+    /** Enciende o apaga «Sugerencias» (spec 012, §3.4): apagado, se retira lo propuesto y no se propone nada. */
+    setSuggestions: (on: boolean) => {
+      suggestions.value = on
+      refreshSuggestion()
+    },
+    refreshSuggestion,
+    /** Tocar la sugerida = aceptarla: pasa a ser un loop de melodía normal (nacerá en la siguiente línea de compás, en su mismo sitio). */
+    acceptSuggestion: (): boolean => {
+      const sg = suggestion.value
+      if (!sg || loops.value.loops.length >= MAX_LOOPS) return false
+      const id = loops.value.nextId
+      const born = nextBarLine()
+      loops.value = {
+        nextId: id + 1,
+        loops: [...loops.value.loops, { id, instrument: 'mel', bars: 4, phaseBar: 0, hits: sg.hits.map((h) => ({ pos: h.pos, dur: h.dur, midi: h.midi, strength: h.strength })), muted: false, bornAt: born, fromTemplate: false }],
+      }
+      log('melody', `melodía sugerida aceptada (${sg.hits.length} notas, semilla ${sg.seed})`)
+      suggestion.value = null
+      reevaluate()
+      updateBackground()
+      return true
+    },
+    /** «↻ otra»: la siguiente sugerencia de este ritmo (secuencia fija). */
+    otherSuggestion: () => {
+      const sg = suggestion.value
+      if (!sg) return
+      suggestSeeds.set(sg.key, sg.seed + 1)
+      refreshSuggestion()
+    },
+    /** «✕»: no volver a proponer esta sugerencia para este ritmo. */
+    dismissSuggestion: () => {
+      const sg = suggestion.value
+      if (!sg) return
+      suggestDismissed.add(sg.key)
+      refreshSuggestion()
+    },
     /** Repite el primer minuto guiado: la próxima vez que suene, sin loops, vuelve a guiar. */
     restartGuide: () => {
       guideNonce.value++

@@ -202,6 +202,10 @@ watch(open, (o) => {
             Ayuda
             <input type="checkbox" :checked="assist" @change="engine.setAssist(($event.target as HTMLInputElement).checked)" />
           </label>
+          <label class="flex items-center justify-between">
+            <span>Sugerencias <span class="text-xs text-neutral-500">melodía sugerida y variaciones</span></span>
+            <input type="checkbox" :checked="engine.suggestions.value" @change="engine.setSuggestions(($event.target as HTMLInputElement).checked)" />
+          </label>
           <div class="grid gap-0.5">
             <label class="flex items-center justify-between">
               <span>Melodía con la voz <span class="text-xs text-neutral-500">beta</span></span>

@@ -7,7 +7,8 @@ import type { FreeLoop } from './freeLoops'
 import type { KitId, StyleId } from './types'
 import { anyPart, type BackgroundMode, type Parts } from './background'
 import { bassCode } from './bass'
-import { melodyMini, SYNTH_SOUND, type MelodySynth } from './melody'
+import { melodyMini, SYNTH_SOUND, type MelodyHit, type MelodySynth } from './melody'
+import { SUGGEST_GAIN } from './suggestMelody'
 import type { Cell, Segment } from './cells'
 import { wowCode, wowControls } from './wow'
 
@@ -30,6 +31,8 @@ export interface SongState {
   background: { mode: BackgroundMode; parts: Parts }
   metronome: boolean
   fx: SongFx
+  /** la melodía sugerida sin aceptar (spec 012, §3): solo en el motor, suave y sin guardar; nunca en el código mostrado */
+  suggestion?: { hits: readonly MelodyHit[]; synth: MelodySynth }
   /**
    * Canción de varias células (spec 005). Sin ella, o con una sola célula, el código es el de
    * siempre con `loops`. Con ella, `loops` no se usa:
@@ -423,6 +426,11 @@ export function songCode(st: SongState, mode: SongMode = 'display'): string {
   } else if (st.loops.length) {
     out.push(`${IND}// tus loops`)
     out.push(...loopsLines(st.loops, st, mode, duck, IND))
+  }
+  // la melodía sugerida (spec 012): un loop provisional, suave (≈ 35 %), con el sinte pad, solo en el motor y solo con una célula
+  if (engine && st.suggestion && !multi && st.suggestion.hits.length) {
+    out.push(`${IND}// melodía sugerida (sin aceptar): suave, solo en el motor`)
+    out.push(`${IND}note("${melodyMini(st.suggestion.hits.map((h) => ({ ...h })), 4, 0)}")${SYNTH_SOUND.pad}.orbit(${MELODY_ORBIT}).gain(${SUGGEST_GAIN}).color("sug"),`)
   }
   const extra = groupLines(st, mode, duck, IND)
   out.push(...extra)
