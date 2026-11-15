@@ -204,7 +204,7 @@ function pickStrip(id: number) {
 const actionsStyle = computed(() =>
   compact.value
     ? { right: `${view.w - sideX.value.right + 40}px`, top: '50%', transform: 'translateY(-50%)', flexDirection: 'column' as const, alignItems: 'flex-end' }
-    : { left: '0', right: '0', bottom: `${ACTIONS_FROM_BOTTOM - 16}px`, justifyContent: 'center' },
+    : { left: '0', right: '0', bottom: `${ACTIONS_FROM_BOTTOM + 60}px`, justifyContent: 'center' },
 )
 const hasActions = computed(() => engine.playing.value || !!engine.proposal.value || looping.value || engine.extrasOn.value || showFollow.value || !!engine.undoInfo.value)
 /** posición de cada bola en la fila, por orden de instrumento (bombo, caja, platillo, melodía) */
@@ -2008,7 +2008,7 @@ defineExpose({ switchMode, openOrgan: (x: number, y: number) => (organ.value = {
     </button>
 
     <!-- zona de acciones (spec 005, §19): un solo sitio, en orden fijo, solo lo que tiene sentido ahora -->
-    <div v-if="hasActions" class="actions absolute" :style="actionsStyle" @pointerdown.stop>
+    <div v-if="hasActions && !engine.stageOn.value" class="actions absolute" :style="actionsStyle" @pointerdown.stop>
       <button v-if="looping" class="act-btn" aria-label="soltar el bucle: la canción sigue" @click="engine.resume()">
         <span class="chapa-inf">∞</span> Soltar bucle
       </button>
@@ -2112,7 +2112,7 @@ defineExpose({ switchMode, openOrgan: (x: number, y: number) => (organ.value = {
         <span class="side" style="left: 1.5%">{{ FX_LABEL.barrido }}</span>
         <span class="side" style="right: 1.5%">{{ FX_LABEL.barrido }}</span>
       </div>
-      <div class="stage-bar" style="top: max(0.75rem, env(safe-area-inset-top))">
+      <div class="stage-bar" style="top: calc(max(0.5rem, env(safe-area-inset-top)) + 100px)">
         <button data-stage-btn class="act-btn" aria-label="salir del Escenario" @click.stop="engine.setStage(false)">✕ Salir</button>
         <button data-stage-btn class="act-btn" :data-on="!!engine.fxRec.value" :aria-label="engine.fxRec.value ? 'terminar y guardar los efectos como capa' : 'grabar efectos: lo que toques pasa a la célula como capa'" @click.stop="engine.toggleFxRec()">{{ engine.fxRec.value ? `■ ${engine.fxRec.value.count} golpes` : '● Grabar efectos' }}</button>
       </div>
@@ -2150,7 +2150,7 @@ defineExpose({ switchMode, openOrgan: (x: number, y: number) => (organ.value = {
 }
 .stage {
   z-index: 20;
-  background: rgb(11 11 15 / 0.82);
+  background: rgb(11 11 15 / 0.9);
   touch-action: none;
 }
 .stage-bar {
