@@ -5,6 +5,7 @@ import { usableLatencyMs } from '~/lib/latency'
 import { TEMPO_RESET_MS, TEMPO_TAPS } from '~/lib/tempo'
 import type { Song } from '~/lib/cells'
 import type { KitId, StyleId } from '~/lib/types'
+import { decodeShare, payloadFromHash } from '~/lib/shareLink'
 import ModeSwitch from './ModeSwitch.vue'
 import VisualStage from './visual/VisualStage.vue'
 
@@ -112,7 +113,20 @@ const playStyle = computed(() =>
 function onVisibility() {
   if (document.hidden && playing.value) engine.stop()
 }
-onMounted(() => document.addEventListener('visibilitychange', onVisibility))
+/** Abrir una canción compartida (`#c=…`): se valida como lo guardado, se pregunta y no se guarda sola; el fragmento se quita de la dirección. */
+async function openSharedLink() {
+  const payload = payloadFromHash(location.hash)
+  if (!payload) return
+  history.replaceState(null, '', location.pathname + location.search)
+  const saved = await decodeShare(payload)
+  if (!saved) return void alert('El enlace de la canción no es válido.')
+  if (!confirm(`Abrir la canción compartida «${saved.name}»? Sustituye lo que tienes ahora (guárdalo antes en «Mis canciones» si quieres conservarlo).`)) return
+  await engine.openSaved(saved)
+}
+onMounted(() => {
+  document.addEventListener('visibilitychange', onVisibility)
+  void openSharedLink()
+})
 onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibility))
 </script>
 

@@ -222,3 +222,34 @@ export function isUnsaved(current: SongSnapshot, reference: SongSnapshot | null)
   if (isEmptySong(current.song)) return false
   return !reference || keyOf(current) !== keyOf(reference)
 }
+
+// ── buscar y agrupar por estilo (el «árbol» de Mis canciones, spec 006 «después») ────────────────
+const fold = (t: string): string => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+
+/** Las entradas cuyo nombre, estilo o resumen contienen todas las palabras de `query` (sin mayúsculas ni tildes). Vacío = todas. */
+export function filterEntries(entries: readonly Entry[], query: string): Entry[] {
+  const words = fold(query).split(/\s+/).filter(Boolean)
+  if (!words.length) return [...entries]
+  return entries.filter((e) => {
+    const hay = fold(`${e.name} ${e.saved ? `${STYLES[e.saved.style].label} ${summaryText(e.saved)}` : ''}`)
+    return words.every((w) => hay.includes(w))
+  })
+}
+
+export interface StyleGroup {
+  style: StyleId | null
+  label: string
+  entries: Entry[]
+}
+
+/** Agrupa por estilo (el orden de los estilos de la app; las que no se pueden abrir, al final en «Otras»), conservando el orden de entrada dentro de cada grupo. */
+export function groupByStyle(entries: readonly Entry[]): StyleGroup[] {
+  const out: StyleGroup[] = []
+  for (const id of Object.keys(STYLES) as StyleId[]) {
+    const es = entries.filter((e) => e.saved?.style === id)
+    if (es.length) out.push({ style: id, label: STYLES[id].label, entries: es })
+  }
+  const rest = entries.filter((e) => !e.saved)
+  if (rest.length) out.push({ style: null, label: 'Otras', entries: rest })
+  return out
+}

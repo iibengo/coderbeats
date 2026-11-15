@@ -1,7 +1,7 @@
 import puppeteer from 'puppeteer-core'
 export const sleep = (ms) => new Promise(r => setTimeout(r, ms))
 const mk = (i) => ({ instrument: i, features: { centroid: 0.1 + 0.1*['bd','sd','hh'].indexOf(i), bands: [0.4,0.3,0.2,0.1], mfcc: Array.from({length:13},(_,k)=>k*0.1*(1+['bd','sd','hh'].indexOf(i))), zcr: 0.1, rms: 0.3 } })
-export async function open({ w = 400, h = 800 } = {}) {
+export async function open({ w = 400, h = 800, goto = true } = {}) {
   const b = await puppeteer.launch({ executablePath: '/usr/bin/google-chrome', headless: 'new', args: ['--no-sandbox','--use-fake-device-for-media-stream','--use-fake-ui-for-media-stream','--autoplay-policy=no-user-gesture-required'] })
   const p = await b.newPage()
   await p.setViewport({ width: w, height: h, deviceScaleFactor: 1, hasTouch: true, isMobile: true })
@@ -13,6 +13,7 @@ export async function open({ w = 400, h = 800 } = {}) {
     samples: ['bd','sd','hh'].flatMap(i => [mk(i), mk(i)]), norm: { mean: Array.from({length:13+1+4+1},()=>0), std: Array.from({length:13+1+4+1},()=>1) },
     latency: { ms: 30, spreadMs: 3, measuredAt: new Date().toISOString() },
   })
+  if (!goto) return { b, p, errs }
   await p.goto('http://localhost:3999/', { waitUntil: 'networkidle2', timeout: 120000 })
   await p.evaluate(() => [...document.querySelectorAll('button')].find(b=>b.textContent.includes('Empezar'))?.click())
   await sleep(8000)

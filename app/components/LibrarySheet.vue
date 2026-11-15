@@ -1,9 +1,10 @@
 <script setup lang="ts">
 // Mis canciones (spec 006): guardar la de ahora con nombre automático editable, y abrir las guardadas.
+import { encodeShare, shareUrl } from '~/lib/shareLink'
 import type { Song } from '~/lib/cells'
 import { kitFromSaved } from '~/lib/constants'
 import type { KitId, StyleId } from '~/lib/types'
-import { addSong, autoName, dateText, isEmptySong, isUnsaved, makeSaved, newId, replaceSong, sortedEntries, summaryText, type Entry } from '~/lib/library'
+import { addSong, autoName, dateText, isEmptySong, isUnsaved, makeSaved, newId, replaceSong, filterEntries, groupByStyle, sortedEntries, summaryText, type Entry } from '~/lib/library'
 
 const open = defineModel<boolean>('open', { required: true })
 const emit = defineEmits<{ preview: [{ song: Song; style: StyleId; kit: KitId; title: string }] }>()
@@ -22,7 +23,27 @@ const name = ref('')
 const justSaved = ref(false)
 let savedTimer: ReturnType<typeof setTimeout> | null = null
 
-const entries = computed(() => sortedEntries(lib.value))
+const allEntries = computed(() => sortedEntries(lib.value))
+/** el buscador y el «árbol» por estilos (spec 006): con pocas canciones no hace falta */
+const query = ref('')
+const entries = computed(() => filterEntries(allEntries.value, query.value))
+const groups = computed(() => (allEntries.value.length > 4 ? groupByStyle(entries.value) : null))
+/** «🔗» compartir: el enlace lleva solo datos (nunca código); se copia o se comparte con la hoja del sistema */
+const linkNote = ref('')
+async function shareEntry(e: Entry) {
+  if (!e.saved) return
+  const url = shareUrl(`${location.origin}${location.pathname}`, await encodeShare(e.saved, e.saved.name))
+  try {
+    if (navigator.share) await navigator.share({ title: e.saved.name, url })
+    else {
+      await navigator.clipboard.writeText(url)
+      linkNote.value = 'Enlace copiado'
+    }
+  } catch {
+    linkNote.value = url.length > 2000 ? 'No se pudo copiar el enlace (es muy largo)' : 'No se pudo compartir'
+  }
+  setTimeout(() => (linkNote.value = ''), 3500)
+}
 /** la guardada de la que viene lo de ahora (con lo que comparar si está sin guardar) */
 const reference = computed(() => lib.value.entries.find((e) => e.id === currentId.value)?.saved ?? null)
 const empty = computed(() => isEmptySong(engine.liveSong()))
@@ -146,9 +167,15 @@ async function openEntry(e: Entry) {
         </p>
 
         <!-- la lista, de la más reciente a la más antigua -->
-        <p v-if="!entries.length" class="py-6 text-center text-neutral-500">Aún no has guardado ninguna canción.</p>
-        <ul v-else class="grid gap-1">
-          <li v-for="e in entries" :key="e.id" class="flex items-center gap-1">
+        <input v-if="allEntries.length > 4" v-model="query" type="search" class="mb-2 w-full rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-white" placeholder="Buscar por nombre o estilo" aria-label="buscar en mis canciones" />
+        <p v-if="linkNote" class="mb-2 text-xs text-neutral-300" role="status">{{ linkNote }}</p>
+        <p v-if="!allEntries.length" class="py-6 text-center text-neutral-500">Aún no has guardado ninguna canción.</p>
+        <p v-else-if="!entries.length" class="py-6 text-center text-neutral-500">Ninguna canción coincide.</p>
+        <template v-else>
+        <div v-for="g in groups ?? [{ style: 'todas', label: '', entries }]" :key="g.style ?? 'otras'">
+        <h3 v-if="groups" class="mt-2 mb-1 text-[11px] tracking-wide text-neutral-500 uppercase">{{ g.label }} · {{ g.entries.length }}</h3>
+        <ul class="grid gap-1">
+          <li v-for="e in g.entries" :key="e.id" class="flex items-center gap-1">
             <input
               v-if="editingId === e.id"
               ref="renameEls"
@@ -169,6 +196,7 @@ async function openEntry(e: Entry) {
               <span class="block truncate text-xs text-neutral-500">{{ summaryText(e.saved) }} · {{ dateText(e.savedAt) }}</span>
             </button>
             <button v-if="e.saved" class="shrink-0 rounded-full border border-white/15 px-3 py-1 text-xs" aria-label="previsualizar: la canción se construye sola" @click="previewEntry(e)">👁</button>
+            <button v-if="e.saved" class="shrink-0 rounded-full border border-white/15 px-3 py-1 text-xs" aria-label="compartir por enlace (solo datos)" @click="shareEntry(e)">🔗</button>
             <div v-else class="min-w-0 flex-1 rounded-lg px-3 py-2 text-left opacity-60">
               <span class="block truncate text-white">{{ e.name }}</span>
               <span class="block truncate text-xs text-amber-300">no se puede abrir</span>
@@ -181,6 +209,8 @@ async function openEntry(e: Entry) {
             </button>
           </li>
         </ul>
+        </div>
+        </template>
       </section>
     </div>
   </Transition>

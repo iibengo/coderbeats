@@ -252,3 +252,30 @@ describe('lo guardado antes de los grupos', () => {
     expect(s.order).toEqual([1, 2, 3, 4])
   })
 })
+
+import { filterEntries, groupByStyle } from '../../app/lib/library'
+
+describe('buscar y agrupar por estilo', () => {
+  const mk = (id: string, name: string, style: 'dnb' | 'techno') => {
+    const s = makeSaved({ ...snap(), style }, id, name, at(10))
+    return addSong(emptyLibrary(), s).entries[0]!
+  }
+  const es = [mk('a', 'Mi Himno', 'techno'), mk('b', 'Pruebas de bajo', 'dnb'), mk('c', 'Himno 2', 'dnb')]
+  it('busca por nombre sin mayúsculas ni tildes, con todas las palabras', () => {
+    expect(filterEntries(es, 'himno').map((e) => e.id)).toEqual(['a', 'c'])
+    expect(filterEntries(es, 'MI himno').map((e) => e.id)).toEqual(['a'])
+    expect(filterEntries(es, 'pruébas').map((e) => e.id)).toEqual(['b'])
+    expect(filterEntries(es, 'zzz')).toEqual([])
+  })
+  it('busca también por estilo y vacío devuelve todas', () => {
+    expect(filterEntries(es, 'techno').map((e) => e.id)).toEqual(['a'])
+    expect(filterEntries(es, '  ')).toHaveLength(3)
+  })
+  it('agrupa por estilo en el orden de la app y deja las que no se abren en «Otras»', () => {
+    const broken = { ...es[0]!, id: 'x', saved: null }
+    const g = groupByStyle([...es, broken])
+    expect(g.map((x) => x.style)).toEqual(['dnb', 'techno', null])
+    expect(g.at(-1)!.style).toBeNull()
+    expect(g.find((x) => x.style === 'dnb')!.entries.map((e) => e.id)).toEqual(['b', 'c'])
+  })
+})
