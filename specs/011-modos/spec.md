@@ -286,6 +286,14 @@ que luego se puede retocar en Componer. *Nota:* la decisión 4 («Jugar no crea 
 - **Riesgos:** (1) apagar/encender cae **entre compases** o a mitad: se redondea al compás **siguiente**; (2) una grabación muy larga da muchas células (tope 16 = `MAX_CELLS`: si se pasa, se
   fusionan los tramos más cortos y se avisa); (3) las capas sustituyen a lo que hubiera: si ya había una canción de varias células, **se pide confirmación** (con «↶ deshacer», 005 §7.1).
 
+
+**Implementado (2026-11-15, `lib/liveCompose.ts`, botón «● Grabar canción» en Jugar).** Decisiones a revisar (lo más simple, sin consultar):
+- Solo con **una célula** sonando y ≥ 2 capas; en una canción de varias células no se graba (así no hace falta confirmar nada: «↶ deshacer» devuelve el loop de antes).
+- Se apunta **al llegar cada compás** (el estado que ya está programado); un toque en los últimos ~100 ms antes de la línea cuenta en el compás siguiente.
+- Tramos más cortos que el loop más largo (1 o 4 compases) se unen al vecino; los compases que sobran se pierden al redondear hacia abajo (7 → 4); más de 16 tramos: se unen los más cortos y se avisa.
+- Nombres: lo más lleno = Drop; el primero = Intro, el último = Final, los demás = Subida. No graba filtro, espacio ni voz. Pasar a Componer o parar cancela la grabación.
+- Sin probar en el móvil (compás exacto de los toques, legibilidad del botón/contador).
+
 ### 14.2 «Convertir en canción»
 
 > **Actualización (2026-11-15):** la conversión **no tiene lógica propia**: es una **receta de las variaciones** de la **spec 012 §5–§6** (intro = menos energía, subida = sin bombo + redoble + filtro que se abre, drop = la original, final = acordes que se apagan),

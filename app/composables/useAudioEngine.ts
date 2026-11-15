@@ -1,4 +1,5 @@
 import { computed, reactive, ref, shallowRef } from 'vue'
+import { timelineToSong, type BarLayers } from '~/lib/liveCompose'
 import { NO_PARTS, PART_ORBIT, planTransitions, targetParts, type BackgroundMode, type Part, type Parts } from '~/lib/background'
 import { KIT_ORDER, KITS, kitFromSaved, STYLES } from '~/lib/constants'
 import { MELODY_DECISION_SEC } from '~/lib/liveMelody'
@@ -251,6 +252,13 @@ function say(text: string) {
   if (noticeTimer) clearTimeout(noticeTimer)
   noticeTimer = setTimeout(() => (notice.value = ''), 4500)
 }
+/** «Componer en directo» (spec 011 §14.1): compases grabados hasta ahora, o `null` si no se graba. */
+const liveRec = ref<{ bars: number } | null>(null)
+let liveTimeline: BarLayers[] = []
+function cancelLive() {
+  liveRec.value = null
+  liveTimeline = []
+}
 const suggestDismissed = new Set<number>()
 /** si canta, manda su voz: no se sugiere hasta pasados 2 compases desde la última nota cantada */
 let voiceHoldUntil = 0
@@ -415,6 +423,14 @@ function onPulse(cycle: number, t: number) {
   clock = { cycle, time: t, barSec }
   const c = requireCtx()
   const first = !tracker
+  if (liveRec.value) {
+    if (multi() || mode.value !== 'jugar') cancelLive()
+    else {
+      const active = loops.value.loops.filter((l) => !l.muted && l.hits.length)
+      liveTimeline.push({ loops: active.map((l) => l.id), parts: targetParts(active.length, bgMode.value, bgManual.value) })
+      liveRec.value = { bars: liveTimeline.length }
+    }
+  }
   // canción: ¿empieza otra célula en este compás? (§4.2)
   let entered: Cursor | null = null
   let consumed: Jump | null = null
@@ -1428,6 +1444,7 @@ export function useAudioEngine() {
 
   function stop() {
     if (!S) return
+    cancelLive()
     if (playing.value) S.hush()
     timers.forEach(clearTimeout)
     timers = []
@@ -2348,6 +2365,32 @@ export function useAudioEngine() {
       await replaceSong(next)
       say(`Tu canción: ${next.order.length} partes${hadSuggestion ? ' (con la melodía sugerida)' : ''}. Ábrela en Componer para retocarla`)
       log('cell', `convertida en canción: ${next.order.map((id) => next.cells.find((c) => c.id === id)?.name).join(' · ')}`)
+      return true
+    },
+    liveRec,
+    /** ¿Se puede grabar la canción en directo? Sonando, una sola célula y al menos dos capas (spec 011 §14.1). */
+    canLive: computed(() => playing.value && !isMulti(song.value) && loops.value.loops.filter((l) => l.hits.length).length >= 2),
+    /** «Grabar canción»: apunta, por compás, qué capas están encendidas. Otra llamada la termina y la convierte en células, con «↶ deshacer». */
+    toggleLive: async (): Promise<boolean> => {
+      if (!liveRec.value) {
+        if (!playing.value || isMulti(song.value)) return false
+        liveTimeline = []
+        liveRec.value = { bars: 0 }
+        say('Grabando: enciende y apaga capas al ritmo')
+        return true
+      }
+      const timeline = liveTimeline
+      cancelLive()
+      const base = liveSong()
+      const out = timelineToSong(base, timeline)
+      if (!out) {
+        say('No cambiaste ninguna capa: no hay canción que hacer')
+        return false
+      }
+      setUndo({ kind: 'all', song: base })
+      await replaceSong(out.song)
+      say(`Tu canción: ${out.song.order.length} partes${out.merged ? ' (se unieron las más cortas)' : ''}. Ábrela en Componer para retocarla`)
+      log('cell', `grabada en directo: ${out.song.cells.map((c) => `${c.name} ${c.turns}`).join(' · ')}`)
       return true
     },
     /** Otra variación del mismo tipo (la siguiente de la secuencia fija), partiendo de la original. */
