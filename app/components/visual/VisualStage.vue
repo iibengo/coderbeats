@@ -76,7 +76,8 @@ import { DEFAULT_THEME, themeById } from '~/themes'
 import type { VisualTheme } from '~/themes/types'
 import { AroCanvas, type AroDot, type AroFrame } from './AroCanvas'
 import MelodyOrgan from './MelodyOrgan.vue'
-import { FX_COLOR, FX_LABEL, fxAt, type FxKind, type Rect } from '~/lib/stageFx'
+import { governorStep, initialGovernor } from '~/lib/frameGovernor'
+import StageOverlay from './StageOverlay.vue'
 
 const props = withDefaults(defineProps<{ themeId?: string }>(), { themeId: DEFAULT_THEME })
 const engine = useAudioEngine()
@@ -849,6 +850,7 @@ let lastBeat = -1
 let lastT = 0
 const frameMs: number[] = []
 let quality = 1
+let governor = initialGovernor()
 let aroDetail = 1
 /** detalle de las células de fondo en la colonia (0 completo … 2 solo silueta); baja antes que el agua y el aro (§7.2) */
 let crowdLevel: 0 | 1 | 2 = 0
@@ -1033,18 +1035,18 @@ function tick() {
     frameMs.length = 0
     const inColonyMostly = crowdFrames >= 60
     crowdFrames = 0
-    if (p95 > 14) {
-      // primero el detalle de las células de fondo (si es lo que se estaba dibujando); luego el agua; luego el aro
-      if (inColonyMostly && crowdLevel < 2) {
-        crowdLevel = (crowdLevel + 1) as 1 | 2
-      } else if (theme?.setQuality && quality > 0.5) {
-        quality -= 0.15
-        theme.setQuality(quality)
-        rendererName.value = theme.renderer()
-      } else if (aro && aroDetail > 0.5) {
-        aroDetail = 0.5
-        aro.setDetail(aroDetail)
-      }
+    // el vigilante (lib/frameGovernor): baja el detalle si va lento y, desde ahora, también lo vuelve a subir si va sobrado
+    const was = governor
+    governor = governorStep(governor, p95, { inColony: inColonyMostly, canQuality: !!theme?.setQuality, canAro: !!aro })
+    if (governor.crowd !== was.crowd) crowdLevel = governor.crowd
+    if (governor.quality !== was.quality && theme?.setQuality) {
+      quality = governor.quality
+      theme.setQuality(quality)
+      rendererName.value = theme.renderer()
+    }
+    if (governor.aro !== was.aro && aro) {
+      aroDetail = governor.aro
+      aro.setDetail(aroDetail)
     }
   }
 }
@@ -1890,27 +1892,6 @@ function onUp(e: PointerEvent, cancelled = false) {
 /** iOS: sin el zoom propio de Safari con dos dedos (E1.5) */
 const noSafariZoom = (e: Event) => e.preventDefault()
 
-// ── Escenario (spec 011 §13.1): toda la pantalla dispara golpes de efecto, y cada golpe lanza una onda de color ──
-const stageEl = ref<HTMLElement | null>(null)
-const waves = ref<{ id: number; x: number; y: number; color: string; kind: FxKind }[]>([])
-let waveId = 0
-function stageDown(e: PointerEvent) {
-  const el = stageEl.value
-  if (!el) return
-  const r = el.getBoundingClientRect()
-  const dead: Rect[] = [...el.querySelectorAll<HTMLElement>('[data-stage-btn]')].map((b) => {
-    const q = b.getBoundingClientRect()
-    return { x: q.x - r.x, y: q.y - r.y, w: q.width, h: q.height }
-  })
-  const x = e.clientX - r.x
-  const y = e.clientY - r.y
-  const kind = fxAt(x, y, r.width, r.height, dead)
-  if (!kind || !engine.fireFx(kind)) return
-  const id = ++waveId
-  waves.value = [...waves.value.slice(-5), { id, x, y, color: FX_COLOR[kind], kind }]
-  setTimeout(() => (waves.value = waves.value.filter((w) => w.id !== id)), 1100)
-}
-
 const fill: Record<LoopInstrument, string> = { bd: VOICE_HEX.bd, sd: VOICE_HEX.sd, hh: VOICE_HEX.hh, mel: VOICE_HEX.mel, voz: VOICE_HEX.mel }
 /** medidas reales de la ventana, para el diagnóstico (§16.18) */
 const layoutInfo = () => {
@@ -2110,21 +2091,8 @@ defineExpose({ pointOf: (voice: Voice, step: number) => aro?.pointOf(voice, step
 
     <div v-if="modeHint" class="mode-hint pointer-events-none absolute left-1/2 -translate-x-1/2 rounded-full bg-black/60 px-4 py-2 text-xs text-white/80 backdrop-blur" style="top: calc(max(0.5rem, env(safe-area-inset-top)) + 96px)" role="status">{{ modeHint }}</div>
 
-    <!-- Escenario: la pantalla entera es para tocar (zonas: abajo bombo, centro boom, arriba crash, lados barrido) -->
-    <div v-if="engine.stageOn.value" ref="stageEl" class="stage absolute inset-0" :data-reduced="reduced" @pointerdown.stop.prevent="stageDown" @pointermove.stop @pointerup.stop>
-      <span v-for="w in waves" :key="w.id" class="stage-wave" :style="{ left: `${w.x}px`, top: `${w.y}px`, '--c': w.color }" />
-      <div class="stage-zones" aria-hidden="true">
-        <span style="top: 8%">{{ FX_LABEL.crash }}</span>
-        <span style="top: 44%">{{ FX_LABEL.boom }}</span>
-        <span style="top: 78%">{{ FX_LABEL.bombo }}</span>
-        <span class="side" style="left: 1.5%">{{ FX_LABEL.barrido }}</span>
-        <span class="side" style="right: 1.5%">{{ FX_LABEL.barrido }}</span>
-      </div>
-      <div class="stage-bar" style="top: calc(max(0.5rem, env(safe-area-inset-top)) + 100px)">
-        <button data-stage-btn class="act-btn" aria-label="salir del Escenario" @click.stop="engine.setStage(false)">✕ Salir</button>
-        <button data-stage-btn class="act-btn" :data-on="!!engine.fxRec.value" :aria-label="engine.fxRec.value ? 'terminar y guardar los efectos como capa' : 'grabar efectos: lo que toques pasa a la célula como capa'" @click.stop="engine.toggleFxRec()">{{ engine.fxRec.value ? `■ ${engine.fxRec.value.count} golpes` : '● Grabar efectos' }}</button>
-      </div>
-    </div>
+    <!-- Escenario: la pantalla entera es para tocar (spec 011 §13.1) -->
+    <StageOverlay v-if="engine.stageOn.value" :reduced="reduced" />
 
     <MelodyOrgan v-if="organ" :origin="organ" @close="organ = null" />
   </div>
@@ -2155,68 +2123,6 @@ defineExpose({ pointOf: (voice: Voice, step: number) => aro?.pointOf(voice, step
   max-width: calc(100vw - 24px);
   gap: 8px;
   pointer-events: none;
-}
-.stage {
-  z-index: 20;
-  background: rgb(11 11 15 / 0.9);
-  touch-action: none;
-}
-.stage-bar {
-  position: absolute;
-  left: 0;
-  right: 0;
-  display: flex;
-  justify-content: center;
-  gap: 8px;
-}
-.stage-zones span {
-  position: absolute;
-  left: 0;
-  right: 0;
-  text-align: center;
-  font-size: 11px;
-  letter-spacing: 0.3em;
-  text-transform: uppercase;
-  color: rgb(255 255 255 / 0.18);
-  pointer-events: none;
-}
-.stage-zones .side {
-  left: auto;
-  right: auto;
-  top: 50%;
-  writing-mode: vertical-rl;
-}
-.stage-wave {
-  position: absolute;
-  width: 60px;
-  height: 60px;
-  margin: -30px 0 0 -30px;
-  border-radius: 9999px;
-  border: 3px solid var(--c);
-  background: radial-gradient(circle, color-mix(in srgb, var(--c) 35%, transparent), transparent 70%);
-  opacity: 0.55;
-  pointer-events: none;
-  animation: stage-wave 1.05s ease-out forwards;
-}
-@keyframes stage-wave {
-  to {
-    transform: scale(24);
-    opacity: 0;
-  }
-}
-/* movimiento reducido: solo un cambio suave de brillo, sin onda que cruza */
-.stage[data-reduced='true'] .stage-wave {
-  animation: stage-fade 0.7s ease-out forwards;
-  transform: scale(24);
-  border-width: 0;
-}
-@keyframes stage-fade {
-  from {
-    opacity: 0.25;
-  }
-  to {
-    opacity: 0;
-  }
 }
 .act-btn {
   pointer-events: auto;
