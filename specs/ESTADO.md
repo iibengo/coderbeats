@@ -8,7 +8,7 @@ Etiquetas de git: `estudio-v1`, `lab-v1`, `estudio-v2` (justo antes de esta tand
 ## Hecho (commits, de más nuevo a más viejo, lo importante)
 | Commit | Qué |
 |---|---|
-| `1b5aeb5` | **Multilenguaje** (spec 025): `@nuxtjs/i18n`, es/en/eu, idioma del navegador, selector (menú Lab, inicio, Acerca de). Migrado: Laboratorio, inicio, «Editar parte», Batería, Órgano, cabecera de Mis remixes, barra del Estudio y Ajustes esenciales (≈ 50 %). |
+| `1b5aeb5` | **Multilenguaje** (spec 025): `@nuxtjs/i18n`, es/en/eu, idioma del navegador, selector (menú Lab, inicio, Acerca de). Migrado: Laboratorio, inicio, «Editar parte», Batería, Órgano, cabecera de Mis remixes, barra del Estudio y todos los Ajustes con su «i» explicativa (≈ 55 %). |
 | `7cb1391` | Se quita el **Teclado de agua** de la interfaz (lo cubre el Piano mágico). |
 | `5dd50cf` | **Estilos** (spec 023): `house2` y `techno2` diferenciados por patrones; `house` y `techno` clásicos intactos (lo guardado suena igual); etiqueta de estilo; «Cargar demo» fuera. |
 | `9352086`, `c616e75`, `0aefc4a` | **Spec 024:** barra de tiempo en el Órgano, 🔒 parte fija al editar, «▶ Tocar en el Laboratorio». |
