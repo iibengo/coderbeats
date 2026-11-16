@@ -1946,6 +1946,8 @@ function onUp(e: PointerEvent, cancelled = false) {
 /** iOS: sin el zoom propio de Safari con dos dedos (E1.5) */
 const noSafariZoom = (e: Event) => e.preventDefault()
 
+/** ¿Es un loop de voz cuyo audio no está en este dispositivo? */
+const voiceGone = (l: FreeLoop): boolean => l.instrument === 'voz' && !!l.voice && engine.voiceMissing.value.includes(l.voice.audio)
 /** las ondas de las tomas de voz de la célula que se ve (su envolvente, calculada una vez al nacer) */
 function voiceWaves(bar: number): { env: Float32Array; bars: number; bar: number; muted: boolean }[] {
   const out: { env: Float32Array; bars: number; bar: number; muted: boolean }[] = []
@@ -2175,12 +2177,12 @@ defineExpose({ videoSource, colonyPoints, pointOf: (voice: Voice, step: number) 
         width: `${BALL}px`,
         height: `${BALL}px`,
         background: l.muted ? 'transparent' : fill[l.instrument],
-        border: `2px solid ${fill[l.instrument]}`,
-        opacity: l.muted ? 0.45 : 1,
+        border: `2px ${voiceGone(l) ? 'dashed' : 'solid'} ${fill[l.instrument]}`,
+        opacity: l.muted || voiceGone(l) ? 0.45 : 1,
       }"
       data-loop
       :data-glow="l.muted ? '' : fill[l.instrument]"
-      :aria-label="`loop ${l.instrument}${l.muted ? ' silenciado' : ''}`"
+      :aria-label="`loop ${l.instrument}${l.muted ? ' silenciado' : ''}${voiceGone(l) ? ' (audio no disponible)' : ''}`"
       @pointerdown="loopDown($event, l.id)"
       @pointerup.stop="loopUp(l.id)"
       @pointerleave="loopCancel"

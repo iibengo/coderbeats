@@ -277,6 +277,8 @@ function cancelLive() {
 /** Pista de voz (spec 007): `armed` espera la línea de compás, `recording` graba, `saving` corta y guarda. */
 /** la envolvente de cada audio de voz (para dibujar su onda en el aro) */
 const voiceEnv = shallowRef<Record<string, Float32Array>>({})
+/** audios de voz que una canción pide y no están en este dispositivo (la bola se ve apagada con «audio no disponible») */
+const voiceMissing = shallowRef<string[]>([])
 const voiceRec = ref<'idle' | 'armed' | 'recording' | 'saving'>('idle')
 let voiceCancel = false
 /** muestras de voz ya registradas en superdough (por identificador) */
@@ -296,6 +298,7 @@ async function ensureVoices() {
     const v = await loadVoice(id)
     if (!v) {
       log('error', `voz: falta el audio ${id} (audio no disponible)`)
+      if (!voiceMissing.value.includes(id)) voiceMissing.value = [...voiceMissing.value, id]
       continue
     }
     await registerVoice(id, fromPcm16(new Int16Array(v.pcm)), v.sampleRate)
@@ -2569,6 +2572,7 @@ export function useAudioEngine() {
     },
     voiceRec,
     voiceEnv,
+    voiceMissing,
     /** ¿Se puede grabar la voz? Sonando, una sola célula, y sin fuga del fondo al micro (cascos). */
     canVoice: computed(() => playing.value && !isMulti(song.value) && !melodyBlocked.value),
     /**
