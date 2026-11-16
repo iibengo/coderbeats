@@ -1461,3 +1461,37 @@ En el código, `hh*16` aparece desplegado en 16 golpes (`hh hh … hh`): es lo m
 
 `lib/tutorial.ts` (puro, con tests) + `composables/useTutorial.ts` + la mano fantasma del piloto (`usePilot.demoHand`). Pasos 2 y 3: «Arrastra un golpe» (2/3, avanza cuando se mueve uno: misma cantidad de golpes, otras posiciones) y «Llévalo al centro para borrarlo» (3/3, avanza cuando hay menos golpes); la mano enseña el gesto cada 9 s sin tocar nada. Pistas una sola vez (por dispositivo, `coderbeats:tutorial:v1`): «Mantén un carril para grabar solo ahí» (≥ 2 loops) y «Aleja con dos dedos para ver tu canción» (≥ 2 células). Tocar la frase lo salta; «Repetir la guía y el tutorial» en ⋯.
 Decisiones a revisar: el **paso 1** («Dale a Play y haz bum») no se repite: lo cubre la guía del primer minuto (011 §12.2); el tutorial **empieza cuando esa guía acaba** y suena algo; los usuarios que ya la tenían hecha verán el tutorial una vez; el gesto de arrastrar no se pudo comprobar en Chrome con el micro de mentira (llena el carril de bombo): se comprobó por el motor (`tests/browser/tutorial.mjs`), la mano y los textos sí se ven.
+
+## 17. Enmienda 3: sin calibración obligatoria (2026-11-16)
+
+**Decisión (de la persona):** la calibración deja de ser obligatoria. La app trae un **modelo por defecto** de «bum · pff · ts» para tocar **al instante**, y propone calibrar («¿te afino a tu voz?») **solo si detecta que acierta poco**, o desde ⋯.
+
+### 17.1 Flujo
+`Empezar` (pide el micro) → **Estudio**, siempre. Se acabaron los pasos obligatorios de latencia y de sonidos (§5, §6 de la pantalla de calibración). Siguen existiendo, como **opcionales**: «Recalibrar latencia» y «Recalibrar sonidos» en ⋯ (con «Ahora no» para volver sin guardar) y la propuesta automática de §17.4. Una calibración propia guardada **manda siempre** sobre el modelo por defecto.
+
+### 17.2 El modelo por defecto (`lib/defaultModel.ts`)
+Misma máquina de siempre (k-NN, k = 3, sobre el vector de características de §5.3), pero con **15 muestras sintéticas** (5 por clase, una nube pequeña alrededor de un prototipo) en lugar de las del usuario:
+- **bum** (bombo): energía por debajo de 800 Hz, centroide ≈ 0,31, cruces por cero ≈ 0,15;
+- **pff** (caja): ruido en 800 Hz–4 kHz y por encima, centroide ≈ 0,38, cruces ≈ 0,30;
+- **ts** (platillo): casi todo > 4 kHz, centroide ≈ 0,51, cruces ≈ 0,50.
+Los **MFCC no pesan** (desviación 10⁶): dependen demasiado de la voz y del micro, y con valores de otra voz harían que todo cayera lejos. Sin volumen de referencia (`rms` 0): no se descarta nada por flojo hasta que haya calibración propia (el detector de golpes tiene su propio umbral). Los prototipos salen de **cómo agrupan los golpes de las tomas del laboratorio** (centroide, bandas y cruces por cero separan limpiamente las tres clases en «Beatbox solo»); son **valores genéricos a afinar con más voces**, no un modelo entrenado.
+
+### 17.3 Cómo se mide el acierto del modelo por defecto (con tus tomas del laboratorio)
+Las tomas (`tests/fixtures/voice/`, fuera del repositorio) no traen la clase de cada golpe, solo **lo que se intentó decir** («bum pff ts» en bucle). Por eso se mide por **secuencia** (`lib/sequenceScore.ts`): se clasifica cada golpe detectado de la toma y se alinea con el patrón repetido mediante la **subsecuencia común más larga**:
+- **precisión** = golpes alineados / golpes que dijo el modelo (penaliza errores y golpes de más, p. ej. las colas del bombo);
+- **cobertura** = golpes alineados / golpes esperados (penaliza los que no vio).
+`tests/unit/defaultModel.test.ts` lo calcula con `t8-beatbox` (se salta si no están las tomas; con `--silent=false` imprime la secuencia) y exige precisión ≥ 60 %. **Medido hoy: 29 golpes detectados, precisión 76 %, cobertura 73 %** (los fallos son sobre todo colas del «bum» que se cuentan como golpe aparte, no clases cambiadas). Para otra voz: grabar «bum pff ts» en el laboratorio de voz y volver a correr el test; **la medida real de «¿acierta poco?» es la de §17.4**, que se ve en el móvil con tu voz.
+
+### 17.4 «¿Te afino a tu voz?» (`lib/modelFit.ts`)
+Sin saber qué quería decir cada golpe, se vigila **lo lejos que cae cada golpe de las muestras de su clase** (`fit` = distancia al vecino más cercano ÷ distancia media entre muestras; `desconocido` cuenta como muy lejos). Con beatbox normal sale ≈ 0,1 (medido en `t8`: mediana 0,10, máximo 0,43); con voz cantada, ≈ 1,1 (`t1-escala`). Se mira la **mediana de los últimos 12 golpes** (mínimo 8); si pasa de **0,45**, sale una vez la pregunta «¿Te afino a tu voz?» con **Sí** (va a «Tus sonidos») y **Ahora no** (se recuerda y no vuelve a salir sola). Solo si **no hay calibración propia**. El umbral es una primera propuesta, a afinar con voces reales.
+
+### 17.5 Latencia por defecto (`lib/defaultLatency.ts`)
+Si no se midió con palmadas se usa **50 ms** (cascos de cable, altavoz) en lugar de 0, y **180 ms** si parece Bluetooth: el nombre de alguna salida de audio coincide (`enumerateDevices`, cuando el navegador da los nombres) o el contexto informa una latencia de salida > 120 ms. Una medida propia (> 0) manda siempre. «Recalibrar latencia» sigue en ⋯.
+
+### 17.6 Qué no cambia / riesgos
+- Quien ya tiene calibración la conserva tal cual (nada se borra ni se migra).
+- **Sin probar de oído ni con voces distintas.** El modelo por defecto es el punto más débil: si no acierta con tu voz, ⋯ → «Recalibrar sonidos» lo arregla; la propuesta automática depende del umbral de §17.4.
+- iOS no da nombres de salida: sin ellos solo cuenta la latencia que informa el contexto.
+
+### 17.7 Implementado (2026-11-16)
+`lib/defaultModel.ts`, `lib/sequenceScore.ts`, `lib/modelFit.ts`, `lib/defaultLatency.ts` (puros, con tests: `defaultModel`, `modelFit`). El motor arranca con el modelo por defecto si no hay calibración propia (`personalModel`), el worker manda el `fit` de cada golpe, y `calibNudge` saca «¿Te afino a tu voz?» en `Studio.vue` (Sí → «Tus sonidos», «Ahora no» se recuerda: `coderbeats:calib-nudge:v1`). `pages/index.vue`: `Empezar` → Estudio directo. Latencia y sonidos son opcionales («Ahora no»; en ⋯: «Medir latencia» / «Calibrar mis sonidos»). Los textos «Paso 1 de 2» y «Paso 2 de 2» se quitan. Latencia sin medir: 50 ms, 180 ms con Bluetooth (nombre de salida o latencia > 120 ms). Comprobado en Chrome sin calibración (`tests/browser/sin-calibrar.mjs`: directo al Estudio, 50 ms, el micro de mentira se clasifica, la propuesta lleva a «Tus sonidos»). **El `fit` no se ha medido con voces reales en el móvil**; el 0,45 es una primera propuesta.

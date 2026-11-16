@@ -83,6 +83,7 @@ function processQueue() {
       strength: o.strength,
       vol: relativeVolume(features.rms, instrument, refs),
       decisionMs,
+      fit: c && classifier && c.instrument !== 'unknown' && Number.isFinite(c.nearestDistance) && classifier.meanPairDistance > 0 ? c.nearestDistance / classifier.meanPairDistance : null,
     })
   }
   gate?.prune((firstFrame + received) / sampleRate)

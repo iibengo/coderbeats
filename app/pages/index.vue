@@ -2,19 +2,19 @@
 type Screen = 'start' | 'latency' | 'sounds' | 'studio'
 
 const screen = ref<Screen>('start')
-const { hasLatency, hasSamples, data } = useCalibration()
+const { data } = useCalibration()
 const engine = useAudioEngine()
 
+// sin calibración obligatoria (spec 001 §17): se empieza a tocar al instante con el modelo por defecto; latencia y sonidos son opcionales (⋯ o «¿te afino a tu voz?»)
 function afterStart() {
-  // la latencia se pide solo a quien aún no tiene sus sonidos (se puede saltar y repetir en ajustes: no vuelve a salir cada vez)
-  screen.value = hasSamples.value ? 'studio' : hasLatency.value ? 'sounds' : 'latency'
+  screen.value = 'studio'
 }
 function afterSounds() {
   if (data.value) engine.setCalibration(data.value)
   screen.value = 'studio'
 }
 function afterLatency() {
-  screen.value = hasSamples.value ? 'studio' : 'sounds'
+  screen.value = 'studio'
 }
 </script>
 

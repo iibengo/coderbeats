@@ -34,6 +34,8 @@ export type FromWorker =
       vol: number | null
       /** ms desde el onset hasta la decisión */
       decisionMs: number
+      /** lo lejos que cae de las muestras de su clase (distancia al vecino más cercano ÷ distancia media entre muestras); `null` si no hay modelo o fue desconocido (modelFit) */
+      fit?: number | null
     }
   | { type: 'echo'; time: number; strength: number }
   /** golpe de un carril apagado: se ignora (spec 003, E4.2) */

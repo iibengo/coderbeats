@@ -37,7 +37,6 @@ async function run() {
 <template>
   <section class="flex flex-1 flex-col justify-center gap-6">
     <div>
-      <p class="text-xs uppercase tracking-widest text-neutral-500">Paso 1 de 2</p>
       <h2 class="mt-1 text-2xl font-medium">Latencia</h2>
       <p class="mt-2 text-neutral-400">
         Con cascos: suenan 4 clics. Da <strong class="text-white">una palmada con cada uno</strong>, guiándote por el oído.
@@ -86,7 +85,7 @@ async function run() {
         :disabled="running"
         @click="emit('done')"
       >
-        {{ data?.latency ? 'Siguiente' : 'Saltar' }}
+        {{ data?.latency ? 'Listo' : 'Ahora no' }}
       </button>
     </div>
   </section>

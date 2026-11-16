@@ -67,7 +67,6 @@ const dotColor: Record<Instrument, string> = { bd: 'bg-bd', sd: 'bg-sd', hh: 'bg
 <template>
   <section class="flex flex-1 flex-col justify-center gap-6">
     <div>
-      <p class="text-xs uppercase tracking-widest text-neutral-500">Paso 2 de 2</p>
       <h2 class="mt-1 text-2xl font-medium">Tus sonidos</h2>
       <p class="mt-2 text-neutral-400">
         Pulsa y haz cada sonido, {{ TAKES_PER_INSTRUMENT }} veces.
@@ -95,6 +94,8 @@ const dotColor: Record<Instrument, string> = { bd: 'bg-bd', sd: 'bg-sd', hh: 'bg
     </ul>
 
     <LevelMeter />
+
+    <button class="text-sm text-neutral-500 underline underline-offset-4" @click="emit('done')">Ahora no</button>
 
     <template v-if="!complete">
       <p v-if="missed" class="text-sm text-amber-300">No te he oído. Prueba un poco más fuerte o más cerca.</p>

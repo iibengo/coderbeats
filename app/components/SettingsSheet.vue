@@ -305,9 +305,10 @@ watch(open, (o) => {
             Arrastra en vertical sobre el agua para el filtro y en horizontal para el espacio. Dos dedos: fondo sí/no.
             Toca un loop para silenciarlo; mantenlo para borrarlo.
           </p>
+          <p class="text-xs text-neutral-500">Sonidos: {{ engine.personalModel.value ? 'calibrados con tu voz' : 'modelo por defecto (¿no acierta? afínalo a tu voz)' }}</p>
           <div class="flex gap-4 text-xs text-neutral-500">
-            <button class="underline underline-offset-4" @click="recalibrate('latency')">Recalibrar latencia</button>
-            <button class="underline underline-offset-4" @click="recalibrate('sounds')">Recalibrar sonidos</button>
+            <button class="underline underline-offset-4" @click="recalibrate('latency')">{{ engine.personalModel.value ? 'Recalibrar latencia' : 'Medir latencia' }}</button>
+            <button class="underline underline-offset-4" @click="recalibrate('sounds')">{{ engine.personalModel.value ? 'Recalibrar sonidos' : 'Calibrar mis sonidos' }}</button>
           </div>
           <p v-if="echo?.bleed" class="text-xs text-amber-300">
             El micro oye los altavoces ({{ (echo.roundTrip * 1000).toFixed(0) }} ms). Usa cascos.

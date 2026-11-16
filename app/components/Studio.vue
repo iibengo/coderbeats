@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // Pantalla principal (§16.16): solo el agua, los loops flotando, Play y el estilo.
 import { STYLES } from '~/lib/constants'
+import { fallbackLatencyMs } from '~/lib/defaultLatency'
 import { usableLatencyMs } from '~/lib/latency'
 import { TEMPO_RESET_MS, TEMPO_TAPS } from '~/lib/tempo'
 import type { Song } from '~/lib/cells'
@@ -42,7 +43,26 @@ async function startPilot() {
 }
 
 // una calibración guardada que salió ≤ 0 (imposible) no se usa; no se borra, y repetirla la sustituye
-watchEffect(() => engine.setLatency(usableLatencyMs(calibration.data.value?.latency?.ms) / 1000, calibration.data.value?.latency?.ms))
+// sin medir (spec 001 §17.5): 50 ms, o 180 ms si la salida parece Bluetooth (por el nombre de la salida o por la latencia que informa el navegador)
+const outputLabels = ref<string[]>([])
+async function readOutputs() {
+  try {
+    outputLabels.value = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === 'audiooutput').map((d) => d.label)
+  } catch {
+    /* sin nombres: solo cuenta la latencia que informa el contexto */
+  }
+}
+onMounted(() => {
+  void readOutputs()
+  navigator.mediaDevices?.addEventListener?.('devicechange', readOutputs)
+})
+onBeforeUnmount(() => navigator.mediaDevices?.removeEventListener?.('devicechange', readOutputs))
+watchEffect(() =>
+  engine.setLatency(
+    fallbackLatencyMs(usableLatencyMs(calibration.data.value?.latency?.ms), { outputLabels: outputLabels.value, reportedOutputMs: engine.reportedOutputMs.value }) / 1000,
+    calibration.data.value?.latency?.ms,
+  ),
+)
 
 /** Primera vez: sin música, sin loops y sin haber terminado nunca la guía del primer minuto (la guía guarda `done` al acabar) */
 const firstPlay = computed(
@@ -254,6 +274,12 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
   >
     {{ tutorial.text.value.big }}<span v-if="tutorial.text.value.count" class="ml-3 text-xs text-white/50">{{ tutorial.text.value.count }}</span>
   </button>
+  <!-- «¿Te afino a tu voz?» (spec 001 §17.4): solo si el modelo por defecto acierta poco -->
+  <div v-if="engine.calibNudge.value && !pilotState.active" class="absolute left-1/2 z-10 flex -translate-x-1/2 items-center gap-2 rounded-full bg-black/60 px-4 py-2 text-sm text-white/90 backdrop-blur" style="top: calc(max(0.5rem, env(safe-area-inset-top)) + 100px)" role="status">
+    <span class="whitespace-nowrap">¿Te afino a tu voz?</span>
+    <button class="rounded-full bg-white px-3 py-1 text-xs font-medium text-black" @pointerdown.stop @click="engine.dismissCalibNudge(); engine.stop(); emit('recalibrate', 'sounds')">Sí</button>
+    <button class="whitespace-nowrap px-2 py-1 text-xs text-white/60" @pointerdown.stop @click="engine.dismissCalibNudge()">Ahora no</button>
+  </div>
   <ConfirmDialog />
   <PilotLayer :paused="pilotState.paused" @pause="pilot.togglePause()" @skip="pilot.skip()" @stop="pilot.stop('user')" />
 </template>

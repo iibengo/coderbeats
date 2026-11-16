@@ -103,6 +103,9 @@ import { WOW_PRELUDE } from '~/lib/wowPrelude'
 import type { CalibrationSample, Instrument, KitId, Norm, StyleId } from '~/lib/types'
 import { allLanes, toggleLane as toggleLaneSet, type Lanes } from '~/lib/lanes'
 import { fmtVolume, isTooQuiet } from '~/lib/volume'
+import { readJson, writeJson } from '~/lib/storage'
+import { defaultCalibration } from '~/lib/defaultModel'
+import { FitMonitor } from '~/lib/modelFit'
 import type { FromWorker, ToWorker } from '~/lib/workerProtocol'
 
 type StrudelModule = typeof import('@strudel/web')
@@ -307,6 +310,15 @@ async function ensureVoices() {
     voiceEnv.value = { ...voiceEnv.value, [id]: new Float32Array(v.envelope) }
   }
 }
+/**
+ * Modelo por defecto (spec 001 §17): sin calibración propia suena con prototipos genéricos; `personalModel` es si hay calibración propia. Si el modelo por defecto acierta
+ * poco (`FitMonitor`), `calibNudge` propone calibrar («¿te afino a tu voz?»); «Ahora no» se recuerda por dispositivo.
+ */
+const personalModel = ref(false)
+const calibNudge = ref(false)
+const fitMonitor = new FitMonitor()
+const NUDGE_KEY = 'coderbeats:calib-nudge:v1'
+const nudgeDismissed = (): boolean => !!readJson(NUDGE_KEY, (x): x is { dismissed: true } => !!x && (x as { dismissed?: unknown }).dismissed === true)
 /** Teclado de agua (spec 015): tocar el fondo fuera del aro suena notas de la escala del estilo; se puede grabar como melodía */
 const keysOn = ref(false)
 const keysRec = ref<{ count: number } | null>(null)
@@ -1195,6 +1207,11 @@ function onWorkerMessage(m: FromWorker, fromPilot = false) {
   if (m.type === 'echo') return log('echo', `eco descartado (${m.strength.toFixed(3)})`, uiMs)
   if (m.type === 'ignored')
     return log('unknown', `ignorado: carril apagado (${m.instrument} ${(m.confidence * 100).toFixed(0)}%)${fmtVolume(m.vol)}`, uiMs)
+  // ¿acierta poco el modelo por defecto con esta voz? (spec 001 §17.4)
+  if (!personalModel.value && !calibNudge.value && !fromPilot) {
+    fitMonitor.push(m.instrument === 'unknown' ? null : (m.fit ?? null))
+    if (fitMonitor.poor() && !nudgeDismissed()) calibNudge.value = true
+  }
   if (m.instrument === 'unknown')
     return log(
       'unknown',
@@ -1364,8 +1381,9 @@ export function useAudioEngine() {
     const channel = new MessageChannel()
     capture.port.postMessage({ type: 'stream-port' }, [channel.port1])
     const plain = JSON.parse(
-      JSON.stringify({ samples: calibration?.samples ?? [], norm: calibration?.norm ?? { mean: [], std: [] } }),
+      JSON.stringify(calibration?.samples.length ? { samples: calibration.samples, norm: calibration.norm } : defaultCalibration()),
     ) as { samples: CalibrationSample[]; norm: Norm }
+    personalModel.value = !!calibration?.samples.length
     worker.postMessage({ type: 'init', sampleRate: ctx.sampleRate, ...plain } satisfies ToWorker, [channel.port2])
 
     // la prueba de eco corre mientras se carga Strudel (en el iPhone el import son ~0,6 s)
@@ -1377,7 +1395,11 @@ export function useAudioEngine() {
   }
 
   function setCalibration(c: { samples: CalibrationSample[]; norm: Norm }) {
-    const plain = JSON.parse(JSON.stringify({ samples: c.samples, norm: c.norm })) as typeof c
+    const personal = c.samples.length > 0
+    const plain = JSON.parse(JSON.stringify(personal ? { samples: c.samples, norm: c.norm } : defaultCalibration())) as typeof c
+    personalModel.value = personal
+    calibNudge.value = false
+    fitMonitor.reset()
     toWorker({ type: 'calibration', ...plain })
   }
 
@@ -2891,6 +2913,13 @@ export function useAudioEngine() {
     stopSyncTest,
     start,
     setCalibration,
+    personalModel,
+    calibNudge,
+    /** «Ahora no» (o «Sí»): la propuesta no vuelve a salir sola */
+    dismissCalibNudge: () => {
+      calibNudge.value = false
+      writeJson(NUDGE_KEY, { dismissed: true })
+    },
     setLatency,
     recordTake,
     captureWindow,
