@@ -165,23 +165,30 @@ onBeforeUnmount(() => {
   lab.stopAll()
 })
 
-// ── Abrir en el Estudio (spec 020): una copia en Mis canciones (el original no se toca) y se abre para editarla ──
+// ── Abrir en el Estudio (spec 020): una sola copia por remix, nunca una nueva cada vez ──
+// · Un remix «mío» se abre tal cual (es la propia canción guardada; los cambios se guardan en ella con «Guardar cambios»).
+// · Un remix de serie se copia **una vez** a Mis canciones (id fijo `lab-<remix>`); si ya hay copia, se abre esa, sin tocarla. El original nunca se toca.
 const openError = ref('')
 async function openInStudio() {
   const r = remix.value
   if (!r) return
-  const take = mine.value ?? remixTake(r)
-  const song = songFromTake(r, take)
-  if (!song) return
-  const base = r.id.startsWith('mio:') ? library.lib.value.entries.find((e) => `mio:${e.id}` === r.id)?.saved?.lab?.remixId ?? '' : r.id
-  const saved = { ...makeSaved({ style: r.style, kit: r.kit, bgMode: 'manual', fx: { filter: 1, space: 0, warmth: engine.snapshot().fx.warmth }, song }, newId(Date.now()), `Mi ${r.title}`, new Date()), ...(base ? { lab: { remixId: base } } : {}) }
-  if (!library.persist(addSong(library.lib.value, saved))) {
-    openError.value = library.error.value ?? 'No se ha podido guardar la copia.'
-    return
+  let id: string
+  if (r.id.startsWith('mio:')) id = r.id.slice(4)
+  else {
+    id = `lab-${r.id}`
+    if (!library.lib.value.entries.some((e) => e.id === id)) {
+      const song = songFromTake(r, mine.value ?? remixTake(r))
+      if (!song) return
+      const saved = { ...makeSaved({ style: r.style, kit: r.kit, bgMode: 'manual', fx: { filter: 1, space: 0, warmth: engine.snapshot().fx.warmth }, song }, id, `Mi ${r.title}`, new Date()), lab: { remixId: r.id } }
+      if (!library.persist(addSong(library.lib.value, saved))) {
+        openError.value = library.error.value ?? 'No se ha podido guardar la copia.'
+        return
+      }
+    }
   }
-  library.setCurrent(saved.id)
+  library.setCurrent(id)
   lab.stopAll()
-  await navigateTo(`/estudio?abrir=${encodeURIComponent(saved.id)}`)
+  await navigateTo(`/estudio?abrir=${encodeURIComponent(id)}`)
 }
 
 // ── escuchar y compartir ──
@@ -284,7 +291,7 @@ const phrase = computed(() => (remix.value ? 'Toca una parte: entra en el siguie
     <div v-if="!remix" class="grid gap-3 py-2">
       <button v-for="r in [...LAB_REMIXES, ...mios]" :key="r.id" class="rounded-2xl border border-white/15 bg-white/5 p-4 text-left" @click="pick(r)">
         <div class="text-lg">{{ r.title }}</div>
-        <div class="text-sm text-white/60">{{ r.id.startsWith('mio:') ? 'mío · editado en el Estudio' : r.composer }}{{ r.key ? ` · ${r.key}` : '' }} · {{ r.style }}</div>
+        <div class="text-sm text-white/60">{{ r.id.startsWith('mio:') ? 'mi versión · editada en el Estudio' : r.composer }}{{ r.key ? ` · ${r.key}` : '' }} · {{ r.style }}</div>
       </button>
     </div>
     <template v-else>

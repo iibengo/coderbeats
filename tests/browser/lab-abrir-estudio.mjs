@@ -9,5 +9,13 @@ console.log('en el Estudio:', JSON.stringify(st))
 await p.goto('http://localhost:3999/lab', { waitUntil: 'networkidle2' }); await sleep(2500)
 await click(p, 'Remixes'); await sleep(5000)
 console.log('lista de remixes:', await p.evaluate(() => [...document.querySelectorAll('button')].map((b) => b.textContent.trim().replace(/\s+/g, ' ')).filter((t) => /mío|Mozart|Himno|Dies|Wow/.test(t))))
+// otra vez, desde el remix de serie y desde «mi versión»: no se crean copias nuevas
+for (const t of ['Mozart', 'mi versión']) {
+  await click(p, 'Remixes'); await sleep(5000)
+  await click(p, t === 'Mozart' ? 'Mozart · Do' : 'mi versión'); await sleep(2500)
+  await click(p, 'Abrir en el Estudio'); await sleep(5000)
+  await p.goto('http://localhost:3999/lab', { waitUntil: 'networkidle2' }); await sleep(2500)
+}
+console.log('canciones guardadas tras abrir 3 veces:', await p.evaluate(() => JSON.parse(localStorage.getItem('coderbeats:library:v1')).songs.map((s) => s.id + ' · ' + s.name)))
 console.log(errs)
 await b.close()
