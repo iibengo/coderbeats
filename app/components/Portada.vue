@@ -105,6 +105,10 @@ function toEstudio() {
         <div class="grid gap-3">
           <button class="rounded-full bg-white py-3 font-medium text-black" @click="toEstudio">Estudio</button>
           <p class="-mt-1 text-xs text-neutral-500">Todo: células, grupos, remixes, efectos… Se recuerda para la próxima vez.</p>
+          <label class="flex items-center justify-between rounded-full border border-white/15 px-4 py-3">
+            <span>Melodía en el compás <span class="text-xs text-neutral-500">(las notas caen en el tiempo de la base)</span></span>
+            <input type="checkbox" :checked="ui.state.syncMelody" @change="ui.setSync(($event.target as HTMLInputElement).checked)" />
+          </label>
           <button class="rounded-full border border-white/15 py-3" @click="menuOpen = false; libraryOpen = true">Mis canciones</button>
           <button class="rounded-full border border-white/15 py-3" @click="menuOpen = false; emit('recalibrate', 'sounds')">Afinar a mi voz</button>
           <button class="rounded-full border border-white/15 py-3" @click="aboutOpen = !aboutOpen">Acerca de</button>

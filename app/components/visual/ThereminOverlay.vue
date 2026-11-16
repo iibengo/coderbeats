@@ -5,7 +5,7 @@
 import { curvePoint, deformOffset, lightAlpha, lightPush, lissajousOf, nearestParam, waveGlow, type LightPoint, type LissajousParams, type P2 } from '~/lib/theremin'
 import { GHOST_R, GUIDE_FRESH, guideStep, noteY, placeGhost, type Ghost, type GuideState } from '~/lib/tuneGuide'
 import { adaptTune, TUNES } from '~/lib/tuneLibrary'
-import { arrivals, endedWithGap, interpretedHits, LEAD_IN, LOOKAHEAD, octaveZone, schedule, shiftToList, spiralPoint, visible } from '~/lib/spiral'
+import { arrivals, arrivalsLooped, endedWithGap, interpretedHits, LEAD_IN, LOOKAHEAD, noteEndAbs, octaveZone, phaseBarOf, schedule, shiftToList, spiralPoint, syncStart, visible, visibleLooped, type Timed } from '~/lib/spiral'
 import { midiName } from '~/lib/noteScore'
 import { pitchColor, scaleNotes } from '~/lib/waterKeys'
 import type { MelodyHit } from '~/lib/melody'
@@ -51,6 +51,34 @@ const arrived = ref(0)
 const played = new Map<number, number>()
 let octave: -1 | 0 | 1 = 0
 
+// ── sincronía con el compás del motor (spec 016 §9.3): el tema empieza en una línea de compás y cada nota se programa en tiempo de audio ──
+const ui = useUi()
+interface SyncState {
+  start: number
+  bar: number
+  loop: number
+  sch: Timed[]
+  /** hasta qué tiempo de tema se ha programado */
+  upTo: number
+  lap: number
+  /** lo que sonó en cada vuelta */
+  laps: Map<number, Map<number, number>>
+  /** notas programadas que aún no han llegado al dedo (para la onda de color) */
+  pending: { abs: number; midi: number }[]
+  lastSig: string
+}
+let sync: SyncState | null = null
+const syncWanted = () => ui.state.syncMelody && engine.playing.value && !engine.multi.value && spiral.value
+/** empieza la sincronía (al poner el dedo): el tema arranca en la próxima línea de compás con al menos 1,2 s por delante */
+function startSync() {
+  const ck = syncWanted() ? engine.barClock() : null
+  if (!ck) return
+  const st = syncStart(ck, 1.2)
+  const sch = schedule(tuneHits.value, bpm.value, ck.stepSec)
+  sync = { start: st.start, bar: st.bar, loop: 64 * ck.stepSec, sch, upTo: ck.now - st.start, lap: -1, laps: new Map(), pending: [], lastSig: '' }
+}
+watch([() => engine.playing.value, bpm], () => (sync = null))
+
 // ── estado del dibujo ────────────────────────────────────────────────────────────
 const trail: LightPoint[] = []
 let finger: P2 = { x: 0, y: 0 }
@@ -94,6 +122,7 @@ function placeNext() {
   ghost = placeGhost(params.value, size.w, size.h, idx, notes.value.length, ghost ? ghostAt(ghost.t) : null, phaseAt(now()), GHOST_R)
 }
 function restart() {
+  sync = null
   tc = -LEAD_IN
   saved = false
   played.clear()
@@ -165,6 +194,7 @@ function onDown(e: PointerEvent) {
   touched.value = true
   down.value = true
   fingerS = pos(e)
+  if (spiral.value && !sync) startSync()
   if (mode.value === 'points' && gstate.done) restart() // tocar tras acabar: otra vuelta al mismo tema
   sound(e)
 }
@@ -216,7 +246,46 @@ function draw() {
     lastNote = cur
   }
   // espiral: con el dedo puesto avanza el reloj del tema; al llegar, cada nota suena (la pone el tema, no el dedo)
-  if (spiral.value && down.value) {
+  if (spiral.value && down.value && !sync) startSync()
+  let tcView = tc
+  const synced = spiral.value && sync !== null && syncWanted()
+  if (synced && sync) {
+    // con sincronía: el reloj es el del motor; cada nota se programa a su hora de audio (hasta 150 ms antes) y la imagen va corrida por la latencia de salida
+    const S = sync
+    const aNow = engine.audioNow()
+    const tcA = aNow - S.start
+    tcView = tcA - engine.outLatencySec()
+    if (down.value) {
+      for (const a of arrivalsLooped(S.sch, S.loop, S.upTo, tcA + 0.15)) {
+        octave = octaveZone(fy(finger.y), octave)
+        const midi = shiftToList(a.midi, octave, notes.value)
+        engine.thereminAt(midi, S.start + a.abs, fx(finger.x))
+        const [endAbs, gap] = noteEndAbs(S.sch, S.loop, a, a.lap)
+        if (gap) engine.thereminGateAt(S.start + endAbs)
+        if (!S.laps.has(a.lap)) S.laps.set(a.lap, new Map())
+        S.laps.get(a.lap)!.set(a.i, midi)
+        S.pending.push({ abs: a.abs, midi })
+      }
+    }
+    S.upTo = tcA + 0.15
+    // la onda de color sale del dedo cuando la nota se OYE (no cuando se programó)
+    while (S.pending.length && S.pending[0]!.abs <= tcView) trigger(S.pending.shift()!.midi, fingerS)
+    // fin de vuelta: lo que sonó en ella pasa a ser la melodía (con la fase del compás en que empezó el tema, para que caiga donde se tocó)
+    const lap = tcA >= 0 ? Math.floor(tcA / S.loop) : -1
+    if (lap > S.lap) {
+      const prev = S.laps.get(S.lap)
+      if (prev && prev.size) {
+        const sig = JSON.stringify([...prev.entries()])
+        if (sig !== S.lastSig && engine.saveMelody(interpretedHits(tuneHits.value, prev), phaseBarOf(S.bar))) {
+          S.lastSig = sig
+          finished.value = true
+        }
+      }
+      S.laps.delete(S.lap)
+      S.lap = lap
+    }
+    arrived.value = S.laps.get(Math.max(0, S.lap))?.size ?? 0
+  } else if (spiral.value && down.value) {
     const from = tc
     tc += dt
     const sc = sched.value
@@ -238,6 +307,7 @@ function draw() {
       tc = -1
       arrived.value = 0
     }
+    tcView = tc
   }
   const sounding = down.value && cur !== null
   const n = notes.value.length
@@ -271,7 +341,8 @@ function draw() {
       else x.moveTo(pt.x, pt.y)
     }
     x.stroke()
-    for (const nt of visible(sched.value, tc, level >= 2 ? 2.5 : LOOKAHEAD)) {
+    const look = level >= 2 ? 2.5 : LOOKAHEAD
+    for (const nt of synced && sync ? visibleLooped(sync.sch, sync.loop, tcView, look) : visible(sched.value, tcView, look)) {
       const col = pitchColor(hOf(nt.midi))
       const near = Math.max(0, 1 - nt.tau / 1.2) // se enciende al acercarse
       if (level === 0) {

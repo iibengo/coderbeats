@@ -18,8 +18,8 @@ export interface Timed {
 }
 
 /** El calendario del tema en segundos (a `bpm`; un paso = una semicorchea). El final de cada nota nunca pasa del inicio de la siguiente. */
-export function schedule(hits: readonly MelodyHit[], bpm: number): Timed[] {
-  const step = 60 / Math.max(30, Math.min(300, Number.isFinite(bpm) ? bpm : 90)) / 4
+export function schedule(hits: readonly MelodyHit[], bpm: number, stepSec?: number): Timed[] {
+  const step = stepSec !== undefined && stepSec > 0 ? stepSec : 60 / Math.max(30, Math.min(300, Number.isFinite(bpm) ? bpm : 90)) / 4
   const sorted = [...hits].sort((a, b) => a.pos - b.pos)
   return sorted.map((h, i) => {
     const next = sorted[i + 1]
@@ -89,5 +89,56 @@ export function interpretedHits(hits: readonly MelodyHit[], played: ReadonlyMap<
     const m = played.get(i)
     if (m !== undefined) out.push({ ...h, midi: m })
   })
+  return out
+}
+
+// ── Sincronía con el compás del motor (spec 016 §9.3) ────────────────────────────────────────────────────────────────────────────────────────────────────────────
+/** El reloj del motor tal como lo ve la espiral: el próximo compás (número global), la hora de audio de cada compás y la hora ahora. */
+export interface BarClock {
+  bar: number
+  at: (bar: number) => number
+  now: number
+}
+
+/** Cuándo empieza el tema: **la primera línea de compás** que quede al menos `minLead` s por delante. Devuelve el compás (global) y su hora de audio. */
+export function syncStart(clock: BarClock, minLead = 1.2): { bar: number; start: number } {
+  let bar = clock.bar
+  for (let i = 0; i < 64 && clock.at(bar) < clock.now + minLead; i++) bar++
+  return { bar, start: clock.at(bar) }
+}
+
+/** La fase con la que hay que guardar la melodía de 4 compases que empezó en el compás global `bar`: el loop suena (g − fase) mod 4, así cae donde se tocó. */
+export const phaseBarOf = (bar: number, bars = 4): number => ((Math.round(bar) % bars) + bars) % bars
+
+/** Las notas que llegan en el tramo `(from, to]` de tiempo de tema (desde su inicio), **con vueltas**: `abs` es su instante desde el principio del tema. */
+export function arrivalsLooped(sched: readonly Timed[], loop: number, from: number, to: number): (Timed & { abs: number; lap: number })[] {
+  if (!(loop > 0) || to <= from) return []
+  const out: (Timed & { abs: number; lap: number })[] = []
+  const first = Math.max(0, Math.floor(from / loop))
+  const last = Math.floor(to / loop)
+  for (let lap = first; lap <= last; lap++)
+    for (const n of sched) {
+      const abs = n.start + lap * loop
+      if (abs > from && abs <= to) out.push({ ...n, abs, lap })
+    }
+  return out
+}
+
+/** Cuándo termina de sonar la nota `n` de la vuelta `lap` y si hay hueco hasta la siguiente (incluida la primera de la vuelta que viene): `[fin, ¿hueco?]`. */
+export function noteEndAbs(sched: readonly Timed[], loop: number, n: Timed, lap: number, gap = 0.04): [number, boolean] {
+  const next = sched[n.i + 1]
+  const nextStart = next ? next.start + lap * loop : (sched[0]?.start ?? 0) + (lap + 1) * loop
+  return [n.end + lap * loop, nextStart - (n.end + lap * loop) > gap]
+}
+
+/** Lo que se ve en la espiral en el tiempo de tema `tc` (puede ser negativo: cuenta atrás), con vueltas: las notas que llegan en los próximos `LOOKAHEAD` s. */
+export function visibleLooped(sched: readonly Timed[], loop: number, tc: number, look = LOOKAHEAD): (Timed & { tau: number })[] {
+  const out: (Timed & { tau: number })[] = []
+  const lap0 = Math.max(0, Math.floor(tc / loop))
+  for (let lap = lap0; lap <= lap0 + 1; lap++)
+    for (const n of sched) {
+      const tau = n.start + lap * loop - tc
+      if (tau <= look && tau > -0.2) out.push({ ...n, tau })
+    }
   return out
 }

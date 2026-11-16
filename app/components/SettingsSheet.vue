@@ -10,6 +10,7 @@ const open = defineModel<boolean>('open', { required: true })
 const props = defineProps<{ renderer: string; layout: () => string }>()
 const emit = defineEmits<{ recalibrate: ['latency' | 'sounds']; pilot: []; preview: []; video: []; simple: [] }>()
 const engine = useAudioEngine()
+const ui = useUi()
 // lo que reemplaza la canción la desvincula de la guardada de la que venía (spec 006, §10.4): así "Guardar" no machaca una guardada
 const library = useLibrary()
 const { kit, assist, melodyOn, melodyBlocked, metronome, bgMode, phraseCloseBeats, maxPhraseBars, phraseMode, repeatMode, fx, playing, diag, echo, loops, multi, imageAuto, imageFineMs, imageDelayShown, syncTest, syncFlash } =
@@ -302,6 +303,10 @@ watch(open, (o) => {
               Un grupo de una célula que suena en paralelo a la canción. En el mapa, un toque lo enciende o lo apaga.
             </span>
           </div>
+          <label class="flex items-center justify-between">
+            <span>Melodía en el compás <span class="text-xs text-neutral-500">la espiral cae en el tiempo de la base</span></span>
+            <input type="checkbox" :checked="ui.state.syncMelody" @change="ui.setSync(($event.target as HTMLInputElement).checked)" />
+          </label>
           <div class="flex items-center gap-3">
             <button class="shrink-0 rounded-full border border-white/15 px-4 py-2" @click="open = false; emit('simple')">Modo simple</button>
             <span class="text-xs text-neutral-500">la portada: elige un estilo, toca la melodía con el dedo y añade ritmo con tu voz.</span>

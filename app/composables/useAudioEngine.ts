@@ -2331,12 +2331,12 @@ export function useAudioEngine() {
   }
 
   /** Pasa `hits` a la célula que se ve como su loop de melodía de 4 compases (sustituye al que hubiera, que queda para deshacer). */
-  function commitMelody(hits: MelodyHit[]): boolean {
+  function commitMelody(hits: MelodyHit[], phaseBar = 0): boolean {
     if (!hits.length) return false
     const born = clock ? nextBarLine() : 0
     const old = loops.value.loops.find((l) => l.instrument === 'mel')
     const id = old?.id ?? loops.value.nextId
-    const loop: FreeLoop = { id, instrument: 'mel', bars: 4, phaseBar: 0, hits, muted: false, bornAt: born, fromTemplate: false, ...(old?.synth ? { synth: old.synth } : {}), ...(old ? { prev: { hits: old.hits, bars: old.bars, phaseBar: old.phaseBar } } : {}) }
+    const loop: FreeLoop = { id, instrument: 'mel', bars: 4, phaseBar, hits, muted: false, bornAt: born, fromTemplate: false, ...(old?.synth ? { synth: old.synth } : {}), ...(old ? { prev: { hits: old.hits, bars: old.bars, phaseBar: old.phaseBar } } : {}) }
     if (!old && loops.value.loops.length >= MAX_LOOPS) {
       say('No caben más loops (8): quita alguno para grabar la melodía')
       return false
@@ -2777,6 +2777,47 @@ export function useAudioEngine() {
       }
       return midi
     },
+    /**
+     * Programa una nota del sintetizador **a la hora de audio `when`** (modo espiral sincronizado, spec 016 §9.3): no depende del fotograma, así cae justo en su paso del compás.
+     * Si no había voz, nace en silencio y sube a esa hora. `fx` es el brillo.
+     */
+    thereminAt: (midi: number, when: number, fx: number): boolean => {
+      const c = ctx
+      if (!c || c.state !== 'running' || !masterIn) return false
+      const t = Math.max(when, c.currentTime)
+      if (!thereminVoice) {
+        const synth = STYLE_MUSIC[style.value].synth
+        const type = ({ piano: 'triangle', lead: 'square', pad: 'sawtooth', drone: 'sine' } as Record<string, OscillatorType>)[synth] ?? 'triangle'
+        const osc = new OscillatorNode(c, { type, frequency: midiToHz(midi) })
+        const filter = new BiquadFilterNode(c, { type: 'lowpass', frequency: brightnessAtX(fx), Q: 4 })
+        const gain = new GainNode(c, { gain: 0 })
+        osc.connect(filter).connect(gain).connect(masterIn)
+        osc.start()
+        thereminVoice = { osc, filter, gain, idx: null }
+      }
+      const v = thereminVoice
+      v.osc.frequency.setTargetAtTime(midiToHz(midi), t, 0.02)
+      v.filter.frequency.setTargetAtTime(brightnessAtX(fx), c.currentTime, 0.03)
+      v.gain.gain.setTargetAtTime(0.3, t, 0.015)
+      toWorker({ type: 'output', times: [t] })
+      keysLast.value = { n: keysLast.value.n + 1, midi }
+      const ms = Math.max(0, (t - c.currentTime) * 1000)
+      setTimeout(() => (thereminNote.value = midi), ms)
+      return true
+    },
+    /** Apaga la nota a la hora de audio `when` (cuando hay hueco hasta la siguiente). */
+    thereminGateAt: (when: number) => {
+      if (thereminVoice && ctx) thereminVoice.gain.gain.setTargetAtTime(0, Math.max(when, ctx.currentTime), 0.04)
+    },
+    /** La hora de audio ahora y la latencia de salida (s): la imagen se corrige con ella para que lo que se ve coincida con lo que se oye. */
+    audioNow: (): number => ctx?.currentTime ?? 0,
+    outLatencySec: (): number => outputLatency(),
+    /** El reloj de compases del motor (el próximo compás, su hora y cada compás por su número), o `null` si no suena. Solo se lee: la espiral no toca el reloj. */
+    barClock: (): { bar: number; at: (bar: number) => number; now: number; stepSec: number } | null => {
+      const c = ctx
+      if (!c || !clock) return null
+      return { bar: nextBarLine(), at: barTime, now: c.currentTime, stepSec: stepSeconds() }
+    },
     /** Solo el filtro (el brillo) de la nota que suena, sin cambiar de nota (modo espiral: el dedo solo da el brillo). */
     thereminFilter: (fx: number) => {
       if (thereminVoice && ctx) thereminVoice.filter.frequency.setTargetAtTime(brightnessAtX(fx), ctx.currentTime, 0.03)
@@ -2858,7 +2899,7 @@ export function useAudioEngine() {
       return commitMelody(keysToHits(events, barTime(0), stepSeconds(), 4))
     },
     /** Guarda una melodía ya hecha (el modo guiado del sintetizador) como el loop de melodía de la célula que se ve, sustituyendo al anterior (con «deshacer»). */
-    saveMelody: (hits: MelodyHit[]): boolean => commitMelody(hits),
+    saveMelody: (hits: MelodyHit[], phaseBar = 0): boolean => commitMelody(hits, phaseBar),
     stageOn,
     fxRec,
     setStage: (on: boolean) => {
