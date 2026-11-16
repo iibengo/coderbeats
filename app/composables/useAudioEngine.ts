@@ -318,9 +318,9 @@ const personalModel = ref(false)
 const calibNudge = ref(false)
 const fitMonitor = new FitMonitor()
 const NUDGE_KEY = 'coderbeats:calib-nudge:v1'
-/** los tres centros de claridad que el modelo por defecto aprendió de este micro (bum, pff, ts): por dispositivo */
-const CENTERS_KEY = 'coderbeats:auto-centers:v1'
-const isCenters = (x: unknown): x is number[] => Array.isArray(x) && x.length === 3 && x.every((n) => typeof n === 'number' && Number.isFinite(n))
+/** los dos centros de claridad que el modelo por defecto aprendió de este micro (pff, ts): por dispositivo */
+const CENTERS_KEY = 'coderbeats:auto-centers:v2'
+const isCenters = (x: unknown): x is number[] => Array.isArray(x) && x.length === 2 && x.every((n) => typeof n === 'number' && Number.isFinite(n))
 const savedCenters = (): number[] | null => readJson(CENTERS_KEY, isCenters)
 const nudgeDismissed = (): boolean => !!readJson(NUDGE_KEY, (x): x is { dismissed: true } => !!x && (x as { dismissed?: unknown }).dismissed === true)
 /** Teclado de agua (spec 015): tocar el fondo fuera del aro suena notas de la escala del estilo; se puede grabar como melodía */
@@ -436,7 +436,7 @@ function outputLatency(): number {
 }
 
 /** cómo sonó un golpe, para el diagnóstico: centroide, cruces por cero y graves (< 800 Hz) */
-const fmtFeat = (f: { c: number; z: number; low: number } | undefined): string => (f ? ` · c ${f.c.toFixed(2)} z ${f.z.toFixed(2)} graves ${f.low.toFixed(2)}` : '')
+const fmtFeat = (f: { c: number; z: number; low: number; mid?: number; hi?: number } | undefined): string => (f ? ` · c ${f.c.toFixed(2)} z ${f.z.toFixed(2)} graves ${f.low.toFixed(2)}${f.mid !== undefined ? ` medios ${f.mid.toFixed(2)} agudos ${f.hi!.toFixed(2)}` : ''}` : '')
 function log(kind: DiagEvent['kind'], text: string, uiMs?: number) {
   diag.value = [{ at: ctx?.currentTime ?? 0, kind, text, uiMs }, ...diag.value].slice(0, 300)
 }
@@ -1198,7 +1198,7 @@ function onWorkerMessage(m: FromWorker, fromPilot = false) {
   if (pilotStrict && !fromPilot) return
   if (m.type === 'learned') {
     writeJson(CENTERS_KEY, m.centers)
-    return log('background', `el modelo por defecto aprendió tu micro: claridad bum ${m.centers[0]!.toFixed(2)} · pff ${m.centers[1]!.toFixed(2)} · ts ${m.centers[2]!.toFixed(2)}`)
+    return log('background', `el modelo por defecto aprendió tu micro: claridad pff ${m.centers[0]!.toFixed(2)} · ts ${m.centers[1]!.toFixed(2)} (el bum, por sus graves)`)
   }
   if (m.type === 'pitch') {
     livePitchState = { midi: m.midi, at: performance.now() }

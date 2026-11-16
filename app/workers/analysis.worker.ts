@@ -63,7 +63,7 @@ function processQueue() {
     const c = adaptive ? adaptive.classify(features) : classifier?.classify(features)
     const learned = adaptive?.learned()
     // solo se avisa si los centros se movieron de verdad (se guardan por dispositivo)
-    if (learned && (lastLearned.length !== 3 || learned.some((x, i) => Math.abs(x - lastLearned[i]!) > 0.01))) {
+    if (learned && (lastLearned.length !== 2 || learned.some((x, i) => Math.abs(x - lastLearned[i]!) > 0.01))) {
       lastLearned = learned
       post({ type: 'learned', centers: learned })
     }
@@ -99,7 +99,7 @@ function processQueue() {
       strength: o.strength,
       vol: relativeVolume(features.rms, instrument, refs),
       decisionMs,
-      feat: { c: features.centroid, z: features.zcr, low: features.bands[0] + features.bands[1] },
+      feat: { c: features.centroid, z: features.zcr, low: features.bands[0] + features.bands[1], mid: features.bands[2], hi: features.bands[3] },
       fit: c && classifier && c.instrument !== 'unknown' && Number.isFinite(c.nearestDistance) && classifier.meanPairDistance > 0 ? c.nearestDistance / classifier.meanPairDistance : null,
     })
   }

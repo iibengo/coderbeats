@@ -37,10 +37,10 @@ export type FromWorker =
       decisionMs: number
       /** lo lejos que cae de las muestras de su clase (distancia al vecino más cercano ÷ distancia media entre muestras); `null` si no hay modelo o fue desconocido (modelFit) */
       fit?: number | null
-      /** cómo sonó el golpe para el diagnóstico: centroide, cruces por cero y energía por debajo de 800 Hz */
-      feat?: { c: number; z: number; low: number }
+      /** cómo sonó el golpe para el diagnóstico: centroide, cruces por cero y energía por debajo de 800 Hz, entre 800 Hz y 4 kHz y por encima de 4 kHz */
+      feat?: { c: number; z: number; low: number; mid?: number; hi?: number }
     }
-  /** el modelo por defecto aprendió (o ajustó) los tres centros de claridad de este micro: bum, pff, ts */
+  /** el modelo por defecto aprendió (o ajustó) los dos centros de claridad de este micro: pff, ts */
   | { type: 'learned'; centers: number[] }
   | { type: 'echo'; time: number; strength: number }
   /** golpe de un carril apagado: se ignora (spec 003, E4.2) */
