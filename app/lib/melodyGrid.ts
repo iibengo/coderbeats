@@ -83,7 +83,7 @@ export const ANSWER_VARIANTS = ANSWER_SHIFTS.length
  * unos grados de la escala (según la variación `seed`) y **la última nota cae en la tónica** (cierra la frase). Todo en la escala del estilo. `null` si no hay notas en la frase.
  */
 export function answerPhrase(hits: readonly MelodyHit[], style: StyleId, seed: number): MelodyHit[] | null {
-  const phrase = normalize(hits.filter((h) => h.pos < 32), 2)
+  const phrase = hits.filter((h) => h.pos < 32).sort(byPos).map((h, i, a) => ({ ...h, dur: Math.max(0.25, Math.min(h.dur, (a[i + 1]?.pos ?? 32) - h.pos, 32 - h.pos)) }))
   if (!phrase.length) return null
   const scale = scaleNotes(style)
   const nearest = (m: number) => scale.reduce((best, x, i) => (Math.abs(x - m) < Math.abs(scale[best]! - m) ? i : best), 0)
@@ -98,5 +98,5 @@ export function answerPhrase(hits: readonly MelodyHit[], style: StyleId, seed: n
   const last = answer[answer.length - 1]!
   const tonics = scale.filter((m) => m % 12 === tonic)
   if (tonics.length) last.midi = tonics.reduce((b, m) => (Math.abs(m - last.midi) < Math.abs(b - last.midi) ? m : b), tonics[0]!)
-  return normalize([...phrase, ...answer], 4)
+  return [...phrase, ...answer]
 }

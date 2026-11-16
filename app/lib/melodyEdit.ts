@@ -18,11 +18,13 @@ import type { StyleId } from './types'
 export interface MelEditOptions {
   assist: boolean
   style: StyleId
+  /** tamaño de la casilla en semicorcheas con ayuda (2 = corcheas, casillas grandes; 1 = semicorcheas); por defecto 1 */
+  unit?: 1 | 2
 }
 
 const mod = (a: number, n: number) => ((a % n) + n) % n
 const round2 = (x: number) => Math.round(x * 100) / 100
-const grid = (o: MelEditOptions) => (o.assist ? 1 : FINE_GRID)
+const grid = (o: MelEditOptions) => (o.assist ? (o.unit ?? 1) : FINE_GRID)
 
 /** El compás global `g` que hace sonar el compás `bar` del loop (0..bars−1): lo que piden las funciones de edición. */
 export const gForBar = (loop: Pick<FreeLoop, 'phaseBar'> | undefined, bar: number): number => (loop?.phaseBar ?? 0) + bar

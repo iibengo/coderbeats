@@ -6,6 +6,7 @@
 // melodía como estaba antes de la última edición (unos 8 s, un solo nivel). La célula sigue sonando y la línea blanca marca dónde va.
 // Se abre y se cierra con una transición de agua desde el punto donde se tocó la franja.
 import { removeHit } from '~/lib/loopEdit'
+import { answerPhrase } from '~/lib/melodyGrid'
 import { addMelNote, gForBar, melLoopOf, moveMelNote, resizeMelNote, restoreMel, setMelBars, snapMelStep, type MelEditOptions } from '~/lib/melodyEdit'
 import type { FreeLoop, LoopsState } from '~/lib/freeLoops'
 import { isTonic, rangeOf, rowOf, scaleNotes } from '~/lib/melodyView'
@@ -33,7 +34,11 @@ const range = computed(() => rangeOf(synth.value))
 const rows = computed(() => scaleNotes(style.value, range.value).reverse())
 const steps = computed(() => bars.value * 16)
 const notes = computed<MelodyHit[]>(() => (loop.value?.hits ?? []) as MelodyHit[])
-const opts = (): MelEditOptions => ({ assist: engine.assist.value, style: style.value })
+// casillas grandes (spec 020): con ayuda, la casilla es una corchea (40 px en un móvil); «fino» las vuelve semicorcheas
+const fine = ref(false)
+const unit = computed<1 | 2>(() => (fine.value ? 1 : 2))
+const q = () => (engine.assist.value ? unit.value : 0.25)
+const opts = (): MelEditOptions => ({ assist: engine.assist.value, style: style.value, unit: unit.value })
 
 // ── geometría ────────────────────────────────────────────────────────────────────
 const CELL_MIN = 18
@@ -103,6 +108,7 @@ function noteAt(x: number, y: number): { hit: MelodyHit; resize: boolean } | nul
 }
 
 function onDown(e: PointerEvent) {
+  if (rec.value) return recNote(e)
   canvas.value!.setPointerCapture(e.pointerId)
   const { x, y } = cell(e)
   const hit = noteAt(x, y)
@@ -123,8 +129,8 @@ function onMove(e: PointerEvent) {
   if (g.kind === 'new') {
     if (Math.hypot(x - g.x0, y - g.y0) > 5) g.moved = true
     // arrastrar a la derecha alarga la nota que se está poniendo
-    const q = engine.assist.value ? 1 : 0.25
-    if (g.moved) g.dur = Math.max(q, Math.round((x / cellW.value - g.pos) / q) * q)
+    const u = q()
+    if (g.moved) g.dur = Math.max(u, Math.round((x / cellW.value - g.pos) / u) * u)
   } else if (g.kind === 'move') {
     if (Math.hypot(x - g.x0, y - g.y0) > 5) g.moved = true
     // fuera del cuadro de la rejilla: al soltar, se borra
@@ -137,8 +143,8 @@ function onMove(e: PointerEvent) {
       engine.previewNote(midiOfRow(row), synth.value)
     }
   } else if (g.kind === 'resize') {
-    const q = engine.assist.value ? 1 : 0.25
-    g.dur = Math.max(q, Math.round((x / cellW.value - g.hit.pos) / q) * q)
+    const u = q()
+    g.dur = Math.max(u, Math.round((x / cellW.value - g.hit.pos) / u) * u)
   }
 }
 
@@ -171,6 +177,60 @@ function setBars(n: 1 | 2 | 4) {
   if (l) commit(setMelBars(loops.value, l.id, n))
 }
 
+// ── ↻ responder (spec 020 §1.3): la frase de 2 compases pregunta; los 2 siguientes contestan, con otra variación cada vez, y cierran en la tónica ──
+let seed = 0
+const canRespond = computed(() => !rec.value && notes.value.some((h) => h.pos < 32))
+function respond() {
+  const next = answerPhrase(notes.value, style.value, seed++)
+  const l = loop.value
+  if (!next || !l) return
+  commit({ ...loops.value, loops: loops.value.loops.map((x) => (x.id === l.id ? { ...x, bars: 4, hits: next, fromTemplate: false } : x)) })
+}
+
+// ── ● grabar a media velocidad (spec 020 §1.1): la base sigue a su tempo y la frase se toca al doble de lento; 1 compás de cuenta; se cuadra a la casilla; acaba sola ──
+const rec = ref<{ start: number; bars: 1 | 2 } | null>(null)
+const recState = ref<'' | 'cuenta' | 'grabando'>('')
+let recHits: MelodyHit[] = []
+async function startRec() {
+  if (rec.value) return stopRec()
+  const l = loop.value
+  const rb = l ? (Math.min(2, l.bars) as 1 | 2) : 2
+  if (l) commit({ ...loops.value, loops: loops.value.loops.filter((x) => x.id !== l.id) }) // la melodía de antes queda en «deshacer»
+  recHits = []
+  if (!playing.value) await engine.play()
+  rec.value = { start: engine.clockNow().bar + 2, bars: rb }
+  recState.value = 'cuenta'
+}
+function stopRec() {
+  rec.value = null
+  recState.value = ''
+}
+/** la posición de la toma en pasos del loop: la mitad de rápido que el reloj */
+function recSteps(): number | null {
+  const r = rec.value
+  if (!r) return null
+  const c = engine.clockNow()
+  const elapsed = c.bar - r.start + c.barPhase
+  return elapsed < 0 ? null : (elapsed / 2) * 16
+}
+function recNote(e: PointerEvent) {
+  const r = rec.value
+  if (!r) return
+  const { y } = cell(e)
+  const midi = midiOfRow(Math.min(rows.value.length - 1, Math.max(0, Math.floor(y / rowH.value))))
+  engine.previewNote(midi, synth.value)
+  const raw = recSteps()
+  if (raw === null) return // en la cuenta, suena pero no se apunta
+  const pos = Math.round(raw / unit.value) * unit.value
+  if (pos >= r.bars * 16) return
+  const sorted = [...recHits.filter((h) => h.pos !== pos), { pos, dur: unit.value, midi, strength: 0.8 }].sort((a, b) => a.pos - b.pos)
+  recHits = sorted.map((h, i) => ({ ...h, dur: Math.max(unit.value, Math.min(2, (sorted[i + 1]?.pos ?? r.bars * 16) - h.pos)) }))
+  const st = loops.value
+  const own = melLoopOf(st)
+  if (own) engine.editLoops({ ...st, loops: st.loops.map((x) => (x.id === own.id ? { ...x, hits: recHits, fromTemplate: false } : x)) })
+  else if (st.loops.length < 8) engine.editLoops({ loops: [...st.loops, { id: st.nextId, instrument: 'mel', bars: r.bars, phaseBar: 0, hits: recHits, muted: false, bornAt: 0, fromTemplate: false }], nextId: st.nextId + 1 })
+}
+
 // ── dibujo ───────────────────────────────────────────────────────────────────────
 let raf = 0
 function draw() {
@@ -197,7 +257,7 @@ function draw() {
   })
   // líneas de tiempo: compás, tiempo y semicorchea
   for (let s = 0; s <= steps.value; s++) {
-    x.strokeStyle = s % 16 === 0 ? 'rgba(255,255,255,0.28)' : s % 4 === 0 ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.04)'
+    x.strokeStyle = s % 16 === 0 ? 'rgba(255,255,255,0.28)' : s % 4 === 0 ? 'rgba(255,255,255,0.12)' : s % unit.value === 0 ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.02)'
     x.lineWidth = 1
     x.beginPath()
     x.moveTo(s * cw + 0.5, 0)
@@ -215,8 +275,22 @@ function draw() {
   // lo que se está haciendo: la nota nueva o la movida, imantadas
   if (gs?.kind === 'new') noteRow(x, gs.pos, gs.moved ? gs.dur : 2, gs.row, 0.55)
   if (gs?.kind === 'move' && gs.moved) noteRow(x, gs.pos, gs.hit.dur, gs.row, gs.outside ? 0.35 : 0.75, gs.outside)
-  // línea de reproducción
-  if (playing.value && loop.value) {
+  // línea de reproducción (en la toma, a media velocidad)
+  if (rec.value) {
+    const st = recSteps()
+    if (st !== null && st >= rec.value.bars * 16) stopRec()
+    else {
+      recState.value = st === null ? 'cuenta' : 'grabando'
+      if (st !== null) {
+        x.strokeStyle = 'rgba(255,77,109,0.9)'
+        x.lineWidth = 2
+        x.beginPath()
+        x.moveTo(st * cw, 0)
+        x.lineTo(st * cw, H)
+        x.stroke()
+      }
+    }
+  } else if (playing.value && loop.value) {
     const phase = engine.clockNow().barPhase
     const bar = engine.currentBar.value
     const b = ((bar - loop.value.phaseBar) % bars.value + bars.value) % bars.value
@@ -323,6 +397,7 @@ onMounted(() => {
   nextTick(open)
 })
 onBeforeUnmount(() => {
+  stopRec()
   if (undoTimer) clearTimeout(undoTimer)
   cancelAnimationFrame(raf)
   window.removeEventListener('resize', measure)
@@ -369,6 +444,13 @@ const label = (m: number) => midiName(m).replace('#', '♯')
           </button>
         </div>
       </header>
+
+      <div class="flex flex-wrap items-center gap-2 px-4 pb-2 text-xs">
+        <button class="rounded-full border px-3 py-1.5" :class="rec ? 'border-[#ff4d6d] text-[#ff4d6d]' : 'border-white/30 text-white'" data-organ-rec @click="startRec">{{ recState === 'cuenta' ? 'cuenta…' : recState === 'grabando' ? '■ grabando' : '● grabar' }}</button>
+        <button class="rounded-full border border-[#F496BC]/60 px-3 py-1.5 text-white disabled:opacity-30" :disabled="!canRespond" data-organ-respond @click="respond">↻ responder</button>
+        <button v-if="engine.assist.value" class="rounded-full border px-3 py-1.5" :class="fine ? 'border-white text-white' : 'border-white/25 text-white/60'" aria-label="casillas más finas (semicorcheas)" @click="fine = !fine">fino</button>
+        <span v-if="rec" class="text-[#ff4d6d]">toca al doble de lento; se cuadra solo y acaba al llegar al final</span>
+      </div>
 
       <div class="flex min-h-0 flex-1 px-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <!-- nombres de las notas -->
