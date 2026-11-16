@@ -8,13 +8,9 @@ import { onBeforeUnmount } from 'vue'
 definePageMeta({ ssr: false })
 useHead({ title: 'Laboratorio · coderbeats' })
 
-type Id = 'piano' | 'theremin' | 'layers' | 'dj' | 'circle'
+type Id = 'capas'
 const SCREENS: { id: Id; title: string; text: string }[] = [
-  { id: 'piano', title: '1 · Piano mágico', text: 'cada toque, la siguiente nota de una melodía' },
-  { id: 'theremin', title: '2 · Theremín', text: 'desliza el dedo: suena continuo y siempre en la escala' },
-  { id: 'layers', title: '3 · Capas', text: 'base entera: enciende y apaga bombo, caja, platillo, bajo, acordes y melodía' },
-  { id: 'dj', title: '4 · DJ', text: 'una canción sonando: el dedo mueve filtro y eco; platillo, subida y drop' },
-  { id: 'circle', title: '5 · Círculo de ritmo', text: 'toca el círculo para poner y quitar golpes; cada instrumento forma su polígono' },
+  { id: 'capas', title: 'Capas', text: 'enciende y apaga bombo, caja, platillo, bajo, acordes y melodía (con DJ dentro)' },
 ]
 const screen = ref<Id | null>(null)
 const engine = useAudioEngine()
@@ -41,12 +37,8 @@ onBeforeUnmount(() => engine.stopAll())
 </script>
 
 <template>
-  <LabPiano v-if="screen === 'piano'" @back="back" />
-  <LabTheremin v-else-if="screen === 'theremin'" @back="back" />
-  <LabLayers v-else-if="screen === 'layers'" @back="back" />
-  <LabDj v-else-if="screen === 'dj'" @back="back" />
-  <LabCircle v-else-if="screen === 'circle'" @back="back" />
-  <main v-else class="mx-auto min-h-dvh max-w-xl bg-[#0a0a0d] px-4 py-8 text-white">
+  <LabCapas v-if="screen === 'capas'" @back="back" />
+  <main v-else class="mx-auto min-h-dvh max-w-xl bg-black px-4 py-8 text-white">
     <h1 class="mt-3 text-3xl font-medium tracking-tight">Laboratorio</h1>
     <p class="mt-1 text-white/60">Formas de tocar sin micro. Elige una; todas suenan con el motor de siempre.</p>
     <ul class="mt-6 grid gap-3">

@@ -39,7 +39,7 @@ export function useLab() {
    * Pone una escena: las capas de batería indicadas (con sus pasos), el fondo y, si `melody`, el tema del estilo como loop de melodía.
    * Siempre una sola célula; sonando, entra en el siguiente compás.
    */
-  async function scene(opts: { drums?: Partial<Record<Instrument, number[]>>; muted?: Partial<Record<Instrument, boolean>>; parts?: Parts; melody?: boolean }) {
+  async function scene(opts: { drums?: Partial<Record<Instrument, number[]>>; muted?: Partial<Record<Instrument, boolean>>; parts?: Parts; melody?: boolean | 'muted' }) {
     await begin()
     await engine.clearAll()
     const loops: FreeLoop[] = []
@@ -50,7 +50,7 @@ export function useLab() {
     }
     if (opts.melody) {
       const hits = adaptTune(tuneFor(style.value), style.value)
-      loops.push({ id: id++, instrument: 'mel', bars: 4, phaseBar: 0, hits: hits.map((h) => ({ pos: h.pos, strength: 0.8, midi: h.midi, dur: h.dur })), muted: false, bornAt: 0, fromTemplate: false })
+      loops.push({ id: id++, instrument: 'mel', bars: 4, phaseBar: 0, hits: hits.map((h) => ({ pos: h.pos, strength: 0.8, midi: h.midi, dur: h.dur })), muted: opts.melody === 'muted', bornAt: 0, fromTemplate: false })
     }
     engine.setBackgroundMode('manual')
     engine.setBackgroundManual(opts.parts ?? { bass: false, chords: false })
@@ -62,6 +62,7 @@ export function useLab() {
     await engine.setStyle(id)
   }
 
+  /** el primer toque pone a sonar la base (la persona decide cuándo empieza, principio 4) */
   async function start() {
     await begin()
     if (!engine.playing.value) await engine.play()

@@ -5,6 +5,8 @@
 import type { FreeLoop, LoopHit } from './freeLoops'
 import type { Instrument } from './types'
 
+/** lado del escenario cuadrado del Laboratorio (unidades de dibujo) */
+export const LAB_W = 680
 export const STEPS = 16
 export const LAB_INSTRUMENTS: readonly Instrument[] = ['bd', 'sd', 'hh']
 
@@ -103,3 +105,6 @@ export function pressedEdges(prev: readonly boolean[], cur: readonly boolean[]):
 
 /** Zona muerta de un eje de palanca (−1..1) */
 export const deadzone = (v: number, z = 0.15): number => (Math.abs(v) < z ? 0 : (v - Math.sign(v) * z) / (1 - z))
+
+/** El color ámbar del bombo del prototipo; el resto sale de la paleta (`VOICE_HEX`). */
+export const AMBER = '#F5C97A'
