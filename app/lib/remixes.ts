@@ -31,7 +31,7 @@ export interface Remix {
   build(): Song
 }
 
-type Note = readonly [pos: number, dur: number, midi: number]
+export type Note = readonly [pos: number, dur: number, midi: number]
 
 // ── La Oda a la alegría (Beethoven, 1824), tema principal en re mayor ───────────────────────────────
 // D4=62 E4=64 F#4=66 G4=67 A4=69. Cada frase es de 4 compases de 16 pasos (negra = 4, corchea = 2, blanca = 8).
@@ -51,10 +51,10 @@ export const ODE_B: readonly Note[] = [
   [32, 4, 64], [36, 2, 66], [38, 2, 67], [40, 4, 66], [44, 4, 64], // E F# G F# E
   [48, 4, 62], [52, 4, 64], [56, 8, 57], // D E A
 ]
-const up = (notes: readonly Note[], semitones: number): Note[] => notes.map(([p, d, m]) => [p, d, m + semitones] as const)
+export const up = (notes: readonly Note[], semitones: number): Note[] => notes.map(([p, d, m]) => [p, d, m + semitones] as const)
 
 // ── Patrones de un compás (16 pasos) o de cuatro (64) ─────────────────────────────────────────────
-const P = {
+export const P = {
   hh8: 'hh ~ hh ~ hh ~ hh ~ hh ~ hh ~ hh ~ hh ~',
   hh16: Array(16).fill('hh').join(' '),
   bd: 'bd ~ ~ ~ bd ~ ~ ~ bd ~ ~ ~ bd ~ ~ ~',
@@ -167,7 +167,7 @@ export const DIES_PHRASES: readonly (readonly Note[])[] = [
 ]
 /** Un tema de 4 compases con las frases 1–2 y otro con las 3–4: dos células de 4 compases. */
 export const DIES_A: readonly Note[] = [...DIES_PHRASES[0]!, ...DIES_PHRASES[1]!.map(([p, d, m]) => [p, d, m] as const)]
-const DIES_B: readonly Note[] = [...DIES_PHRASES[2]!, ...DIES_PHRASES[3]!.map(([p, d, m]) => [p, d, m] as const)]
+export const DIES_B: readonly Note[] = [...DIES_PHRASES[2]!, ...DIES_PHRASES[3]!.map(([p, d, m]) => [p, d, m] as const)]
 
 /**
  * ── Techno (spec 008, §9): el molde del house/dnb, con el wowo ─────────────────────────────────────
@@ -176,7 +176,7 @@ const DIES_B: readonly Note[] = [...DIES_PHRASES[2]!, ...DIES_PHRASES[3]!.map(([
  * filtro de la célula; en el código mostrado se saca del `stack` filtrado. El wowo solo afecta a la melodía (y a los
  * acordes, si los hay). El bombo va afinado a la raíz de cada acorde (`kickTune`).
  */
-const T = {
+export const T = {
   /** bombo 4×4 */
   bd4: 'bd ~ ~ ~ bd ~ ~ ~ bd ~ ~ ~ bd ~ ~ ~',
   /** palmada en 2 y 4 */
@@ -199,10 +199,10 @@ const T = {
  * drop). El riser es ruido rosa a negras que el filtro de la célula abre compás a compás, la caja en roll que se aprieta y un pad
  * de otro color que sube Ab–Bb–D (la dominante, que pide el Do menor del drop).
  */
-const RISER_NOISE: readonly Note[] = Array.from({ length: 12 }, (_, i) => [i * 4, 4, 60] as const)
-const RISER_PAD: readonly Note[] = [[0, 16, 56], [16, 16, 58], [32, 16, 62]]
+export const RISER_NOISE: readonly Note[] = Array.from({ length: 12 }, (_, i) => [i * 4, 4, 60] as const)
+export const RISER_PAD: readonly Note[] = [[0, 16, 56], [16, 16, 58], [32, 16, 62]]
 /** la caja del riser: corcheas, semicorcheas, semicorcheas y silencio (4 compases) */
-const RISER_ROLL = [
+export const RISER_ROLL = [
   'sd ~ sd ~ sd ~ sd ~ sd ~ sd ~ sd ~ sd ~',
   Array(16).fill('sd').join(' '),
   Array(16).fill('sd').join(' '),
@@ -210,10 +210,10 @@ const RISER_ROLL = [
 ].join(' ')
 
 /** La versión corta, 2 compases (antes del DROP 2): uno que se abre y otro en silencio. */
-const RISER2_NOISE: readonly Note[] = Array.from({ length: 4 }, (_, i) => [i * 4, 4, 60] as const)
-const RISER2_PAD: readonly Note[] = [[0, 16, 62]]
+export const RISER2_NOISE: readonly Note[] = Array.from({ length: 4 }, (_, i) => [i * 4, 4, 60] as const)
+export const RISER2_PAD: readonly Note[] = [[0, 16, 62]]
 // (el loop es de 4 compases, la célula dura 2: el 2.º, y los de después, en silencio)
-const RISER2_ROLL = [Array(16).fill('sd').join(' '), ...Array(3).fill(Array(16).fill('~').join(' '))].join(' ')
+export const RISER2_ROLL = [Array(16).fill('sd').join(' '), ...Array(3).fill(Array(16).fill('~').join(' '))].join(' ')
 
 /** El Dies Irae en techno: entra poco a poco (con wowo en el build) y estalla en el drop. */
 const DIES_TECHNO: CellSpec[] = [
@@ -252,14 +252,14 @@ export const MOZART_G: { a: readonly Note[]; b: readonly Note[] } = {
   ],
 }
 const MOZART_SHIFT = -7 // sol menor → do menor
-const MZ = { a: up(MOZART_G.a, MOZART_SHIFT), b: up(MOZART_G.b, MOZART_SHIFT) }
-const MZ_UP = { a: up(MZ.a, 12), b: up(MZ.b, 12) }
+export const MZ = { a: up(MOZART_G.a, MOZART_SHIFT), b: up(MOZART_G.b, MOZART_SHIFT) }
+export const MZ_UP = { a: up(MZ.a, 12), b: up(MZ.b, 12) }
 /** el pad que sostiene la raíz de cada acorde (Cm A♭ B♭ Gm), un compás cada uno */
-const MZ_ROOTS: readonly Note[] = [[0, 16, 60], [16, 16, 56], [32, 16, 58], [48, 16, 55]]
+export const MZ_ROOTS: readonly Note[] = [[0, 16, 60], [16, 16, 56], [32, 16, 58], [48, 16, 55]]
 /** el platillo (ruido) en el primer compás del loop de 4: al entrar el drop y cada 4 compases */
-const MZ_CRASH: readonly Note[] = [[0, 16, 60]]
+export const MZ_CRASH: readonly Note[] = [[0, 16, 60]]
 /** la palmada en 2 y 4 durante 4 compases, con el **redoble** de semicorcheas al final del cuarto */
-const MZ_CLAP_FILL = [T.clap, T.clap, T.clap, '~ ~ ~ ~ sd ~ ~ ~ ~ ~ ~ ~ sd sd sd sd'].join(' ')
+export const MZ_CLAP_FILL = [T.clap, T.clap, T.clap, '~ ~ ~ ~ sd ~ ~ ~ ~ ~ ~ ~ sd sd sd sd'].join(' ')
 
 /**
  * Doce células (126 compases ≈ 3 min 56 s a 128 bpm) y dos grupos en paralelo con el tema (que avanza entero: A, B, A, B…).
@@ -288,9 +288,9 @@ const MOZART_GROUPS: GroupSpec[] = [
 
 // ── El Himno de la alegría en dembow, mejorado (spec 008, §13) ──────────────────────────────────────────────
 /** el platillo del drop (ruido): en el primer compás del loop de 4, al entrar y cada 4 compases */
-const ODE_CRASH: readonly Note[] = [[0, 16, 62]]
+export const ODE_CRASH: readonly Note[] = [[0, 16, 62]]
 /** el pad que sostiene la raíz de cada acorde (Bm, G), un compás cada uno, para el drop final */
-const ODE_ROOTS: readonly Note[] = [[0, 16, 59], [16, 16, 55], [32, 16, 59], [48, 16, 55]]
+export const ODE_ROOTS: readonly Note[] = [[0, 16, 59], [16, 16, 55], [32, 16, 59], [48, 16, 55]]
 
 /**
  * Doce células, 56 compases (≈ 1 min 52 s a 120 bpm), dos drops y dos grupos en paralelo con el tema (A, A′ y, una octava más
@@ -320,14 +320,14 @@ const ODE_GROUPS: GroupSpec[] = [
 
 // ── «Wow»: una pieza original de techno de 60 s (32 compases a 128 bpm): intro, entra, subida, drop y final ────────────────────
 /** el gancho del drop (do menor, 4 compases): la célula do–mi♭–sol, la subida al si♭ y la bajada que cierra */
-const WOW_HOOK: readonly Note[] = [
+export const WOW_HOOK: readonly Note[] = [
   [0, 2, 72], [2, 2, 75], [4, 4, 79], [8, 4, 77], [12, 4, 75],
   [16, 2, 72], [18, 2, 75], [20, 4, 79], [24, 4, 82], [28, 4, 79],
   [32, 2, 77], [34, 2, 75], [36, 4, 74], [40, 4, 72], [44, 4, 75],
   [48, 4, 74], [52, 4, 72], [56, 8, 67],
 ]
 /** el impacto grave al caer el drop (`boom`, a la raíz do) */
-const WOW_IMPACT: readonly Note[] = [[0, 16, 36]]
+export const WOW_IMPACT: readonly Note[] = [[0, 16, 36]]
 const WOW: CellSpec[] = [
   { name: 'Intro', turns: 8, parts: { bass: false, chords: false }, drums: { bd: T.bd4, hh: T.hat }, lpf: [400, 500, 600, 750, 900, 1100, 1300, 1600], text: 'bombo y open hat con el filtro cerrado que se abre despacio' },
   { name: 'Entra', turns: 8, parts: { bass: true, chords: false }, drums: { bd: T.bd4, sd: MZ_CLAP_FILL, hh: T.hat }, lpf: [1800, 2200, 2700, 3300, 4000, 5000, 6200, 8000], text: '+ bajo y palmada, con un redoble cada 4 compases' },

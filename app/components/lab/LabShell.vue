@@ -3,7 +3,7 @@
 import { LAB_STYLES } from '~/composables/useLab'
 import type { StyleId } from '~/lib/types'
 
-defineProps<{ title: string; phrase: string }>()
+defineProps<{ title: string; phrase: string; hideStyle?: boolean }>()
 const emit = defineEmits<{ back: []; style: [id: StyleId]; play: []; stop: [] }>()
 const engine = useAudioEngine()
 function toggle() {
@@ -18,7 +18,7 @@ function toggle() {
       <button class="rounded-lg border border-white/20 px-3 py-2 text-sm" aria-label="volver al menú" @click="emit('back')">← Menú</button>
       <h1 class="ml-1 text-base font-medium">{{ title }}</h1>
     </header>
-    <nav class="mt-3 flex flex-wrap gap-1.5" aria-label="estilo">
+    <nav v-if="!hideStyle" class="mt-3 flex flex-wrap gap-1.5" aria-label="estilo">
       <button
         v-for="s in LAB_STYLES"
         :key="s.id"

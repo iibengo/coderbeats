@@ -380,6 +380,9 @@ Lo guardado no se toca: la preferencia `coderbeats:ui:v1` se lee tal cual y **no
 
 Se quitaron Theremín y DJ **como pantallas** (ahora el DJ está en Capas y el sintetizador de dedo es el Coro).
 
+6. **Remixes** (spec 019; etiqueta `lab-v1` justo antes): eliges canción (Himno, Dies Irae, Wow, Sinfonía 40) y actúas sus 4 partes (Intro, Subida, Drop, Final) como botones grandes: entra en el siguiente compás y no avanza solo; dentro, ≤ 4 capas y el DJ. «● Grabar mi versión» (hasta 2 min; el final entra solo ≈ 8 s antes y acaba en el compás justo; «■ Terminar» antes), «▶ Mi versión», «🎬 Mi vídeo» (dura lo mismo), «escuchar el remix original» (la versión de ≈ 1 min del Laboratorio). **Mozart: notas «de oído», sin contrastar con la partitura** (spec 019 §6).
+7. **Mis capas** (spec 018, parte 1–2): lo dibujado en el Círculo es «mi ritmo»; lo tocado en Piano/Coro, «mi melodía» (últimos 4 compases); aparecen en Capas como dos círculos más. **Pendiente de la 018:** «● Grabar», «✦ Hazme una canción», escuchar y vídeo en Capas (se pausó al llegar lo de Remixes).
+
 ## Motor y interfaz
 `app/engine/index.ts` es la frontera (audio, estilos, kits, melodías, guardado/compartir, vídeo); `tests/unit/engineBoundary.test.ts` impide que el Laboratorio importe componentes del Estudio. **No moví archivos** (riesgo alto para poco beneficio): es una frontera por contrato.
 

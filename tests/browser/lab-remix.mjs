@@ -1,0 +1,40 @@
+// Laboratorio · Remixes: elegir canción, tocar partes (entran en el siguiente compás y no avanzan solas), capas, grabar con «Terminar» (entra el final y acaba en un compás justo), escuchar y vídeo.
+import { labOpen, click, sleep } from './lab-lib.mjs'
+const { b, p, errs, O } = await labOpen()
+await click(p, 'Remixes'); await sleep(5000)
+await click(p, 'Mozart'); await sleep(2500)
+const st = () => p.evaluate(() => ({ part: window.__remix.part(), shown: window.__remix.shown(), on: window.__remix.on(), mode: window.__remix.mode(), rec: window.__remix.rec(), take: window.__remix.take() }))
+console.log('al elegir (parado):', JSON.stringify(await st()))
+const tapPart = (n) => p.evaluate((n) => document.querySelector(`[data-part=${n}]`).dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })), n)
+await tapPart('Intro'); await sleep(3500)
+console.log('suena la intro:', JSON.stringify(await st()), 'plan', JSON.stringify(await p.evaluate(() => window.__remix.plan())))
+await tapPart('Drop'); await sleep(100)
+console.log('tocar Drop (entra en el siguiente compás):', JSON.stringify(await st()))
+await sleep(2500)
+console.log('2,5 s después:', JSON.stringify(await st()))
+await sleep(8000)
+console.log('8 s más tarde sigue en el Drop (no avanza solo):', (await st()).part)
+// apagar una capa tocando el círculo del bajo (posición 2 de 4)
+const r = await p.evaluate(() => { const c = document.querySelector('canvas').getBoundingClientRect(); return [c.x, c.y, c.width] })
+const k = r[2] / 680
+const lay = (i, n) => { const a = -Math.PI / 2 + (i * Math.PI * 2) / n; return [r[0] + (340 + Math.cos(a) * 175) * k, r[1] + (340 + Math.sin(a) * 175) * k] }
+await p.mouse.click(...lay(1, 4)); await sleep(200)
+console.log('capa 2 del drop apagada:', (await st()).on)
+await p.screenshot({ path: `${O}/remix1.png` })
+// grabar
+await click(p, 'Grabar mi versión'); await sleep(500)
+await tapPart('Subida'); await sleep(4200)
+await tapPart('Drop'); await sleep(4200)
+console.log('grabando:', JSON.stringify(await st()))
+await click(p, 'Terminar'); await sleep(300)
+console.log('terminando:', JSON.stringify(await st()))
+await p.screenshot({ path: `${O}/remix2.png` })
+for (let i = 0; i < 20; i++) { await sleep(1000); const s = await st(); if (s.mode === 'escuchar') break }
+console.log('fin:', JSON.stringify(await st()), 'compases:', await p.evaluate(() => window.__remix.take()))
+await sleep(3000)
+await click(p, 'Mi vídeo'); await sleep(2000)
+console.log('vídeo:', await p.evaluate(() => document.body.innerText.match(/Grabando el vídeo[^\n]*/)?.[0] ?? 'sin texto'))
+for (let i = 0; i < 60; i++) { await sleep(2000); if (await p.evaluate(() => /Compartir vídeo/.test(document.body.innerText))) break }
+console.log('vídeo listo:', await p.evaluate(() => /Compartir vídeo/.test(document.body.innerText)), errs)
+await p.screenshot({ path: `${O}/remix3.png` })
+await b.close()

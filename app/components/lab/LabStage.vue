@@ -26,7 +26,12 @@ function ripple(x: number, y: number, c: string, grow = 5, r = 24) {
   ripples.push({ x, y, r, a: 1, c, grow })
   if (ripples.length > 14) ripples.shift()
 }
-defineExpose({ ripple, C })
+let frameHook: (() => void) | null = null
+/** Para exportar vídeo (spec 013): el lienzo del escenario (sin botones) y el gancho de cada frame. */
+function videoSource() {
+  return { water: null, aro: cv.value, width: LAB_W, height: LAB_W, setHook: (f: (() => void) | null) => (frameHook = f) }
+}
+defineExpose({ ripple, C, videoSource })
 
 function pos(e: PointerEvent): [number, number] {
   const r = cv.value!.getBoundingClientRect()
@@ -98,6 +103,7 @@ onMounted(() => {
       g.globalAlpha = 1
     }
     ripples = ripples.filter((r) => r.a > 0.03)
+    frameHook?.()
   }
   tick()
 })
