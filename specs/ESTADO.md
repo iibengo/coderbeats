@@ -277,3 +277,8 @@ Tests (1074), typecheck y build en verde; comprobado en Chrome (`tests/browser/s
 2. **Guiado:** ¿se entiende «Lleva el dedo al punto de luz»? ¿Cuesta llegar (radio, giro)? ¿Suena bien la nota al llegar? Completa un tema: ¿queda sonando con la canción y cuadra con el ritmo? «↻ Otra» con los 6 temas: ¿cuáles suenan bien en tu estilo?
 3. «✋ Libre» y «● Grabar»: igual que antes.
 4. **Rendimiento:** ¿va fluido en tu móvil? Si no, ¿se simplifica sola?
+
+## Novena tanda, segunda parte: modo espiral (spec 015 §14)
+Pedido tras probar el guiado: **el instrumento al revés**. Ahora el modo por defecto es la **🌀 Espiral**: pones el dedo y lo mueves **sin levantar, como quieras**; las notas del tema vienen a él por una espiral (puntos de color que se enroscan hacia el dedo, con cola) y **suenan solas al llegar**; el dedo deja un rastro de luz y da el brillo (izquierda–derecha). Al llegar a la última nota queda grabada en la célula y el tema sigue en bucle. «🌀 → 🎯 → ✋» cambia de modo (🎯 es el de llevar el dedo al punto; ✋ el libre). Comprobado en Chrome (dedo táctil moviéndose al azar: suenan las notas del tema y queda guardada); **sin probar de oído**.
+- Decisión a revisar: el ritmo es el del bpm pero **no va sincronizado con el compás de la canción** (no se toca el reloj del motor): puede notarse desfasado respecto a la batería.
+- Probar: ⋯ → «+ melodía», pon el dedo y muévelo sin levantar. ¿Se entiende que las notas vienen a ti? ¿Suena la melodía reconocible? ¿Va a tempo con la batería o desfasada? ¿Se ve bien el rastro y las ondas? ¿Va fluido?

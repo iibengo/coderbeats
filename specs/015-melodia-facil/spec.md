@@ -152,3 +152,12 @@ Probado en el móvil: «Agua» sonaba pero no se entendía (todo negro). Ahora, 
 
 ### 13.3 Corrección tras probarlo (2026-11-16): el punto saltaba de un lado a otro
 Con el móvil en la mano, el punto de luz **saltaba y era difícil seguirlo** (se ponía lo más lejos posible de la anterior, la curva giraba y se deformaba bajo él). Ahora, en el guiado: **la curva no gira** y el dedo **no tira de ella**; el punto está sobre la **curva base** (sin deformar) y **se desliza** hasta su sitio en vez de aparecer de golpe; elige **el punto de la curva a la altura de su nota más cercano al anterior** (solo una nota repetida cae algo aparte, 1,6·r); y se ve, **tenue, la siguiente nota** unida con una línea de puntos, para saber adónde va. Test: el salto medio entre notas fantasma es < 45 % del ancho en los 6 temas.
+
+## 14. Modo espiral: las notas vienen al dedo (2026-11-16)
+**Pedido tras probar el guiado:** «el instrumento al revés: muevo el dedo sin levantar, al azar, y **las notas vienen a mi dedo por una espiral**, dejando un rastro; así suena de verdad la melodía».
+- **Es el modo por defecto** del sintetizador (`lib/spiral.ts`, `ThereminOverlay.vue`). «🌀 Espiral → 🎯 Puntos → ✋ Libre» se cambia con un botón; «↻ Otra» elige otro tema.
+- **El dedo solo se mueve** (sin levantar, donde quiera): su posición horizontal da el **brillo** (filtro). **La nota la pone el tema** de la biblioteca (§13), adaptado al estilo: suena al llegar al dedo, con su altura, su ritmo y su duración (`schedule`: un paso = una semicorchea al bpm; el final de una nota nunca pisa a la siguiente; si hay hueco, se suelta).
+- **La espiral** está centrada en el dedo (suavizado) y se enrosca hacia él: cada nota es un punto de su color (rosa/lila/azul por altura) que se acerca, se enciende y deja una cola; se ven las que llegan en los próximos 4 s. Al llegar sale una **onda de color del dedo**; el dedo deja su **rastro de luz** (1,4 s) y es rosa cuando suena.
+- **El reloj del tema solo corre con el dedo puesto** (empieza 2 s antes de la primera nota; al levantarlo se para y sigue al volver a ponerlo). No va colgado del reloj del motor: **el ritmo es el del bpm, pero no se sincroniza con el compás de la canción** (anotado: sin probar de oído cuánto se nota).
+- **Al llegar a la última nota** del tema, la melodía queda **grabada en la célula** (una vez; el tema da la vuelta y sigue sonando para jugar).
+- Respeta el vigilante de frames (`drawLevel`): con nivel 2 se ven menos notas por delante y sin cola ni brillos; con movimiento reducido, sin onda ni giro.

@@ -5,6 +5,7 @@
 import { curvePoint, deformOffset, lightAlpha, lightPush, lissajousOf, nearestParam, waveGlow, type LightPoint, type LissajousParams, type P2 } from '~/lib/theremin'
 import { GHOST_R, GUIDE_FRESH, guideStep, noteY, placeGhost, type Ghost, type GuideState } from '~/lib/tuneGuide'
 import { adaptTune, TUNES } from '~/lib/tuneLibrary'
+import { arrivals, endedWithGap, LEAD_IN, LOOKAHEAD, schedule, spiralPoint, visible } from '~/lib/spiral'
 import { midiName } from '~/lib/noteScore'
 import { pitchColor, scaleNotes } from '~/lib/waterKeys'
 import type { MelodyHit } from '~/lib/melody'
@@ -21,11 +22,18 @@ const loopHits = computed<MelodyHit[]>(() => (loops.value.loops.find((l) => l.in
 const touched = ref(false)
 const down = ref(false)
 
-// ── modo guiado ──────────────────────────────────────────────────────────────────
-const guided = ref(true)
+// ── modos: espiral (por defecto: las notas vienen al dedo), puntos (llevar el dedo a la nota) y libre ───────────────
+type Mode = 'spiral' | 'points' | 'free'
+const mode = ref<Mode>('spiral')
+const MODE_LABEL: Record<Mode, string> = { spiral: '🌀 Espiral', points: '🎯 Puntos', free: '✋ Libre' }
+const NEXT_MODE: Record<Mode, Mode> = { spiral: 'points', points: 'free', free: 'spiral' }
+/** los modos con tema de la biblioteca */
+const guided = computed(() => mode.value !== 'free')
+const spiral = computed(() => mode.value === 'spiral')
 const tuneIdx = ref(0)
 const tune = computed(() => TUNES[tuneIdx.value % TUNES.length]!)
 const tuneHits = computed(() => adaptTune(tune.value, style.value))
+const sched = computed(() => schedule(tuneHits.value, bpm.value))
 const progress = ref(0)
 const finished = ref(false)
 let gstate: GuideState = { ...GUIDE_FRESH }
@@ -33,6 +41,11 @@ let ghost: Ghost | null = null
 
 /** los parámetros de la curva: la del tema (guiado) o la de la melodía de la célula (libre) */
 const params = computed<LissajousParams>(() => lissajousOf(guided.value ? tuneHits.value : loopHits.value))
+
+// ── espiral: el reloj del tema solo avanza con el dedo puesto ─────────────────────
+let tc = -LEAD_IN // segundos desde el principio del tema (negativo = cuenta atrás)
+let saved = false
+const arrived = ref(0)
 
 // ── estado del dibujo ────────────────────────────────────────────────────────────
 const trail: LightPoint[] = []
@@ -70,13 +83,16 @@ const ghostAt = (t: number): P2 => curvePoint(params.value, t, size.w, size.h, p
 let ghostShown: P2 | null = null
 
 function placeNext() {
-  if (!guided.value || gstate.done) return (ghost = null)
+  if (mode.value !== 'points' || gstate.done) return (ghost = null)
   const m = tuneHits.value[gstate.k]?.midi
   const idx = m === undefined ? -1 : notes.value.indexOf(m)
   if (idx < 0) return (ghost = null)
   ghost = placeGhost(params.value, size.w, size.h, idx, notes.value.length, ghost ? ghostAt(ghost.t) : null, phaseAt(now()), GHOST_R)
 }
 function restart() {
+  tc = -LEAD_IN
+  saved = false
+  arrived.value = 0
   gstate = { ...GUIDE_FRESH }
   progress.value = 0
   finished.value = false
@@ -87,9 +103,10 @@ function otherTune() {
   tuneIdx.value = (tuneIdx.value + 1) % TUNES.length
   restart()
 }
-function setGuided(on: boolean) {
-  guided.value = on
-  if (on) restart()
+function cycleMode() {
+  engine.thereminStop()
+  mode.value = NEXT_MODE[mode.value]
+  if (guided.value) restart()
   else {
     ghost = null
     finished.value = false
@@ -110,8 +127,14 @@ function sound(e: PointerEvent | null) {
   if (!e) return
   const p = pos(e)
   finger = p
+  if (spiral.value) {
+    // el dedo solo da el brillo; la nota la pone la espiral al llegar
+    engine.thereminFilter(fx(p.x))
+    lightPush(trail, { x: p.x, y: p.y, t: now(), h: hOf(engine.thereminNote.value) })
+    return
+  }
   let force: number | undefined
-  if (guided.value && !gstate.done && ghost) {
+  if (mode.value === 'points' && !gstate.done && ghost) {
     const target = ghost.t
     const r = guideStep(gstate, tuneHits.value.length, p, ghostAt(target))
     if (r.hit) {
@@ -137,7 +160,7 @@ function onDown(e: PointerEvent) {
   touched.value = true
   down.value = true
   fingerS = pos(e)
-  if (guided.value && gstate.done) restart() // tocar tras acabar: otra vuelta al mismo tema
+  if (mode.value === 'points' && gstate.done) restart() // tocar tras acabar: otra vuelta al mismo tema
   sound(e)
 }
 function onMove(e: PointerEvent) {
@@ -187,6 +210,26 @@ function draw() {
     if (cur !== null && lastNote !== null && wave.at < tm - 0.05) trigger(cur, finger) // (si un acierto del guiado ya lanzó la onda, no se repite)
     lastNote = cur
   }
+  // espiral: con el dedo puesto avanza el reloj del tema; al llegar, cada nota suena (la pone el tema, no el dedo)
+  if (spiral.value && down.value) {
+    const from = tc
+    tc += dt
+    const sc = sched.value
+    const total = sc.length
+    for (const nt of arrivals(sc, from, tc)) {
+      engine.thereminMove(fx(finger.x), fy(finger.y), nt.midi)
+      trigger(nt.midi, fingerS)
+      arrived.value = nt.i + 1
+      if (nt.i + 1 >= total && !saved) saved = finished.value = engine.saveMelody(tuneHits.value.map((h) => ({ ...h })))
+    }
+    if (endedWithGap(sc, from, tc)) engine.thereminStop()
+    // el tema da la vuelta y sigue (la melodía ya quedó guardada la primera vez)
+    const last = sc[sc.length - 1]
+    if (last && tc > last.end + 1) {
+      tc = -1
+      arrived.value = 0
+    }
+  }
   const sounding = down.value && cur !== null
   const n = notes.value.length
   // las notas de la escala, suaves (la que suena, encendida)
@@ -203,6 +246,61 @@ function draw() {
     x.fillStyle = on ? 'rgba(255,200,225,0.95)' : 'rgba(255,255,255,0.3)'
     x.fillText(midiName(notes.value[i]!), 8, y - 3)
   }
+  if (spiral.value) {
+    // la espiral: centrada en el dedo (suavizado); cada nota es un punto de su color que se enrosca hacia él y deja una cola
+    const c = touched.value ? fingerS : { x: w / 2, y: h / 2 }
+    const rMax = Math.min(w, h) * 0.46
+    const spin = props.reduced ? 0 : tm * 0.25
+    x.lineCap = 'round'
+    x.strokeStyle = 'rgba(185,163,255,0.42)'
+    x.lineWidth = 1.5
+    x.beginPath()
+    const steps = level === 0 ? 90 : 45
+    for (let i = 0; i <= steps; i++) {
+      const pt = spiralPoint(c, (i / steps) * LOOKAHEAD, rMax, spin)
+      if (i) x.lineTo(pt.x, pt.y)
+      else x.moveTo(pt.x, pt.y)
+    }
+    x.stroke()
+    for (const nt of visible(sched.value, tc, level >= 2 ? 2.5 : LOOKAHEAD)) {
+      const col = pitchColor(hOf(nt.midi))
+      const near = Math.max(0, 1 - nt.tau / 1.2) // se enciende al acercarse
+      if (level === 0) {
+        // la cola: por dónde viene
+        x.strokeStyle = col
+        x.globalAlpha = 0.3 + near * 0.4
+        x.lineWidth = 3
+        x.beginPath()
+        for (let j = 0; j <= 4; j++) {
+          const q = spiralPoint(c, nt.tau + j * 0.07, rMax, spin)
+          if (j) x.lineTo(q.x, q.y)
+          else x.moveTo(q.x, q.y)
+        }
+        x.stroke()
+      }
+      const pt = spiralPoint(c, nt.tau, rMax, spin)
+      x.globalAlpha = 0.78 + near * 0.22
+      x.fillStyle = col
+      x.shadowColor = col
+      x.shadowBlur = level === 0 ? 8 + near * 14 : 0
+      x.beginPath()
+      x.arc(pt.x, pt.y, 5 + near * 5, 0, Math.PI * 2)
+      x.fill()
+      x.shadowBlur = 0
+      x.globalAlpha = 1
+    }
+    // al llegar, la onda de color sale del dedo
+    const ageS = tm - wave.at
+    if (!props.reduced && ageS >= 0 && ageS < 0.7) {
+      x.strokeStyle = pitchColor(wave.h)
+      x.globalAlpha = 1 - ageS / 0.7
+      x.lineWidth = 3
+      x.beginPath()
+      x.arc(c.x, c.y, 14 + ageS * 150, 0, Math.PI * 2)
+      x.stroke()
+      x.globalAlpha = 1
+    }
+  } else {
   // la curva viva
   const N = level === 0 ? 160 : 72
   const pts: P2[] = []
@@ -280,6 +378,7 @@ function draw() {
     x.arc(g.x, g.y, GHOST_R * (0.62 + pulse * 0.04), 0, Math.PI * 2)
     x.stroke()
   } else ghostShown = null
+  }
   // la curva de luz del dedo
   if (!props.reduced) {
     for (let i = 1; i < trail.length; i++) {
@@ -327,18 +426,20 @@ onBeforeUnmount(() => {
     <canvas ref="canvas" class="cv" />
     <button class="btn left" aria-label="cerrar el sintetizador" @pointerdown.stop @click="emit('close')">✕</button>
     <div class="btns">
-      <template v-if="guided">
-        <button class="btn" aria-label="elegir otra melodía" @pointerdown.stop @click="otherTune">↻ Otra</button>
-        <button class="btn" aria-label="tocar libre, sin melodía guiada" @pointerdown.stop @click="setGuided(false)">✋ Libre</button>
-      </template>
-      <template v-else>
-        <button class="btn" aria-label="volver al modo guiado" @pointerdown.stop @click="setGuided(true)">🎯 Guiado</button>
+      <button v-if="guided" class="btn" aria-label="elegir otra melodía" @pointerdown.stop @click="otherTune">↻ Otra</button>
+      <button class="btn" aria-label="cambiar de modo: espiral, puntos o libre" @pointerdown.stop @click="cycleMode">{{ MODE_LABEL[mode] }}</button>
+      <template v-if="!guided">
         <button class="btn" :class="{ rec: !!keysRec }" :aria-label="keysRec ? 'terminar y guardar lo tocado como melodía' : 'grabar lo que toques como melodía'" @pointerdown.stop @click="rec">
           {{ keysRec ? `■ ${keysRec.count} notas` : playing ? '● Grabar' : '▶ para grabar' }}
         </button>
       </template>
     </div>
-    <p v-if="guided && finished" class="tag" role="status">¡Melodía guardada! Toca para repetirla</p>
+    <p v-if="spiral" class="tag" role="status">
+      {{ tune.name }} · {{ arrived }}/{{ tuneHits.length }}
+      <span v-if="finished" class="sub">¡Melodía guardada en la célula!</span>
+      <span v-else-if="!touched" class="sub">Pon el dedo y muévelo sin levantar: las notas vienen a él</span>
+    </p>
+    <p v-else-if="guided && finished" class="tag" role="status">¡Melodía guardada! Toca para repetirla</p>
     <p v-else-if="guided" class="tag" role="status">
       {{ tune.name }} · {{ progress }}/{{ tuneHits.length }}
       <span v-if="!touched" class="sub">Lleva el dedo al punto de luz</span>

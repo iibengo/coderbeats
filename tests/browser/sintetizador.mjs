@@ -9,7 +9,16 @@ await sleep(1500)
 const st = () => p.evaluate(() => ({ kind: window.__engine.song.value.cells.find((c) => c.id === window.__engine.viewCellId.value)?.kind, th: !!document.querySelector('.th'), tag: document.querySelector('.th .tag')?.textContent, note: window.__engine.thereminNote.value }))
 console.log('celda', id, await st())
 await p.screenshot({ path: `${OUT}/sint-1.png` })
-// ── guiado: llevar el dedo a la nota fantasma varias veces
+// ── espiral (por defecto): dedo puesto, moviéndose al azar; las notas llegan solas
+console.log('espiral, al empezar:', await p.evaluate(() => document.querySelector('.th .tag')?.textContent.trim().replace(/\s+/g, ' ')))
+const sp = await p.touchscreen.touchStart(200, 450)
+const notesHeard = new Set()
+for (let i = 0; i < 340; i++) { await sp.move(200 + 120 * Math.sin(i / 9), 450 + 200 * Math.cos(i / 7)); await sleep(50); const n = await p.evaluate(() => window.__engine.thereminNote.value); if (n) notesHeard.add(n) }
+await p.screenshot({ path: `${OUT}/sint-espiral.png` })
+await sp.end(); await sleep(300)
+console.log('espiral: notas distintas sonadas:', notesHeard.size, '|', await p.evaluate(() => document.querySelector('.th .tag')?.textContent.trim().replace(/\s+/g, ' ')), '| guardada:', await p.evaluate(() => window.__engine.loops.value.loops.filter((l) => l.instrument === 'mel').map((l) => l.hits.length)))
+await clickLabel(p, 'cambiar de modo'); await sleep(400)
+// ── puntos: llevar el dedo a la nota fantasma varias veces
 const ghost = () => p.evaluate(() => window.__thGhost?.())
 const prog = () => p.evaluate(() => document.querySelector('.th .tag')?.textContent.trim().replace(/\s+/g, ' '))
 console.log('guiado, al empezar:', await prog(), await ghost())
@@ -22,7 +31,7 @@ await p.screenshot({ path: `${OUT}/sint-guiado.png` })
 let guard = 0
 while ((await ghost()) && guard++ < 40) { const g = await ghost(); const t = await p.touchscreen.touchStart(g.x, g.y); await sleep(120); await t.end(); await sleep(150) }
 console.log('al terminar:', await prog(), '| melodía guardada:', await p.evaluate(() => window.__engine.loops.value.loops.filter((l) => l.instrument === 'mel').map((l) => l.hits.length)))
-await clickLabel(p, 'tocar libre')
+await clickLabel(p, 'cambiar de modo')
 await sleep(300)
 // deslizar de abajo a arriba
 const t = await p.touchscreen.touchStart(200, 700)

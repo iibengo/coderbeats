@@ -2777,6 +2777,10 @@ export function useAudioEngine() {
       }
       return midi
     },
+    /** Solo el filtro (el brillo) de la nota que suena, sin cambiar de nota (modo espiral: el dedo solo da el brillo). */
+    thereminFilter: (fx: number) => {
+      if (thereminVoice && ctx) thereminVoice.filter.frequency.setTargetAtTime(brightnessAtX(fx), ctx.currentTime, 0.03)
+    },
     /** Suelta el dedo: la nota se apaga con una cola corta. */
     thereminStop: () => {
       const v = thereminVoice
