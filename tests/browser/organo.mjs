@@ -22,5 +22,10 @@ console.log('en la toma:', await p.evaluate(() => document.querySelector('[data-
 for (const r of [7, 4, 5]) { await p.mouse.click(...at(10, r)); await sleep(1300) }
 console.log('tras 3 toques:', await mel())
 for (let i = 0; i < 60 && !(await p.evaluate(() => /● grabar/.test(document.querySelector('[data-organ-rec]').textContent))); i++) await sleep(250)
+// Piano mágico: el ritmo es mío, las notas las pone la melodía del estilo
+await p.evaluate(() => document.querySelector('[data-organ-piano]').click())
+for (let i = 0; i < 40 && !(await p.evaluate(() => /tocando/.test(document.querySelector('[data-organ-piano]').textContent))); i++) await sleep(250)
+for (const r of [3, 3, 3, 3]) { await p.mouse.click(...at(6, r)); await sleep(700) }
+console.log('piano mágico (4 toques, las notas las pone la melodía):', await mel())
 console.log('acaba sola:', await p.evaluate(() => document.querySelector('[data-organ-rec]').textContent.trim()), await mel(), errs)
 await b.close()

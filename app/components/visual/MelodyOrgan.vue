@@ -7,6 +7,7 @@
 // Se abre y se cierra con una transición de agua desde el punto donde se tocó la franja.
 import { removeHit } from '~/lib/loopEdit'
 import { answerPhrase } from '~/lib/melodyGrid'
+import { adaptTune, TUNES, tunesFor } from '~/lib/tuneLibrary'
 import { addMelNote, dropExtraMelodies, extraMelodies, gForBar, melLoopOf, moveMelNote, resizeMelNote, restoreMel, setMelBars, snapMelStep, type MelEditOptions } from '~/lib/melodyEdit'
 import type { FreeLoop, LoopsState } from '~/lib/freeLoops'
 import { isTonic, rangeOf, rowOf, scaleNotes } from '~/lib/melodyView'
@@ -195,17 +196,25 @@ function respond() {
 }
 
 // ── ● grabar a media velocidad (spec 020 §1.1): la base sigue a su tempo y la frase se toca al doble de lento; 1 compás de cuenta; se cuadra a la casilla; acaba sola ──
-const rec = ref<{ start: number; bars: 1 | 2 } | null>(null)
+/** `media`: tocas la frase al doble de lento y la altura la da la fila; `piano`: tocas el ritmo a su velocidad y la altura la pone la melodía del estilo (Piano mágico) */
+const rec = ref<{ start: number; bars: 1 | 2; mode: 'media' | 'piano' } | null>(null)
 const recState = ref<'' | 'cuenta' | 'grabando'>('')
 let recHits: MelodyHit[] = []
-async function startRec() {
+let tuneIdx = 0
+let tuneNotes: MelodyHit[] = []
+async function startRec(mode: 'media' | 'piano' = 'media') {
   if (rec.value) return stopRec()
   const l = loop.value
   const rb = l ? (Math.min(2, l.bars) as 1 | 2) : 2
   if (l) commit({ ...loops.value, loops: loops.value.loops.filter((x) => x.id !== l.id) }) // la melodía de antes queda en «deshacer»
   recHits = []
   if (!playing.value) await engine.play()
-  rec.value = { start: engine.clockNow().bar + 2, bars: rb }
+  if (mode === 'piano') {
+    const t = tunesFor(style.value)[0] ?? TUNES[0]!
+    tuneNotes = [...adaptTune(t, style.value)].sort((a, b) => a.pos - b.pos)
+    tuneIdx = 0
+  }
+  rec.value = { start: engine.clockNow().bar + 2, bars: rb, mode }
   recState.value = 'cuenta'
 }
 function stopRec() {
@@ -218,13 +227,14 @@ function recSteps(): number | null {
   if (!r) return null
   const c = engine.clockNow()
   const elapsed = c.bar - r.start + c.barPhase
-  return elapsed < 0 ? null : (elapsed / 2) * 16
+  return elapsed < 0 ? null : (r.mode === 'piano' ? elapsed : elapsed / 2) * 16
 }
 function recNote(e: PointerEvent) {
   const r = rec.value
   if (!r) return
   const { y } = cell(e)
-  const midi = midiOfRow(Math.min(rows.value.length - 1, Math.max(0, Math.floor(y / rowH.value))))
+  // Piano mágico: la altura es la siguiente nota de la melodía del estilo (se ignora dónde toques); si no, la fila
+  const midi = r.mode === 'piano' && tuneNotes.length ? tuneNotes[tuneIdx++ % tuneNotes.length]!.midi : midiOfRow(Math.min(rows.value.length - 1, Math.max(0, Math.floor(y / rowH.value))))
   engine.previewNote(midi, synth.value)
   const raw = recSteps()
   if (raw === null) return // en la cuenta, suena pero no se apunta
@@ -453,11 +463,13 @@ const label = (m: number) => midiName(m).replace('#', '♯')
       </header>
 
       <div class="flex flex-wrap items-center gap-2 px-4 pb-2 text-xs">
-        <button class="rounded-full border px-3 py-1.5" :class="rec ? 'border-[#ff4d6d] text-[#ff4d6d]' : 'border-white/30 text-white'" data-organ-rec @click="startRec">{{ recState === 'cuenta' ? 'cuenta…' : recState === 'grabando' ? '■ grabando' : '● grabar' }}</button>
+        <button class="rounded-full border px-3 py-1.5" :class="rec?.mode === 'media' ? 'border-[#ff4d6d] text-[#ff4d6d]' : 'border-white/30 text-white'" :disabled="rec?.mode === 'piano'" data-organ-rec @click="startRec('media')">{{ rec?.mode !== 'media' ? '● grabar' : recState === 'cuenta' ? 'cuenta…' : '■ grabando' }}</button>
+        <button class="rounded-full border px-3 py-1.5" :class="rec?.mode === 'piano' ? 'border-[#ff4d6d] text-[#ff4d6d]' : 'border-white/30 text-white'" :disabled="rec?.mode === 'media'" data-organ-piano aria-label="piano mágico: tocas el ritmo y la app pone las notas" @click="startRec('piano')">{{ rec?.mode !== 'piano' ? '🎹 piano' : recState === 'cuenta' ? 'cuenta…' : '■ tocando' }}</button>
         <button class="rounded-full border border-[#F496BC]/60 px-3 py-1.5 text-white disabled:opacity-30" :disabled="!canRespond" data-organ-respond @click="respond">↻ responder</button>
         <button v-if="engine.assist.value" class="rounded-full border px-3 py-1.5" :class="fine ? 'border-white text-white' : 'border-white/25 text-white/60'" aria-label="casillas más finas (semicorcheas)" @click="fine = !fine">fino</button>
         <button v-if="extras" class="rounded-full border border-amber-300/60 px-3 py-1.5 text-amber-200" data-organ-extras @click="dropExtras">+{{ extras }} melodía{{ extras === 1 ? '' : 's' }} apilada{{ extras === 1 ? '' : 's' }} · quitar</button>
-        <span v-if="rec" class="text-[#ff4d6d]">toca al doble de lento; se cuadra solo y acaba al llegar al final</span>
+        <span v-if="rec?.mode === 'media'" class="text-[#ff4d6d]">toca al doble de lento; se cuadra solo y acaba al llegar al final</span>
+        <span v-if="rec?.mode === 'piano'" class="text-[#ff4d6d]">toca el ritmo donde quieras: cada toque es la siguiente nota</span>
       </div>
 
       <div class="flex min-h-0 flex-1 px-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
