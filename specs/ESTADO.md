@@ -184,3 +184,29 @@ Escrito primero en **spec 001 §17** (flujo, modelo, cómo medirlo con tus tomas
 2. Canta «na» o di algo que no sea beatbox varias veces: ¿sale «¿Te afino a tu voz?»? ¿«Sí» abre «Tus sonidos» y al guardar mejora? ¿«Ahora no» no vuelve a salir?
 3. Con cascos Bluetooth: ¿la imagen va por delante del sonido? ⋯ → «Medir latencia» ¿lo arregla? ¿Cuánto da frente a 180 ms?
 4. ⋯: la línea «Sonidos: modelo por defecto / calibrados» cambia al calibrar.
+
+---
+
+# Sexta tanda (2026-11-16) — el modelo por defecto se adapta al micro
+
+**Qué pasó en tu iPhone** (tu registro): bombo bien; los «ts» salían como caja y los «pff» como bombo. Todo un escalón más grave que en tu toma del laboratorio. Tu registro **no traía cifras del espectro**, así que no se puede saber exactamente qué cambió en el micro; sí se ve que el orden bum < pff < ts se mantiene.
+
+**Qué hice** (spec 001 §17.8, `lib/adaptiveModel.ts`): sin calibración propia, el modelo **compara los golpes entre sí** en vez de fiarse del espectro absoluto: cuando entre los últimos golpes aparecen tres grupos de claridad bien separados, aprende que el más grave es bombo, el medio caja y el agudo platillo, y los guarda para la próxima sesión (por dispositivo). Con calibración propia no interviene.
+
+**Medida antes → después** (tus tomas `t8`, «bum pff ts» en bucle, precisión/cobertura por secuencia; micros **simulados** que apagan los agudos):
+
+| micro | antes (fijo) | después (adaptativo) |
+|---|---|---|
+| tal cual | 76 % / 73 % | 76 % / 73 % |
+| medio escalón más grave | 55 % / 53 % | **72 % / 70 %** |
+| 0,7 de escalón más grave | 59 % / 57 % | **72 % / 70 %** |
+
+**Límites honestos:** es una **simulación**, no tu iPhone (no hay cifras de su espectro). **La primera vez que suene cada clase nueva puede equivocarse** (hasta tener las tres clases oídas, usa los prototipos fijos): en tu prueba, con el orden bombo → ts → pff, es probable que el primer «ts» y el primer «pff» fallen y luego acierte. Con solo dos clases, sigue fijo.
+
+**Para el próximo registro:** cada golpe del diagnóstico trae ahora `c` (centroide), `z` (cruces por cero) y `graves`, y sale una línea cuando aprende tu micro («claridad bum … · pff … · ts …»). Con esas cifras de tu iPhone puedo ajustar los prototipos de verdad.
+
+## Qué probar en el móvil
+1. Borra «auto-centers» no hace falta: abre la app (con los datos del sitio borrados), toca ▶ y haz **bum ×4, pff ×4, ts ×4, y repite el ciclo**: ¿acierta en la segunda vuelta? ¿Sale la línea «el modelo por defecto aprendió tu micro» en el diagnóstico?
+2. **Cierra y abre la app** y haz solo «ts» primero: ¿ya sale platillo (usa los centros guardados)?
+3. Pásame el registro con las nuevas cifras (`c`, `z`, `graves`) de 6 «bum», 6 «pff» y 6 «ts».
+4. Si sigue sin acertar bien: ⋯ → «Calibrar mis sonidos».
