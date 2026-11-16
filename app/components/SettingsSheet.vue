@@ -21,7 +21,7 @@ const motion = useAroMotion()
 const reduced = import.meta.client && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 const showMotion = computed(() => motion.available() && !reduced)
 const copied = ref(false)
-const tab = ref<'ajustes' | 'codigo' | 'diagnostico'>('ajustes')
+const tab = ref<'ajustes' | 'codigo' | 'diagnostico' | 'acerca'>('ajustes')
 
 async function copyText(text: string) {
   try {
@@ -145,6 +145,7 @@ watch(open, (o) => {
           <button class="rounded-full px-3 py-1" :class="chip(tab === 'diagnostico')" @click="tab = 'diagnostico'">
             diagnóstico
           </button>
+          <button class="rounded-full px-3 py-1" :class="chip(tab === 'acerca')" @click="tab = 'acerca'">acerca de</button>
         </nav>
 
         <div v-if="tab === 'ajustes'" class="grid gap-3">
@@ -322,6 +323,8 @@ watch(open, (o) => {
           </div>
           <pre class="overflow-x-auto rounded-lg bg-black/30 p-3 font-mono text-xs leading-relaxed text-neutral-300">{{ code }}</pre>
         </div>
+
+        <AboutPanel v-else-if="tab === 'acerca'" />
 
         <div v-else class="text-xs text-neutral-500">
           <div class="mb-2 flex items-center justify-between">

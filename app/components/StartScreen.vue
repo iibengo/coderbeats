@@ -3,6 +3,7 @@ const emit = defineEmits<{ started: [] }>()
 const { start } = useAudioEngine()
 const { data } = useCalibration()
 const busy = ref(false)
+const about = ref(false)
 const error = ref<string | null>(null)
 const secure = import.meta.client ? window.isSecureContext : true
 
@@ -46,5 +47,7 @@ async function onStart() {
     <p class="max-w-xs text-xs text-neutral-500">
       Mejor con cascos con cable.
     </p>
+    <button class="text-xs text-neutral-500 underline underline-offset-4" @click="about = !about">{{ about ? 'Cerrar' : 'Acerca de' }}</button>
+    <div v-if="about" class="max-h-[40dvh] max-w-sm overflow-y-auto text-left"><AboutPanel /></div>
   </section>
 </template>

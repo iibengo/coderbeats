@@ -37,6 +37,8 @@ export default defineNuxtConfig({
       meta: [
         { name: 'viewport', content: 'width=device-width, initial-scale=1, viewport-fit=cover' },
         { name: 'theme-color', content: '#0B0B0F' },
+        { name: 'description', content: 'Haz beatbox con el micro y míralo convertirse en batería, melodía y código Strudel. Software libre (AGPL).' },
+        { name: 'apple-mobile-web-app-capable', content: 'yes' },
       ],
     },
   },
