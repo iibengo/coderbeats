@@ -34,3 +34,30 @@ export class FitMonitor {
     this.recent = []
   }
 }
+
+/**
+ * ¿Casi todo lo que no es bombo sale como caja? (spec 001 §17.10). Con beatbox de verdad salen platillos; si de los últimos golpes que no son bombo
+ * (`MIX_WINDOW`) ni uno solo es platillo, el modelo por defecto no está distinguiendo caja de platillo con este micro: se propone calibrar. Puro.
+ */
+export const MIX_WINDOW = 10
+export const MIX_MIN = 10
+
+export class MixMonitor {
+  private recent: ('sd' | 'hh')[] = []
+
+  /** Un golpe oído (`bd` y `unknown` no cuentan). */
+  push(instrument: string): void {
+    if (instrument !== 'sd' && instrument !== 'hh') return
+    this.recent.push(instrument)
+    if (this.recent.length > MIX_WINDOW) this.recent.shift()
+  }
+
+  /** ¿Todo caja, con suficientes golpes para opinar? */
+  allSnare(): boolean {
+    return this.recent.length >= MIX_MIN && this.recent.every((i) => i === 'sd')
+  }
+
+  reset(): void {
+    this.recent = []
+  }
+}

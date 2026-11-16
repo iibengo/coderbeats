@@ -106,7 +106,7 @@ import { allLanes, toggleLane as toggleLaneSet, type Lanes } from '~/lib/lanes'
 import { fmtVolume, isTooQuiet } from '~/lib/volume'
 import { readJson, writeJson } from '~/lib/storage'
 import { defaultCalibration } from '~/lib/defaultModel'
-import { FitMonitor } from '~/lib/modelFit'
+import { FitMonitor, MixMonitor } from '~/lib/modelFit'
 import type { FromWorker, ToWorker } from '~/lib/workerProtocol'
 
 type StrudelModule = typeof import('@strudel/web')
@@ -320,6 +320,7 @@ async function ensureVoices() {
 const personalModel = ref(false)
 const calibNudge = ref(false)
 const fitMonitor = new FitMonitor()
+const mixMonitor = new MixMonitor()
 const NUDGE_KEY = 'coderbeats:calib-nudge:v1'
 /** los dos centros de claridad que el modelo por defecto aprendió de este micro (pff, ts): por dispositivo */
 const CENTERS_KEY = 'coderbeats:auto-centers:v2'
@@ -1228,7 +1229,8 @@ function onWorkerMessage(m: FromWorker, fromPilot = false) {
   // ¿acierta poco el modelo por defecto con esta voz? (spec 001 §17.4)
   if (!personalModel.value && !calibNudge.value && !fromPilot) {
     fitMonitor.push(m.instrument === 'unknown' ? null : (m.fit ?? null))
-    if (fitMonitor.poor() && !nudgeDismissed()) calibNudge.value = true
+    mixMonitor.push(m.instrument)
+    if ((fitMonitor.poor() || mixMonitor.allSnare()) && !nudgeDismissed()) calibNudge.value = true
   }
   if (m.instrument === 'unknown')
     return log(
@@ -1425,6 +1427,7 @@ export function useAudioEngine() {
     personalModel.value = personal
     calibNudge.value = false
     fitMonitor.reset()
+    mixMonitor.reset()
     toWorker({ type: 'calibration', ...plain, default: !personal, centers: personal ? null : savedCenters() })
   }
 

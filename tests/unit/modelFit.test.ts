@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { BLUETOOTH_LATENCY_MS, DEFAULT_LATENCY_MS, fallbackLatencyMs, looksBluetooth } from '../../app/lib/defaultLatency'
-import { FIT_MIN, FIT_POOR, FitMonitor } from '../../app/lib/modelFit'
+import { FIT_MIN, FIT_POOR, FitMonitor, MIX_MIN, MixMonitor } from '../../app/lib/modelFit'
 
 describe('FitMonitor: ¿acierta poco el modelo por defecto?', () => {
   it('no opina con pocos golpes', () => {
@@ -54,5 +54,24 @@ describe('latencia por defecto (spec 001)', () => {
     for (const l of ['Bluetooth Headset', 'WH-1000XM4', 'Galaxy Buds2', 'JBL Wireless']) expect(looksBluetooth([l]), l).toBe(true)
     for (const l of ['Altavoces', 'Auriculares con cable', 'Built-in Output', '']) expect(looksBluetooth([l]), l).toBe(false)
     expect(looksBluetooth([])).toBe(false)
+  })
+})
+
+describe('MixMonitor: todo lo que no es bombo sale como caja', () => {
+  it('no opina con pocos golpes; con 10 cajas seguidas sí; un platillo lo desmiente; bombos y desconocidos no cuentan', () => {
+    const m = new MixMonitor()
+    for (let i = 0; i < MIX_MIN - 1; i++) m.push('sd')
+    expect(m.allSnare()).toBe(false)
+    m.push('bd')
+    m.push('unknown')
+    expect(m.allSnare()).toBe(false)
+    m.push('sd')
+    expect(m.allSnare()).toBe(true)
+    m.push('hh')
+    expect(m.allSnare()).toBe(false)
+    for (let i = 0; i < MIX_MIN; i++) m.push('sd') // el platillo sale de la ventana
+    expect(m.allSnare()).toBe(true)
+    m.reset()
+    expect(m.allSnare()).toBe(false)
   })
 })

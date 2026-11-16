@@ -16,6 +16,18 @@ const missed = ref(false)
 const accuracy = ref<{ accuracy: number; perInstrument: Record<Instrument, number> } | null>(null)
 
 const countFor = (i: Instrument) => samples.value.filter((s) => s.instrument === i).length
+// una vez «Empezar», escucha sola golpe tras golpe (bum ×5, pff ×5, ts ×5) hasta completar o «Parar»
+const auto = ref(false)
+const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
+async function run() {
+  auto.value = true
+  while (auto.value && !complete.value) {
+    await take()
+    await wait(300)
+  }
+  auto.value = false
+}
+onBeforeUnmount(() => (auto.value = false))
 const complete = computed(() => INSTRUMENTS.every((i) => countFor(i) >= TAKES_PER_INSTRUMENT))
 
 async function take() {
@@ -69,7 +81,7 @@ const dotColor: Record<Instrument, string> = { bd: 'bg-bd', sd: 'bg-sd', hh: 'bg
     <div>
       <h2 class="mt-1 text-2xl font-medium">Tus sonidos</h2>
       <p class="mt-2 text-neutral-400">
-        Pulsa y haz cada sonido, {{ TAKES_PER_INSTRUMENT }} veces.
+        Cada sonido, {{ TAKES_PER_INSTRUMENT }} veces. Unos 20 segundos.
       </p>
     </div>
 
@@ -98,14 +110,16 @@ const dotColor: Record<Instrument, string> = { bd: 'bg-bd', sd: 'bg-sd', hh: 'bg
     <button class="text-sm text-neutral-500 underline underline-offset-4" @click="emit('done')">Ahora no</button>
 
     <template v-if="!complete">
-      <p v-if="missed" class="text-sm text-amber-300">No te he oído. Prueba un poco más fuerte o más cerca.</p>
-      <button
-        class="rounded-full bg-white py-4 text-lg font-medium text-black disabled:opacity-60"
-        :disabled="listening"
-        @click="take"
-      >
-        {{ listening ? '¡Ahora!' : `Grabar “${INSTRUMENT_LABELS[current].vocal}” (${countFor(current) + 1}/${TAKES_PER_INSTRUMENT})` }}
+      <p class="text-center text-3xl font-medium" aria-live="polite">
+        {{ auto ? `Di “${INSTRUMENT_LABELS[current].vocal}”` : 'Listo cuando quieras' }}
+        <span v-if="auto" class="ml-2 text-base text-neutral-500">{{ countFor(current) + 1 }}/{{ TAKES_PER_INSTRUMENT }}</span>
+      </p>
+      <p v-if="missed" class="text-center text-sm text-amber-300">No te he oído. Un poco más fuerte o más cerca.</p>
+      <button v-if="!auto" class="rounded-full bg-white py-4 text-lg font-medium text-black" @click="run">
+        {{ samples.length ? 'Seguir' : 'Empezar' }}
       </button>
+      <button v-else class="rounded-full border border-white/20 py-4 text-lg" @click="auto = false">Parar</button>
+      <p v-if="!auto && !samples.length" class="text-center text-xs text-neutral-500">Pulsa una vez y ve diciendo cada sonido; yo te lo voy pidiendo.</p>
     </template>
 
     <div v-else-if="accuracy" class="space-y-4">
