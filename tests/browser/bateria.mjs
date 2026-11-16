@@ -1,0 +1,27 @@
+// Estudio · batería de la parte (spec 020): tocar el círculo y la cuadrícula; 🎤 opcional (con micro de mentira); sin micro no aparece.
+import { open, clickLabel, sleep } from './lib.mjs'
+const { b, p, errs } = await open()
+const st = () => p.evaluate(() => ({ bd: window.__drums?.steps('bd'), sd: window.__drums?.steps('sd'), hh: window.__drums?.steps('hh') }))
+console.log('abre:', await clickLabel(p, 'batería de la parte')); await sleep(800)
+console.log('al abrir (demo o vacío):', JSON.stringify(await st()))
+await p.evaluate(() => document.querySelector('[role=dialog] button[aria-label="vaciar"]'))
+await p.evaluate(() => [...document.querySelectorAll('[role=dialog] button')].find((b) => b.textContent.trim() === 'vaciar').click()); await sleep(200)
+console.log('vaciada:', JSON.stringify(await st()))
+const r = await p.evaluate(() => { const c = document.querySelector('[role=dialog] canvas').getBoundingClientRect(); return [c.x, c.y, c.width] })
+const k = r[2] / 680
+const at = (ring, step) => { const a = (step / 16) * Math.PI * 2 - Math.PI / 2; const rr = [100, 175, 245][ring]; return [r[0] + (340 + Math.cos(a) * rr) * k, r[1] + (340 + Math.sin(a) * rr) * k] }
+await p.mouse.click(...at(0, 0)); await sleep(150)
+await p.mouse.click(...at(0, 8)); await sleep(150)
+await p.mouse.click(...at(1, 4)); await sleep(150)
+await p.mouse.click(...at(2, 2)); await sleep(150)
+console.log('4 toques en el círculo:', JSON.stringify(await st()))
+await p.screenshot({ path: `${process.env.OUT || '/tmp'}/bateria1.png` })
+await p.evaluate(() => [...document.querySelectorAll('[role=dialog] button')].find((b) => b.textContent.trim() === 'cuadrícula').click()); await sleep(300)
+await p.evaluate(() => document.querySelector('[aria-label="caja paso 13"]').click()); await sleep(150)
+console.log('cuadrícula: caja paso 13:', JSON.stringify(await st()))
+await p.evaluate(() => document.querySelector('[aria-label="bombo paso 1"]').click()); await sleep(150)
+console.log('quito el bombo del paso 1:', JSON.stringify(await st()))
+console.log('🎤 visible (hay micro):', await p.evaluate(() => !!document.querySelector('[aria-label="grabar con la boca (opcional)"]')))
+await p.evaluate(() => document.querySelector('[aria-label="grabar con la boca (opcional)"]').click()); await sleep(1200)
+console.log('tras 🎤: cuadro cerrado y modo:', await p.evaluate(() => ({ dialog: !!document.querySelector('[role=dialog][aria-label="batería de la parte"]'), mode: window.__engine.mode.value })), errs)
+await b.close()
