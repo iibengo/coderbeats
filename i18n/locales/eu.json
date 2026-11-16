@@ -177,5 +177,25 @@
     "serie": "Fabrikakoak · jabari publikoko melodiak",
     "archive": "Artxiboa · bertsio luzeak (4 min arte)",
     "open": "Ireki"
+  },
+  "settings": {
+    "tabSettings": "ezarpenak",
+    "tabAbout": "honi buruz",
+    "sound": "Soinua",
+    "scale": "Eskalara doitu",
+    "advanced": "Kontrol aurreratuak",
+    "advancedHint": "Konposatzeko modua, efektuak, ahotsa, doikuntza fin gehiago",
+    "drop": "Drop",
+    "fresh": "Hasi hutsetik",
+    "video": "🎬 Esportatu bideoa"
+  },
+  "studio": {
+    "duration": "{n} zati · {time}",
+    "durationAria": "remixak {time} irauten du",
+    "durationOver": "remixak {time} irauten du, 2 minutu baino gehiago",
+    "styleChange": "Baxua, akordeak eta tempoa aldatzen dira; zure erritmoa eta melodia geratzen dira. Estiloa aldatu?",
+    "change": "Aldatu",
+    "editPart": "editatu zatia",
+    "myRemixes": "nire remixak"
   }
 }

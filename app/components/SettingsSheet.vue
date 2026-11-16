@@ -10,6 +10,7 @@ const open = defineModel<boolean>('open', { required: true })
 const props = defineProps<{ renderer: string; layout: () => string }>()
 const emit = defineEmits<{ recalibrate: ['latency' | 'sounds']; pilot: []; preview: []; video: []; simple: [] }>()
 const engine = useAudioEngine()
+const { t } = useI18n()
 const prefsStudio = useStudioPrefs()
 const adv = prefsStudio.advanced
 const ui = useUi()
@@ -143,17 +144,17 @@ watch(open, (o) => {
       >
         <div class="mx-auto mb-3 h-1 w-10 rounded-full bg-white/20" />
         <nav class="mb-4 flex gap-1 text-xs">
-          <button class="rounded-full px-3 py-1" :class="chip(tab === 'ajustes')" @click="tab = 'ajustes'">ajustes</button>
+          <button class="rounded-full px-3 py-1" :class="chip(tab === 'ajustes')" @click="tab = 'ajustes'">{{ t('settings.tabSettings') }}</button>
           <button v-if="adv" class="rounded-full px-3 py-1" :class="chip(tab === 'codigo')" @click="tab = 'codigo'">código</button>
           <button v-if="adv" class="rounded-full px-3 py-1" :class="chip(tab === 'diagnostico')" @click="tab = 'diagnostico'">
             diagnóstico
           </button>
-          <button class="rounded-full px-3 py-1" :class="chip(tab === 'acerca')" @click="tab = 'acerca'">acerca de</button>
+          <button class="rounded-full px-3 py-1" :class="chip(tab === 'acerca')" @click="tab = 'acerca'">{{ t('settings.tabAbout') }}</button>
         </nav>
 
         <div v-if="tab === 'ajustes'" class="grid gap-3">
           <div class="flex items-center justify-between">
-            Sonido
+            {{ t('settings.sound') }}
             <span class="flex gap-1">
               <button v-for="k in KIT_ORDER" :key="k" class="rounded-full px-2 py-0.5 text-xs" :class="chip(kit === k)" @click="engine.setKit(k)">
                 {{ KITS[k].label }}
@@ -203,11 +204,11 @@ watch(open, (o) => {
             </span>
           </div>
           <label class="flex items-center justify-between">
-            Ajustar a la escala
+            {{ t('settings.scale') }}
             <input type="checkbox" :checked="assist" @change="engine.setAssist(($event.target as HTMLInputElement).checked)" />
           </label>
           <label class="flex items-center justify-between" data-advanced-toggle>
-            <span>Controles avanzados <span class="text-xs text-neutral-500">modo Componer, efectos, voz, ajustes finos y más</span></span>
+            <span>{{ t('settings.advanced') }} <span class="text-xs text-neutral-500">{{ t('settings.advancedHint') }}</span></span>
             <input type="checkbox" :checked="adv" @change="prefsStudio.setAdvanced(($event.target as HTMLInputElement).checked)" />
           </label>
           <label v-if="adv" class="flex items-center justify-between">
@@ -276,10 +277,10 @@ watch(open, (o) => {
           </label>
           <div class="flex gap-2">
             <button class="flex-1 rounded-full border border-white/30 py-2 disabled:opacity-40" :disabled="!playing" @click="engine.drop()">
-              Drop
+              {{ t('settings.drop') }}
             </button>
             <button class="flex-1 rounded-full border border-white/15 py-2 disabled:opacity-40" :disabled="!loops.loops.length && !multi" @click="clearAll">
-              Empezar de cero
+              {{ t('settings.fresh') }}
             </button>
             <button v-if="adv" class="flex-1 rounded-full border border-white/15 py-2" @click="loadDemo">Cargar demo</button>
           </div>
@@ -288,7 +289,7 @@ watch(open, (o) => {
             <span class="text-xs text-neutral-500">tu canción se construye sola, paso a paso (micro bloqueado); al acabar o parar, todo como estaba.</span>
           </div>
           <div class="flex items-center gap-3">
-            <button class="shrink-0 rounded-full border border-white/15 px-4 py-2" @click="emit('video'); open = false">🎬 Exportar vídeo</button>
+            <button class="shrink-0 rounded-full border border-white/15 px-4 py-2" @click="emit('video'); open = false">{{ t('settings.video') }}</button>
             <span class="text-xs text-neutral-500">graba la pantalla sin botones, con el audio de la app (no el micro).</span>
           </div>
           <div v-if="adv && engine.style.value === 'dembow'" class="flex items-center gap-3">

@@ -177,5 +177,25 @@
     "serie": "De serie · melodías de dominio público",
     "archive": "Archivo · versiones largas (hasta 4 min)",
     "open": "Abrir"
+  },
+  "settings": {
+    "tabSettings": "ajustes",
+    "tabAbout": "acerca de",
+    "sound": "Sonido",
+    "scale": "Ajustar a la escala",
+    "advanced": "Controles avanzados",
+    "advancedHint": "modo Componer, efectos, voz, ajustes finos y más",
+    "drop": "Drop",
+    "fresh": "Empezar de cero",
+    "video": "🎬 Exportar vídeo"
+  },
+  "studio": {
+    "duration": "{n} partes · {time}",
+    "durationAria": "el remix dura {time}",
+    "durationOver": "el remix dura {time}, más de 2 minutos",
+    "styleChange": "Cambia el bajo, los acordes y el tempo; tu ritmo y tu melodía se quedan. ¿Cambiar de estilo?",
+    "change": "Cambiar",
+    "editPart": "editar parte",
+    "myRemixes": "mis remixes"
   }
 }

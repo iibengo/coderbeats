@@ -11,6 +11,7 @@ import VisualStage from './visual/VisualStage.vue'
 
 const emit = defineEmits<{ recalibrate: ['latency' | 'sounds']; simple: [] }>()
 const engine = useAudioEngine()
+const { t } = useI18n()
 const route = useRoute()
 const { playing, style } = engine
 const adv = useStudioPrefs().advanced
@@ -64,7 +65,7 @@ const styleMenu = ref(false)
 async function pickStyle(id: StyleId) {
   styleMenu.value = false
   if (id === style.value) return
-  if ((engine.loops.value.loops.length || engine.multi.value) && !(await askConfirm('Cambia el bajo, los acordes y el tempo; tu ritmo y tu melodía se quedan. ¿Cambiar de estilo?', 'Cambiar'))) return
+  if ((engine.loops.value.loops.length || engine.multi.value) && !(await askConfirm(t('studio.styleChange'), t('studio.change')))) return
   await engine.setStyle(id)
 }
 const navStyles = computed(() => Object.values(STYLES).filter((s) => !s.legacy || s.id === style.value))
@@ -203,14 +204,14 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
         <template v-if="engine.tempoTap.value.active">toca 4 veces <span class="tracking-widest">{{ tapDots }}</span></template>
         <template v-else>{{ engine.bpm.value }}</template>
       </button>
-      <span v-if="engine.multi.value" class="whitespace-nowrap px-1 py-2 tabular-nums" :class="totalSeconds > 120 ? 'text-amber-300' : 'text-white/45'" data-duration :aria-label="`el remix dura ${totalText}${totalSeconds > 120 ? ', más de 2 minutos' : ''}`">{{ engine.song.value.order.length }} partes · {{ totalText }}</span>
+      <span v-if="engine.multi.value" class="whitespace-nowrap px-1 py-2 tabular-nums" :class="totalSeconds > 120 ? 'text-amber-300' : 'text-white/45'" data-duration :aria-label="totalSeconds > 120 ? t('studio.durationOver', { time: totalText }) : t('studio.durationAria', { time: totalText })">{{ t('studio.duration', { n: engine.song.value.order.length, time: totalText }) }}</span>
     </nav>
 
     <!-- mis canciones (spec 006) -->
     <button
       class="flex items-center justify-center text-white/50"
       :style="libraryStyle"
-      aria-label="mis remixes"
+      :aria-label="t('studio.myRemixes')"
       @pointerdown.stop
       @click="libraryOpen = true"
     >
@@ -223,7 +224,7 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
     </button>
 
     <!-- editar parte (spec 020): las capas de la parte, con la batería y la melodía dentro -->
-    <button class="flex items-center justify-center text-xl text-white/60" :style="partStyle" aria-label="editar parte" @pointerdown.stop @click="partOpen = true">✎</button>
+    <button class="flex items-center justify-center text-xl text-white/60" :style="partStyle" :aria-label="t('studio.editPart')" @pointerdown.stop @click="partOpen = true">✎</button>
 
     <!-- modo (spec 011): Jugar | Componer -->
     <ModeSwitch v-if="adv" :model-value="engine.mode.value" :style="modeStyle" @pointerdown.stop @update:model-value="stage?.switchMode($event)" />

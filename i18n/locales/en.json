@@ -177,5 +177,25 @@
     "serie": "Built-in · public-domain melodies",
     "archive": "Archive · long versions (up to 4 min)",
     "open": "Open"
+  },
+  "settings": {
+    "tabSettings": "settings",
+    "tabAbout": "about",
+    "sound": "Sound",
+    "scale": "Snap to the scale",
+    "advanced": "Advanced controls",
+    "advancedHint": "Compose mode, effects, voice, fine settings and more",
+    "drop": "Drop",
+    "fresh": "Start from scratch",
+    "video": "🎬 Export video"
+  },
+  "studio": {
+    "duration": "{n} parts · {time}",
+    "durationAria": "the remix lasts {time}",
+    "durationOver": "the remix lasts {time}, more than 2 minutes",
+    "styleChange": "This changes the bass, the chords and the tempo; your rhythm and melody stay. Change style?",
+    "change": "Change",
+    "editPart": "edit part",
+    "myRemixes": "my remixes"
   }
 }
