@@ -176,6 +176,13 @@ let masterEnd: AudioNode | null = null
 let videoTap: MediaStreamAudioDestinationNode | null = null
 let S: StrudelModule | null = null
 let stream: MediaStream | null = null
+/** el nodo del micro, para poder soltarlo y volver a abrirlo (spec 016 §17) */
+let micSource: MediaStreamAudioSourceNode | null = null
+let micIdleTimer: ReturnType<typeof setTimeout> | null = null
+/** ¿la app hace caso al micro? Apagado: el micro puede seguir abierto (para no volver a pedir permiso) pero **no se analiza ni se graba nada** */
+const listening = ref(true)
+/** ¿el micro está abierto de verdad (el navegador lo indica)? */
+const micOpen = ref(false)
 let capture: AudioWorkletNode | null = null
 let worker: Worker | null = null
 let masterIn: GainNode | null = null
@@ -1228,6 +1235,8 @@ function onWorkerMessage(m: FromWorker, fromPilot = false) {
     pendingNotes.delete(m.id)
     return
   }
+  // voz apagada (spec 016 §17): el micro puede seguir abierto, pero no se hace caso a nada de lo que oiga (las pastillas y el piloto sí entran)
+  if (!listening.value && !fromPilot) return
   const uiMs = (c.currentTime - m.time) * 1000
   // con la voz grabando, el carril es exclusivo: ni golpes ni notas (spec 007 §4.1)
   if (voiceRec.value !== 'idle' && (m.type === 'hit' || m.type === 'melodic' || m.type === 'absorbed')) return log('unknown', 'ignorado: grabando voz', uiMs)
@@ -1402,6 +1411,8 @@ export function useAudioEngine() {
     await ctx.audioWorklet.addModule(`${base}worklets/capture-processor.js`)
     await masterGlue() // antes de la prueba de eco: que mida la cadena entera
     const source = ctx.createMediaStreamSource(stream)
+    micSource = source
+    micOpen.value = !opts.noMic
     capture = new AudioWorkletNode(ctx, 'capture-processor', { numberOfInputs: 1, numberOfOutputs: 1 })
     capture.port.onmessage = (e: MessageEvent) => {
       const m = e.data as { type: string; frame?: number; data?: Float32Array; peak?: number }
@@ -1579,7 +1590,7 @@ export function useAudioEngine() {
     syncFx()
     const echoCfg = echo.value?.bleed ? { roundTrip: echo.value.roundTrip, echoLevel: echo.value.echoLevel } : null
     toWorker({ type: 'start', minGap: minGapForCell(stepSeconds() * STYLES[style.value].quantizeEvery), echo: echoCfg, melody: melodyActive.value })
-    capture?.port.postMessage('stream-on')
+    if (listening.value) capture?.port.postMessage('stream-on')
     playing.value = true
     try {
       armWowo()
@@ -2337,6 +2348,19 @@ export function useAudioEngine() {
     updateBackground()
   }
 
+  /** Suelta el micro (las pistas se paran y el nodo se desconecta). */
+  function closeMic() {
+    if (micIdleTimer) clearTimeout(micIdleTimer)
+    micIdleTimer = null
+    if (noMic.value || !micOpen.value) return
+    listening.value = false
+    try { micSource?.disconnect() } catch { /* ya soltado */ }
+    stream?.getTracks().forEach((t) => t.stop())
+    micSource = null
+    stream = null
+    micOpen.value = false
+  }
+
   /** Abre otra vez la salida tras el silencio de `stopAll`. */
   function unmute() {
     if (unmuteTimer) clearTimeout(unmuteTimer)
@@ -2804,6 +2828,38 @@ export function useAudioEngine() {
       }
       return midi
     },
+    listening,
+    micOpen,
+    /**
+     * Enciende o apaga la voz (spec 016 §17). **Apagada**: el micro sigue abierto (así no se vuelve a pedir permiso) pero no se analiza ni se graba nada; pasados 2,5 minutos
+     * apagada, el micro se **cierra de verdad** (y al encenderla se vuelve a abrir). Devuelve `false` si no se pudo abrir el micro.
+     */
+    setListening: async (on: boolean): Promise<boolean> => {
+      if (micIdleTimer) clearTimeout(micIdleTimer)
+      micIdleTimer = null
+      if (on) {
+        if (!noMic.value && !micOpen.value && ctx && capture) {
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 } })
+            micSource = ctx.createMediaStreamSource(stream)
+            micSource.connect(capture)
+            micOpen.value = true
+          } catch {
+            say('No se pudo abrir el micro')
+            return false
+          }
+        }
+        listening.value = true
+        if (playing.value) capture?.port.postMessage('stream-on')
+        return true
+      }
+      listening.value = false
+      capture?.port.postMessage('stream-off')
+      micIdleTimer = setTimeout(() => closeMic(), 150_000)
+      return true
+    },
+    /** Cierra el micro de verdad (suelta el permiso de uso: desaparece el indicador del navegador). La voz queda apagada. */
+    closeMic: () => closeMic(),
     /**
      * Suena la nota `midi` de un toque de la melodía de la portada (spec 016 §16): con el sinte del estilo, **al instante** (si hay un paso del compás a ≤ 70 ms por delante, cae en él)
      * y se apunta en la toma; 1,2 s después del último toque, la toma pasa a ser el loop de melodía (cuantizado al paso más cercano, una nota por paso, 4 compases).

@@ -348,3 +348,7 @@ Tests (1111), typecheck y build en verde; comprobado en Chrome (`tests/browser/p
 4. **■** con todo sonando: ¿para **todo** de golpe, sin colas raras? **▶**: ¿vuelve bien?
 5. **Borrar** (y ↶ para recuperar).
 6. **🎬 Mi reel**: ¿limpio, con las figuras, estilo y BPM?
+
+## Undécima tanda, parte 2: 🎤 Voz (spec 016 §17)
+La portada **no escucha hasta que pulsas «🎤 Voz»**, aunque ya tenga el permiso: con la voz apagada el micro sigue abierto pero la app lo ignora (no detecta golpes, no graba ni guarda nada). Así **no vuelve a pedir permiso** al encender/apagar. Tras 2,5 min apagada, o al pasar la web a segundo plano, el micro se **cierra de verdad** (al encender de nuevo se reabre). En el Estudio sigue escuchando siempre. Comprobado en Chrome (`tests/browser/portada-voz.mjs`): apagada no entra nada, encendida sí, cerrar y reabrir funciona; **no probado en iPhone**.
+- **Probar en el iPhone:** 1) abre y elige estilo: ¿el botón sale apagado y los golpes del ruido no entran? 2) Enciéndela y haz bum · pff · ts. 3) Apágala y enciéndela varias veces: **¿pregunta el permiso otra vez?** (no debería). 4) Apágala, bloquea la pantalla y vuelve: ¿se cierra el micro y al encender **pregunta de nuevo**? (puede). 5) Con la voz apagada, ¿el volumen es el mismo que con ella encendida? (iOS lo baja mientras el micro está abierto).

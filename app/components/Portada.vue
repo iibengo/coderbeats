@@ -27,6 +27,25 @@ const prevMode = engine.mode.value
 engine.mode.value = 'jugar'
 onBeforeUnmount(() => (engine.mode.value = prevMode))
 
+// ── la voz (spec 016 §17): apagada por defecto; el micro puede seguir abierto pero la app lo ignora. En el Estudio sigue escuchando como siempre ──
+const { listening, micOpen, noMic } = engine
+if (!noMic.value) void engine.setListening(false)
+onBeforeUnmount(() => void engine.setListening(true))
+async function toggleVoice() {
+  await engine.setListening(!listening.value)
+}
+/** al pasar la web a segundo plano con la voz apagada, el micro se cierra de verdad */
+function onHidden() {
+  if (document.hidden && !listening.value) engine.closeMic()
+}
+onMounted(() => document.addEventListener('visibilitychange', onHidden))
+onBeforeUnmount(() => document.removeEventListener('visibilitychange', onHidden))
+async function toAfinar() {
+  menuOpen.value = false
+  await engine.setListening(true) // la calibración necesita el micro
+  emit('recalibrate', 'sounds')
+}
+
 const reduced = import.meta.client && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 const stage = ref<InstanceType<typeof VisualStage> | null>(null)
 // ── deshacer / rehacer lo que haces con los loops (una frase de voz entera, una melodía…) ──
@@ -201,6 +220,21 @@ function toEstudio() {
       </button>
     </nav>
 
+    <!-- 🎤 Voz: apagada, la app no escucha (aunque el micro siga abierto) -->
+    <button
+      v-if="!noMic && picked"
+      class="absolute flex h-9 items-center gap-1.5 rounded-full border px-3 text-xs"
+      :class="listening ? 'border-[#fb7185]/70 text-white' : 'border-white/20 text-white/60'"
+      style="top: max(0.65rem, env(safe-area-inset-top)); left: 0.6rem"
+      :aria-label="listening ? 'apagar la voz: la app deja de escuchar' : 'encender la voz: la app te escucha'"
+      :aria-pressed="listening"
+      @pointerdown.stop
+      @click="toggleVoice"
+    >
+      <span class="inline-block h-2 w-2 rounded-full" :class="listening ? 'animate-pulse bg-[#fb7185]' : 'bg-white/30'" />
+      🎤 Voz
+    </button>
+
     <button class="absolute flex h-11 w-11 items-center justify-center text-white/50" style="top: max(0.5rem, env(safe-area-inset-top)); right: 0.5rem" aria-label="más" @pointerdown.stop @click="menuOpen = true">
       <svg width="20" height="4" viewBox="0 0 20 4" fill="currentColor" aria-hidden="true"><circle cx="2" cy="2" r="2" /><circle cx="10" cy="2" r="2" /><circle cx="18" cy="2" r="2" /></svg>
     </button>
@@ -222,7 +256,7 @@ function toEstudio() {
 
     <!-- 3 · ritmo: tu voz (siempre escuchando) o las tres pastillas -->
     <div v-if="picked" class="absolute right-0 left-0" style="bottom: calc(max(0.75rem, env(safe-area-inset-bottom)) + 64px)">
-      <p v-if="step !== 'hecho' && step !== 'estilo'" data-guide class="mb-1.5 text-center text-sm text-white/70" role="status" aria-live="polite">{{ PORTADA_LINE[step] }}</p>
+      <p v-if="step !== 'hecho' && step !== 'estilo'" data-guide class="mb-1.5 text-center text-sm text-white/70" role="status" aria-live="polite">{{ step === 'voz' && !listening && !noMic ? 'Pulsa 🎤 Voz y haz bum · pff · ts, o toca las pastillas' : PORTADA_LINE[step] }}</p>
       <PadsRow />
     </div>
 
@@ -264,8 +298,9 @@ function toEstudio() {
         <div class="grid gap-3">
           <button class="rounded-full bg-white py-3 font-medium text-black" @click="toEstudio">Estudio</button>
           <p class="-mt-1 text-xs text-neutral-500">Todo: células, grupos, remixes, efectos… Se recuerda para la próxima vez.</p>
+          <p class="text-xs text-neutral-500">🎤 Voz apagada: la app no escucha ni graba nada; el micro puede seguir abierto (el navegador lo indica) y se cierra solo tras unos minutos.</p>
           <button class="rounded-full border border-white/15 py-3" @click="menuOpen = false; libraryOpen = true">Mis canciones</button>
-          <button class="rounded-full border border-white/15 py-3" @click="menuOpen = false; emit('recalibrate', 'sounds')">Afinar a mi voz</button>
+          <button class="rounded-full border border-white/15 py-3" @click="toAfinar">Afinar a mi voz</button>
           <button class="rounded-full border border-white/15 py-3" @click="aboutOpen = !aboutOpen">Acerca de</button>
           <div v-if="aboutOpen" class="max-h-[40dvh] overflow-y-auto"><AboutPanel /></div>
         </div>
