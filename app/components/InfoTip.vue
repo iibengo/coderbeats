@@ -7,8 +7,8 @@ const root = ref<HTMLElement | null>(null)
 function away(e: PointerEvent) {
   if (open.value && root.value && !root.value.contains(e.target as Node)) open.value = false
 }
-onMounted(() => document.addEventListener('pointerdown', away))
-onBeforeUnmount(() => document.removeEventListener('pointerdown', away))
+onMounted(() => document.addEventListener('pointerdown', away, true))
+onBeforeUnmount(() => document.removeEventListener('pointerdown', away, true))
 </script>
 
 <template>
