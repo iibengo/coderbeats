@@ -79,6 +79,8 @@ import MelodyOrgan from './MelodyOrgan.vue'
 import { governorStep, initialGovernor } from '~/lib/frameGovernor'
 import StageOverlay from './StageOverlay.vue'
 import { inDeadZone, type Rect } from '~/lib/stageFx'
+import FlowLayer from './FlowLayer.vue'
+import { veinDots, type VeinDot } from '~/lib/flow'
 import WaterKeysOverlay from './WaterKeysOverlay.vue'
 
 const props = withDefaults(defineProps<{ themeId?: string }>(), { themeId: DEFAULT_THEME })
@@ -1064,6 +1066,7 @@ function tick() {
     }
     if (scene.crowd) crowdFrames++
     aro.draw(f)
+    flowFrame(t)
     updateChapa(colony.value ? null : plan, clock.bar + clock.barPhase, !colony.value)
   }
   frameHook?.()
@@ -1075,7 +1078,7 @@ function tick() {
     crowdFrames = 0
     // el vigilante (lib/frameGovernor): baja el detalle si va lento y, desde ahora, también lo vuelve a subir si va sobrado
     const was = governor
-    governor = governorStep(governor, p95, { inColony: inColonyMostly, canQuality: !!theme?.setQuality, canAro: !!aro })
+    governor = governorStep(governor, p95, { inColony: inColonyMostly, canQuality: !!theme?.setQuality, canAro: !!aro, canFlow: engine.flow.value && !reduced })
     if (governor.crowd !== was.crowd) crowdLevel = governor.crowd
     if (governor.quality !== was.quality && theme?.setQuality) {
       quality = governor.quality
@@ -1087,6 +1090,22 @@ function tick() {
       aro.setDetail(aroDetail)
     }
   }
+}
+
+/** el fluido (estela y venas): solo si el interruptor lo permite, sin movimiento reducido y mientras el vigilante lo deje */
+const flowEl = ref<InstanceType<typeof FlowLayer> | null>(null)
+function flowFrame(wallSec: number) {
+  const on = engine.flow.value && !reduced && governor.flow === 1
+  let veins: VeinDot[] = []
+  if (on && colony.value && colonyPick && colonyPick.threads.length) {
+    const cy = colonyPick.cy
+    veins = veinDots(colonyPick.threads, wallSec).map((d) => {
+      const [x, y] = frontToScreen(d.x, d.y, aroView, 0, cy)
+      return { x, y, a: d.a }
+    })
+  }
+  const fingers = on && !colony.value ? [...pointers].map(([id, p]) => ({ id, x: p.x, y: p.y })) : []
+  flowEl.value?.frame(wallSec, view.w, view.h, fingers, veins, on)
 }
 
 function measure() {
@@ -2055,6 +2074,8 @@ defineExpose({ videoSource, colonyPoints, pointOf: (voice: Voice, step: number) 
       aria-hidden="true"
       style="position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none"
     />
+
+    <FlowLayer ref="flowEl" />
 
     <!-- guía fina del gesto -->
     <div

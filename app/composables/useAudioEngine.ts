@@ -242,6 +242,8 @@ const guideNonce = ref(0)
 const suggestions = ref(true)
 /** producción opcional (spec 014): swing y matices de volumen; apagada por defecto (las canciones no cambian solas) */
 const production = ref(false)
+/** el fluido del agua (estela del dedo y venas): por defecto encendido; el vigilante de frames lo apaga si va lento */
+const flow = ref(true)
 /** la melodía sugerida que se ve y suena en fantasma (sin aceptar); no está en la canción */
 const suggestion = shallowRef<Suggestion | null>(null)
 /** la semilla en curso de cada ritmo («otra» la sube: secuencia fija y reproducible) y los ritmos cuya sugerencia se descartó */
@@ -2410,6 +2412,10 @@ export function useAudioEngine() {
     guideNonce,
     suggestions,
     production,
+    flow,
+    setFlow: (on: boolean) => {
+      flow.value = on
+    },
     setProduction: (on: boolean) => {
       production.value = on
       reevaluate()

@@ -62,3 +62,30 @@ describe('el vigilante de frames: baja y también vuelve a subir', () => {
     expect(run(undefined, [20, 20], { inColony: false, canQuality: false, canAro: false })).toMatchObject({ crowd: 0, quality: 1, aro: 1 })
   })
 })
+
+describe('adornos del agua (estela y venas): lo primero que se apaga y lo último que vuelve', () => {
+  const fl: GovernorOptions = { ...all, canFlow: true }
+  it('van lentos: primero se apagan los adornos, luego el agua', () => {
+    let s = run(undefined, [20], fl)
+    expect(s.flow).toBe(0)
+    expect(s.quality).toBe(1)
+    s = run(s, [20], fl)
+    expect(s.quality).toBeCloseTo(0.85)
+  })
+  it('apagados por el interruptor (canFlow falso) no se tocan', () => {
+    expect(run(undefined, [20]).flow).toBe(1)
+  })
+  it('vuelven al final, con todo lo demás ya al máximo', () => {
+    let s = run(undefined, [20, 20, 20, 20, 20], fl) // flow 0, agua y aro abajo
+    expect(s.flow).toBe(0)
+    const fast = Array(UP_AFTER * 8).fill(FAST_MS - 1)
+    for (const p of fast) {
+      s = governorStep(s, p, fl)
+      if (s.flow === 1) break
+    }
+    expect(s.flow).toBe(1)
+    expect(s.aro).toBe(1)
+    expect(s.quality).toBe(1)
+  })
+})
+

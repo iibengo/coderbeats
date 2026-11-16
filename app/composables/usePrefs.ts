@@ -44,6 +44,8 @@ export interface StudioPrefs {
   suggestions?: boolean
   /** producción (spec 014): swing y matices; por defecto apagada */
   production?: boolean
+  /** fluido del agua (estela y venas); por defecto encendido */
+  flow?: boolean
 }
 
 const isPrefs = (x: unknown): x is StudioPrefs => isStoredPrefs(x)
@@ -68,6 +70,7 @@ export function usePrefs() {
       engine.mode.value = modeFromSaved(p.mode)
       engine.suggestions.value = p.suggestions ?? true
       engine.production.value = p.production === true
+      engine.flow.value = p.flow !== false
       if (p.bgManual) engine.setBackgroundManual(p.bgManual)
       engine.setPhraseOptions({ mode: p.phraseMode, closeBeats: p.phraseCloseBeats, maxBars: p.maxPhraseBars })
       // 'accumulate' (antes de §16.19) y el "sustituye" por defecto de antes de §16.21 pasan a 'complete'
@@ -113,6 +116,7 @@ export function usePrefs() {
           mode: engine.mode.value,
           suggestions: engine.suggestions.value,
           production: engine.production.value,
+          flow: engine.flow.value,
         }) satisfies StudioPrefs,
       (p) => writeJson(PREFS_KEY, p),
       { deep: true },

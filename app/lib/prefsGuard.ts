@@ -24,6 +24,7 @@ export function isStoredPrefs(x: unknown): boolean {
     (p.mode === undefined || isMode(p.mode)) &&
     (p.suggestions === undefined || typeof p.suggestions === 'boolean') &&
     (p.production === undefined || typeof p.production === 'boolean') &&
+    (p.flow === undefined || typeof p.flow === 'boolean') &&
     BG_MODES.includes(p.bgMode as string) &&
     (p.phraseMode === 'silence' || p.phraseMode === 'bar') &&
     typeof p.repeatMode === 'string' &&

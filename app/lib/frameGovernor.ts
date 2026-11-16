@@ -15,6 +15,8 @@ export interface GovernorState {
   crowd: 0 | 1 | 2
   /** calidad del agua, 0,5..1 */
   quality: number
+  /** adornos del agua (estela del dedo y venas): 1 = encendidos, 0 = apagados; es lo **primero** que se apaga y lo último que vuelve */
+  flow: 0 | 1
   /** detalle del aro: 1 o 0,5 */
   aro: 1 | 0.5
   /** ventanas rápidas seguidas */
@@ -25,7 +27,7 @@ export interface GovernorState {
   justUp: boolean
 }
 
-export const initialGovernor = (): GovernorState => ({ crowd: 0, quality: 1, aro: 1, fast: 0, need: UP_AFTER, justUp: false })
+export const initialGovernor = (): GovernorState => ({ crowd: 0, quality: 1, flow: 1, aro: 1, fast: 0, need: UP_AFTER, justUp: false })
 
 export interface GovernorOptions {
   /** la ventana se pasó sobre todo en la colonia (el detalle de las células solo cuenta ahí) */
@@ -34,6 +36,8 @@ export interface GovernorOptions {
   canQuality: boolean
   /** hay aro con detalle */
   canAro: boolean
+  /** los adornos están encendidos por el interruptor (si no, no hay nada que apagar) */
+  canFlow?: boolean
 }
 
 /** Una ventana más: devuelve el estado nuevo (puro). */
@@ -43,7 +47,8 @@ export function governorStep(s: GovernorState, p95: number, o: GovernorOptions):
     // si lo último fue subir y ya vuelve a ir lento, se espera más para la próxima subida
     if (s.justUp) next.need = Math.min(s.need * 2, UP_AFTER * 8)
     next.justUp = false
-    if (o.inColony && s.crowd < 2) next.crowd = (s.crowd + 1) as 1 | 2
+    if (o.canFlow && s.flow) next.flow = 0
+    else if (o.inColony && s.crowd < 2) next.crowd = (s.crowd + 1) as 1 | 2
     else if (o.canQuality && s.quality > 0.5 + 1e-6) next.quality = Math.max(0.5, s.quality - QUALITY_STEP)
     else if (o.canAro && s.aro > 0.5) next.aro = 0.5
     return next
@@ -56,6 +61,7 @@ export function governorStep(s: GovernorState, p95: number, o: GovernorOptions):
     if (s.aro < 1) next.aro = 1
     else if (s.quality < 1 - 1e-6) next.quality = Math.min(1, s.quality + QUALITY_STEP)
     else if (s.crowd > 0) next.crowd = (s.crowd - 1) as 0 | 1
+    else if (!s.flow) next.flow = 1
     else return { ...s, fast: 0, justUp: false } // ya está todo al máximo
     next.justUp = true
     return next
