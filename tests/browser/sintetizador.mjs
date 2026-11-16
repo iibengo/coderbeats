@@ -1,7 +1,7 @@
 // Célula de melodía y sintetizador de dedo (spec 015 §12): crear, tocar deslizando, grabar y ver la melodía.
 import { open, sleep, clickLabel } from './lib.mjs'
 const { b, p, errs } = await open()
-const OUT = '/tmp/claude-1000/-home-ioni-dev-coderbeats/bcaf8334-889a-45dc-9d11-cd0dfcf41e47/scratchpad'
+const OUT = process.env.OUT || '/tmp' // dónde dejar las capturas
 await p.evaluate(async () => { await window.__engine.loadDemo(); await window.__engine.play() })
 await sleep(2500)
 const id = await p.evaluate(() => window.__engine.addMelodyCell())

@@ -15,6 +15,6 @@ console.log('error visible:', /micro/i.test(err), '| botón sin micro:', await c
 await sleep(9000)
 const st = await p.evaluate(() => ({ text: document.body.innerText, loops: window.__engine?.loops?.value?.loops?.length, noMic: window.__engine?.noMic?.value }))
 console.log('noMic', st.noMic, '| loops', st.loops, '| rótulo', /Sin micro/.test(st.text), '| guía beatbox', /bum · pff/.test(st.text))
-await p.screenshot({ path: '/tmp/claude-1000/-home-ioni-dev-coderbeats/bcaf8334-889a-45dc-9d11-cd0dfcf41e47/scratchpad/sin-micro.png' })
+await p.screenshot({ path: `${process.env.OUT || '/tmp'}/sin-micro.png` })
 console.log('errores', errs)
 await b.close()

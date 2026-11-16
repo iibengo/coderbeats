@@ -5,7 +5,7 @@ await clickExact(p, 'dnb'); await sleep(300)
 await clickLabel(p, 'ajustes'); await sleep(400); await clickLabel(p, 'Cargar demo'); await sleep(800)
 const sig = (x) => JSON.stringify(x.order.map(id => { const c = x.cells.find(c => c.id === id); return [c.turns, c.parts, c.loops.map(l => [l.instrument, l.bars, l.hits.map(h => h.pos)])] }))
 const orig = await p.evaluate(() => JSON.parse(JSON.stringify(window.__engine.snapshot().song)))
-const link = await p.evaluate(async () => { const m = await import('/_nuxt/@fs./dev/coderbeats/app/lib/shareLink.ts'); const e = window.__engine; return m.shareUrl(location.origin + '/', await m.encodeShare(e.snapshot(), 'Mi demo')) })
+const link = await p.evaluate(async (mod) => { const m = await import(mod); const e = window.__engine; return m.shareUrl(location.origin + '/', await m.encodeShare(e.snapshot(), 'Mi demo')) }, `/_nuxt/@fs${process.cwd()}/app/lib/shareLink.ts`) // se ejecuta desde la raíz del proyecto
 console.log('enlace de', link.length, 'caracteres')
 await b.close()
 for (const [nombre, url, espera] of [['válido', link, true], ['roto', link.slice(0, 60) + 'AAAA', false]]) {
