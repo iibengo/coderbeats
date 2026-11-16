@@ -3,7 +3,7 @@
 // Edita el loop de melodía de la célula de ahora (una sola melodía): si no hay, lo crea.
 import { melLoopOf, setMelBars } from '~/lib/melodyEdit'
 import type { MelodyHit } from '~/lib/melody'
-import { colsOf, COLS_PER_BAR, fitShift, GRID_ROWS, maxShift, noteAt, normalize, rowsFor, soundingAt, stretchNote, tapCell } from '~/lib/melodyGrid'
+import { answerPhrase, colsOf, COLS_PER_BAR, fitShift, GRID_ROWS, maxShift, noteAt, normalize, rowsFor, soundingAt, stretchNote, tapCell } from '~/lib/melodyGrid'
 import type { FreeLoop } from '~/lib/freeLoops'
 
 const open = defineModel<boolean>('open', { required: true })
@@ -47,6 +47,20 @@ function setBars(b: 1 | 2 | 4) {
   if (own) engine.editLoops(setMelBars(engine.loops.value, own.id, b))
   if (page.value >= b) page.value = b - 1
 }
+/** «↻ responder»: la frase de 2 compases pregunta, los 2 siguientes contestan (una variación distinta cada vez) y cierran en la tónica */
+let seed = 0
+function respond() {
+  const next = answerPhrase(hits.value, engine.style.value, seed++)
+  if (!next) return
+  history.value.push(hits.value)
+  const s = engine.loops.value
+  const own = melLoopOf(s)
+  chosenBars.value = 4
+  if (own) engine.editLoops({ ...s, loops: s.loops.map((l) => (l.id === own.id ? { ...l, bars: 4, hits: next, fromTemplate: false } : l)) })
+  else commit(next)
+  page.value = 0
+}
+const canRespond = computed(() => hits.value.some((h) => h.pos < 32))
 function undo() {
   const prev = history.value.pop()
   if (prev) commit(prev)
@@ -178,7 +192,8 @@ if (import.meta.dev && import.meta.client) (window as unknown as Record<string, 
       <div class="mx-auto mt-3 flex w-full max-w-md items-center gap-2 text-sm">
         <button class="rounded-lg border border-white/20 px-3 py-2" :disabled="!history.length" @click="undo">↶ deshacer</button>
         <button class="rounded-lg border border-white/20 px-3 py-2" :disabled="!hits.length" @click="clearAll">vaciar</button>
-        <span v-if="hidden" class="ml-auto text-xs text-white/40">{{ hidden }} fuera de la vista (▲▼)</span>
+        <button class="rounded-lg border border-[#F496BC]/60 px-3 py-2" :disabled="!canRespond" @click="respond">↻ responder</button>
+        <span v-if="hidden" class="text-xs ml-auto text-xs text-white/40">{{ hidden }} fuera de la vista (▲▼)</span>
       </div>
       <p class="mx-auto mt-2 w-full max-w-md text-xs text-white/45">Toca una casilla para poner o quitar una nota; arrastra a la derecha para alargarla. Solo hay notas de la escala del estilo.</p>
     </div>

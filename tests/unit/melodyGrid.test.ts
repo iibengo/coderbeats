@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { colsOf, fitShift, GRID_ROWS, maxShift, noteAt, normalize, rowsFor, soundingAt, stretchNote, tapCell } from '~/lib/melodyGrid'
+import { answerPhrase, ANSWER_VARIANTS, colsOf, fitShift, GRID_ROWS, maxShift, noteAt, normalize, rowsFor, soundingAt, stretchNote, tapCell } from '~/lib/melodyGrid'
+import { STYLE_MUSIC } from '~/lib/styles'
 import { scaleNotes } from '~/lib/waterKeys'
 
 const n = (pos: number, midi: number, dur = 2) => ({ pos, dur, midi, strength: 0.8 })
@@ -48,5 +49,39 @@ describe('editor de melodía: cuadrícula', () => {
     const rows = rowsFor('techno', fitShift('techno', [n(0, 72), n(2, 74), n(4, 75)]))
     expect(rows).toContain(74)
     expect(fitShift('techno', [])).toBeGreaterThanOrEqual(0)
+  })
+})
+
+describe('↻ responder', () => {
+  const sc = scaleNotes('techno')
+  const phrase = [n(0, sc[7]!), n(4, sc[9]!), n(8, sc[8]!), n(16, sc[7]!), n(20, sc[10]!), n(28, sc[9]!)]
+  it('deja un loop de 4 compases: la pregunta igual y la respuesta con el mismo ritmo desplazado 2 compases', () => {
+    const r = answerPhrase(phrase, 'techno', 0)!
+    expect(r.length).toBe(phrase.length * 2)
+    expect(r.slice(0, phrase.length).map((h) => [h.pos, h.midi])).toEqual(phrase.map((h) => [h.pos, h.midi]))
+    expect(r.slice(phrase.length).map((h) => h.pos)).toEqual(phrase.map((h) => h.pos + 32))
+    expect(r.every((h) => h.pos < 64)).toBe(true)
+  })
+  it('el 3.er compás repite la pregunta y la respuesta cierra en la tónica, siempre en la escala', () => {
+    for (const style of ['hiphop90', 'house', 'dnb', 'dembow', 'techno'] as const) {
+      const all = scaleNotes(style)
+      const ph = [n(0, all[3]!), n(4, all[5]!), n(16, all[4]!), n(24, all[6]!)]
+      for (let seed = 0; seed < ANSWER_VARIANTS * 2; seed++) {
+        const r = answerPhrase(ph, style, seed)!
+        const ans = r.slice(ph.length)
+        expect(ans[0]!.midi).toBe(ph[0]!.midi)
+        expect(ans[ans.length - 1]!.midi % 12).toBe(STYLE_MUSIC[style].scale[0])
+        for (const h of r) expect(all).toContain(h.midi)
+      }
+    }
+  })
+  it('cada variación cambia algo y la secuencia es fija (misma semilla, mismo resultado)', () => {
+    const a = JSON.stringify(answerPhrase(phrase, 'techno', 1))
+    expect(a).toBe(JSON.stringify(answerPhrase(phrase, 'techno', 1)))
+    expect(a).not.toBe(JSON.stringify(answerPhrase(phrase, 'techno', 0)))
+  })
+  it('sin notas en la frase no hay respuesta; lo que pasa del compás 2 se ignora', () => {
+    expect(answerPhrase([], 'techno', 0)).toBeNull()
+    expect(answerPhrase([n(40, 60)], 'techno', 0)).toBeNull()
   })
 })

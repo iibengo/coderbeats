@@ -4,6 +4,7 @@
  */
 import type { MelodyHit } from './melody'
 import type { StyleId } from './types'
+import { STYLE_MUSIC } from './styles'
 import { scaleNotes } from './waterKeys'
 
 export const COLS_PER_BAR = 8
@@ -71,3 +72,31 @@ export function stretchNote(hits: readonly MelodyHit[], col: number, toCol: numb
 
 /** El índice de fila (0 = la más grave de las visibles) de una altura, o −1 si no está en la ventana. */
 export const rowOf = (rows: readonly number[], midi: number): number => rows.indexOf(midi)
+
+// ── «↻ responder» (spec 020 §1.3): la frase de 2 compases pregunta; los 2 siguientes responden ──
+/** Cuántos grados de la escala se mueven las notas del 4.º compás en cada variación (la secuencia es fija, sin azar). */
+const ANSWER_SHIFTS: readonly (readonly number[])[] = [[-1], [1], [1, -1], [-2, 2]]
+export const ANSWER_VARIANTS = ANSWER_SHIFTS.length
+
+/**
+ * La frase de los 2 primeros compases + su respuesta en los 2 siguientes (loop de 4): el mismo ritmo; el 3.er compás igual que la pregunta; las notas del 4.º se mueven
+ * unos grados de la escala (según la variación `seed`) y **la última nota cae en la tónica** (cierra la frase). Todo en la escala del estilo. `null` si no hay notas en la frase.
+ */
+export function answerPhrase(hits: readonly MelodyHit[], style: StyleId, seed: number): MelodyHit[] | null {
+  const phrase = normalize(hits.filter((h) => h.pos < 32), 2)
+  if (!phrase.length) return null
+  const scale = scaleNotes(style)
+  const nearest = (m: number) => scale.reduce((best, x, i) => (Math.abs(x - m) < Math.abs(scale[best]! - m) ? i : best), 0)
+  const shifts = ANSWER_SHIFTS[((seed % ANSWER_VARIANTS) + ANSWER_VARIANTS) % ANSWER_VARIANTS]!
+  const tonic = STYLE_MUSIC[style].scale[0]!
+  const answer = phrase.map((h, i): MelodyHit => {
+    const second = h.pos >= 16
+    const idx = nearest(h.midi) + (second ? shifts[i % shifts.length]! : 0)
+    return { ...h, pos: h.pos + 32, midi: scale[Math.max(0, Math.min(scale.length - 1, idx))]! }
+  })
+  // la última nota, a la tónica más cercana de la escala
+  const last = answer[answer.length - 1]!
+  const tonics = scale.filter((m) => m % 12 === tonic)
+  if (tonics.length) last.midi = tonics.reduce((b, m) => (Math.abs(m - last.midi) < Math.abs(b - last.midi) ? m : b), tonics[0]!)
+  return normalize([...phrase, ...answer], 4)
+}
