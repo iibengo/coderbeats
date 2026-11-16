@@ -132,6 +132,19 @@ export const LAB_REMIXES: readonly LabRemix[] = [
     intro: MZ.a, sub: MZ.b, drop: MZ_UP.a, drop2: MZ_UP.b, final: MZ.b,
     dropFx: [{ notes: MZ_CRASH, synth: 'crash' }, { notes: MZ_ROOTS, synth: 'pad' }],
   }),
+  // los dos estilos nuevos (spec 023) también tienen su remix principal: la demo de cada estilo es su remix
+  recipe({
+    id: 'himno-house', title: 'Himno de la alegría', composer: 'Beethoven', style: 'house2', kit: '808', key: 'Do mayor',
+    kick: T.bd4, clap: T.clap, hat: T.hat, hats16: T.hats16, roll: T.roll, noise: RISER_NOISE, pad: RISER_PAD,
+    intro: up(ODE_A, -2), sub: up(ODE_B, -2), drop: up(ODE_A, 10), drop2: up(ODE_A2, 10), final: up(ODE_A2, -2),
+    dropFx: [{ notes: MZ_CRASH, synth: 'crash' }],
+  }),
+  recipe({
+    id: 'wow-techno-2', title: 'Wow', composer: 'coderbeats', style: 'techno2', kit: 'electro', key: 'Do menor',
+    kick: T.bd4, clap: '~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ sd ~ ~ ~', hat: '~ ~ hh ~ ~ hh hh ~ ~ ~ hh ~ ~ hh hh ~', hats16: T.hats16, roll: T.roll, noise: RISER_NOISE, pad: RISER_PAD,
+    intro: WOW_HOOK, sub: WOW_HOOK, drop: WOW_HOOK, drop2: up(WOW_HOOK, 12), final: WOW_HOOK,
+    dropFx: [{ notes: MZ_CRASH, synth: 'crash' }, { notes: WOW_IMPACT, synth: 'boom' }],
+  }),
 ]
 export const labRemixById = (id: string): LabRemix | undefined => LAB_REMIXES.find((r) => r.id === id)
 

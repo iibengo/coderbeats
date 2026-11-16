@@ -8,10 +8,10 @@ import type { Instrument, StyleId } from '~/lib/types'
 
 export const LAB_STYLES: { id: StyleId; label: string }[] = [
   { id: 'hiphop90', label: 'hip hop' },
-  { id: 'house', label: 'house' },
+  { id: 'house2', label: 'house' },
   { id: 'dnb', label: 'dnb' },
   { id: 'dembow', label: 'dembow' },
-  { id: 'techno', label: 'techno' },
+  { id: 'techno2', label: 'techno' },
 ]
 
 /** los pasos (0..15) de la demo de un estilo para un instrumento */

@@ -30,6 +30,18 @@ export const DEMOS: Record<StyleId, Record<Instrument, string>> = {
     sd: '~ ~ ~ ~ sd ~ ~ ~ ~ ~ ~ ~ sd ~ ~ ~',
     hh: '~ ~ hh ~ ~ ~ hh ~ ~ ~ hh ~ ~ ~ hh ~',
   },
+  // house (spec 023): bombo 4×4, palmada en 2 y 4, platillo abierto a contratiempo
+  house2: {
+    bd: 'bd ~ ~ ~ bd ~ ~ ~ bd ~ ~ ~ bd ~ ~ ~',
+    sd: '~ ~ ~ ~ sd ~ ~ ~ ~ ~ ~ ~ sd ~ ~ ~',
+    hh: '~ ~ hh ~ ~ ~ hh ~ ~ ~ hh ~ ~ ~ hh ~',
+  },
+  // techno (spec 023): bombo constante, un solo golpe de caja y percusión hipnótica
+  techno2: {
+    bd: 'bd ~ ~ ~ bd ~ ~ ~ bd ~ ~ ~ bd ~ ~ ~',
+    sd: '~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ sd ~ ~ ~',
+    hh: '~ ~ hh ~ ~ hh hh ~ ~ ~ hh ~ ~ hh hh ~',
+  },
   // techno: bombo 4×4, palmada en 2 y 4, open hat a contratiempo (el dibujo que se deja grabar)
   techno: {
     bd: 'bd ~ ~ ~ bd ~ ~ ~ bd ~ ~ ~ bd ~ ~ ~',

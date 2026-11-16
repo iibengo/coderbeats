@@ -1,6 +1,7 @@
 export type Instrument = 'bd' | 'sd' | 'hh'
 export type KitId = 'electro' | '808' | 'vinyl'
-export type StyleId = 'hiphop90' | 'house' | 'dnb' | 'dembow' | 'techno'
+/** `house` y `techno` son los de siempre (**clásicos**: las canciones guardadas siguen sonando igual); `house2` y `techno2` son los nuevos, diferenciados por patrones (spec 023) */
+export type StyleId = 'hiphop90' | 'house' | 'dnb' | 'dembow' | 'techno' | 'house2' | 'techno2'
 
 export interface Style {
   id: StyleId
@@ -8,6 +9,8 @@ export interface Style {
   bpm: number
   /** al grabar, cuantizar cada N semicorcheas (2 = corcheas, medio tiempo de dnb) */
   quantizeEvery: 1 | 2
+  /** estilo de antes de la spec 023: no sale en la lista para elegir, pero abre y suena igual las canciones guardadas con él */
+  legacy?: boolean
 }
 
 export interface Kit {

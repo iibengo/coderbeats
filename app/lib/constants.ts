@@ -10,10 +10,12 @@ export const INSTRUMENT_LABELS: Record<Instrument, { name: string; vocal: string
 
 export const STYLES: Record<StyleId, Style> = {
   hiphop90: { id: 'hiphop90', label: 'Hip hop 90', bpm: 90, quantizeEvery: 1 },
-  house: { id: 'house', label: 'House', bpm: 124, quantizeEvery: 1 },
+  house: { id: 'house', label: 'House', bpm: 124, quantizeEvery: 1, legacy: true },
+  house2: { id: 'house2', label: 'House', bpm: 124, quantizeEvery: 1 },
   dnb: { id: 'dnb', label: 'Drum and bass', bpm: 174, quantizeEvery: 2 },
   dembow: { id: 'dembow', label: 'Dembow', bpm: 120, quantizeEvery: 1 },
-  techno: { id: 'techno', label: 'Techno', bpm: 128, quantizeEvery: 1 },
+  techno: { id: 'techno', label: 'Techno', bpm: 128, quantizeEvery: 1, legacy: true },
+  techno2: { id: 'techno2', label: 'Techno', bpm: 132, quantizeEvery: 1 },
 }
 
 export const KITS: Record<KitId, Kit> = {

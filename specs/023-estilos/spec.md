@@ -52,3 +52,11 @@ Cada uno con **su demo/remix principal, su escala, su bajo y sus acordes**. Prue
 ## 6. Pendiente
 - Falta un remix principal de **house**, de **hip hop** y de **dnb** (hoy: dembow y techno ×3). Mientras no lo haya, «Nuevo remix» usa la demo de ritmo de ese estilo, sin botón.
 - Se hace **después de la auditoría**, en el orden acordado, **en un commit**.
+
+## 7. Hecho (2026-11-16) y decisiones a revisar
+- **Cómo se garantiza que lo guardado no cambia de sonido:** en vez de versionar el fondo dentro del motor (arriesgado), **`house` y `techno` se quedan tal cual (clásicos, `legacy`)** y los nuevos son estilos con id propio, **`house2` y `techno2`** (etiqueta «house» / «techno»). Todo el código ya se guía por el id del estilo, así que las canciones y los remixes de serie con `house`/`techno` suenan **idénticos** (test de que sus datos y su código siguen igual). La lista para elegir enseña los 5 estilos nuevos; un clásico solo sale si es el de la canción abierta («house (clásico)», «techno (clásico)»).
+- **Datos nuevos:** house2 (124): bombo 4×4, palmada en 2 y 4, platillo a contratiempo, bajo sincopado, stabs de piano (do mayor); techno2 (132): bombo constante, un solo golpe de caja, percusión hipnótica, bajo rodante en semicorcheas sin los pasos del bombo, una sola nota larga oscura de acordes (do frigio). Cada uno con su demo, su plantilla de canción, sus rótulos y sugerencias. **Sin probar de oído.**
+- **Swing de house:** no está en los patrones (los loops van a rejilla); lo da «Producción» (ajuste avanzado). A revisar si hay que ponerlo por defecto en house.
+- **Etiqueta de estilo** (`house ▾`) en vez de los 5 botones; con algo hecho pide confirmar («Cambia el bajo, los acordes y el tempo; tu ritmo y tu melodía se quedan»). «Cargar demo» escondido (la demo de ritmo se carga sola al «Empezar»).
+- **Remix principal por estilo:** hay para dembow (Himno), techno clásico (Dies Irae, Wow, Mozart), **house2 (Himno)** y **techno2 (Wow)**; **faltan hip hop y dnb** (siguen con la demo de ritmo).
+- **Pendiente:** los remixes de serie de techno clásico no se pasan a techno2 (cambiarían de sonido); si te gusta techno2, se pueden rehacer.

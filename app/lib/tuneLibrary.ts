@@ -26,12 +26,12 @@ export interface Tune {
 const seq = (items: readonly [number, number][], first: number, dur = 4): Note[] => items.map(([at, semi]) => [at, dur, first + semi] as const)
 
 export const TUNES: readonly Tune[] = [
-  { id: 'oda', name: 'Himno de la alegría', styles: ['dembow', 'house', 'hiphop90'], tonic: 2, notes: ODE_A },
-  { id: 'mozart', name: 'Sinfonía n.º 40', styles: ['techno'], tonic: 7, notes: MOZART_G.a },
+  { id: 'oda', name: 'Himno de la alegría', styles: ['dembow', 'house', 'house2', 'hiphop90'], tonic: 2, notes: ODE_A },
+  { id: 'mozart', name: 'Sinfonía n.º 40', styles: ['techno', 'techno2'], tonic: 7, notes: MOZART_G.a },
   {
     id: 'jacques',
     name: 'Fray Santiago',
-    styles: ['hiphop90', 'dembow', 'house'],
+    styles: ['hiphop90', 'dembow', 'house', 'house2'],
     tonic: 0,
     // do re mi do | do re mi do | mi fa sol | mi fa sol | sol la sol fa mi do | sol la sol fa mi do | do sol do | do sol do
     notes: [
@@ -42,7 +42,7 @@ export const TUNES: readonly Tune[] = [
   {
     id: 'estrellita',
     name: 'Estrellita, ¿dónde estás?',
-    styles: ['hiphop90', 'dembow', 'house'],
+    styles: ['hiphop90', 'dembow', 'house', 'house2'],
     tonic: 0,
     // do do sol sol la la sol(2) | fa fa mi mi re re do(2)
     notes: [...seq([[0, 0], [4, 0], [8, 7], [12, 7], [16, 9], [20, 9]], 60), [24, 8, 67], ...seq([[32, 5], [36, 5], [40, 4], [44, 4], [48, 2], [52, 2]], 60), [56, 8, 60]],
@@ -50,7 +50,7 @@ export const TUNES: readonly Tune[] = [
   {
     id: 'elisa',
     name: 'Para Elisa',
-    styles: ['hiphop90', 'house'],
+    styles: ['hiphop90', 'house', 'house2'],
     tonic: 9,
     // mi re# mi re# mi si re do la | do mi la si | mi sol# si do
     notes: [
@@ -60,7 +60,7 @@ export const TUNES: readonly Tune[] = [
     ],
   },
   // las dos frases una tras otra (la segunda, desde el compás 3)
-  { id: 'dies', name: 'Dies irae', styles: ['techno', 'dnb'], tonic: 0, notes: [...DIES_PHRASES[0]!, ...DIES_PHRASES[1]!.map(([p, d, m]) => [p + 32, d, m] as const)] },
+  { id: 'dies', name: 'Dies irae', styles: ['techno', 'techno2', 'dnb'], tonic: 0, notes: [...DIES_PHRASES[0]!, ...DIES_PHRASES[1]!.map(([p, d, m]) => [p + 32, d, m] as const)] },
 ]
 
 /** Las melodías que pegan con el estilo (a su tempo y carácter); si ninguna, no se ofrece melodía. */

@@ -246,3 +246,38 @@ describe('el motor: otra vez el remix del Himno', () => {
     expect(cellCode).toMatch(/s\("bd ~/) // la batería sigue en la célula, por fuera
   })
 })
+
+import { STYLES as ALL_STYLES } from '../../app/lib/constants'
+import { DEMOS as ALL_DEMOS } from '../../app/lib/demos'
+import { STYLE_MUSIC as ALL_MUSIC } from '../../app/lib/styles'
+describe('house y techno nuevos (spec 023): distintos entre sí y los clásicos no cambian', () => {
+  it('house2 y techno2 se diferencian por patrones, no solo por la tonalidad', () => {
+    const h = ALL_MUSIC.house2
+    const t = ALL_MUSIC.techno2
+    expect(ALL_DEMOS.house2.sd).not.toBe(ALL_DEMOS.techno2.sd) // palmada en 2 y 4 frente a un solo golpe
+    expect(ALL_DEMOS.house2.hh).not.toBe(ALL_DEMOS.techno2.hh)
+    expect(h.background.bass.notes.length).toBeLessThan(t.background.bass.notes.length + 1) // bajo sincopado frente a rodante
+    expect(t.background.bass.notes.length).toBe(12) // semicorcheas, sin los pasos del bombo
+    expect(t.background.chords.length).toBe(1) // casi sin acordes
+    expect(t.background.chords[0]).toMatch(/gain\(0\.1\)/)
+    expect(h.scale).not.toEqual(t.scale)
+  })
+  it('tempos: house ≈ 124, techno ≈ 132; los clásicos siguen en 124 y 128', () => {
+    expect([ALL_STYLES.house2.bpm, ALL_STYLES.techno2.bpm]).toEqual([124, 132])
+    expect([ALL_STYLES.house.bpm, ALL_STYLES.techno.bpm]).toEqual([124, 128])
+    expect(ALL_STYLES.house.legacy && ALL_STYLES.techno.legacy).toBe(true)
+    expect(ALL_STYLES.house2.legacy || ALL_STYLES.techno2.legacy).toBeFalsy()
+  })
+  it('lo guardado con house o techno genera exactamente el mismo fondo que antes (datos clásicos intactos)', () => {
+    expect(ALL_MUSIC.house.key).toBe('fa menor')
+    expect(ALL_MUSIC.techno.key).toBe('do menor')
+    expect(ALL_MUSIC.techno.kickTune).toBe('<c2 ab1 bb1 g1>')
+    expect(ALL_MUSIC.techno.background.bass.notes.length).toBe(8)
+    expect(ALL_MUSIC.house.background.bass.notes.length).toBe(4)
+    const st = (style: 'techno' | 'techno2') => ({ loops: [], style, kit: 'electro' as const, background: { mode: 'manual' as const, parts: { bass: true, chords: true } }, metronome: false, fx: { filter: 1, space: 0, warmth: 0.5 } })
+    const old = songCode(st('techno'), 'display')
+    expect(old).toContain('setcpm(128/4)')
+    expect(old).toContain('c2')
+    expect(songCode(st('techno2'), 'display')).toContain('setcpm(132/4)')
+  })
+})

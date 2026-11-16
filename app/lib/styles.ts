@@ -220,6 +220,85 @@ export const STYLE_MUSIC: Record<StyleId, StyleMusic> = {
     ],
     synth: 'lead',
   },
+  // ── house y techno nuevos (spec 023, 2026-11-16): los de arriba (`house`, `techno`) se quedan como estaban para que lo guardado suene igual ──
+  // house (124 bpm): bombo 4×4 con peso, palmada en 2 y 4, platillo abierto a contratiempo, bajo sincopado y redondo, acordes de «piano» alegres (do mayor).
+  // (El swing de las semicorcheas lo da «Producción», que ya existe.) Sin probar de oído.
+  house2: {
+    key: 'do mayor',
+    priors: {
+      bd: prior(0.04, { 0: 1, 4: 1, 8: 1, 12: 1 }),
+      sd: prior(0.06, { 4: 1, 12: 1 }),
+      hh: prior(0.18, { 2: 1, 6: 1, 10: 1, 14: 1, 3: 0.35, 11: 0.35 }),
+    },
+    templates: {
+      bd: 'bd ~ ~ ~ bd ~ ~ ~ bd ~ ~ ~ bd ~ ~ ~',
+      sd: BACKBEAT,
+      hh: '~ ~ hh ~ ~ ~ hh ~ ~ ~ hh ~ ~ ~ hh ~',
+    },
+    background: {
+      // bajo sincopado entre los bombos: c2 en el compás 1, a1 en el 2
+      bass: {
+        bars: 2,
+        notes: [
+          { pos: 2, dur: 2, note: 'c2' },
+          { pos: 6, dur: 2, note: 'c2' },
+          { pos: 10, dur: 2, note: 'c2' },
+          { pos: 14, dur: 1, note: 'e2' },
+          { pos: 18, dur: 2, note: 'a1' },
+          { pos: 22, dur: 2, note: 'a1' },
+          { pos: 26, dur: 2, note: 'a1' },
+          { pos: 30, dur: 1, note: 'c2' },
+        ],
+        sound: '.s("sawtooth").lpf(650).lpenv(2).decay(0.2).sustain(0).gain(0.6)',
+      },
+      // stabs de «piano» (triangular con caída corta) a contratiempo: Cmaj7 · Am7 · Fmaj7 · G7
+      chords: [
+        'note("<[c3,e3,g3,b3] [a2,c3,e3,g3] [f2,a2,c3,e3] [g2,b2,d3,f3]>").struct("~ x ~ x ~ ~ x ~").s("triangle").decay(0.22).sustain(0).lpf(3200).room(0.3).gain(0.3)',
+      ],
+    },
+    // do mayor: C D E F G A B
+    scale: [0, 2, 4, 5, 7, 9, 11],
+    chordTones: [
+      [0, 4, 7, 11],
+      [9, 0, 4, 7],
+      [5, 9, 0, 4],
+      [7, 11, 2, 5],
+    ],
+    synth: 'piano',
+  },
+  // techno (132 bpm): bombo constante y seco, bajo rodante en semicorcheas, percusión hipnótica, casi sin acordes (una sola nota larga y oscura), do frigio. Sin probar de oído.
+  techno2: {
+    key: 'do menor',
+    priors: {
+      bd: prior(0.03, { 0: 1, 4: 1, 8: 1, 12: 1 }),
+      sd: prior(0.03, { 12: 0.5 }),
+      hh: prior(0.35, { 2: 1, 6: 1, 10: 1, 14: 1, 5: 0.7, 7: 0.7, 13: 0.7, 15: 0.7 }),
+    },
+    templates: {
+      bd: 'bd ~ ~ ~ bd ~ ~ ~ bd ~ ~ ~ bd ~ ~ ~',
+      sd: '~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ sd ~ ~ ~',
+      hh: '~ ~ hh ~ ~ hh hh ~ ~ ~ hh ~ ~ hh hh ~',
+    },
+    background: {
+      // el bajo rueda en semicorcheas, apagado donde cae el bombo (pasos 0, 4, 8, 12)
+      bass: {
+        bars: 1,
+        notes: Array.from({ length: 16 }, (_, i) => i)
+          .filter((i) => i % 4 !== 0)
+          .map((i) => ({ pos: i, dur: 1, note: i % 8 === 7 ? 'c3' : 'c2' })),
+        sound: '.s("sawtooth").lpf(380).lpenv(1.5).decay(0.12).sustain(0).gain(0.55)',
+      },
+      // casi sin acordes: una sola nota larga y oscura, muy baja de volumen
+      chords: ['note("<[c3,eb3,g3]>").s("supersaw").attack(0.6).release(1.2).lpf(700).room(0.6).gain(0.1)'],
+    },
+    // do frigio (más oscuro): C Db Eb F G Ab Bb
+    scale: [0, 1, 3, 5, 7, 8, 10],
+    chordTones: [
+      [0, 3, 7],
+      [0, 3, 7, 10],
+    ],
+    synth: 'lead',
+  },
 }
 
 /** Pasos (0..15) con golpe de una plantilla. */

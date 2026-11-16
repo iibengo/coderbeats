@@ -101,7 +101,7 @@ describe('la melodía sugerida (spec 012, §3): pura, determinista y del estilo'
   it('sin tres notas iguales seguidas (cuatro en el techno, que repite la nota pedal)', () => {
     for (const style of STYLE_IDS) for (const seed of [0, 1, 2, 3]) {
       const m = suggestMelody({ style, drums: typical(style), seed })
-      const cap = style === 'techno' ? 3 : 2
+      const cap = style === 'techno' || style === 'techno2' ? 3 : 2
       let run = 1
       for (let k = 1; k < m.length; k++) {
         run = m[k]!.midi === m[k - 1]!.midi ? run + 1 : 1

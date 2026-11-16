@@ -37,6 +37,8 @@ export const DENSITY: Record<StyleId, readonly [number, number]> = {
   dnb: [3, 5],
   dembow: [4, 6],
   techno: [5, 8],
+  house2: [4, 7],
+  techno2: [5, 8],
 }
 
 /** Una nota no dura menos de esto (s). */
@@ -145,7 +147,8 @@ export function suggestMelody(i: SuggestInput): MelodyHit[] {
   const near = (target: number, set: readonly number[]) => [...set].sort((a, b) => Math.abs(a - target) - Math.abs(b - target) || a - b)[0]!
   const chordNotes = (bar: number) => pool.filter((m) => chordAt(bar).includes(mod(m, 12)))
 
-  const repeatCap = i.style === 'techno' ? 3 : 2
+  const isTechno = i.style === 'techno' || i.style === 'techno2'
+  const repeatCap = isTechno ? 3 : 2
   const walk = (bars: number[][], startBar: number, upBias: number, from: number): number[][] => {
     let cur = from
     let same = 1
@@ -160,8 +163,8 @@ export function suggestMelody(i: SuggestInput): MelodyHit[] {
           next = near(target, chordNotes(bar))
         } else {
           const idx = pool.indexOf(cur) >= 0 ? pool.indexOf(cur) : pool.indexOf(near(cur, pool))
-          const stepwise = i.style === 'techno' ? [0, 1, -1, 2, -2] : [1, -1, 0, 2, -2, 3, -3]
-          const w = i.style === 'techno' ? [0.4, 0.3 + upBias, 0.3 - upBias, 0.1, 0.1] : [0.34 + upBias, 0.34 - upBias, 0.1, 0.12, 0.12, 0.04, 0.04]
+          const stepwise = isTechno ? [0, 1, -1, 2, -2] : [1, -1, 0, 2, -2, 3, -3]
+          const w = isTechno ? [0.4, 0.3 + upBias, 0.3 - upBias, 0.1, 0.1] : [0.34 + upBias, 0.34 - upBias, 0.1, 0.12, 0.12, 0.04, 0.04]
           const d = pick(rand, stepwise, w.map((x) => Math.max(0.02, x)))
           next = pool[Math.max(0, Math.min(pool.length - 1, idx + d))]!
         }

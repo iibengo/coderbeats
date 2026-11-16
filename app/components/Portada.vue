@@ -190,12 +190,12 @@ const aboutOpen = ref(false)
 
 const STYLE_CARDS: { id: StyleId; name: string; hint: string }[] = [
   { id: 'hiphop90', name: 'Hip hop', hint: '90 bpm · suave' },
-  { id: 'house', name: 'House', hint: '124 bpm · bailable' },
+  { id: 'house2', name: 'House', hint: '124 bpm · bailable' },
   { id: 'dnb', name: 'Drum and bass', hint: '174 bpm · rápido' },
   { id: 'dembow', name: 'Dembow', hint: '90 bpm · latino' },
-  { id: 'techno', name: 'Techno', hint: 'oscuro · hipnótico' },
+  { id: 'techno2', name: 'Techno', hint: 'oscuro · hipnótico' },
 ]
-const SHORT: Record<StyleId, string> = { hiphop90: 'hip hop', house: 'house', dnb: 'dnb', dembow: 'dembow', techno: 'techno' }
+const SHORT: Record<StyleId, string> = { hiphop90: 'hip hop', house: 'house', dnb: 'dnb', dembow: 'dembow', techno: 'techno', house2: 'house', techno2: 'techno' }
 
 /** Elegir estilo: empieza a sonar la base (bajo y acordes); si ya se había elegido, cambia de estilo sin perder lo hecho */
 async function pick(id: StyleId) {

@@ -57,7 +57,17 @@ const stage = ref<InstanceType<typeof VisualStage> | null>(null)
 const renderer = computed(() => stage.value?.rendererName ?? '')
 const layoutInfo = () => stage.value?.layoutInfo() ?? ''
 
-const STYLE_SHORT: Record<StyleId, string> = { hiphop90: 'hip hop', house: 'house', dnb: 'dnb', dembow: 'dembow', techno: 'techno' }
+const STYLE_SHORT: Record<StyleId, string> = { hiphop90: 'hip hop', house: 'house (clásico)', dnb: 'dnb', dembow: 'dembow', techno: 'techno (clásico)', house2: 'house', techno2: 'techno' }
+// la lista para elegir lleva los 5 estilos; un estilo clásico solo sale si es el de la canción que se tiene abierta
+const styleMenu = ref(false)
+/** cambiar de estilo con algo hecho cambia el bajo, los acordes y el tempo (el ritmo y la melodía se quedan): se avisa */
+async function pickStyle(id: StyleId) {
+  styleMenu.value = false
+  if (id === style.value) return
+  if ((engine.loops.value.loops.length || engine.multi.value) && !(await askConfirm('Cambia el bajo, los acordes y el tempo; tu ritmo y tu melodía se quedan. ¿Cambiar de estilo?', 'Cambiar'))) return
+  await engine.setStyle(id)
+}
+const navStyles = computed(() => Object.values(STYLES).filter((s) => !s.legacy || s.id === style.value))
 
 // tempo fácil (spec 005, §6): tocar el BPM lo enciende ("toca 4 veces"); mantenerlo vuelve al tempo del estilo
 // duración del remix a la vista (spec 020): partes y tiempo total; ámbar si pasa de los 2 min
@@ -171,15 +181,15 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
       :style="navStyle"
       @pointerdown.stop
     >
-      <button
-        v-for="s in Object.values(STYLES)"
-        :key="s.id"
-        class="px-1 py-2 transition-colors"
-        :class="style === s.id ? 'text-white' : 'text-white/35'"
-        @click="engine.setStyle(s.id as StyleId)"
-      >
-        {{ STYLE_SHORT[s.id as StyleId] }}
-      </button>
+      <!-- el estilo es una decisión del remix (spec 023): una etiqueta; tocarla abre la lista de los 5 estilos -->
+      <div class="relative">
+        <button class="px-1 py-2 text-white" aria-haspopup="listbox" :aria-expanded="styleMenu" data-style-label @click="styleMenu = !styleMenu">{{ STYLE_SHORT[style] }} ▾</button>
+        <ul v-if="styleMenu" class="absolute left-0 top-full z-20 grid min-w-32 gap-0.5 rounded-xl border border-white/15 bg-[#121217] p-1 text-sm shadow-xl" role="listbox" data-style-menu>
+          <li v-for="s in navStyles" :key="s.id">
+            <button class="w-full rounded-lg px-3 py-2 text-left" :class="style === s.id ? 'text-white' : 'text-white/60'" role="option" :aria-selected="style === s.id" @click="pickStyle(s.id as StyleId)">{{ STYLE_SHORT[s.id as StyleId] }} <span class="text-xs text-white/35">{{ s.bpm }}</span></button>
+          </li>
+        </ul>
+      </div>
       <button
         class="bpm px-1 py-2 tabular-nums transition-colors"
         :class="engine.tempoTap.value.active ? 'text-[#F496BC]' : bpmCustom ? 'text-white/70' : 'text-white/35'"
