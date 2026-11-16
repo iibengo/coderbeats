@@ -139,3 +139,25 @@ Todo en `main`, **sin push**; un commit por parte con tests (1023), `nuxt typech
 3. **Producción:** ⋯ → «Producción» encendido, con un loop de ritmo sin melodía «✦ Convertir en canción» → ¿la Subida sube con ruido y cae bien el impacto (¿llega un paso pronto?), el fill de caja cada 4 compases? ↶ deshacer.
 4. Con una canción guardada con voz en otro dispositivo (o borrando datos del sitio): la bola de voz sale discontinua.
 5. Lo pendiente de antes (bloqueo al cambiar de canción sonando, previsualizar, vídeo, compartir, fundir).
+
+---
+
+# Cuarta tanda (2026-11-16) — fluido del agua y primer minuto
+
+Todo en `main`, **sin push**; tests (1032), `nuxt typecheck` y `nuxt build` en verde en cada commit. Comprobado en Chrome (guiones `tests/browser/flujo.mjs` y capturas); **nada medido ni visto en un móvil real**.
+
+| Commit | Qué |
+|---|---|
+| `feat(agua): estela del dedo y venas…` | **Estela del dedo** (Jugar) y **venas** por los hilos (Componer). El vigilante de frames tiene un escalón nuevo, `flow`: **lo primero que se apaga y lo último que vuelve**; con movimiento reducido no se dibuja. Interruptor **«Agua viva»** en ⋯ → ajustes (encendido por defecto, se guarda). Canvas propio, topes duros (28 puntos de estela, 48 de venas). |
+| `feat(primer minuto)…` | Primera vez: Play late y «Dale a ▶». Durante la guía **no hay botones avanzados** (tapaban la frase). Textos más cortos en inicio, latencia y sonidos. **Latencia saltable** (solo se pide a quien no tiene sonidos). Spec 011, «Pulido del primer minuto». |
+
+## Decisiones a revisar
+- «Agua viva» **encendida por defecto**: si en tu móvil se nota lento, apágala y dime (el vigilante debería apagarla solo en ~2 s).
+- Saltar la latencia deja la latencia en 0 hasta que se mida en ajustes (afecta a cuánto se adelantan los golpes del micro).
+- El paso 2 (grabar tus 3 sonidos) **sigue siendo obligatorio**: es lo más largo del primer minuto real; quitarlo sería una función nueva (sonidos por defecto o tocar con el dedo sin micro).
+
+## Qué probar en el móvil, en orden
+1. **Primer minuto con alguien que no conozca la app** (o borrando los datos del sitio): ¿entiende que hay que dar a ▶? ¿Cuánto tarda en tener un ritmo que le guste? Mira dónde duda: ¿en la latencia? ¿en grabar los sonidos? ¿en la frase de la guía?
+2. Tras la guía, ¿vuelven los botones y la melodía sugerida se entiende?
+3. **Agua viva:** arrastra el dedo en Jugar: ¿estela lila que se desvanece? En Componer con un remix (Beethoven), ¿puntitos rosa corriendo por los hilos? ¿Va igual de fluido con el interruptor apagado/encendido? Si va lento, ¿se apaga sola?
+4. Lo anterior (Agua legible, Producción en «Convertir en canción»…) sigue sin probar: ver la tanda 3.
