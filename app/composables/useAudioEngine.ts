@@ -1522,8 +1522,23 @@ export function useAudioEngine() {
     cb.fx.shape = warmthShape(fx.warmth)
   }
 
+  /**
+   * Despierta el audio si el sistema lo paró (llamada, bloqueo de pantalla o cambiar de app: en iOS el contexto queda `interrupted`/`suspended` y todo sonaría mudo).
+   * Se llama desde un gesto (▶, volver a la app) y no falla si el navegador no deja.
+   */
+  async function wake() {
+    const c = ctx
+    if (!c || c.state === 'running' || c.state === 'closed') return
+    try {
+      await c.resume()
+    } catch {
+      /* sin gesto: se reintentará en el siguiente */
+    }
+  }
+
   async function play() {
     if (playing.value || !S) return
+    await wake()
     stopSyncTest()
     // lo que informa el navegador puede cambiar al conectar o quitar unos cascos
     refreshImageDelay()
@@ -2700,6 +2715,7 @@ export function useAudioEngine() {
         voiceCancel = false
       }
     },
+    wake,
     thereminNote,
     thereminShown,
     hideActions,

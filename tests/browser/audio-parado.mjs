@@ -1,0 +1,16 @@
+// Si el sistema para el audio (iOS: llamada o bloqueo), ▶ lo despierta.
+import { open, sleep } from './lib.mjs'
+const { b, p, errs } = await open({ goto: false })
+await p.evaluateOnNewDocument(() => { window.__ctxs = []; const A = window.AudioContext; window.AudioContext = class extends A { constructor(...a) { super(...a); window.__ctxs.push(this) } } })
+await p.goto(`http://localhost:${process.env.PORT || 3999}/`, { waitUntil: 'networkidle2', timeout: 120000 })
+await p.evaluate(() => [...document.querySelectorAll('button')].find((x) => x.textContent.includes('Empezar'))?.click())
+await sleep(8000)
+const state = () => p.evaluate(() => window.__ctxs.map((c) => c.state).join(','))
+console.log('al abrir:', await state())
+await p.evaluate(async () => { await Promise.all(window.__ctxs.map((c) => c.suspend())) })
+console.log('parado por el sistema:', await state())
+await p.evaluate(async () => { await window.__engine.loadDemo(); await window.__engine.play() })
+await sleep(800)
+console.log('tras ▶:', await state(), '| suena:', await p.evaluate(() => window.__engine.playing.value))
+console.log('errores', errs)
+await b.close()

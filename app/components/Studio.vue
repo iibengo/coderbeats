@@ -142,6 +142,8 @@ const playStyle = computed(() =>
 // en segundo plano el navegador frena los temporizadores del planificador: se para (§16.12)
 function onVisibility() {
   if (document.hidden && playing.value) engine.stop()
+  // al volver (tras una llamada o el bloqueo) el audio puede haber quedado parado: se despierta
+  else if (!document.hidden) void engine.wake()
 }
 /** Abrir una canción compartida (`#c=…`): se valida como lo guardado, se pregunta y no se guarda sola; el fragmento se quita de la dirección. */
 async function openSharedLink() {
