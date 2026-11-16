@@ -1,0 +1,95 @@
+# 016 · La portada simple: música fácil, y mía
+
+> Estado: **borrador para revisar** (2026-11-16). No se programa nada hasta que se apruebe. Escrito después de probar el sintetizador de espiral (015 §14) y de ver que la app se complica.
+
+## 1. El problema y la idea
+coderbeats ya hace muchas cosas (Jugar y Componer, células y grupos, Escenario, Agua, voz, piloto, vídeo, producción, remixes, tres modos de sintetizador). Cada una es buena, pero **quien llega por primera vez no sabe por dónde empezar**. Lo mejor que hemos hecho, la **espiral** (las notas vienen a tu dedo), está escondido tras ⋯ → «+ melodía».
+
+**La idea:** una **pantalla única** que es la **nueva portada de coderbeats** (no una app aparte). Todo lo demás pasa a un **«modo avanzado»** dentro de la misma app. La portada solo junta las mejores piezas que ya existen, con una interfaz nueva encima.
+
+## 2. Lo que hace que alguien se quede (en este orden)
+1. **Suena bien al instante, sin saber nada.** En menos de 10 s desde «Empezar» hay música sonando, y a los 20 s la persona la está tocando.
+2. **Se ve bonito mientras suena.** El agua, la gota y la espiral son la identidad; nada de menús tapando.
+3. **Se puede compartir en vídeo.** Un botón, un archivo que enseñar.
+
+Cualquier cosa que no ayude a una de las tres se queda fuera de la portada.
+
+## 3. Principio: fácil pero **mío**
+El riesgo de lo fácil es que la app parezca tocar sola. Reglas para que se note que **lo has hecho tú**:
+- **La base es la única cosa que pone la app** (bajo y acordes del estilo, y un pulso suave). **Todo lo demás que se oye es un gesto tuyo.** Si no tocas ni cantas, la melodía y el ritmo no aparecen.
+- **Tu voz y tus toques son el ritmo, tal cual**: sus golpes entran en el loop donde los hiciste (cuantizados al compás como hoy), no se sustituyen por un patrón de la app. El primer golpe suena y se ve **al instante** y, al volver el loop, **sigue siendo ese golpe**.
+- **La melodía es un tema conocido, pero tú la «interpretas»**: el dedo decide el **brillo** (izquierda–derecha) y la **altura/octava** del tema (arriba–abajo) mientras llega; lo que se graba es **tu interpretación**, no la partitura. *(Decisión abierta, §9.1.)*
+- **Todo lo que haces deja huella visible**: tu rastro de luz, tus golpes como puntos del color de la voz, y la gota cambia de forma con **tu** canción (ya lo hace con los loops).
+- **Un deshacer siempre a mano** y **nada se borra sin deshacer**: probar no cuesta nada.
+
+## 4. El flujo (4 pasos, una sola pantalla)
+```
+┌────────────────────────────────┐
+│  hip hop · house · dnb · …     │  1 · Elige un estilo (la base empieza a sonar)
+│                                │
+│         agua / la gota         │  2 · Pon el dedo en el agua → aparece la espiral
+│     (la espiral viene aquí)    │      y las notas vienen a tu dedo
+│                                │
+│   [ bum ]  [ pff ]  [ ts ]     │  3 · Ritmo: tu voz, o toca estas tres pastillas
+│                                │
+│  ↶    ● guardado     🎬 Compartir│  4 · Un botón: vídeo (y guardado automático)
+└────────────────────────────────┘
+```
+1. **Estilo.** Al abrir, cinco tarjetas grandes (hip hop, house, dnb, dembow, techno). Al tocar una, **empieza a sonar la base** y la pantalla pasa a «tocar». Se puede cambiar de estilo cuando sea (conserva lo que hiciste, adaptado a la escala nueva).
+2. **Melodía: la espiral.** «Pon el dedo en el agua.» Mantener y mover sin levantar: las notas del tema vienen al dedo y suenan al llegar (015 §14). «↻» cambia de tema (los 6 de la biblioteca, adaptados al estilo). Al acabar el tema, **queda como la melodía de la canción** y se puede volver a tocar encima (sustituye con deshacer).
+3. **Ritmo.** El micro está **siempre escuchando**: «bum · pff · ts» entra directo. Para quien no tenga micro o esté en un sitio con gente, **tres pastillas** (bum, pff, ts) en la parte baja que se tocan con el dedo y entran igual en el loop. Sin calibración obligatoria (como hoy: modelo por defecto, y «¿te afino a tu voz?» si no acierta).
+4. **Guardar y compartir.** Se guarda **solo** como «Mi canción» (la biblioteca de siempre). **🎬 Compartir** abre la exportación de vídeo actual (vertical/cuadrado, con el agua y tu audio) con el mínimo de opciones; el enlace de la canción queda en «más».
+
+**Los dos primeros minutos guiados** (sustituyen a la guía y al tutorial actuales en la portada): una sola frase cada vez, tenue — «Elige cómo suena» → «Pon el dedo en el agua» → «Ahora tu voz: bum · pff · ts» → «Guárdalo o compártelo».
+
+## 5. Lo que entra en la portada
+| Pieza | De dónde sale | Qué cambia |
+|---|---|---|
+| Estilos con su base (bajo, acordes, escala) | `styles.ts`, fondo | ninguno; se elige con tarjetas |
+| **Espiral + biblioteca de 6 temas** | 015 §13–§14 | pasa de ⋯ a ser la pieza central; el brillo (x) y la octava (y) los pone el dedo |
+| **Ritmo con la voz** (modelo por defecto, sin calibrar) | 001 §17 | siempre escuchando; el «¿te afino?» se conserva |
+| **Tres pastillas** (bum, pff, ts) | nuevo, mínimo | tocar en vez de cantar; entra como un golpe de voz |
+| La gota, el agua, los golpes como puntos y la estela | aro + agua + flujo | igual; **más limpio** (sin botones sueltos) |
+| **Vídeo** | 013 | un solo botón con opciones por defecto |
+| **Guardado automático** y deshacer | biblioteca 006 | «Mi canción» se guarda sola; ↶ visible |
+| «Entrar sin micro» | 001 §17 | pasa a ser el camino normal de las pastillas |
+| Acerca de, licencia y créditos | `about.ts` | en «más» |
+
+## 6. Lo que pasa a «modo avanzado» (sigue igual, solo se esconde)
+Jugar/Componer con el mapa de células, grupos y disparadores · Escenario · «🎹 Agua» y los modos Puntos/Libre del sintetizador · pista de voz (007) · piloto y «Ver cómo se construye» · Previsualizar · Convertir en canción y las variaciones · Producción (swing, matices, transiciones) · remixes · Mis canciones completa · latencia, calibración, retraso de imagen, diagnóstico y código · el órgano de la melodía.
+
+**Cómo se pasa de la portada al modo avanzado** (y vuelta):
+- Un botón discreto **«⋯ → Modo avanzado»** (y la preferencia se recuerda). Abre **el Estudio de hoy, con la misma canción**: lo que se hizo en la portada es una canción normal de **una célula** (base + loops de batería + loop de melodía), así que **aparece tal cual en Jugar/Componer** y se puede seguir.
+- **Volver a la portada** desde avanzado: «⋯ → Modo simple». Si la canción tiene varias células o grupos, la portada **la toca y la graba igual** (sobre la célula que se ve) pero avisa de que lo demás se conserva y no se muestra; **nunca se borra ni se simplifica nada**.
+- **Quien ya tiene canciones guardadas, calibración o preferencias** entra por la portada, con un acceso claro («Modo avanzado» y «Mis canciones») y **todo lo suyo intacto**. La preferencia nueva (`ui: 'simple' | 'avanzado'`) se añade al guardado sin migración: sin ella = portada.
+- Los enlaces compartidos y las canciones guardadas abren en el modo en que se hicieron (una célula → portada; más → avanzado).
+
+## 7. Qué **no** se toca
+Formato de canción y de biblioteca, calibración guardada, motor de audio y reloj, kits, estilos, análisis de voz, exportación de vídeo. **La portada es capa de interfaz y de orquestación** sobre lo que ya existe, más las tres pastillas y la nueva forma de elegir tema/estilo. Un fallo de la portada no puede dañar lo guardado: solo lee y escribe canciones válidas (`isSong`).
+
+## 8. Cómo se sabrá que funciona
+**Criterios (a comprobar con alguien que no la haya visto):**
+1. Desde «Empezar», **suena música en < 10 s** y la persona **toca algo en < 20 s** sin leer.
+2. En **1 minuto** hay una canción con base, melodía y ritmo **que ella ha hecho** y dice «es mío».
+3. Comparte un vídeo sin ayuda.
+4. **Nadie se pierde**: ninguna pantalla con más de 2 acciones visibles a la vez en la portada (estilo, ↻, ↶, 🎬, ⋯).
+**Pruebas automáticas:** la portada solo usa canciones válidas; ida y vuelta portada ↔ avanzado no cambia los datos (test sobre la canción); con micro denegado funciona con pastillas; cambio de estilo conserva loops y melodía adaptada; el vídeo sale con las opciones por defecto. **Chrome sin pantalla** para el flujo de 4 pasos. **A mano (móvil):** el primer minuto con una persona nueva, y el oído (§3: ¿se nota que es tuyo?).
+
+## 9. Preguntas abiertas (para decidir antes de programar)
+1. **¿Cuánto «interpreta» el dedo la melodía?** Opciones: **(a)** solo brillo (hoy); **(b)** brillo + **octava** (arriba/abajo sube o baja el tema); **(c)** además la **velocidad de tu dedo** mueve el volumen/densidad. Propuesta: **(b)**, para que cambie lo que suena sin romper el tema.
+2. **¿Una melodía sin tema?** Para quien no quiera un tema conocido: que la espiral genere notas de la escala siguiendo el **movimiento** del dedo. Más «mío», más difícil de hacer bien. Propuesta: **no en la primera versión**, el modo ✋ Libre queda en avanzado.
+3. **Sincronía de la melodía con la batería.** Hoy la espiral va al bpm pero no al compás del motor. Para la portada conviene **entrar en la línea de compás** (como los loops de voz). Hay que decidir si se hace (toca el reloj del motor: **solo con pruebas de oído**) o se acepta el desfase en la primera versión.
+4. **Las tres pastillas:** ¿abajo del todo, en fila, o en el agua misma (tocar zonas, como el Escenario)? Propuesta: **fila inferior**, fáciles de ver y de acertar.
+5. **¿Todos entran por la portada**, también quien ya usa el modo avanzado? Propuesta: **sí**, con el acceso a «Modo avanzado» en el primer plano la primera vez y recordado después.
+6. **Nombre** de «modo avanzado» (¿«Estudio»?, ¿«Más»?).
+
+## 10. Fases propuestas (cuando se apruebe)
+1. **Estructura y paso de ida y vuelta** (preferencia `ui`, portada vacía con las tarjetas de estilo y la base sonando; botón a avanzado; tests de datos).
+2. **La espiral en la portada** (mover del sintetizador a la pantalla, con el brillo y la octava; cambio de tema; guardado en la célula).
+3. **Ritmo:** micro siempre escuchando + las tres pastillas; golpes visibles al instante.
+4. **Guardar y compartir:** guardado automático, ↶, botón de vídeo con opciones por defecto.
+5. **Guía de los dos primeros minutos** y pulido visual (quitar todo lo que sobre en pantalla).
+6. **Prueba con una persona nueva** y ajustes. *(La sincronía de §9.3 se decide con el oído antes de cerrar.)*
+
+## 11. Pendiente (sin hacer ni decidido)
+Melodía sin tema (§9.2) · sincronía con la línea de compás (§9.3) · más temas en la biblioteca y por estilo (que cada estilo tenga los que mejor le suenan) · un cuarto sonido de boca y ritmos más allá de bum/pff/ts · compartir la portada por enlace (hoy: el enlace de canción de avanzado) · versión de escritorio (la portada está pensada para móvil vertical).
