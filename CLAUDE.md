@@ -32,20 +32,14 @@ coderbeats es un **instrumento para jugar**, no una herramienta de producción. 
 - Comprobación antes de cada commit: `npx vitest run && npx nuxt typecheck && npx nuxt build`.
 - Navegador de pruebas: guiones de Puppeteer en `tests/browser/` (`node tests/browser/<guion>.mjs`; usan `/usr/bin/google-chrome` sin pantalla y el puerto de `PORT`, por defecto 3999). Algunos exponen ganchos `window.__…` solo en desarrollo.
 
-## Principios (obligatorios)
+## Principios y diseño (obligatorios)
 
-Están en `specs/PRINCIPIOS.md`. Toda spec nueva tiene que explicar cómo cumple cada uno y avisar si alguno no se cumple antes de programar. En resumen:
+@specs/PRINCIPIOS.md
+@specs/DISENO.md
 
-1. Una pantalla, una cosa; si necesita explicación, se simplifica.
-2. No se puede sonar mal: escala bloqueada, todo al compás, solo sonidos que encajan con el estilo.
-3. Respuesta inmediata: cada toque da sonido e imagen al instante.
-4. Se siente tuyo: la persona decide algo real; la app nunca toca sola sin que se note su gesto.
-5. Pocas cosas a la vez: limitar voces y capas; lo viejo se desvanece.
-6. Compartir fácil: guardar y compartir (enlace o vídeo) siempre a mano.
-7. Cada función nueva tiene un precedente que funcione o se prueba antes con alguien que no conozca la app.
-8. Antes de añadir, quitar.
+`PRINCIPIOS.md` es la **constitución** del proyecto; `DISENO.md` son las reglas de diseño (paleta, tamaños de toque, aguja, ondas, movimiento reducido, rendimiento). Toda spec nueva tiene que explicar cómo cumple cada principio y avisar si alguno no se cumple antes de programar.
 
-Referencias: `docs/investigacion-instrumentos.md` y `docs/laboratorio-prototipo.html`.
+**Antes de escribir una spec nueva, lee `docs/investigacion-instrumentos.md` y, si es del Laboratorio, mira `docs/laboratorio-prototipo.html`.**
 
 ## Forma de trabajar (SDD)
 

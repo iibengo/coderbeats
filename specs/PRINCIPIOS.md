@@ -1,4 +1,6 @@
-# Principios (de `docs/investigacion-instrumentos.md` y de lo aprendido con la app)
+# Principios (la constitución del proyecto)
+
+Estos ocho principios mandan sobre cualquier spec, decisión de diseño (`DISENO.md`) o preferencia de implementación. Se cambian solo a propuesta expresa de la persona, nunca de pasada. Vienen de `docs/investigacion-instrumentos.md` y de lo aprendido con la app.
 
 **Toda spec nueva tiene que decir, en una sección «Principios», cómo cumple cada una de estas reglas. Si alguna no se cumple, se avisa antes de programar.**
 
