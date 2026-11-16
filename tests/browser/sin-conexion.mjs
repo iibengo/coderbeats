@@ -2,7 +2,7 @@
 import puppeteer from 'puppeteer-core'
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const url = `http://localhost:${process.env.PORT || 4173}/`
-const b = await puppeteer.launch({ executablePath: '/usr/bin/google-chrome', headless: 'new', args: ['--no-sandbox'] })
+const b = await puppeteer.launch({ executablePath: '/usr/bin/google-chrome', headless: 'new', args: ['--lang=es-ES', '--no-sandbox'] })
 const p = await b.newPage()
 await p.goto(url, { waitUntil: 'networkidle2', timeout: 60000 })
 await p.evaluate(() => navigator.serviceWorker.ready)

@@ -5,6 +5,7 @@ import { AMBER, LAB_INSTRUMENTS, LAB_W, LAYERS, drumLoop, fontPx } from '~/lib/l
 import type { FreeLoop } from '~/lib/freeLoops'
 import type { StageFrame } from './LabStage.vue'
 
+const { t } = useI18n()
 const lab = useLab()
 const { engine, style } = lab
 const emit = defineEmits<{ back: [] }>()
@@ -19,9 +20,9 @@ const COLOR: Record<string, string> = { bd: AMBER, sd: '#F496BC', hh: '#8ECFF2',
 const BASE_IDS: Record<string, number[]> = { bd: [1], sd: [2], hh: [3], mel: [4] }
 const extraIds = ref<{ drums: number[]; melody: number[] }>({ drums: [], melody: [] })
 const layers = computed<Layer[]>(() => {
-  const out: Layer[] = LAYERS.map((l) => ({ key: l.id, label: l.label, color: COLOR[l.id]!, part: l.id === 'bass' || l.id === 'chords' ? l.id : undefined, ids: BASE_IDS[l.id] ?? [] }))
-  if (extraIds.value.drums.length) out.push({ key: 'mydrums', label: 'mi\nritmo', color: COLOR.bd!, ids: extraIds.value.drums, mine: true })
-  if (extraIds.value.melody.length) out.push({ key: 'mymel', label: 'mi\nmelodía', color: COLOR.mel!, ids: extraIds.value.melody, mine: true })
+  const out: Layer[] = LAYERS.map((l) => ({ key: l.id, label: ({ bd: t('lab.remix.layers.bombo'), sd: t('lab.remix.layers.caja'), hh: t('lab.remix.layers.hat'), bass: t('lab.remix.layers.bajo'), chords: t('lab.remix.layers.acordes'), mel: t('part.melody') } as Record<string, string>)[l.id] ?? l.label, color: COLOR[l.id]!, part: l.id === 'bass' || l.id === 'chords' ? l.id : undefined, ids: BASE_IDS[l.id] ?? [] }))
+  if (extraIds.value.drums.length) out.push({ key: 'mydrums', label: t('lab.capas.mineRhythm'), color: COLOR.bd!, ids: extraIds.value.drums, mine: true })
+  if (extraIds.value.melody.length) out.push({ key: 'mymel', label: t('lab.capas.mineMelody'), color: COLOR.mel!, ids: extraIds.value.melody, mine: true })
   return out
 })
 const posOf = (i: number, n: number) => {
@@ -158,18 +159,18 @@ function shot(kind: 'crash' | 'riser') {
 </script>
 
 <template>
-  <LabShell title="Capas" :phrase="`Toca los círculos para encender y apagar capas. Empieza con el ritmo; el resto lo pones tú.${padOn ? ' (mando: A B X Y, LB, RB)' : ''}`" @back="emit('back')" @style="pickStyle" @play="lab.start()" @stop="lab.stopAll()">
+  <LabShell :title="t('lab.screens.capas.title')" :phrase="`${t('lab.capas.phrase')}${padOn ? t('lab.capas.pad') : ''}`" @back="emit('back')" @style="pickStyle" @play="lab.start()" @stop="lab.stopAll()">
     <LabStage ref="stage" :rings="[190]" :draw="draw" @down="down" />
     <template #extra>
       <section class="mt-4" aria-label="DJ">
-        <div class="mb-1 text-xs text-white/40">DJ · mantén y mueve; suelta con el filtro cerrado y cae el drop</div>
+        <div class="mb-1 text-xs text-white/40">{{ t('lab.dj.hint') }}</div>
         <div class="flex gap-2">
           <div ref="pad" class="relative h-20 flex-1 touch-none overflow-hidden rounded-lg border border-white/20" @pointerdown.prevent="padDown" @pointermove.prevent="held && padApply($event)" @pointerup="padUp" @pointercancel="padUp">
             <div class="absolute inset-y-0 left-0 bg-sky-400/25" :style="{ width: fp.x * 100 + '%' }" />
-            <div class="pointer-events-none absolute inset-0 grid place-items-center text-xs text-white/50">{{ held ? `filtro ${Math.round(fp.x * 100)}% · eco ${Math.round((1 - fp.y) * 100)}%` : 'filtro · eco' }}</div>
+            <div class="pointer-events-none absolute inset-0 grid place-items-center text-xs text-white/50">{{ held ? t('lab.dj.padHeld', { f: Math.round(fp.x * 100), e: Math.round((1 - fp.y) * 100) }) : t('lab.dj.pad') }}</div>
           </div>
-          <button class="rounded-lg border border-white/20 px-3 text-sm" @pointerdown.prevent="shot('crash')">platillo</button>
-          <button class="rounded-lg border border-white/20 px-3 text-sm" @pointerdown.prevent="shot('riser')">subida</button>
+          <button class="rounded-lg border border-white/20 px-3 text-sm" @pointerdown.prevent="shot('crash')">{{ t('lab.dj.crash') }}</button>
+          <button class="rounded-lg border border-white/20 px-3 text-sm" @pointerdown.prevent="shot('riser')">{{ t('lab.dj.riser') }}</button>
         </div>
       </section>
     </template>

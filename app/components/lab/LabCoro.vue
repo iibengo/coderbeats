@@ -5,6 +5,7 @@ import { fontPx, LAB_W } from '~/lib/lab'
 import { scaleNotes } from '~/lib/waterKeys'
 import type { StageFrame } from './LabStage.vue'
 
+const { t } = useI18n()
 const lab = useLab()
 const { engine, style } = lab
 const emit = defineEmits<{ back: [] }>()
@@ -97,13 +98,13 @@ function draw(g: CanvasRenderingContext2D, f: StageFrame) {
     g.fillStyle = 'rgba(255,255,255,.4)'
     g.font = `400 ${fontPx(24, f.scale)}px system-ui, sans-serif`
     g.textAlign = 'center'
-    g.fillText('arrastra el dedo', W / 2, W / 2)
+    g.fillText(t('lab.coro.drag'), W / 2, W / 2)
   }
 }
 </script>
 
 <template>
-  <LabShell title="Coro" phrase="Arrastra el dedo: arriba agudo, abajo grave. Las otras voces armonizan solas." @back="emit('back')" @style="pickStyle" @play="lab.start()" @stop="engine.choirStop(); lab.stopAll()">
+  <LabShell :title="t('lab.screens.coro.title')" :phrase="t('lab.coro.phrase')" @back="emit('back')" @style="pickStyle" @play="lab.start()" @stop="engine.choirStop(); lab.stopAll()">
     <LabStage ref="stage" :needle="false" :draw="draw" @down="down" @move="follow" @up="up" />
   </LabShell>
 </template>

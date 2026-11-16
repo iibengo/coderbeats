@@ -5,6 +5,7 @@ import { fontPx, LAB_W } from '~/lib/lab'
 import { adaptTune, tunesFor } from '~/lib/tuneLibrary'
 import type { StageFrame } from './LabStage.vue'
 
+const { t } = useI18n()
 const lab = useLab()
 const { engine, style } = lab
 const emit = defineEmits<{ back: [] }>()
@@ -84,16 +85,16 @@ function draw(g: CanvasRenderingContext2D, f: StageFrame) {
   if (!f.playing) {
     g.fillStyle = 'rgba(255,255,255,.4)'
     g.font = `400 ${fontPx(24, f.scale)}px system-ui, sans-serif`
-    g.fillText('toca donde quieras', C, C + 8)
+    g.fillText(t('lab.piano.tapAnywhere'), C, C + 8)
   }
 }
 </script>
 
 <template>
-  <LabShell title="Piano mágico" :phrase="`Toca donde sea: cada toque es la siguiente nota. Tú marcas el ritmo.${padOn ? ' (mando: cualquier botón)' : ''}`" @back="emit('back')" @style="pickStyle" @play="lab.start()" @stop="lab.stopAll()">
+  <LabShell :title="t('lab.screens.piano.title')" :phrase="`${t('lab.piano.phrase')}${padOn ? t('lab.piano.pad') : ''}`" @back="emit('back')" @style="pickStyle" @play="lab.start()" @stop="lab.stopAll()">
     <LabStage ref="stage" :draw="draw" @down="tap" />
     <template #extra>
-      <button v-if="hasMore" class="mt-4 rounded-lg border border-white/20 px-4 py-2 text-sm" @click="other">otra melodía ↻</button>
+      <button v-if="hasMore" class="mt-4 rounded-lg border border-white/20 px-4 py-2 text-sm" @click="other">{{ t('lab.piano.other') }}</button>
     </template>
   </LabShell>
 </template>

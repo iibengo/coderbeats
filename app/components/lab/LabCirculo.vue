@@ -5,6 +5,7 @@ import { AMBER, LAB_INSTRUMENTS, LAB_W, STEPS, fontPx, hitsOf, stepsOf, toggleSt
 import type { Instrument } from '~/lib/types'
 import type { StageFrame } from './LabStage.vue'
 
+const { t } = useI18n()
 const lab = useLab()
 const { engine, style } = lab
 const emit = defineEmits<{ back: [] }>()
@@ -160,8 +161,8 @@ function draw(g: CanvasRenderingContext2D, f: StageFrame) {
 
 <template>
   <LabShell
-    title="Círculo de ritmo"
-    :phrase="mode === 'puntos' ? 'Toca los anillos para poner o quitar golpes. Cada instrumento forma su figura.' : 'Arrastra alrededor de un anillo: más vueltas, más golpes, repartidos a partes iguales.'"
+    :title="t('lab.screens.circulo.title')"
+    :phrase="mode === 'puntos' ? t('lab.circulo.phraseDots') : t('lab.circulo.phraseWheels')"
     @back="emit('back')"
     @style="pickStyle"
     @play="lab.start()"
@@ -170,11 +171,11 @@ function draw(g: CanvasRenderingContext2D, f: StageFrame) {
     <LabStage ref="stage" :rings="[140, 210, 280]" :draw="draw" @down="down" @move="move" @up="up" />
     <template #extra>
       <div class="mt-4 flex flex-wrap items-center gap-2 text-sm">
-        <button class="rounded-lg border px-3 py-1.5" :class="mode === 'puntos' ? 'border-[#F496BC]' : 'border-white/15 text-white/60'" @click="mode = 'puntos'">puntos</button>
-        <button class="rounded-lg border px-3 py-1.5" :class="mode === 'ruedas' ? 'border-[#F496BC]' : 'border-white/15 text-white/60'" @click="mode = 'ruedas'">ruedas</button>
-        <label v-if="mode === 'ruedas'" class="flex items-center gap-1.5 text-white/60"><input v-model="exact" type="checkbox" /> exacto (3 contra 4)</label>
-        <button class="ml-auto rounded-lg border border-white/20 px-3 py-1.5" @click="clear">vaciar</button>
-        <button class="rounded-lg border border-white/20 px-3 py-1.5" @click="setup">base</button>
+        <button class="rounded-lg border px-3 py-1.5" :class="mode === 'puntos' ? 'border-[#F496BC]' : 'border-white/15 text-white/60'" @click="mode = 'puntos'">{{ t('lab.circulo.dots') }}</button>
+        <button class="rounded-lg border px-3 py-1.5" :class="mode === 'ruedas' ? 'border-[#F496BC]' : 'border-white/15 text-white/60'" @click="mode = 'ruedas'">{{ t('lab.circulo.wheels') }}</button>
+        <label v-if="mode === 'ruedas'" class="flex items-center gap-1.5 text-white/60"><input v-model="exact" type="checkbox" /> {{ t('lab.circulo.exact') }}</label>
+        <button class="ml-auto rounded-lg border border-white/20 px-3 py-1.5" @click="clear">{{ t('lab.circulo.clear') }}</button>
+        <button class="rounded-lg border border-white/20 px-3 py-1.5" @click="setup">{{ t('lab.circulo.base') }}</button>
       </div>
     </template>
   </LabShell>

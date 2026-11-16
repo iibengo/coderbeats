@@ -6,7 +6,22 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
 
-  modules: ['@nuxtjs/tailwindcss', '@vite-pwa/nuxt', '@nuxt/icon', '@nuxt/fonts'],
+  modules: ['@nuxtjs/tailwindcss', '@vite-pwa/nuxt', '@nuxt/icon', '@nuxt/fonts', '@nuxtjs/i18n'],
+
+  // Idiomas (spec 025): español base, inglés y euskera; el del navegador, con selector en «Acerca de». Sin rutas por idioma.
+  i18n: {
+    strategy: 'no_prefix',
+    defaultLocale: 'es',
+    locales: [
+      { code: 'es', language: 'es-ES', name: 'Español', file: 'es.json' },
+      { code: 'en', language: 'en-GB', name: 'English', file: 'en.json' },
+      { code: 'eu', language: 'eu-ES', name: 'Euskara', file: 'eu.json' },
+    ],
+    vueI18n: './i18n.config.ts',
+    detectBrowserLanguage: { useCookie: true, cookieKey: 'coderbeats_lang', fallbackLocale: 'es', redirectOn: 'root' },
+    // lo que falte en inglés o euskera se ve en español, nunca una clave
+    compilation: { strictMessage: false },
+  },
 
   typescript: { strict: true },
 

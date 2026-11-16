@@ -9,13 +9,8 @@ definePageMeta({ ssr: false })
 useHead({ title: 'Laboratorio · coderbeats' })
 
 type Id = 'capas' | 'piano' | 'coro' | 'circulo' | 'remixes'
-const SCREENS: { id: Id; title: string; text: string }[] = [
-  { id: 'capas', title: 'Capas', text: 'enciende y apaga bombo, caja, platillo, bajo, acordes y melodía (con DJ dentro)' },
-  { id: 'piano', title: 'Piano mágico', text: 'cada toque, la siguiente nota de una melodía del estilo' },
-  { id: 'coro', title: 'Coro', text: 'arrastra una voz y otras dos armonizan solas' },
-  { id: 'circulo', title: 'Círculo de ritmo', text: 'toca los anillos para poner golpes; ruedas para repartirlos (3 contra 4)' },
-  { id: 'remixes', title: 'Remixes', text: 'elige una canción y actúa sus partes: intro, subida, drop y final' },
-]
+const SCREENS: Id[] = ['capas', 'piano', 'coro', 'circulo', 'remixes']
+const { t } = useI18n()
 const route = useRoute()
 const screen = ref<Id | null>(null)
 const engine = useAudioEngine()
@@ -52,17 +47,18 @@ onMounted(() => {
   <LabCirculo v-else-if="screen === 'circulo'" @back="back" />
   <LabRemix v-else-if="screen === 'remixes'" @back="back" />
   <main v-else class="mx-auto min-h-dvh max-w-xl bg-black px-4 py-8 text-white">
-    <h1 class="mt-3 text-3xl font-medium tracking-tight">Laboratorio</h1>
-    <p class="mt-1 text-white/60">Formas de tocar sin micro. Elige una; todas suenan con el motor de siempre.</p>
+    <h1 class="mt-3 text-3xl font-medium tracking-tight">{{ t('lab.title') }}</h1>
+    <p class="mt-1 text-white/60">{{ t('lab.intro') }}</p>
     <ul class="mt-6 grid gap-3">
-      <li v-for="s in SCREENS" :key="s.id">
-        <button class="w-full rounded-2xl border border-white/15 bg-white/5 p-4 text-left disabled:opacity-50" :disabled="busy" @click="go(s.id)">
-          <div class="text-lg">{{ s.title }}</div>
-          <div class="text-sm text-white/60">{{ s.text }}</div>
+      <li v-for="s in SCREENS" :key="s">
+        <button class="w-full rounded-2xl border border-white/15 bg-white/5 p-4 text-left disabled:opacity-50" :disabled="busy" @click="go(s)">
+          <div class="text-lg">{{ t(`lab.screens.${s}.title`) }}</div>
+          <div class="text-sm text-white/60">{{ t(`lab.screens.${s}.text`) }}</div>
         </button>
       </li>
     </ul>
     <p v-if="error" class="mt-4 text-sm text-red-300">{{ error }}</p>
-    <NuxtLink to="/estudio" class="mt-10 block text-center text-xs text-white/35 underline decoration-white/20">Estudio</NuxtLink>
+    <NuxtLink to="/estudio" class="mt-10 block text-center text-xs text-white/35 underline decoration-white/20">{{ t('app.estudio') }}</NuxtLink>
+    <div class="mt-4 flex justify-center"><LangSwitch dark /></div>
   </main>
 </template>

@@ -1,7 +1,7 @@
 // Sin micro por defecto (spec 022): «Empezar» entra al Estudio sin pedir el micro; con el micro denegado, «Usar el micro (opcional)» da un aviso claro y «Empezar» sigue funcionando.
 import puppeteer from 'puppeteer-core'
 import { sleep } from './lib.mjs'
-const b = await puppeteer.launch({ executablePath: '/usr/bin/google-chrome', headless: 'new', args: ['--no-sandbox', '--use-fake-ui-for-media-stream', '--autoplay-policy=no-user-gesture-required'] })
+const b = await puppeteer.launch({ executablePath: '/usr/bin/google-chrome', headless: 'new', args: ['--lang=es-ES', '--no-sandbox', '--use-fake-ui-for-media-stream', '--autoplay-policy=no-user-gesture-required'] })
 const p = await b.newPage()
 await p.setViewport({ width: 400, height: 800, isMobile: true, hasTouch: true })
 await p.evaluateOnNewDocument(() => { navigator.mediaDevices.getUserMedia = () => Promise.reject(new DOMException('denied', 'NotAllowedError')) })

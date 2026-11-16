@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // Efectos de DJ (como en Capas): mantener y mover = filtro (izquierda-derecha) y eco (arriba); soltar con el filtro cerrado = drop; platillo y subida.
 const engine = useAudioEngine()
+const { t } = useI18n()
 const emit = defineEmits<{ start: [] }>()
 const pad = ref<HTMLElement | null>(null)
 const held = ref(false)
@@ -34,14 +35,14 @@ onBeforeUnmount(() => engine.setFx({ filter: 1, space: 0 }))
 
 <template>
   <section aria-label="DJ">
-    <div class="mb-1 text-xs text-white/40">DJ · mantén y mueve; suelta con el filtro cerrado y cae el drop</div>
+    <div class="mb-1 text-xs text-white/40">{{ t('lab.dj.hint') }}</div>
     <div class="flex gap-2">
       <div ref="pad" class="relative h-16 flex-1 touch-none overflow-hidden rounded-lg border border-white/20" @pointerdown.prevent="down" @pointermove.prevent="held && apply($event)" @pointerup="up" @pointercancel="up">
         <div class="absolute inset-y-0 left-0 bg-sky-400/25" :style="{ width: fp.x * 100 + '%' }" />
-        <div class="pointer-events-none absolute inset-0 grid place-items-center text-xs text-white/50">{{ held ? `filtro ${Math.round(fp.x * 100)}% · eco ${Math.round((1 - fp.y) * 100)}%` : 'filtro · eco' }}</div>
+        <div class="pointer-events-none absolute inset-0 grid place-items-center text-xs text-white/50">{{ held ? t('lab.dj.padHeld', { f: Math.round(fp.x * 100), e: Math.round((1 - fp.y) * 100) }) : t('lab.dj.pad') }}</div>
       </div>
-      <button class="rounded-lg border border-white/20 px-3 text-sm" @pointerdown.prevent="shot('crash')">platillo</button>
-      <button class="rounded-lg border border-white/20 px-3 text-sm" @pointerdown.prevent="shot('riser')">subida</button>
+      <button class="rounded-lg border border-white/20 px-3 text-sm" @pointerdown.prevent="shot('crash')">{{ t('lab.dj.crash') }}</button>
+      <button class="rounded-lg border border-white/20 px-3 text-sm" @pointerdown.prevent="shot('riser')">{{ t('lab.dj.riser') }}</button>
     </div>
   </section>
 </template>

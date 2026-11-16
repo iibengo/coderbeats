@@ -9,6 +9,7 @@ import { barSeconds, finalPartOf, labRemixFromSaved, LAB_REMIXES, partLoops, par
 import { readJson, writeText } from '~/lib/storage'
 import type { StageFrame } from './LabStage.vue'
 
+const { t } = useI18n()
 const lab = useLab()
 const { engine } = lab
 const emit = defineEmits<{ back: [] }>()
@@ -250,7 +251,7 @@ function draw(g: CanvasRenderingContext2D, f: StageFrame) {
   if (mode.value === 'escuchar') {
     g.fillStyle = 'rgba(255,255,255,.55)'
     g.font = `400 ${fontPx(24, f.scale)}px system-ui, sans-serif`
-    g.fillText('escuchando', C, C)
+    g.fillText(t('lab.remix.listening'), C, C)
     return
   }
   if (!cur.value) return
@@ -280,7 +281,7 @@ function draw(g: CanvasRenderingContext2D, f: StageFrame) {
     g.stroke()
     g.fillStyle = isOn ? '#0b0b0d' : 'rgba(255,255,255,.6)'
     g.font = `500 ${fontPx(21, f.scale)}px system-ui, sans-serif`
-    g.fillText(l.label, x, y)
+    g.fillText(t(`lab.remix.layers.${l.key}`, l.label), x, y)
   })
   if (rec.value) {
     g.beginPath()
@@ -294,15 +295,15 @@ function draw(g: CanvasRenderingContext2D, f: StageFrame) {
   }
 }
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`
-const phrase = computed(() => (remix.value ? 'Toca una parte: entra en el siguiente compás y se queda hasta que elijas otra. Dentro, enciende y apaga capas.' : 'Elige una canción.'))
+const phrase = computed(() => (remix.value ? t('lab.remix.phrase') : t('lab.remix.pick')))
 </script>
 
 <template>
-  <LabShell title="Remixes" :phrase="phrase" hide-style @back="emit('back')" @style="() => {}" @play="remix ? goPart(part) : undefined" @stop="lab.stopAll()">
+  <LabShell :title="t('lab.screens.remixes.title')" :phrase="phrase" hide-style @back="emit('back')" @style="() => {}" @play="remix ? goPart(part) : undefined" @stop="lab.stopAll()">
     <div v-if="!remix" class="grid gap-3 py-2">
       <button v-for="r in [...LAB_REMIXES, ...mios]" :key="r.id" class="rounded-2xl border border-white/15 bg-white/5 p-4 text-left" @click="pick(r)">
         <div class="text-lg">{{ r.title }}</div>
-        <div class="text-sm text-white/60">{{ r.id.startsWith('mio:') ? 'mi versión · editada en el Estudio' : r.composer }}{{ r.key ? ` · ${r.key}` : '' }} · {{ r.style }}</div>
+        <div class="text-sm text-white/60">{{ r.id.startsWith('mio:') ? t('lab.remix.mineKind') : r.composer }}{{ r.key ? ` · ${r.key}` : '' }} · {{ r.style }}</div>
       </button>
     </div>
     <template v-else>
@@ -319,27 +320,27 @@ const phrase = computed(() => (remix.value ? 'Toca una parte: entra en el siguie
             :class="mode === 'actuar' && part === pt.name ? (shown === pt.name ? 'border-2 border-white text-white' : 'animate-pulse border-2 border-white/70 text-white') : 'border-white/15 text-white/45'"
             @pointerdown.prevent="goPart(pt.name)"
           >
-            {{ pt.name }}<span v-if="mode === 'actuar' && part === pt.name && shown !== pt.name" class="ml-2 text-xs text-white/50">entra…</span>
+            {{ pt.name }}<span v-if="mode === 'actuar' && part === pt.name && shown !== pt.name" class="ml-2 text-xs text-white/50">{{ t('lab.remix.entering') }}</span>
           </button>
         </div>
         <div class="mt-4"><LabDj @start="goPart(part)" /></div>
         <div class="mt-4 flex flex-wrap items-center gap-2">
-          <button v-if="!rec" class="rounded-lg border border-white/25 px-4 py-2 text-sm" :disabled="mode !== 'actuar'" @click="startRec">● Grabar mi versión</button>
-          <button v-else class="rounded-lg border border-[#ff4d6d] px-4 py-2 text-sm" :disabled="rec.endBar !== null" @click="endRec">{{ rec.endBar !== null ? 'terminando…' : '■ Terminar' }}</button>
-          <button v-if="mine && !rec" class="rounded-lg border border-white/25 px-4 py-2 text-sm" @click="listenMine">▶ Mi versión ({{ fmt(mine.length * barSeconds(remix.style)) }})</button>
-          <button v-if="mine && !rec" class="rounded-lg border border-white/25 px-4 py-2 text-sm" :disabled="video.phase === 'recording' || video.phase === 'waiting'" @click="makeVideo">🎬 Mi vídeo</button>
+          <button v-if="!rec" class="rounded-lg border border-white/25 px-4 py-2 text-sm" :disabled="mode !== 'actuar'" @click="startRec">{{ t('lab.remix.rec') }}</button>
+          <button v-else class="rounded-lg border border-[#ff4d6d] px-4 py-2 text-sm" :disabled="rec.endBar !== null" @click="endRec">{{ rec.endBar !== null ? t('lab.remix.finishing') : t('lab.remix.finish') }}</button>
+          <button v-if="mine && !rec" class="rounded-lg border border-white/25 px-4 py-2 text-sm" @click="listenMine">{{ t('lab.remix.mine', { time: fmt(mine.length * barSeconds(remix.style)) }) }}</button>
+          <button v-if="mine && !rec" class="rounded-lg border border-white/25 px-4 py-2 text-sm" :disabled="video.phase === 'recording' || video.phase === 'waiting'" @click="makeVideo">{{ t('lab.remix.video') }}</button>
         </div>
         <p v-if="openError" class="mt-2 text-sm text-red-300" role="alert">{{ openError }}</p>
-        <p v-if="video.phase === 'waiting' || video.phase === 'recording'" class="mt-2 text-sm text-white/60" role="status">Grabando el vídeo {{ video.elapsed.toFixed(0) }}/{{ video.total.toFixed(0) }} s <button class="ml-2 underline" @click="exporter.stop()">■ parar</button></p>
+        <p v-if="video.phase === 'waiting' || video.phase === 'recording'" class="mt-2 text-sm text-white/60" role="status">{{ t('lab.remix.videoRec', { a: video.elapsed.toFixed(0), b: video.total.toFixed(0) }) }} <button class="ml-2 underline" @click="exporter.stop()">{{ t('lab.remix.stop') }}</button></p>
         <p v-else-if="video.phase === 'error'" class="mt-2 text-sm text-red-300" role="alert">{{ video.message }}</p>
         <div v-else-if="video.phase === 'done'" class="mt-2 flex gap-2 text-sm">
-          <button class="rounded-lg border border-white/25 px-4 py-2" @click="exporter.save(true)">Compartir vídeo</button>
-          <button class="rounded-lg border border-white/25 px-4 py-2" @click="exporter.save(false)">Guardar</button>
+          <button class="rounded-lg border border-white/25 px-4 py-2" @click="exporter.save(true)">{{ t('lab.remix.share') }}</button>
+          <button class="rounded-lg border border-white/25 px-4 py-2" @click="exporter.save(false)">{{ t('lab.remix.save') }}</button>
         </div>
         <div class="mt-3 flex items-center gap-4 text-xs text-white/40">
-          <button class="underline decoration-white/20" @click="listenOriginal">escuchar el remix original</button>
-          <button class="underline decoration-white/20" @click="openInStudio">Abrir en el Estudio</button>
-          <button class="underline decoration-white/20" @click="remix = null; lab.stopAll()">otra canción</button>
+          <button class="underline decoration-white/20" @click="listenOriginal">{{ t('lab.remix.original') }}</button>
+          <button class="underline decoration-white/20" @click="openInStudio">{{ t('lab.remix.openStudio') }}</button>
+          <button class="underline decoration-white/20" @click="remix = null; lab.stopAll()">{{ t('lab.remix.other') }}</button>
         </div>
       </template>
     </template>

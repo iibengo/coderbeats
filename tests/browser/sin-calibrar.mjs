@@ -1,7 +1,7 @@
 // Sin calibración (spec 001 §17): Empezar lleva directo al Estudio, con el modelo por defecto, latencia por defecto y los golpes del micro de mentira se clasifican.
 import puppeteer from 'puppeteer-core'
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
-const b = await puppeteer.launch({ executablePath: '/usr/bin/google-chrome', headless: 'new', args: ['--no-sandbox', '--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream', '--autoplay-policy=no-user-gesture-required'] })
+const b = await puppeteer.launch({ executablePath: '/usr/bin/google-chrome', headless: 'new', args: ['--lang=es-ES', '--no-sandbox', '--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream', '--autoplay-policy=no-user-gesture-required'] })
 const p = await b.newPage()
 await p.setViewport({ width: 400, height: 800, deviceScaleFactor: 1, hasTouch: true, isMobile: true })
 const errs = []
