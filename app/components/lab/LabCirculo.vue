@@ -16,9 +16,14 @@ const mode = ref<'puntos' | 'ruedas'>('puntos')
 const exact = ref(false)
 
 const stepsOfInst = (i: Instrument): number[] => stepsOf(engine.loops.value.loops.find((l) => l.instrument === i)?.hits ?? [])
+const mine = useMyLayers()
 const setHits = (inst: Instrument, hits: ReturnType<typeof hitsOf>) => {
   const st = engine.loops.value
-  engine.editLoops({ ...st, loops: st.loops.map((l) => (l.instrument === inst ? { ...l, hits } : l)) })
+  const loops = st.loops.map((l) => (l.instrument === inst ? { ...l, hits } : l))
+  engine.editLoops({ ...st, loops })
+  // lo que dibujo es «mi batería» (spec 018): se guarda solo
+  const of = (i: Instrument) => loops.find((l) => l.instrument === i)?.hits ?? []
+  mine.setDrums({ bd: of('bd'), sd: of('sd'), hh: of('hh') })
 }
 
 async function setup() {

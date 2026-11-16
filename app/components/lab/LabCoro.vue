@@ -11,6 +11,8 @@ const stage = ref<{ ripple: (x: number, y: number, c: string, g?: number, r?: nu
 const W = LAB_W
 const COLORS = ['244,150,188', '183,166,242', '140,211,245']
 
+const mine = useMyLayers()
+let lastLead = -1
 const notes = computed(() => scaleNotes(style.value))
 const yOfIdx = (i: number) => W - ((i + 0.5) / Math.max(1, notes.value.length)) * W
 /** el rastro: cada punto guarda su x, los tres índices y cuánto queda de él */
@@ -19,6 +21,7 @@ const voice = ref<{ x: number; idx: number[] } | null>(null)
 
 async function setup() {
   engine.choirStop()
+  mine.newTake()
   await lab.scene({ drums: { bd: demoSteps(style.value, 'bd') }, parts: { bass: true, chords: false } })
 }
 onMounted(() => {
@@ -39,6 +42,12 @@ function follow(x: number, y: number) {
   const r = engine.choirMove(x / W, y / W)
   if (!r) return
   voice.value = { x, idx: r.idx }
+  // cada cambio de nota de la voz principal es una nota de «mi melodía» (spec 018)
+  if (r.idx[0] !== lastLead) {
+    lastLead = r.idx[0]!
+    const m = notes.value[lastLead]
+    if (m !== undefined) mine.noteNow(m)
+  }
   trail.push({ x, ys: r.idx.map(yOfIdx), a: 1 })
   if (trail.length > 70) trail.shift()
 }
@@ -48,6 +57,7 @@ async function down(x: number, y: number) {
   follow(x, y)
 }
 function up() {
+  lastLead = -1
   engine.choirStop()
   voice.value = null
 }

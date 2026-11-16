@@ -12,6 +12,7 @@ const stage = ref<{ ripple: (x: number, y: number, c: string, g?: number, r?: nu
 const PINK = '#F496BC'
 const C = LAB_W / 2
 
+const mine = useMyLayers()
 const tuneIdx = ref(0)
 const tune = computed(() => tuneFor(style.value, tuneIdx.value))
 const hits = computed(() => [...adaptTune(tune.value, style.value)].sort((a, b) => a.pos - b.pos))
@@ -22,6 +23,7 @@ const angleOf = (midi: number) => ((midi % 12) / 12) * Math.PI * 2 - Math.PI / 2
 
 async function setup() {
   played.value = 0
+  mine.newTake()
   await lab.scene({ drums: { bd: demoSteps(style.value, 'bd'), sd: demoSteps(style.value, 'sd'), hh: demoSteps(style.value, 'hh') }, parts: { bass: true, chords: false } })
 }
 onMounted(() => {
@@ -39,6 +41,7 @@ async function tap(x: number, y: number) {
   const n = nextNote()
   if (!n || !engine.tapNote(n.midi, false)) return
   played.value++
+  mine.noteNow(n.midi) // lo tocado es «mi melodía» (spec 018)
   stage.value?.ripple(x, y, PINK, 6)
   const a = angleOf(n.midi)
   stage.value?.ripple(C + Math.cos(a) * 170, C + Math.sin(a) * 170, '#fff', 4, 10)
