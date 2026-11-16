@@ -1,6 +1,6 @@
 # 016 · La portada simple: música fácil, y mía
 
-> Estado: **aprobada** (2026-11-16) con las decisiones de §9; en marcha por fases (§10). Antes fue un borrador para revisar. Escrito después de probar el sintetizador de espiral (015 §14) y de ver que la app se complica.
+> Estado: **aprobada** (2026-11-16) con las decisiones de §9; **implementada** en las fases 1–5 (§12, §14, §15); falta la prueba con una persona nueva (fase 6) y la prueba de oído de la sincronía. Antes fue un borrador para revisar. Escrito después de probar el sintetizador de espiral (015 §14) y de ver que la app se complica.
 
 ## 1. El problema y la idea
 coderbeats ya hace muchas cosas (Jugar y Componer, células y grupos, Escenario, Agua, voz, piloto, vídeo, producción, remixes, tres modos de sintetizador). Cada una es buena, pero **quien llega por primera vez no sabe por dónde empezar**. Lo mejor que hemos hecho, la **espiral** (las notas vienen a tu dedo), está escondido tras ⋯ → «+ melodía».

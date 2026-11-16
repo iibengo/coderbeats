@@ -282,3 +282,42 @@ Tests (1074), typecheck y build en verde; comprobado en Chrome (`tests/browser/s
 Pedido tras probar el guiado: **el instrumento al revés**. Ahora el modo por defecto es la **🌀 Espiral**: pones el dedo y lo mueves **sin levantar, como quieras**; las notas del tema vienen a él por una espiral (puntos de color que se enroscan hacia el dedo, con cola) y **suenan solas al llegar**; el dedo deja un rastro de luz y da el brillo (izquierda–derecha). Al llegar a la última nota queda grabada en la célula y el tema sigue en bucle. «🌀 → 🎯 → ✋» cambia de modo (🎯 es el de llevar el dedo al punto; ✋ el libre). Comprobado en Chrome (dedo táctil moviéndose al azar: suenan las notas del tema y queda guardada); **sin probar de oído**.
 - Decisión a revisar: el ritmo es el del bpm pero **no va sincronizado con el compás de la canción** (no se toca el reloj del motor): puede notarse desfasado respecto a la batería.
 - Probar: ⋯ → «+ melodía», pon el dedo y muévelo sin levantar. ¿Se entiende que las notas vienen a ti? ¿Suena la melodía reconocible? ¿Va a tempo con la batería o desfasada? ¿Se ve bien el rastro y las ondas? ¿Va fluido?
+
+---
+
+# Décima tanda (2026-11-16) — la portada simple (spec 016)
+
+Todo en `main`, **sin push**; tests (1107), `nuxt typecheck` y `nuxt build` en verde. Comprobado en Chrome sin pantalla (`tests/browser/portada*.mjs`); **nada oído ni probado en un móvil**. Decisiones y diseño: [`016-portada-simple/spec.md`](016-portada-simple/spec.md).
+
+## Qué hay (un commit por parte)
+| Parte | Qué |
+|---|---|
+| Fase 1 | **La nueva portada** (`Portada.vue`): al abrir, «Elige cómo suena» (5 tarjetas) y empieza la base (bajo y acordes). Todo lo demás es el **Estudio** (el de siempre); **«⋯ → Estudio»** y, en el Estudio, **«⋯ → Modo simple»**; lo que eliges se **recuerda** (`coderbeats:ui:v1`, su propia clave: no toca canciones ni ajustes). Misma canción en los dos. |
+| Fase 2 | **Espiral en la portada**: el dedo da el brillo (izq–der) y la **octava** (arriba más aguda, abajo más grave); se graba lo que sonó. |
+| Sincronía | **«Melodía en el compás»** (opción, encendida): la espiral lee el reloj del motor (sin tocarlo), empieza en una línea de compás y programa cada nota en su paso (**0,00 ms de desvío** medido en Chrome); lo grabado lleva la fase del compás. |
+| Fases 3 y 4 | **Ritmo**: la voz (siempre escuchando) o **tres pastillas** (bum, pff, ts) que suenan al instante y entran en el loop; ↶ ↷; **guardado automático** como «Mi canción»; **🎬 Mi reel**. |
+| Ajuste | **La voz va primero** (guía: estilo → «Haz bum · pff · ts» → dedo → guardar; la espiral aparece cuando hay ritmo). **Mi reel**: vídeo vertical con el círculo, golpes, aguja y **estilo y BPM arriba**. |
+| Idea del reel «Anatomía» | **La forma de tu ritmo** (líneas finas unen los golpes de cada instrumento: portada, Previsualizar y vídeo) y **rótulos de capa** numerados en Previsualizar («1 · Bombo: el pulso»), con frases de los 5 estilos y generadas de los datos (patrón y ghost notes), también en el vídeo. |
+
+## ⚠ Decisiones a revisar
+- **«Melodía en el compás» está encendida por defecto.** Si algo suena mal, apágala en «⋯» (portada) o en ajustes del Estudio.
+- **Mientras tocas en vivo y ya hay una melodía grabada, suenan las dos** (la grabada es tu vuelta anterior): se superponen. Si molesta, se silencia la grabada mientras tocas.
+- **La portada pide menos de 2 acciones sueltas**, pero hoy se ven: estilos, ⋯, 3 pastillas, ↶, ↻ Otra, ▶/■ y 🎬 Mi reel. Se puede quitar alguna.
+- El círculo sale algo **pequeño** en el vídeo vertical (encuadre más cerrado: pendiente). **Previsualizar no está en la portada** (el piloto toca las bolas y las tiras que la portada esconde): hoy está en el Estudio.
+- `tests/browser/grabar-cancion.mjs` ya fallaba antes de esta tanda (el tutorial del primer minuto esconde el botón «grabar canción»); no es de la portada.
+
+## 🎧 Prueba de oído de la sincronía (la importante)
+1. Abre la app (⋯ → «Melodía en el compás» **encendida**), elige **Hip hop** o **Techno** y espera a que suene la base.
+2. «Haz bum · pff · ts» (voz o pastillas) hasta que haya un ritmo.
+3. **Pon el dedo en el agua y muévelo.** Cuando empiece el tema (hasta unos 2 s después, siempre **en un tiempo 1 del compás**), escucha: **¿las notas caen justo en el pulso de la batería, o van un poquito antes o después?** Hazlo con 3 estilos (dnb es el más exigente).
+4. Deja el dedo hasta la 2.ª vuelta y **levanta**: la melodía grabada sigue sonando. **¿Cae en el mismo sitio que cuando la tocabas?** (la fase del compás).
+5. **Apaga «Melodía en el compás»** y repite el 3: ¿se nota la diferencia? Si el encendido va **desfasado** (aunque sea poco), dime por cuánto aproximadamente y de qué lado (adelantada o atrasada): se corrige con la latencia de salida.
+
+## Qué probar en el móvil, en orden
+1. **Primer minuto** (borra los datos del sitio): `Empezar` → tarjetas → ¿suena la base al instante? ¿«Haz bum · pff · ts» se entiende? ¿Tus golpes aparecen **al instante** en el círculo, con **las figuras** unidas por líneas finas?
+2. **Pastillas** sin micro (y con micro): ¿suenan al instante, entran en el compás?
+3. **Espiral** (la sincronía de arriba) y la **octava** (arriba/abajo del dedo).
+4. **↶ ↷:** ¿deshacen una frase entera de voz o una melodía? Cierra y abre: «Mi canción» está en «Mis canciones».
+5. **🎬 Mi reel:** ¿sale como un reel (círculo, figuras, estilo y BPM arriba)? ¿Se comparte bien en el iPhone? Y en el Estudio, «👁 Previsualizar» → grabar vídeo «La previsualización»: ¿aparecen los rótulos de capa («1 · Bombo: …»)?
+6. **Estudio ↔ portada:** ¿vuelves sin perder nada? Elige el Estudio, cierra y abre: ¿entra directo?
+7. Lo de las tandas anteriores (ver cada una).
