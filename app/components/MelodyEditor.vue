@@ -22,7 +22,7 @@ const pageCount = computed(() => bars.value)
 const history = ref<MelodyHit[][]>([])
 
 watch(open, (o) => {
-  if (!o) return
+  if (!o) return stopRec()
   page.value = 0
   history.value = []
   shift.value = fitShift(engine.style.value, hits.value)
@@ -71,6 +71,47 @@ function clearAll() {
   commit([])
 }
 
+// ── «● grabar» a media velocidad (spec 020 §1.1): la base sigue a su tempo y la frase se toca al DOBLE de lento (2 compases de frase = 4 compases de toma); se cuadra a las columnas ──
+const rec = ref<{ start: number; bars: number } | null>(null)
+const recState = ref<'' | 'cuenta' | 'grabando'>('')
+async function startRec() {
+  if (rec.value) return stopRec()
+  const b = (bars.value > 2 ? 2 : bars.value) as 1 | 2
+  history.value.push(hits.value)
+  commit([])
+  if (!engine.playing.value) await engine.play()
+  const c = engine.clockNow()
+  rec.value = { start: c.bar + 2, bars: b } // un compás de cuenta
+  recState.value = 'cuenta'
+  chosenBars.value = b
+  page.value = 0
+}
+function stopRec() {
+  rec.value = null
+  recState.value = ''
+}
+/** la posición de la toma en columnas (0..cols): la mitad de rápido que el reloj */
+function recCol(): number | null {
+  const r = rec.value
+  if (!r) return null
+  const c = engine.clockNow()
+  const elapsed = c.bar - r.start + c.barPhase
+  return elapsed < 0 ? null : (elapsed / 2) * COLS_PER_BAR
+}
+function recNote(e: PointerEvent): boolean {
+  if (!rec.value) return false
+  const w = where(e)
+  const pos = recCol()
+  const midi = w ? rows.value[w.row] : undefined
+  if (pos === null || midi === undefined || !w) return true // en la cuenta: el toque suena pero no se apunta
+  const col = Math.round(pos)
+  if (col >= colsOf(rec.value.bars)) return true
+  engine.previewNote(midi)
+  const cur = hits.value
+  commit(tapCell(noteAt(cur, col) ? cur.filter((h) => h !== noteAt(cur, col)) : cur, col, midi, rec.value.bars))
+  return true
+}
+
 // ── tocar y arrastrar ──
 const gridEl = ref<HTMLElement | null>(null)
 let drag: { col: number; removeOnUp: boolean } | null = null
@@ -83,6 +124,7 @@ function where(e: PointerEvent): { col: number; row: number } | null {
   return { col: page.value * COLS_PER_BAR + c, row: GRID_ROWS - 1 - rr } // la fila 0 es la más grave (abajo)
 }
 function down(e: PointerEvent) {
+  if (rec.value) return void recNote(e)
   const w = where(e)
   const midi = w ? rows.value[w.row] : undefined
   if (!w || midi === undefined) return
@@ -101,7 +143,7 @@ function down(e: PointerEvent) {
   drag = noteAt(next, w.col) ? { col: w.col, removeOnUp: false } : null
 }
 function move(e: PointerEvent) {
-  if (!drag) return
+  if (rec.value || !drag) return
   const w = where(e)
   if (!w || w.col <= drag.col) return
   drag.removeOnUp = false
@@ -121,6 +163,15 @@ let raf = 0
 onMounted(() => {
   const tick = () => {
     raf = requestAnimationFrame(tick)
+    if (rec.value) {
+      const col = recCol()
+      if (col !== null && col >= colsOf(rec.value.bars)) {
+        stopRec() // la toma acaba al llegar al final de la frase
+        return void (head.value = -1)
+      }
+      recState.value = col === null ? 'cuenta' : 'grabando'
+      return void (head.value = col ?? -1)
+    }
     if (!open.value || !engine.playing.value || !loop.value) return void (head.value = -1)
     const c = engine.clockNow()
     const b = (((c.bar - loop.value.phaseBar) % loop.value.bars) + loop.value.bars) % loop.value.bars
@@ -128,7 +179,10 @@ onMounted(() => {
   }
   tick()
 })
-onBeforeUnmount(() => cancelAnimationFrame(raf))
+onBeforeUnmount(() => {
+  cancelAnimationFrame(raf)
+  stopRec()
+})
 const headCol = computed(() => head.value - page.value * COLS_PER_BAR)
 const toggle = () => (engine.playing.value ? engine.stop() : engine.play())
 
@@ -140,7 +194,7 @@ const cell = (r: number, c: number) => {
   return { on, start: on && colsOf(bars.value) > col && noteAt(hits.value, col)?.midi === rows.value[row] }
 }
 const hidden = computed(() => hits.value.filter((h) => !rows.value.includes(h.midi)).length)
-if (import.meta.dev && import.meta.client) (window as unknown as Record<string, unknown>).__melody = { hits: () => hits.value.map((h) => [h.pos, h.dur, h.midi]), bars: () => bars.value, rows: () => rows.value, normalize }
+if (import.meta.dev && import.meta.client) (window as unknown as Record<string, unknown>).__melody = { rec: () => recState.value, hits: () => hits.value.map((h) => [h.pos, h.dur, h.midi]), bars: () => bars.value, rows: () => rows.value, normalize }
 </script>
 
 <template>
@@ -192,10 +246,12 @@ if (import.meta.dev && import.meta.client) (window as unknown as Record<string, 
       <div class="mx-auto mt-3 flex w-full max-w-md items-center gap-2 text-sm">
         <button class="rounded-lg border border-white/20 px-3 py-2" :disabled="!history.length" @click="undo">↶ deshacer</button>
         <button class="rounded-lg border border-white/20 px-3 py-2" :disabled="!hits.length" @click="clearAll">vaciar</button>
-        <button class="rounded-lg border border-[#F496BC]/60 px-3 py-2" :disabled="!canRespond" @click="respond">↻ responder</button>
+        <button class="rounded-lg border px-3 py-2" :class="rec ? 'border-[#ff4d6d] text-[#ff4d6d]' : 'border-white/20'" @click="startRec">{{ recState === 'cuenta' ? 'cuenta…' : recState === 'grabando' ? '■ grabando' : '● grabar' }}</button>
+        <button class="rounded-lg border border-[#F496BC]/60 px-3 py-2" :disabled="!canRespond || !!rec" @click="respond">↻ responder</button>
         <span v-if="hidden" class="text-xs ml-auto text-xs text-white/40">{{ hidden }} fuera de la vista (▲▼)</span>
       </div>
-      <p class="mx-auto mt-2 w-full max-w-md text-xs text-white/45">Toca una casilla para poner o quitar una nota; arrastra a la derecha para alargarla. Solo hay notas de la escala del estilo.</p>
+      <p v-if="rec" class="mx-auto mt-2 w-full max-w-md text-xs text-[#ff4d6d]">Toca donde quieras, al doble de lento: la aguja va a media velocidad y cada toque se cuadra a la columna más cercana. Termina sola al llegar al final.</p>
+      <p v-else class="mx-auto mt-2 w-full max-w-md text-xs text-white/45">Toca una casilla para poner o quitar una nota; arrastra a la derecha para alargarla. Solo hay notas de la escala del estilo.</p>
     </div>
   </Transition>
 </template>
