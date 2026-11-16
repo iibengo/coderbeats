@@ -1,9 +1,13 @@
 <script setup lang="ts">
-// Mis canciones (spec 006): guardar la de ahora con nombre automático editable, y abrir las guardadas.
+// Remixes (spec 006 + unificación 2026-11-16): «Mis remixes» (guardar el de ahora con nombre automático editable, y abrir los guardados) y, debajo, los remixes «de serie»
+// (los de dominio público del Estudio, spec 008). Una sola lista; los datos siguen en la misma clave de siempre (`coderbeats:library:v1`).
 import { encodeShare, shareUrl } from '~/lib/shareLink'
 import type { Song } from '~/lib/cells'
 import { kitFromSaved } from '~/lib/constants'
 import type { KitId, StyleId } from '~/lib/types'
+import { STYLES } from '~/lib/constants'
+import { barSeconds, LAB_REMIXES, remixBars as labBars, type LabRemix } from '~/lib/labRemixes'
+import { remixBars, REMIXES, type Remix } from '~/lib/remixes'
 import { addSong, autoName, dateText, isEmptySong, isUnsaved, makeSaved, newId, replaceSong, filterEntries, groupByStyle, sortedEntries, summaryText, type Entry } from '~/lib/library'
 
 const open = defineModel<boolean>('open', { required: true })
@@ -44,6 +48,21 @@ async function shareEntry(e: Entry) {
   }
   setTimeout(() => (linkNote.value = ''), 3500)
 }
+/** Abre un remix de serie: reemplaza lo de ahora (avisa si no está guardado) y no queda «viniendo de» ninguno guardado. */
+async function openSerie(r: Remix) {
+  if (isUnsaved(engine.snapshot(), reference.value) && !(await askConfirm(`¿Abrir el remix «${r.title}»? Lo que tienes ahora no está guardado.`))) return
+  await engine.openRemix(r)
+  library.setCurrent(null)
+  open.value = false
+}
+/** Abre el remix principal (≈ 1 min, el mismo que se actúa en el Laboratorio). */
+async function openMain(r: LabRemix) {
+  if (isUnsaved(engine.snapshot(), reference.value) && !(await askConfirm(`¿Abrir el remix «${r.title}»? Lo que tienes ahora no está guardado.`))) return
+  await engine.openSaved(makeSaved({ style: r.style, kit: r.kit, bgMode: 'manual', fx: { filter: 1, space: 0, warmth: engine.snapshot().fx.warmth }, song: r.song }, `serie-${r.id}`, r.title, new Date()))
+  library.setCurrent(null)
+  open.value = false
+}
+const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`
 /** la guardada de la que viene lo de ahora (con lo que comparar si está sin guardar) */
 const reference = computed(() => lib.value.entries.find((e) => e.id === currentId.value)?.saved ?? null)
 const empty = computed(() => isEmptySong(engine.liveSong()))
@@ -139,7 +158,7 @@ async function openEntry(e: Entry) {
         @pointerdown.stop
       >
         <div class="mx-auto mb-3 h-1 w-10 rounded-full bg-white/20" />
-        <h2 class="mb-3 text-xs tracking-wide text-neutral-400 uppercase">Mis canciones</h2>
+        <h2 class="mb-3 text-xs tracking-wide text-neutral-400 uppercase">Mis remixes</h2>
 
         <!-- guardar la de ahora, con nombre automático editable -->
         <form class="mb-4 flex items-center gap-2" @submit.prevent="save">
@@ -169,8 +188,8 @@ async function openEntry(e: Entry) {
         <!-- la lista, de la más reciente a la más antigua -->
         <input v-if="allEntries.length > 4" v-model="query" type="search" class="mb-2 w-full rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-white" placeholder="Buscar por nombre o estilo" aria-label="buscar en mis canciones" />
         <p v-if="linkNote" class="mb-2 text-xs text-neutral-300" role="status">{{ linkNote }}</p>
-        <p v-if="!allEntries.length" class="py-6 text-center text-neutral-500">Aún no has guardado ninguna canción.</p>
-        <p v-else-if="!entries.length" class="py-6 text-center text-neutral-500">Ninguna canción coincide.</p>
+        <p v-if="!allEntries.length" class="py-6 text-center text-neutral-500">Aún no has guardado ningún remix.</p>
+        <p v-else-if="!entries.length" class="py-6 text-center text-neutral-500">Ningún remix coincide.</p>
         <template v-else>
         <div v-for="g in groups ?? [{ style: 'todas', label: '', entries }]" :key="g.style ?? 'otras'">
         <h3 v-if="groups" class="mt-2 mb-1 text-[11px] tracking-wide text-neutral-500 uppercase">{{ g.label }} · {{ g.entries.length }}</h3>
@@ -211,6 +230,30 @@ async function openEntry(e: Entry) {
         </ul>
         </div>
         </template>
+
+        <!-- los remixes de serie (antes en su propia hoja): el principal de ≈ 1 min y, aparte, la versión larga como archivo -->
+        <h3 class="mt-5 mb-1 text-[11px] tracking-wide text-neutral-500 uppercase">De serie · melodías de dominio público</h3>
+        <ul class="grid gap-1" data-remixes-serie>
+          <li v-for="r in LAB_REMIXES" :key="r.id" class="flex items-center gap-2 rounded-lg px-3 py-2">
+            <div class="min-w-0 flex-1">
+              <p class="truncate text-white">{{ r.title }}</p>
+              <p class="truncate text-xs text-neutral-500">{{ r.composer }} · {{ STYLES[r.style].label }} · {{ r.key }} · {{ r.parts.length }} partes · {{ mmss(labBars(r) * barSeconds(r.style)) }}</p>
+            </div>
+            <button class="shrink-0 rounded-full border border-white/20 px-3 py-1 text-xs" @click="openMain(r)">Abrir</button>
+          </li>
+        </ul>
+        <details class="mt-3" data-remixes-archivo>
+          <summary class="cursor-pointer text-xs text-neutral-500">Archivo · versiones largas (hasta 4 min)</summary>
+          <ul class="mt-1 grid gap-1">
+            <li v-for="r in REMIXES" :key="r.id" class="flex items-center gap-2 rounded-lg px-3 py-2">
+              <div class="min-w-0 flex-1">
+                <p class="truncate text-white">{{ r.title }}</p>
+                <p class="truncate text-xs text-neutral-500">{{ r.composer }} · {{ remixBars(r) }} compases</p>
+              </div>
+              <button class="shrink-0 rounded-full border border-white/20 px-3 py-1 text-xs" @click="openSerie(r)">Abrir</button>
+            </li>
+          </ul>
+        </details>
       </section>
     </div>
   </Transition>

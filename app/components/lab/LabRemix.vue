@@ -4,7 +4,7 @@
 import { useLab } from '~/composables/useLab'
 import { fontPx, LAB_W } from '~/lib/lab'
 import { VOICE_HEX } from '~/lib/palette'
-import { addSong, isLabMark, makeSaved, newId } from '~/lib/library'
+import { addSong, makeSaved } from '~/lib/library'
 import { barSeconds, finalPartOf, labRemixFromSaved, LAB_REMIXES, partLoops, partsOn, remixTake, songFromTake, takePlan, type LabLayer, type LabRemix, type TakeBar } from '~/lib/labRemixes'
 import { readJson, writeText } from '~/lib/storage'
 import type { StageFrame } from './LabStage.vue'
@@ -19,7 +19,7 @@ const remix = ref<LabRemix | null>(null)
 // los míos: lo que se editó en el Estudio y se guardó en Mis canciones (con la marca `lab`) vuelve aquí
 const library = useLibrary()
 onMounted(() => library.load())
-const mios = computed(() => library.lib.value.entries.flatMap((e) => (e.saved && isLabMark(e.saved.lab) ? [labRemixFromSaved(e.saved)] : [])).filter((r): r is LabRemix => !!r))
+const mios = computed(() => library.lib.value.entries.flatMap((e) => (e.saved ? [labRemixFromSaved(e.saved)] : [])).filter((r): r is LabRemix => !!r))
 const part = ref('') // la parte elegida, por nombre (entra en el siguiente compás)
 const shown = ref('') // la que suena ya
 let shownFrom = 0 // compás desde el que `shown` vale `part`

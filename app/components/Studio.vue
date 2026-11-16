@@ -37,7 +37,7 @@ function startPreview(t?: { song: Song; style: StyleId; kit: KitId; title?: stri
   return pilot.preview(t ?? { song: engine.snapshot().song, style: engine.style.value, kit: engine.kit.value, title: 'Tu canción' })
 }
 async function startPilot() {
-  if ((engine.loops.value.loops.length || engine.multi.value) && !(await askConfirm('El piloto sustituye lo que tienes ahora (guárdalo antes en «Mis canciones» si quieres conservarlo). ¿Seguir?'))) return
+  if ((engine.loops.value.loops.length || engine.multi.value) && !(await askConfirm('El piloto sustituye lo que tienes ahora (guárdalo antes en «Mis remixes» si quieres conservarlo). ¿Seguir?'))) return
   void pilot.start(Date.now() % 1000)
 }
 
@@ -50,7 +50,6 @@ const firstPlay = computed(
 )
 const settingsOpen = ref(false)
 const libraryOpen = ref(false)
-const remixOpen = ref(false)
 const drumsOpen = ref(false)
 const stage = ref<InstanceType<typeof VisualStage> | null>(null)
 const renderer = computed(() => stage.value?.rendererName ?? '')
@@ -101,12 +100,6 @@ const libraryStyle = computed(() =>
     ? 'position: absolute; top: max(0.5rem, env(safe-area-inset-top)); right: calc(env(safe-area-inset-right, 0px) + 74px); width: 44px; height: 44px'
     : 'position: absolute; top: max(0.5rem, env(safe-area-inset-top)); left: 0.5rem; width: 44px; height: 44px',
 )
-// Remixes (spec 008): debajo del botón de Mis canciones; en horizontal, a su lado
-const remixStyle = computed(() =>
-  compact.value
-    ? 'position: absolute; top: max(0.5rem, env(safe-area-inset-top)); right: calc(env(safe-area-inset-right, 0px) + 122px); width: 44px; height: 44px'
-    : 'position: absolute; top: calc(max(0.5rem, env(safe-area-inset-top)) + 48px); left: 0.5rem; width: 44px; height: 44px',
-)
 // Batería de la parte (spec 020): al lado de Remixes
 const drumsStyle = computed(() =>
   compact.value
@@ -148,7 +141,7 @@ async function openSharedLink() {
   history.replaceState(null, '', location.pathname + location.search)
   const saved = await decodeShare(payload)
   if (!saved) return void alert("El enlace de la canción no es válido.")
-  if (!(await askConfirm(`Abrir la canción compartida «${saved.name}»? Sustituye lo que tienes ahora (guárdalo antes en «Mis canciones» si quieres conservarlo).`))) return
+  if (!(await askConfirm(`Abrir la canción compartida «${saved.name}»? Sustituye lo que tienes ahora (guárdalo antes en «Mis remixes» si quieres conservarlo).`))) return
   await engine.openSaved(saved)
 }
 /** «Abrir en el Estudio» desde el Laboratorio (`?abrir=<id>`): abre la copia guardada en Mis canciones; si no está, no hace nada. */
@@ -207,7 +200,7 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
     <button
       class="flex items-center justify-center text-white/50"
       :style="libraryStyle"
-      aria-label="mis canciones"
+      aria-label="mis remixes"
       @pointerdown.stop
       @click="libraryOpen = true"
     >
@@ -216,20 +209,6 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
         <circle cx="2" cy="2" r="1" fill="currentColor" stroke="none" />
         <circle cx="2" cy="8" r="1" fill="currentColor" stroke="none" />
         <circle cx="2" cy="14" r="1" fill="currentColor" stroke="none" />
-      </svg>
-    </button>
-
-    <!-- remixes (spec 008) -->
-    <button
-      class="flex items-center justify-center text-white/50"
-      :style="remixStyle"
-      aria-label="remixes"
-      @pointerdown.stop
-      @click="remixOpen = true"
-    >
-      <svg width="22" height="16" viewBox="0 0 22 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-        <circle cx="8" cy="8" r="5.5" />
-        <circle cx="14" cy="8" r="5.5" />
       </svg>
     </button>
 
@@ -278,7 +257,6 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
   </VisualStage>
 
   <LibrarySheet v-model:open="libraryOpen" @preview="(t) => startPreview(t)" />
-  <RemixSheet v-model:open="remixOpen" />
   <DrumEditor v-model:open="drumsOpen" @mic="stage?.switchMode('jugar')" />
   <SettingsSheet v-model:open="settingsOpen" :renderer="renderer" :layout="layoutInfo" @recalibrate="(w) => emit('recalibrate', w)" @simple="emit('simple')" @pilot="startPilot" @preview="startPreview()" @video="videoOpen = true" />
   <VideoSheet v-model:open="videoOpen" :exporter="exporter" />

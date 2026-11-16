@@ -299,7 +299,7 @@ function toEstudio() {
           <button class="rounded-full bg-white py-3 font-medium text-black" @click="toEstudio">Estudio</button>
           <p class="-mt-1 text-xs text-neutral-500">Todo: células, grupos, remixes, efectos… Se recuerda para la próxima vez.</p>
           <p class="text-xs text-neutral-500">🎤 Voz apagada: la app no escucha ni graba nada; el micro puede seguir abierto (el navegador lo indica) y se cierra solo tras unos minutos.</p>
-          <button class="rounded-full border border-white/15 py-3" @click="menuOpen = false; libraryOpen = true">Mis canciones</button>
+          <button class="rounded-full border border-white/15 py-3" @click="menuOpen = false; libraryOpen = true">Mis remixes</button>
           <button class="rounded-full border border-white/15 py-3" @click="toAfinar">Afinar a mi voz</button>
           <button class="rounded-full border border-white/15 py-3" @click="aboutOpen = !aboutOpen">Acerca de</button>
           <div v-if="aboutOpen" class="max-h-[40dvh] overflow-y-auto"><AboutPanel /></div>
