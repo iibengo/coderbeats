@@ -7,7 +7,7 @@ await p.setViewport({ width: 400, height: 800, isMobile: true, hasTouch: true })
 await p.evaluateOnNewDocument(() => { navigator.mediaDevices.getUserMedia = () => Promise.reject(new DOMException('denied', 'NotAllowedError')) })
 const errs = []
 p.on('pageerror', (e) => errs.push(String(e).slice(0, 200)))
-await p.goto(`http://localhost:${process.env.PORT || 3999}/`, { waitUntil: 'networkidle2', timeout: 120000 })
+await p.goto(`http://localhost:${process.env.PORT || 3999}/estudio`, { waitUntil: 'networkidle2', timeout: 120000 })
 const click = (t) => p.evaluate((t) => { const el = [...document.querySelectorAll('button')].find((b) => b.textContent.includes(t)); if (el) el.click(); return !!el }, t)
 await click('Empezar'); await sleep(8000)
 const err = await p.evaluate(() => document.body.innerText); console.log(JSON.stringify(err.slice(0,300)))

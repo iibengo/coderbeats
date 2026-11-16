@@ -30,5 +30,15 @@ La app creció demasiado: pasan muchas cosas a la vez y la premisa «no puedes s
 - `/lab` no puede renderizarse en servidor (el motor usa el navegador): `routeRules` lo marca.
 - Todo lo que suena está sin probar de oído (platillo/subida del DJ, armonías del Coro).
 
-## 6. Pendiente / fuera
+## 6. Principios (`specs/PRINCIPIOS.md`)
+1. *Una pantalla, una cosa*: cuatro pantallas; DJ y Ruedas van **dentro** de Capas y del Círculo como controles, no como pantallas (se quitan Theremín y DJ aparte: **quitar antes de añadir**, 8).
+2. *No se puede sonar mal*: melodías de `tunesFor(estilo)`; Coro en la escala del estilo; la base es la demo del estilo; todo al compás del motor.
+3. *Respuesta inmediata*: onda y sonido en cada toque (la onda se dibuja en `pointerdown`).
+4. *Se siente tuyo*: **aviso**: la base suena sola al entrar (como en el prototipo) y en Capas empiezan encendidas bombo, caja y platillo. El gesto de la persona es lo que añade (capas, notas, voz, golpes). Si se prefiere silencio hasta el primer toque, es un cambio pequeño.
+5. *Pocas cosas a la vez*: Capas máximo 6; Coro 3 voces; las ondas y la estela se desvanecen.
+6. *Compartir fácil*: **aviso: no se cumple todavía** en el Laboratorio (sin guardar ni compartir). Propuesta: enlace con el estado de la pantalla (estilo + capas/golpes) y vídeo por la frontera del motor; queda como siguiente paso (§7), no en esta tanda.
+7. *Precedente*: Capas = Incredibox/Groovepad; Piano = Magic Piano; Coro = Bebot/Blob Opera; Círculo = Groove Pizza; DJ = Pocket Operator; mando = débil, solo opcional. Ver `docs/investigacion-instrumentos.md`.
+8. *Quitar*: la portada (016) sale del arranque; Theremín y DJ dejan de ser pantallas.
+
+## 7. Pendiente / fuera
 Probar de oído y en iPhone; vídeo y guardado desde el Laboratorio (más adelante, por la frontera del motor).

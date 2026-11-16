@@ -2,7 +2,7 @@
 import { open, sleep } from './lib.mjs'
 const { b, p, errs } = await open({ goto: false })
 await p.evaluateOnNewDocument(() => { window.__ctxs = []; const A = window.AudioContext; window.AudioContext = class extends A { constructor(...a) { super(...a); window.__ctxs.push(this) } } })
-await p.goto(`http://localhost:${process.env.PORT || 3999}/`, { waitUntil: 'networkidle2', timeout: 120000 })
+await p.goto(`http://localhost:${process.env.PORT || 3999}/estudio`, { waitUntil: 'networkidle2', timeout: 120000 })
 await p.evaluate(() => [...document.querySelectorAll('button')].find((x) => x.textContent.includes('Empezar'))?.click())
 await sleep(8000)
 const state = () => p.evaluate(() => window.__ctxs.map((c) => c.state).join(','))

@@ -16,7 +16,7 @@ export async function open({ w = 400, h = 800, goto = true, simple = false } = {
     latency: { ms: 30, spreadMs: 3, measuredAt: new Date().toISOString() },
   })
   if (!goto) return { b, p, errs }
-  await p.goto(`http://localhost:${process.env.PORT || 3999}/`, { waitUntil: 'networkidle2', timeout: 120000 })
+  await p.goto(`http://localhost:${process.env.PORT || 3999}/estudio${simple ? '?portada' : ''}`, { waitUntil: 'networkidle2', timeout: 120000 })
   await p.evaluate(() => [...document.querySelectorAll('button')].find(b=>b.textContent.includes('Empezar'))?.click())
   await sleep(8000)
   return { b, p, errs }

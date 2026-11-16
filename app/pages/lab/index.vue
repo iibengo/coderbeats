@@ -47,7 +47,6 @@ onBeforeUnmount(() => engine.stopAll())
   <LabDj v-else-if="screen === 'dj'" @back="back" />
   <LabCircle v-else-if="screen === 'circle'" @back="back" />
   <main v-else class="mx-auto min-h-dvh max-w-xl bg-[#0a0a0d] px-4 py-8 text-white">
-    <NuxtLink to="/" class="text-sm text-white/50">← coderbeats</NuxtLink>
     <h1 class="mt-3 text-3xl font-medium tracking-tight">Laboratorio</h1>
     <p class="mt-1 text-white/60">Formas de tocar sin micro. Elige una; todas suenan con el motor de siempre.</p>
     <ul class="mt-6 grid gap-3">
@@ -59,5 +58,6 @@ onBeforeUnmount(() => engine.stopAll())
       </li>
     </ul>
     <p v-if="error" class="mt-4 text-sm text-red-300">{{ error }}</p>
+    <NuxtLink to="/estudio" class="mt-10 block text-center text-xs text-white/35 underline decoration-white/20">Estudio</NuxtLink>
   </main>
 </template>
