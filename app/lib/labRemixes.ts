@@ -1,37 +1,22 @@
 /**
- * Remixes del Laboratorio (spec 019): la versión **simplificada** de cada remix del Estudio, para actuar con ella.
- * Cuatro partes (Intro, Subida, Drop, Final), como mucho cuatro capas por parte, cada parte suena bien en bucle sola. Las notas y los patrones son los
+ * Remixes del Laboratorio (spec 019/020): la versión principal (≈ 1 min) de cada remix, simplificada, y cómo se actúa. **El remix es la canción**; sus partes
+ * (como mucho 8, con como mucho 4 capas cada una, cada una suena bien en bucle sola) salen de ella (`remixParts.ts`). Las notas y los patrones son los
  * del Estudio (`remixes.ts`, que no se toca); aquí solo se eligen y se agrupan. Todo puro.
  */
-import { MAX_CELLS, TURNS, type Cell, type Song, type Turns } from './cells'
+import { MAX_CELLS, TURNS, songBars, type Cell, type Song, type Turns } from './cells'
 import { STYLES } from './constants'
 import type { FreeLoop } from './freeLoops'
-import type { MelodySynth } from './melody'
 import {
   DIES_A, DIES_B, MZ, MZ_CLAP_FILL, MZ_CRASH, MZ_ROOTS, MZ_UP, ODE_A, ODE_A2, ODE_B, ODE_CRASH, ODE_ROOTS, P, RISER2_NOISE, RISER2_PAD, RISER2_ROLL, RISER_NOISE, RISER_PAD, RISER_ROLL, T, WOW_HOOK, WOW_IMPACT, up,
   type Note,
 } from './remixes'
-import type { Instrument, KitId, StyleId } from './types'
+import type { MelodySynth } from './melody'
+import type { KitId, StyleId } from './types'
+import { MAX_LAYERS, MAX_PARTS, partsFromSong, type LabLayer, type LabPart } from './remixParts'
+export { MAX_LAYERS, MAX_PARTS }
+export type { LabLayer, LabPart }
 
-export type LabPartName = 'Intro' | 'Subida' | 'Drop' | 'Final'
-export const PART_NAMES: readonly LabPartName[] = ['Intro', 'Subida', 'Drop', 'Final']
-export const MAX_LAYERS = 4
-
-/** una capa que se enciende o apaga: patrones de batería, loops de melodía y/o el bajo o los acordes del fondo */
-export interface LabLayer {
-  key: string
-  label: string
-  drums?: Partial<Record<Instrument, string>>
-  mel?: { notes: readonly Note[]; synth: MelodySynth }[]
-  bass?: boolean
-  chords?: boolean
-}
-export interface LabPart {
-  name: LabPartName
-  layers: LabLayer[]
-  /** qué capas suenan al entrar en la parte (por clave) */
-  start: string[]
-}
+/** Un remix tal como se actúa: sus partes (como mucho 8) salen de **la canción** (`partsFromSong`), que es el único objeto del remix. */
 export interface LabRemix {
   id: string
   title: string
@@ -39,7 +24,8 @@ export interface LabRemix {
   style: StyleId
   kit: KitId
   key: string
-  parts: Record<LabPartName, LabPart>
+  song: Song
+  parts: LabPart[]
 }
 
 const L = {
@@ -47,7 +33,7 @@ const L = {
   hat: (p: string): LabLayer => ({ key: 'hat', label: 'platillo', drums: { hh: p } }),
   bass: { key: 'bajo', label: 'bajo', bass: true } as LabLayer,
   chords: { key: 'acordes', label: 'acordes', chords: true } as LabLayer,
-  theme: (notes: readonly Note[], synth: MelodySynth, label = 'tema'): LabLayer => ({ key: 'tema', label, mel: [{ notes, synth }] }),
+  theme: (notes: readonly Note[], synth: MelodySynth): LabLayer => ({ key: 'tema', label: 'tema', mel: [{ notes, synth }] }),
 }
 const riser = (noise: readonly Note[], pad: readonly Note[]): LabLayer => ({ key: 'subida', label: 'subida', mel: [{ notes: noise, synth: 'riser' }, { notes: pad, synth: 'pad' }] })
 
@@ -65,51 +51,85 @@ interface Recipe {
   roll: string
   noise: readonly Note[]
   pad: readonly Note[]
-  rollRiser: string
-  /** el tema: en la intro (en pad, suave), en la subida, en el drop y en el final */
+  /** el tema: en la intro (suave), en la subida, en el drop, en el segundo drop y en el final */
   intro: readonly Note[]
   sub: readonly Note[]
   drop: readonly Note[]
+  drop2: readonly Note[]
   final: readonly Note[]
   /** lo que remata el drop: platillo, impacto, pad en la raíz */
   dropFx: { notes: readonly Note[]; synth: MelodySynth }[]
 }
 
-function recipe(r: Recipe): LabRemix {
-  const parts: Record<LabPartName, LabPart> = {
-    Intro: { name: 'Intro', layers: [L.kick(r.kick), L.hat(r.hat), L.bass, L.theme(r.intro, 'pad')], start: ['bombo', 'tema'] },
+/** Las partes de la canción principal, cada una con las capas que **suenan** (lo que lleva la canción): ≈ 1 min 10 s. */
+const SHAPE: { name: string; bars: number }[] = [
+  { name: 'Intro', bars: 4 },
+  { name: 'Estrofa', bars: 4 },
+  { name: 'Subida', bars: 4 },
+  { name: 'Drop', bars: 8 },
+  { name: 'Break', bars: 4 },
+  { name: 'Drop 2', bars: 8 },
+  { name: 'Final', bars: 4 },
+]
+function recipeParts(r: Recipe): { name: string; bars: Turns; layers: LabLayer[] }[] {
+  const fx = (extra: { notes: readonly Note[]; synth: MelodySynth }[]): LabLayer => ({ key: 'ritmo', label: 'ritmo', drums: { bd: r.kick, sd: r.clap, hh: r.hats16 }, mel: extra })
+  const layers: LabLayer[][] = [
+    [L.kick(r.kick), L.theme(r.intro, 'pad')],
+    [L.kick(r.kick), L.hat(r.hat), L.bass, L.theme(r.intro, 'lead')],
     // sin bombo: la caja que se acelera, el riser, el bajo y el tema
-    Subida: { name: 'Subida', layers: [{ key: 'caja', label: 'caja', drums: { sd: r.roll, hh: r.hats16 } }, riser(r.noise, r.pad), L.bass, L.theme(r.sub, 'lead')], start: ['caja', 'subida', 'bajo', 'tema'] },
+    [{ key: 'caja', label: 'caja', drums: { sd: r.roll, hh: r.hats16 } }, riser(r.noise, r.pad), L.bass, L.theme(r.sub, 'lead')],
     // con todo: el ritmo entero (con el platillo grande al entrar), el bajo, los acordes y el tema
-    Drop: { name: 'Drop', layers: [{ key: 'ritmo', label: 'ritmo', drums: { bd: r.kick, sd: r.clap, hh: r.hats16 }, mel: r.dropFx }, L.bass, L.chords, L.theme(r.drop, 'lead')], start: ['ritmo', 'bajo', 'acordes', 'tema'] },
-    Final: { name: 'Final', layers: [L.chords, L.theme(r.final, 'pad'), L.hat(r.hat)], start: ['acordes', 'tema'] },
-  }
-  return { id: r.id, title: r.title, composer: r.composer, style: r.style, kit: r.kit, key: r.key, parts }
+    [fx(r.dropFx.slice(0, 1)), L.bass, L.chords, L.theme(r.drop, 'lead')],
+    // sin bombo: un respiro con los acordes y el tema suave
+    [L.chords, L.theme(r.final, 'pad')],
+    [fx(r.dropFx), L.bass, L.chords, L.theme(r.drop2, 'lead')],
+    [L.chords, L.theme(r.final, 'pad')],
+  ]
+  return SHAPE.map((p, i) => ({ name: p.name, bars: p.bars as Turns, layers: layers[i]! }))
 }
 
-const TECHNO = { kick: T.bd4, clap: T.clap, hat: T.hat, hats16: T.hats16, roll: T.roll, noise: RISER_NOISE, pad: RISER_PAD, rollRiser: RISER_ROLL }
+/** La canción de una receta: una célula por parte, con sus capas encendidas (es **el** remix; las partes del Laboratorio salen de ella). */
+function songOf(r: Recipe): Song {
+  const parts = recipeParts(r)
+  const cells: Cell[] = []
+  let loopId = 1
+  parts.forEach((p, i) => {
+    const on = new Set(p.layers.map((l) => l.key))
+    const pl = partLoops({ name: p.name, layers: p.layers, start: [...on], bars: p.bars }, on, loopId, false)
+    loopId = pl.nextId
+    cells.push({ id: i + 1, name: p.name, loops: pl.loops, parts: partsOn({ name: p.name, layers: p.layers, start: [...on], bars: p.bars }, on), turns: p.bars, at: { x: i * 3, y: Math.sin(i * 1.3) * 1.2, depth: [0, 0.4, 0.1, 0.6][i % 4]! } })
+  })
+  return { version: 1, cells, order: cells.map((c) => c.id), groups: [], nextGroupId: 1, bpm: null, nextCellId: cells.length + 1, nextLoopId: loopId }
+}
+
+function recipe(r: Recipe): LabRemix {
+  const song = songOf(r)
+  return { id: r.id, title: r.title, composer: r.composer, style: r.style, kit: r.kit, key: r.key, song, parts: partsFromSong(song) }
+}
+
+const TECHNO = { kick: T.bd4, clap: T.clap, hat: T.hat, hats16: T.hats16, roll: T.roll, noise: RISER_NOISE, pad: RISER_PAD }
 
 export const LAB_REMIXES: readonly LabRemix[] = [
   recipe({
     id: 'oda-alegria-dembow', title: 'Himno de la alegría', composer: 'Beethoven', style: 'dembow', kit: '808', key: 'Re mayor',
-    kick: P.bd, clap: P.sdFill, hat: P.hh8, hats16: P.hh16, roll: P.sdRoll, noise: RISER2_NOISE, pad: RISER2_PAD, rollRiser: RISER2_ROLL,
-    intro: ODE_A, sub: ODE_B, drop: up(ODE_A, 12), final: ODE_A2,
+    kick: P.bd, clap: P.sdFill, hat: P.hh8, hats16: P.hh16, roll: P.sdRoll, noise: RISER2_NOISE, pad: RISER2_PAD,
+    intro: ODE_A, sub: ODE_B, drop: up(ODE_A, 12), drop2: up(ODE_A2, 12), final: ODE_A2,
     dropFx: [{ notes: ODE_CRASH, synth: 'crash' }, { notes: ODE_ROOTS, synth: 'pad' }],
   }),
   recipe({
     id: 'dies-irae-techno', title: 'Dies Irae', composer: 'gregoriano, s. XIII', style: 'techno', kit: 'electro', key: 'Do menor', ...TECHNO,
-    intro: DIES_A, sub: DIES_B, drop: DIES_A, final: DIES_B,
+    intro: DIES_A, sub: DIES_B, drop: DIES_A, drop2: DIES_B, final: DIES_B,
     dropFx: [{ notes: MZ_CRASH, synth: 'crash' }],
   }),
   recipe({
     id: 'wow-techno', title: 'Wow', composer: 'coderbeats', style: 'techno', kit: 'electro', key: 'Do menor', ...TECHNO, clap: MZ_CLAP_FILL,
-    intro: WOW_HOOK, sub: WOW_HOOK, drop: WOW_HOOK, final: WOW_HOOK,
+    intro: WOW_HOOK, sub: WOW_HOOK, drop: WOW_HOOK, drop2: up(WOW_HOOK, 12), final: WOW_HOOK,
     dropFx: [{ notes: MZ_CRASH, synth: 'crash' }, { notes: WOW_IMPACT, synth: 'boom' }],
   }),
   recipe({
     // OJO: las notas del tema de Mozart están «de oído» y falta contrastarlas con la partitura (ver spec 019, §6)
     id: 'sinfonia-40-techno', title: 'Sinfonía n.º 40', composer: 'Mozart', style: 'techno', kit: 'electro', key: 'Do menor', ...TECHNO, clap: MZ_CLAP_FILL,
-    intro: MZ.a, sub: MZ.b, drop: MZ_UP.a, final: MZ.b,
+    intro: MZ.a, sub: MZ.b, drop: MZ_UP.a, drop2: MZ_UP.b, final: MZ.b,
     dropFx: [{ notes: MZ_CRASH, synth: 'crash' }, { notes: MZ_ROOTS, synth: 'pad' }],
   }),
 ]
@@ -117,9 +137,9 @@ export const labRemixById = (id: string): LabRemix | undefined => LAB_REMIXES.fi
 
 // ── duraciones ─────────────────────────────────────────────────────────────────────────────────────
 export const barSeconds = (style: StyleId): number => (60 / STYLES[style].bpm) * 4
-/** El remix del Laboratorio dura ≈ 1 min: 32 compases a 128 (60 s); a 120, 64 s. Intro 8 · Subida 4 · Drop 16 · Final 4 (32), siempre en valores de vueltas. */
-export const REMIX_BARS: Record<LabPartName, Turns> = { Intro: 8, Subida: 4, Drop: 16, Final: 4 }
-export const remixSeconds = (style: StyleId): number => Object.values(REMIX_BARS).reduce((s, b) => s + b, 0) * barSeconds(style)
+/** Lo que dura el remix principal: la suma de sus partes (≈ 1 min 10 s con las 7 de las recetas; entre 45 y 90 s). */
+export const remixBars = (r: LabRemix): number => r.parts.reduce((n, p) => n + p.bars, 0)
+export const remixSeconds = (r: LabRemix): number => remixBars(r) * barSeconds(r.style)
 
 /** Lo que dura como mucho lo grabado (2 min) y cuánto antes entra el final (≈ 8 s), en compases enteros. */
 export const MAX_TAKE_SECONDS = 120
@@ -130,6 +150,8 @@ export function takePlan(style: StyleId): { maxBars: number; finalBars: number; 
   const finalBars = Math.max(2, Math.round(FINAL_SECONDS / bs))
   return { maxBars, finalBars, finalStart: maxBars - finalBars }
 }
+/** La parte con la que se acaba (la última de la canción). */
+export const finalPartOf = (r: LabRemix): LabPart => r.parts[r.parts.length - 1]!
 
 // ── loops de una parte ─────────────────────────────────────────────────────────────────────────────
 export interface PartLoops {
@@ -157,19 +179,18 @@ export function partLoops(part: LabPart, on: ReadonlySet<string>, firstId: numbe
       const tokens = pattern.split(' ')
       add({ instrument: inst, bars: tokens.length === 64 ? 4 : 1, hits: tokens.flatMap((t, step) => (t === '~' ? [] : [{ pos: step, strength: 0.8 }])) })
     }
-    for (const m of l.mel ?? []) add({ instrument: 'mel', bars: 4, hits: m.notes.map(([pos, dur, midi]) => ({ pos, dur, midi, strength: 0.8 })), synth: m.synth })
+    for (const m of l.mel ?? []) add({ instrument: 'mel', bars: 4, hits: m.notes.map(([pos, dur, midi]) => ({ pos, dur, midi, strength: 0.8 })), ...(m.synth ? { synth: m.synth } : {}) })
   }
   return { loops, ids, nextId: id }
 }
-export const partsOn = (part: LabPart, on: ReadonlySet<string>): { bass: boolean; chords: boolean } => ({
-  bass: part.layers.some((l) => l.bass && on.has(l.key)),
-  chords: part.layers.some((l) => l.chords && on.has(l.key)),
-})
+export function partsOn(part: LabPart, on: ReadonlySet<string>): { bass: boolean; chords: boolean } {
+  return { bass: part.layers.some((l) => l.bass && on.has(l.key)), chords: part.layers.some((l) => l.chords && on.has(l.key)) }
+}
 
 // ── canciones: el remix a su ritmo y lo que yo actúo ───────────────────────────────────────────────
-/** un compás de lo actuado: en qué parte estaba y qué capas sonaban */
+/** un compás de lo actuado: en qué parte estaba (por nombre) y qué capas sonaban */
 export interface TakeBar {
-  part: LabPartName
+  part: string
   on: string[]
 }
 
@@ -187,11 +208,11 @@ export function turnChunks(bars: number): Turns[] {
 }
 
 interface Run {
-  part: LabPartName
+  part: string
   on: string[]
   bars: number
 }
-const sig = (b: { part: LabPartName; on: string[] }): string => `${b.part}|${[...b.on].sort().join(',')}`
+const sig = (b: { part: string; on: string[] }): string => `${b.part}|${[...b.on].sort().join(',')}`
 
 /** Tramos seguidos iguales; si salen más células de las que caben, el tramo más corto se une al anterior (los compases no cambian). */
 export function runsOfTake(take: readonly TakeBar[]): Run[] {
@@ -217,14 +238,15 @@ export function runsOfTake(take: readonly TakeBar[]): Run[] {
   return runs
 }
 
-/** La canción de una actuación: una célula por tramo (partida en vueltas válidas si hace falta), con solo las capas que sonaban. `null` si no hay compases. */
+/** La canción de una actuación: una célula por tramo (partida en vueltas válidas si hace falta), con solo las capas que sonaban. Las partes que ya no existen se ignoran. `null` si no hay compases. */
 export function songFromTake(remix: LabRemix, take: readonly TakeBar[]): Song | null {
-  if (!take.length) return null
+  const known = take.filter((b) => remix.parts.some((p) => p.name === b.part))
+  if (!known.length) return null
   const cells: Cell[] = []
   let loopId = 1
   let cellId = 1
-  for (const run of runsOfTake(take)) {
-    const part = remix.parts[run.part]
+  for (const run of runsOfTake(known)) {
+    const part = remix.parts.find((p) => p.name === run.part)!
     const on = new Set(run.on)
     for (const turns of turnChunks(run.bars)) {
       const pl = partLoops(part, on, loopId, false)
@@ -236,7 +258,8 @@ export function songFromTake(remix: LabRemix, take: readonly TakeBar[]): Song | 
   return { version: 1, cells, order: cells.map((c) => c.id), groups: [], nextGroupId: 1, bpm: null, nextCellId: cellId, nextLoopId: loopId }
 }
 
-/** El remix «original» del Laboratorio: las cuatro partes, cada una con sus capas de salida, en su duración de ≈ 1 min. */
+/** El remix «original» del Laboratorio: las partes, cada una con sus capas de salida y su duración. */
 export function remixTake(remix: LabRemix): TakeBar[] {
-  return PART_NAMES.flatMap((p) => Array.from({ length: REMIX_BARS[p] }, () => ({ part: p, on: [...remix.parts[p].start] })))
+  return remix.parts.flatMap((p) => Array.from({ length: p.bars }, () => ({ part: p.name, on: [...p.start] })))
 }
+export { songBars }

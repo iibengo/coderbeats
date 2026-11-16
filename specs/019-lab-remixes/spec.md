@@ -3,14 +3,23 @@
 Estado: hecha (sin probar de oído ni en iPhone). Etiqueta anterior: `lab-v1`. Se añade una pantalla y no se toca ninguna otra (solo `LabShell` gana una opción `hideStyle` y `LabStage` expone el lienzo para el vídeo).
 
 ## 1. Qué es
-Eliges un remix y **actúas** sus partes: Intro, Subida, Drop y Final como cuatro botones grandes. Nada avanza solo: tocas una parte y entra en el siguiente compás; te quedas en ella lo que quieras. Dentro de cada parte, círculos para encender y apagar capas (como en Capas) y el DJ. «● Grabar mi versión» apunta lo que actúas; «🎬 Mi vídeo» lo comparte.
+Eliges un remix y **actúas** sus partes (**tantas como tenga la canción, como mucho 8**: Intro, Estrofa, Subida, Drop, Break, Drop 2, Final…) como botones grandes en **cuadrícula de 2 columnas**. Nada avanza solo: tocas una parte y entra en el siguiente compás; te quedas en ella lo que quieras. Dentro de cada parte, círculos para encender y apagar capas (como en Capas) y el DJ. «● Grabar mi versión» apunta lo que actúas; «🎬 Mi vídeo» lo comparte.
+
+## 1b. Cambio (2026-11-16): las partes salen de la canción
+**Un remix es un único objeto (la canción)**; las partes del Laboratorio salen de ella con `partsFromSong` (`app/lib/remixParts.ts`), así que lo que se edite en el Estudio se ve tal cual aquí (spec 020). Reglas de esa conversión (con tests):
+- Las células **seguidas con las mismas capas se juntan** en una sola parte (los compases se suman). Si sigue habiendo más de 8, se juntan los vecinos más parecidos (a igualdad, los más cortos); los compases nunca se pierden.
+- **Nombre claro**: si la célula se llama Intro, Estrofa, Subida, Drop, Break, Final o Puente se respeta; si no, se pone por lo que lleva y por dónde está (primera = Intro, última = Final, ritmo + acordes = Drop, sin bombo y con caja o subida = Subida, sin bombo y con acordes = Break, el resto = Estrofa). Los repetidos llevan número (Drop 2).
+- **Grupos en paralelo**: la melodía del grupo que enciende una célula suena dentro de esa parte (y de las siguientes hasta que otra lo apaga).
+- **≤ 4 capas por parte**: ritmo (bombo + caja + platillo), bombo, caja, platillo, subida, bajo, acordes y tema; si sobran se quitan antes el platillo suelto, los acordes, el bajo, la subida, la caja y el bombo (nunca el ritmo ni el tema).
+- Cada parte arranca con **las capas que lleva la canción** (la persona apaga lo que quiera; las que la canción no lleva no aparecen).
+- El remix principal (≈ 1 min 10 s) tiene 7 partes: Intro 4 · Estrofa 4 · Subida 4 · Drop 8 · Break 4 · Drop 2 8 · Final 4. **La versión larga del Estudio (hasta 4 min) queda como archivo** (`remixes.ts` intacto); también se puede actuar (sale con ≤ 8 partes).
 
 ## 2. Reglas de los remixes del Laboratorio (`app/lib/labRemixes.ts`, tests en `tests/unit/labRemixes.test.ts`)
-- Cuatro partes por remix; **como mucho 4 capas por parte**; cada parte arranca con capas que suenan solas en bucle.
+- Entre 3 y 8 partes por remix; **como mucho 4 capas por parte**; cada parte arranca con capas que suenan solas en bucle.
 - **Contraste:** la Subida no lleva bombo; el Drop lleva todo (ritmo con bombo, caja y platillo, bajo, acordes y tema) y es la parte más llena.
 - **El tema se reconoce en los primeros 4 compases:** empieza en el primer compás y cabe en el bucle de 4.
 - Se parte de las notas y patrones del Estudio (`remixes.ts`, solo se exportan constantes; el Estudio no cambia); la versión del Laboratorio las agrupa y simplifica (sin el filtro por compás ni el «wowo», sin grupos en paralelo, sin 12 células).
-- **Duración ≈ 1 min** (Intro 8 · Subida 4 · Drop 16 · Final 4 = 32 compases: 60 s a 128, 64 s a 120). Test: entre 45 y 90 s.
+- **Duración ≈ 1 min** (la suma de las partes: 36 compases = 67 s a 128, 72 s a 120). Test: entre 45 y 90 s.
 - **Lo grabado:** hasta 2 min (64 compases a 128 bpm). Cuando faltan ≈ 8 s (4 compases) entra el Final solo y se acaba en el compás justo. «■ Terminar» hace lo mismo antes de tiempo. El vídeo dura exactamente lo que la grabación (se graba la canción resultante).
 
 ## 3. Cómo cumple PRINCIPIOS.md

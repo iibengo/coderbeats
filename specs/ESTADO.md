@@ -385,6 +385,8 @@ Se quitaron Theremín y DJ **como pantallas** (ahora el DJ está en Capas y el s
 
 8. **Estudio · editor de melodía** (spec 020, fases 2, 3 y 4; etiqueta `estudio-v2` justo antes): botón **♪** en el Estudio (junto a Remixes). Cuadrícula de corcheas × notas de la escala del estilo (9 filas, ▲▼ para subir o bajar), 1/2/4 compases, suena en bucle; tocar pone/quita, otra altura la cambia, arrastrar a la derecha alarga, ↶ deshacer, vaciar. **● grabar** (a media velocidad: la base sigue a su tempo y la frase se toca al doble de lento; 1 compás de cuenta; se cuadra a las columnas; acaba sola). **↻ responder**: la frase de 2 compases se copia a los 2 siguientes con una variación fija y cierra en la tónica. Hecho: 2, 3, 4. **Faltan** de la 020: 1 (Abrir en el Estudio), 3b (batería), 5 (una melodía por parte), 6 (esconder lo avanzado), 7 (duración). Confirmado: máx. 8 partes por remix; lo que sobra se esconde.
 
+9. **Remixes con N partes** (spec 019 §1b): las partes salen de **la canción** (`partsFromSong`): células parecidas seguidas se juntan, nombres claros, grupos en paralelo dentro de su parte, ≤ 4 capas, **máx. 8 partes**, botones en cuadrícula de 2 columnas. Los remixes principales tienen 7 partes (≈ 1 min 10 s). Ajuste de la 020: un remix, dos caras; el editor de melodía debe ser el **Órgano** (ver spec 020: el ♪ actual es provisional y se retirará).
+
 ## Motor y interfaz
 `app/engine/index.ts` es la frontera (audio, estilos, kits, melodías, guardado/compartir, vídeo); `tests/unit/engineBoundary.test.ts` impide que el Laboratorio importe componentes del Estudio. **No moví archivos** (riesgo alto para poco beneficio): es una frontera por contrato.
 

@@ -2,11 +2,17 @@
 
 Estado: **propuesta, sin programar**. Etiqueta del estado de partida: `estudio-v2`. Depende de 019 (Remixes en el Laboratorio) y reutiliza `melodyEdit.ts`, `tapMelody.ts`, `variations.ts`, la biblioteca (`library.ts`) y el enlace (`shareLink.ts`).
 
+## Ajuste (2026-11-16): un remix, dos caras
+- **Un remix es un único objeto (la canción) con dos caras:** Laboratorio = **actuarlo**; Estudio = **crearlo y editarlo**. Las mismas partes en los dos lados (**máximo 8**), sin versiones distintas: lo que se edita en el Estudio se ve tal cual en Remixes del Laboratorio (`partsFromSong`, spec 019 §1b).
+- **Versión principal = la de ≈ 1 min** (la simplificada de 019); la larga de 4 min queda como **archivo** (no se borra, se abre desde «Archivo»).
+- **La melodía no lleva editor nuevo: se mejora el Órgano que ya existe** (`MelodyOrgan.vue`) con lo de §1 (solo notas de la escala, casillas grandes, un compás a la vez en bucle, grabar con el dedo a media velocidad, «↻ responder», una melodía por parte). ⚠ **Aclaración honesta:** las fases 2–4 ya estaban hechas como pantalla aparte (`MelodyEditor.vue`, botón ♪; commits `821a52d`, `fe27afa`, `b928e61`) antes de este ajuste. Plan: **portar lo que aporta al Órgano** (la lógica pura `melodyGrid.ts` y sus tests se reutilizan tal cual) y **quitar ♪ y `MelodyEditor.vue`** cuando el Órgano lo cubra, para no dejar dos editores.
+- Máximo 8 partes y ≤ 4 capas por parte también al editar (el Estudio avisa al pasarse; no borra nada).
+
 ## 0. Por qué
 El Estudio creció hasta ser «todo». Su trabajo pasa a ser uno: **crear y editar remixes al 100 %**. Lo que más duele es la melodía: crearla es difícil porque se apilan melodías en la célula y el reloj va rápido. Los principios de `PRINCIPIOS.md` valen como inspiración, **sin ser tan estrictos** (el Estudio puede tener más de una cosa en pantalla, pero cada pantalla debe seguir teniendo un trabajo claro).
 
 ## 1. Editor de melodía (tipo Song Maker de Google)
-**Pantalla propia** dentro del Estudio: «Melodía» (se abre desde una parte del remix; vuelve a ella).
+**Se hace en el Órgano existente** (ver el ajuste de arriba), que se abre desde una parte del remix y vuelve a ella.
 
 - **Cuadrícula:** filas = solo las notas de la escala del estilo (`scaleNotes`; 8–9 filas: una octava y un poco más; arriba agudas); columnas = **corcheas** (8 por compás). Muestra **un compás a la vez** con las casillas grandes (≥ 40 px: 8 × 8 en un móvil de 380 px), con ◀ ▶ para pasar de compás; la aguja recorre los dos. Se puede pasar a semicorcheas con «fino» (16 columnas, casillas más pequeñas) — escondido, para quien lo pida.
 - **Largo:** 1 o 2 compases (botón), y «↻ responder» lo lleva a 4 (§1.3). Es el `loop` de melodía de 1/2/4 compases que ya existe (`setMelBars`).
@@ -59,8 +65,9 @@ Se mide contra tres cosas: **partes · capas · melodía · duración (≈ 1–2
 **Regla de datos:** `coderbeats:ui:v1` y la biblioteca se siguen leyendo igual; las preferencias de lo que se esconde van en una clave nueva (`coderbeats:studio:v2`), y su ausencia significa «lo de siempre».
 
 ## 4. Fases (cada una un commit, con tests + typecheck + build)
-1. `labRemixFromSong` + «Abrir en el Estudio» (copia en Mis canciones; sin editor nuevo aún).
-2. Editor de melodía: cuadrícula y sonido en bucle (tocar casillas).
+0. (hecho) Remixes del Laboratorio con N partes desde la canción (`partsFromSong`).
+1. «Abrir en el Estudio» (copia en Mis canciones; las partes ya salen de la canción, no hace falta conversión de vuelta aparte).
+2. Órgano mejorado: cuadrícula y sonido en bucle (tocar casillas). (La primera versión, `MelodyEditor.vue`, está hecha; falta portarla al Órgano.)
 3. «● Grabar» a media velocidad y cuadrar.
 3b. Batería de la parte: Círculo / cuadrícula (tocar) y 🎤 opcional (cuadrar y corregir tocando).
 4. «↻ responder».

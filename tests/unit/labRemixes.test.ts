@@ -1,49 +1,57 @@
 import { describe, expect, it } from 'vitest'
 import { songBars } from '~/lib/cells'
-import { barSeconds, LAB_REMIXES, MAX_LAYERS, partLoops, PART_NAMES, remixSeconds, remixTake, runsOfTake, songFromTake, takePlan, turnChunks, type LabPart } from '~/lib/labRemixes'
+import { barSeconds, finalPartOf, LAB_REMIXES, MAX_LAYERS, MAX_PARTS, partLoops, remixBars, remixSeconds, remixTake, runsOfTake, songFromTake, takePlan, turnChunks, type LabPart } from '~/lib/labRemixes'
 
-const hasDrum = (p: LabPart, inst: 'bd' | 'sd' | 'hh', keys = p.layers.map((l) => l.key)) => p.layers.some((l) => keys.includes(l.key) && l.drums?.[inst])
+const hasDrum = (p: LabPart, inst: 'bd' | 'sd' | 'hh') => p.layers.some((l) => l.drums?.[inst])
+const isDrop = (p: LabPart) => /^drop/i.test(p.name)
 
 describe('remixes del Laboratorio: reglas', () => {
   for (const r of LAB_REMIXES) {
     describe(r.title, () => {
-      it('tiene las cuatro partes y como mucho 4 capas en cada una', () => {
-        for (const n of PART_NAMES) {
-          expect(r.parts[n].name).toBe(n)
-          expect(r.parts[n].layers.length).toBeGreaterThan(0)
-          expect(r.parts[n].layers.length).toBeLessThanOrEqual(MAX_LAYERS)
-          expect(new Set(r.parts[n].layers.map((l) => l.key)).size).toBe(r.parts[n].layers.length)
+      it('tiene entre 3 y 8 partes con nombre único, la primera Intro y la última Final', () => {
+        expect(r.parts.length).toBeGreaterThanOrEqual(3)
+        expect(r.parts.length).toBeLessThanOrEqual(MAX_PARTS)
+        expect(new Set(r.parts.map((p) => p.name)).size).toBe(r.parts.length)
+        expect(r.parts[0]!.name).toBe('Intro')
+        expect(finalPartOf(r).name).toBe('Final')
+      })
+      it('como mucho 4 capas por parte, cada parte arranca con capas y suena sola en bucle', () => {
+        for (const p of r.parts) {
+          expect(p.layers.length).toBeGreaterThan(0)
+          expect(p.layers.length).toBeLessThanOrEqual(MAX_LAYERS)
+          expect(new Set(p.layers.map((l) => l.key)).size).toBe(p.layers.length)
+          expect(p.start).toEqual(p.layers.map((l) => l.key))
+          expect(partLoops(p, new Set(p.start), 1, false).loops.length + (p.layers.some((l) => l.bass || l.chords) ? 1 : 0)).toBeGreaterThan(0)
         }
       })
-      it('cada parte arranca con capas que suenan solas (bucle propio)', () => {
-        for (const n of PART_NAMES) {
-          const p = r.parts[n]
-          expect(p.start.length).toBeGreaterThan(0)
-          for (const k of p.start) expect(p.layers.some((l) => l.key === k)).toBe(true)
-          expect(partLoops(p, new Set(p.start), 1, false).loops.length).toBeGreaterThan(0)
+      it('contraste: ninguna subida lleva bombo y los drops llevan todo y son lo más lleno', () => {
+        const subidas = r.parts.filter((p) => /^subida/i.test(p.name))
+        expect(subidas.length).toBeGreaterThan(0)
+        for (const p of subidas) expect(hasDrum(p, 'bd')).toBe(false)
+        const drops = r.parts.filter(isDrop)
+        expect(drops.length).toBeGreaterThan(0)
+        const most = Math.max(...r.parts.map((p) => p.layers.length))
+        for (const d of drops) {
+          expect(hasDrum(d, 'bd') && hasDrum(d, 'sd') && hasDrum(d, 'hh')).toBe(true)
+          expect(d.layers.some((l) => l.bass) && d.layers.some((l) => l.chords) && d.layers.some((l) => l.key === 'tema')).toBe(true)
+          expect(d.layers.length).toBe(most)
         }
-      })
-      it('contraste: la subida sin bombo y el drop con todo', () => {
-        expect(hasDrum(r.parts.Subida, 'bd')).toBe(false)
-        const d = r.parts.Drop
-        expect(d.start.length).toBe(d.layers.length)
-        expect(hasDrum(d, 'bd') && hasDrum(d, 'sd') && hasDrum(d, 'hh')).toBe(true)
-        expect(d.layers.some((l) => l.bass) && d.layers.some((l) => l.chords) && d.layers.some((l) => l.key === 'tema')).toBe(true)
-        // el drop es lo más lleno
-        for (const n of PART_NAMES) expect(d.start.length).toBeGreaterThanOrEqual(r.parts[n].start.length)
+        // los vecinos no son iguales (contraste claro entre partes)
+        for (let i = 1; i < r.parts.length; i++) expect(r.parts[i]!.layers.map((l) => l.key).join()).not.toBe(r.parts[i - 1]!.layers.map((l) => l.key).join())
       })
       it('el tema se reconoce en los primeros 4 compases (empieza pronto y cabe en 4)', () => {
-        for (const n of ['Intro', 'Drop'] as const) {
-          const t = r.parts[n].layers.find((l) => l.key === 'tema')!
-          const notes = t.mel![0]!.notes
+        for (const p of [r.parts[0]!, r.parts.find(isDrop)!]) {
+          const notes = p.layers.find((l) => l.key === 'tema')!.mel![0]!.notes
           expect(notes.length).toBeGreaterThanOrEqual(8)
           expect(Math.min(...notes.map((x) => x[0]))).toBeLessThan(16)
           expect(Math.max(...notes.map((x) => x[0]))).toBeLessThan(64)
         }
       })
-      it('el remix entero dura entre 45 y 90 s', () => {
-        expect(remixSeconds(r.style)).toBeGreaterThanOrEqual(45)
-        expect(remixSeconds(r.style)).toBeLessThanOrEqual(90)
+      it('el remix entero dura entre 45 y 90 s y es una sola canción', () => {
+        expect(remixSeconds(r)).toBeGreaterThanOrEqual(45)
+        expect(remixSeconds(r)).toBeLessThanOrEqual(90)
+        expect(songBars(r.song)).toBe(remixBars(r))
+        expect(r.song.cells.length).toBe(r.parts.length)
       })
     })
   }
@@ -72,7 +80,7 @@ describe('canciones', () => {
   const r = LAB_REMIXES[3]!
   it('el remix a su ritmo suma sus compases y empieza en la intro', () => {
     const s = songFromTake(r, remixTake(r))!
-    expect(songBars(s)).toBe(32)
+    expect(songBars(s)).toBe(remixBars(r))
     expect(s.cells[0]!.name).toBe('Intro')
     expect(s.cells[s.cells.length - 1]!.name).toBe('Final')
   })
@@ -82,8 +90,9 @@ describe('canciones', () => {
     expect(songBars(s)).toBe(60)
     expect(s.cells.length).toBeLessThanOrEqual(16)
   })
-  it('solo lleva las capas que sonaban', () => {
-    const s = songFromTake(r, [{ part: 'Drop', on: ['bajo'] }, { part: 'Drop', on: ['bajo'] }])!
+  it('solo lleva las capas que sonaban y las partes que ya no existen se ignoran', () => {
+    const s = songFromTake(r, [{ part: 'Drop', on: ['bajo'] }, { part: 'Drop', on: ['bajo'] }, { part: 'Inventada', on: [] }])!
+    expect(songBars(s)).toBe(2)
     expect(s.cells[0]!.loops.length).toBe(0)
     expect(s.cells[0]!.parts).toEqual({ bass: true, chords: false })
   })

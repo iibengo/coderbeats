@@ -3,7 +3,7 @@
 // Lo que actúas se graba como «mi versión» (hasta 2 min; el final entra solo ≈ 8 s antes del tope y termina en el compás justo) y se comparte en vídeo.
 import { useLab } from '~/composables/useLab'
 import { AMBER, LAB_W } from '~/lib/lab'
-import { barSeconds, LAB_REMIXES, PART_NAMES, partLoops, partsOn, remixTake, songFromTake, takePlan, type LabLayer, type LabPartName, type LabRemix, type TakeBar } from '~/lib/labRemixes'
+import { barSeconds, finalPartOf, LAB_REMIXES, partLoops, partsOn, remixTake, songFromTake, takePlan, type LabLayer, type LabRemix, type TakeBar } from '~/lib/labRemixes'
 import { readJson, writeText } from '~/lib/storage'
 import type { StageFrame } from './LabStage.vue'
 
@@ -14,26 +14,28 @@ const stage = ref<{ ripple: (x: number, y: number, c: string, g?: number, r?: nu
 const C = LAB_W / 2
 
 const remix = ref<LabRemix | null>(null)
-const part = ref<LabPartName>('Intro') // la parte elegida (entra en el siguiente compás)
-const shown = ref<LabPartName>('Intro') // la que suena ya
+const part = ref('') // la parte elegida, por nombre (entra en el siguiente compás)
+const shown = ref('') // la que suena ya
 let shownFrom = 0 // compás desde el que `shown` vale `part`
 const on = ref<Set<string>>(new Set())
 let ids: Record<string, number[]> = {}
 const mode = ref<'actuar' | 'escuchar'>('actuar')
 
 const COLOR: Record<string, string> = { bombo: AMBER, ritmo: AMBER, caja: '#F496BC', hat: '#8ECFF2', bajo: '#B7A6F2', acordes: '#cfcfd6', tema: '#7fd6c2', subida: '#F5A97A' }
-const PART_COLOR: Record<LabPartName, string> = { Intro: '#8ECFF2', Subida: '#F5A97A', Drop: '#F496BC', Final: '#B7A6F2' }
-const cur = computed(() => (remix.value ? remix.value.parts[part.value] : null))
+const PART_COLOR: Record<string, string> = { Intro: '#8ECFF2', Estrofa: '#7fd6c2', Subida: '#F5A97A', Drop: '#F496BC', Break: '#cfcfd6', Final: '#B7A6F2', Salida: '#B7A6F2', Puente: '#cfcfd6' }
+/** el color de una parte por su nombre sin número («Drop 2» → Drop) */
+const colorOfPart = (name: string): string => PART_COLOR[name.replace(/\s+\d+$/, '')] ?? '#B7A6F2'
+const cur = computed(() => remix.value?.parts.find((p) => p.name === part.value) ?? null)
 
 // ── mi versión: se guarda aparte (clave propia; nada del Estudio) ──
 const TAKE_KEY = 'coderbeats:lab:take:v1'
 type Takes = Record<string, TakeBar[]>
 const isTakes = (x: unknown): x is Takes =>
-  !!x && typeof x === 'object' && Object.values(x).every((t) => Array.isArray(t) && t.length <= 200 && t.every((b) => !!b && PART_NAMES.includes((b as TakeBar).part) && Array.isArray((b as TakeBar).on) && (b as TakeBar).on.every((k) => typeof k === 'string')))
+  !!x && typeof x === 'object' && Object.values(x).every((t) => Array.isArray(t) && t.length <= 200 && t.every((b) => !!b && typeof (b as TakeBar).part === 'string' && (b as TakeBar).part.length <= 40 && Array.isArray((b as TakeBar).on) && (b as TakeBar).on.every((k) => typeof k === 'string')))
 const takes = ref<Takes>(readJson(TAKE_KEY, isTakes) ?? {})
 const mine = computed(() => (remix.value ? takes.value[remix.value.id] ?? null : null))
 
-interface Rec { startBar: number; changes: { from: number; part: LabPartName; on: string[] }[]; endBar: number | null }
+interface Rec { startBar: number; changes: { from: number; part: string; on: string[] }[]; endBar: number | null }
 const rec = ref<Rec | null>(null)
 const recBars = ref(0)
 const plan = computed(() => takePlan(remix.value?.style ?? 'techno'))
@@ -43,18 +45,19 @@ async function pick(r: LabRemix) {
   await lab.changeStyle(r.style)
   engine.setKit(r.kit)
   remix.value = r
-  part.value = shown.value = 'Intro'
-  await enter('Intro')
+  part.value = shown.value = r.parts[0]!.name
+  await enter(part.value)
 }
 /** pone una parte: todos sus loops (los apagados, silenciados) y su fondo; sonando, entra en el siguiente compás */
-async function enter(name: LabPartName) {
+async function enter(name: string) {
   const r = remix.value!
   if (mode.value === 'escuchar') {
     mode.value = 'actuar'
     engine.stop()
     await engine.clearAll()
   }
-  const p = r.parts[name]
+  const p = r.parts.find((x) => x.name === name)
+  if (!p) return
   on.value = new Set(p.start)
   const pl = partLoops(p, on.value, 1, true)
   ids = pl.ids
@@ -67,7 +70,7 @@ function note() {
   const r = rec.value
   if (r && r.endBar === null) r.changes.push({ from: nextBar(), part: part.value, on: [...on.value] })
 }
-async function goPart(name: LabPartName) {
+async function goPart(name: string) {
   if (!remix.value || (rec.value?.endBar ?? null) !== null) return
   if (!engine.playing.value) await lab.start()
   part.value = name
@@ -111,14 +114,15 @@ async function endRec() {
   const nb = nextBar()
   const rel = Math.max(1, nb - r.startBar)
   // si ya estaba en el final, cuenta los compases que lleva en él
-  const trailing = takeUntil(nb).reverse().findIndex((b) => b.part !== 'Final')
-  const inFinal = part.value === 'Final' ? (trailing < 0 ? rel : trailing) : 0
+  const fin = finalPartOf(remix.value!).name
+  const trailing = takeUntil(nb).reverse().findIndex((b) => b.part !== fin)
+  const inFinal = part.value === fin ? (trailing < 0 ? rel : trailing) : 0
   r.endBar = r.startBar + Math.min(plan.value.maxBars, rel + Math.max(1, plan.value.finalBars - inFinal))
-  if (part.value !== 'Final') {
-    part.value = 'Final'
+  if (part.value !== fin) {
+    part.value = fin
     shownFrom = nb
-    await enter('Final')
-    r.changes.push({ from: nb, part: 'Final', on: [...on.value] })
+    await enter(fin)
+    r.changes.push({ from: nb, part: fin, on: [...on.value] })
   }
 }
 async function finishRec() {
@@ -211,12 +215,12 @@ function draw(g: CanvasRenderingContext2D, f: StageFrame) {
   const queued = shown.value !== part.value
   g.beginPath()
   g.arc(C, C, 62 + (f.beat ? 6 : 0), 0, 7)
-  g.strokeStyle = PART_COLOR[part.value]
+  g.strokeStyle = colorOfPart(part.value)
   g.globalAlpha = queued && Math.floor(f.t * 4) % 2 ? 0.3 : 1
   g.lineWidth = 3
   g.stroke()
   g.globalAlpha = 1
-  g.fillStyle = PART_COLOR[part.value]
+  g.fillStyle = colorOfPart(part.value)
   g.font = '500 26px system-ui, sans-serif'
   g.fillText(part.value, C, C)
   cur.value.layers.forEach((l, i) => {
@@ -266,15 +270,15 @@ const phrase = computed(() => (remix.value ? 'Toca una parte: entra en el siguie
       <template v-if="remix">
         <div class="mt-4 grid grid-cols-2 gap-2" aria-label="partes">
           <button
-            v-for="n in PART_NAMES"
-            :key="n"
-            :data-part="n"
+            v-for="pt in remix.parts"
+            :key="pt.name"
+            :data-part="pt.name"
             class="rounded-2xl border px-4 py-5 text-lg"
-            :class="mode === 'actuar' && part === n ? 'border-2 text-white' : 'border-white/20 text-white/70'"
-            :style="mode === 'actuar' && part === n ? { borderColor: PART_COLOR[n] } : {}"
-            @pointerdown.prevent="goPart(n)"
+            :class="mode === 'actuar' && part === pt.name ? 'border-2 text-white' : 'border-white/20 text-white/70'"
+            :style="mode === 'actuar' && part === pt.name ? { borderColor: colorOfPart(pt.name) } : {}"
+            @pointerdown.prevent="goPart(pt.name)"
           >
-            {{ n }}<span v-if="mode === 'actuar' && part === n && shown !== n" class="ml-2 text-xs text-white/50">entra…</span>
+            {{ pt.name }}<span v-if="mode === 'actuar' && part === pt.name && shown !== pt.name" class="ml-2 text-xs text-white/50">entra…</span>
           </button>
         </div>
         <div class="mt-4"><LabDj @start="goPart(part)" /></div>
