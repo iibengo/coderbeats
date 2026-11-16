@@ -3,6 +3,7 @@
  * Un compás = 16 pasos; un loop de una instrumento lleva golpes con `pos` en pasos (puede ser decimal: el motor lo toca con un pequeño desplazamiento).
  */
 import type { FreeLoop, LoopHit } from './freeLoops'
+import { VOICE_HEX } from './palette'
 import type { Instrument } from './types'
 
 /** lado del escenario cuadrado del Laboratorio (unidades de dibujo) */
@@ -107,4 +108,4 @@ export function pressedEdges(prev: readonly boolean[], cur: readonly boolean[]):
 export const deadzone = (v: number, z = 0.15): number => (Math.abs(v) < z ? 0 : (v - Math.sign(v) * z) / (1 - z))
 
 /** El color ámbar del bombo del prototipo; el resto sale de la paleta (`VOICE_HEX`). */
-export const AMBER = '#F5C97A'
+export const AMBER = VOICE_HEX.bd

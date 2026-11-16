@@ -4,20 +4,20 @@ Corto, como reglas. Cuando el código y esto no cuadren, manda el código y se c
 
 ## Paleta
 - **Fondo negro.** Estudio: `INK #0B0B0F` (`app/lib/palette.ts`). Laboratorio: lienzo `#0B0B0D`, página `bg-black`. Sin fondos claros ni degradados de página.
-- **Acento rosa `#F496BC`**: lo seleccionado, el estilo activo, el compás que suena, el botón principal.
-- **Lila `#B9A6F2`** y **azul `#8ECFF2`** (más ámbar `#F5C97A` en el Laboratorio) son la paleta de los instrumentos. Texto: blanco con opacidad (`text-white` 100 % lo activo, `/60` lo normal, `/40` lo secundario). Rojo `#ff4d6d` solo para «grabando».
-- **Un instrumento, un color** (siempre el mismo en todas las pantallas):
+- **Acento rosa `#F496BC`**: lo seleccionado, el estilo activo, el compás que suena, el botón principal (es también el color de la caja: el contexto lo distingue).
+- **Lila `#B7A6F2`**, **azul `#8ECFF2`**, **ámbar `#F5C97A`** y **verde agua `#7FD6C2`** son, con el rosa, la paleta de los instrumentos. Texto: blanco con opacidad (`text-white` 100 % lo activo, `/60` lo normal, `/40` lo secundario). Rojo `#ff4d6d` solo para «grabando».
+- **Un instrumento, un color, el mismo en toda la app** (Estudio y Laboratorio; la única fuente es `VOICE_HEX` en `app/lib/palette.ts`):
 
-| Instrumento | Estudio (`VOICE_HEX`) | Laboratorio |
-|---|---|---|
-| Bombo | rosa `#F496BC` | ámbar `#F5C97A` |
-| Caja | lila `#B9A6F2` | rosa `#F496BC` |
-| Platillo | azul `#8ECFF2` | azul `#8ECFF2` |
-| Bajo | rosa oscuro `#BE5A82` | lila `#B7A6F2` |
-| Acordes | — | gris claro `#CFCFD6` |
-| Melodía / tema | blanco | verde agua `#7FD6C2` |
+| Instrumento | Color |
+|---|---|
+| Bombo | ámbar `#F5C97A` |
+| Caja | rosa `#F496BC` |
+| Platillo | azul `#8ECFF2` |
+| Bajo | lila `#B7A6F2` |
+| Melodía / tema | verde agua `#7FD6C2` |
+| Acordes | gris claro `#CFCFD6` (solo Laboratorio) |
 
-  ⚠ **No cuadran** (bombo y caja cambian de color entre Estudio y Laboratorio): decisión pendiente, se anota en «Decisiones a revisar». «Mi ritmo» `#F5A97A`, «mi melodía» `#A6F2C2`, subida `#F5A97A`.
+  Otros: «mi ritmo» `#F5A97A`, «mi melodía» `#A6F2C2`, subida `#F5A97A`. (Hasta 2026-11-16 el Estudio usaba bombo rosa, caja lila, bajo rosa oscuro y melodía blanca; se unificó con el Laboratorio.)
 - **Partes de un remix:** Intro azul, Subida naranja `#F5A97A`, Drop rosa, Final lila (`LabRemix.vue`; pendiente de pasar a otra tabla si hay más de 4 partes).
 - Las tres voces del Coro: rosa, lila, azul (`244,150,188`, `183,166,242`, `140,211,245`).
 

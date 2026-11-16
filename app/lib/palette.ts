@@ -6,11 +6,12 @@ export const INK = '#0B0B0F'
 
 export type Voice = 'bd' | 'bass' | 'sd' | 'mel' | 'hh'
 
+/** Un instrumento, un color, **igual en el Estudio y en el Laboratorio** (specs/DISENO.md): bombo ámbar, caja rosa, platillo azul, bajo lila, melodía verde agua. */
 export const VOICE_HEX: Record<Voice, string> = {
-  bd: '#F496BC',
-  bass: '#BE5A82',
-  sd: '#B9A6F2',
-  mel: '#FFFFFF',
+  bd: '#F5C97A',
+  bass: '#B7A6F2',
+  sd: '#F496BC',
+  mel: '#7FD6C2',
   hh: '#8ECFF2',
 }
 
