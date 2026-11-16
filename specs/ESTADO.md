@@ -210,3 +210,15 @@ Escrito primero en **spec 001 §17** (flujo, modelo, cómo medirlo con tus tomas
 2. **Cierra y abre la app** y haz solo «ts» primero: ¿ya sale platillo (usa los centros guardados)?
 3. Pásame el registro con las nuevas cifras (`c`, `z`, `graves`) de 6 «bum», 6 «pff» y 6 «ts».
 4. Si sigue sin acertar bien: ⋯ → «Calibrar mis sonidos».
+
+---
+
+# Séptima tanda (2026-11-16) — el registro real del iPhone (spec 001 §17.9)
+
+Con las cifras de tu registro: el iPhone suena muy distinto al laboratorio (centroide 0,05–0,14 frente a 0,3–0,5; cruces por cero 0,02–0,10 frente a 0,15–0,5). La versión anterior **no aprendió nunca** (pedía separaciones absolutas pensadas para el laboratorio) y dos golpes con pocos graves salían bombo.
+**Cambio:** el bombo se decide por sus **graves** (≥ 0,42 de energía < 800 Hz; en el iPhone, 0,47–1,0; en caja/platillo ≤ 0,25), que no depende del micro; caja y platillo, por **orden** con separación relativa. Medido: la regla separa **exactamente** los 8 bombos de tu registro de los otros 17 golpes; `t8` del laboratorio sigue en 76 %/73 %.
+**Lo que sigue sin saberse:** en ese registro no se distingue cuáles eran «ts» y cuáles «pff» (sus cifras son casi iguales y los primeros parecen menos claros que los últimos). Sin eso, **no puedo prometer que el platillo salga**.
+
+## Qué probar y qué mandarme
+1. Abre la app de nuevo (recarga completa) y haz **8 «ts», pausa larga, 8 «pff», pausa larga, 8 «bum»**, mirando el reloj para anotar los segundos de cada grupo. Pégame el diagnóstico con esos tiempos. Ahora cada golpe trae `c`, `z`, `graves`, `medios` y `agudos`.
+2. Si «bum» ya va bien y los otros dos se mezclan, el siguiente paso es ⋯ → «Calibrar mis sonidos» (es lo que de verdad resuelve un micro distinto); con tu registro etiquetado ajusto el modelo genérico.
