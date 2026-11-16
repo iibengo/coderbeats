@@ -1,5 +1,53 @@
 # Estado (2026-11-15) — lo hecho mientras no estabas
 
+# Última tanda (2026-11-16, autónoma): el Estudio como editor de remixes
+
+Todo en `main`, **sin push**; en cada commit, 1199 tests, `nuxt typecheck` y `nuxt build` en verde. Guiones de Chrome en `tests/browser/` (`organo`, `bateria`, `editar-parte`, `parte-fija`, `tocar-en-lab`, `lab-abrir-estudio`, `lab-remix`, `lab-remix-tope`, `remixes-unificados`, `estilos`, `idiomas`, `sin-micro`…). **Nada se ha oído** (sin altavoces) **ni visto en un móvil.**
+Etiquetas de git: `estudio-v1`, `lab-v1`, `estudio-v2` (justo antes de esta tanda de cambios al Estudio).
+
+## Hecho (commits, de más nuevo a más viejo, lo importante)
+| Commit | Qué |
+|---|---|
+| `1b5aeb5` | **Multilenguaje** (spec 025): `@nuxtjs/i18n`, es/en/eu, idioma del navegador, selector (menú Lab, inicio, Acerca de). Migrado: Laboratorio, inicio, «Editar parte» (≈ 35 %). |
+| `7cb1391` | Se quita el **Teclado de agua** de la interfaz (lo cubre el Piano mágico). |
+| `5dd50cf` | **Estilos** (spec 023): `house2` y `techno2` diferenciados por patrones; `house` y `techno` clásicos intactos (lo guardado suena igual); etiqueta de estilo; «Cargar demo» fuera. |
+| `9352086`, `c616e75`, `0aefc4a` | **Spec 024:** barra de tiempo en el Órgano, 🔒 parte fija al editar, «▶ Tocar en el Laboratorio». |
+| `d137aed` | **Piano mágico** en el Órgano (🎹 piano). |
+| `53e74f0` | **Duración a la vista** («7 partes · 1:12», ámbar si pasa de 2 min). |
+| `976c5f8` | **Auditoría aplicada escondiendo** (spec 022): interruptor «Controles avanzados» (`coderbeats:studio:v2`), «Empezar» sin micro, vocabulario nuevo, «Duplicar con variación». |
+| `1e000e1` | Panel **«Editar parte»** (batería, melodía, bajo, acordes, subida). |
+| `273866d`, `05c54cc`, `ff219a3` | **Una lista de remixes** («Mis remixes» + de serie), «Abrir en el Estudio» sin duplicar. |
+| `c7ba9bb`, `337b155` | **Diseño:** paleta única, texto del lienzo ≥ 11 px reales (`fontPx`), «lo mío» con contorno, partes sin color. |
+| `24c9570`, `81cb623`, `e055e28` | Batería de la parte (círculo, cuadrícula, 🎤 opcional), una melodía por parte, Órgano con casillas de corchea, ● grabar a media velocidad y ↻ responder. |
+| `ba18b33`, `4eef0dc` | Remixes del Laboratorio con N partes (≤ 8) desde la canción; grabar mi versión ≤ 2 min, vídeo. |
+| `020015f`, `d983dea`, `8c0813f`… | Specs 019–025, `DISENO.md`, `CLAUDE.md`. |
+
+## No hecho / saltado (y por qué)
+- **Bajo y acordes por patrones: saltado** (spec 020 §7): es el fondo global del motor y hay que oírlo.
+- **Barra de tiempo en la Batería:** no (en el círculo no tiene sentido; la cuadrícula no la tiene). La pausa del Órgano no toca el reloj: la aguja en pausa solo marca el punto y ▶ arranca desde el principio.
+- **Importar remix / IA** (spec 021): solo spec.
+- **Capas del Laboratorio** (spec 018: ● Grabar, ✦ Hazme una canción): sin hacer.
+- **Mozart:** las notas siguen «de oído», sin contrastar con la partitura.
+- **Multilenguaje:** falta migrar ≈ 65 % de los textos (Batería, Órgano, Mis remixes, Ajustes, calibración, vídeo, piloto, guía, avisos del motor, nombres de las partes). El euskera **hay que revisarlo** (traducción mía).
+- **Remix principal** de hip hop y dnb; los remixes de serie de techno siguen en el techno clásico.
+- Guiones de navegador antiguos que tocan lo escondido (bolas de capas, botones de efectos) pueden fallar sin «Controles avanzados».
+
+## Decisiones a revisar
+Cada una está en su spec: 019 §4, 020 §7, 022 §K, 023 §7, 024, 025 §6. Las más grandes: (1) un solo interruptor «avanzado»; (2) estilos nuevos con id propio (`house2`/`techno2`) en vez de versionar el fondo; (3) los clásicos solo salen si son el de la canción abierta; (4) «Duplicar con variación» activa «Sugerencias»; (5) «Empezar» ya no pide el micro; (6) el cambio de estilo avisa pero cambia el bajo, los acordes y el tempo.
+
+## Qué probar en el móvil (en orden)
+1. **Entrada:** `/` → Laboratorio. Cambia el idioma (menú → botones es/en/eu): ¿se ve todo en español, inglés y euskera? ¿El título y los botones caben?
+2. **Estudio:** «Estudio» (abajo) → **Empezar** (sin micro). ¿Se ve **limpio**? (etiqueta de estilo + tempo, ▶, ✎, lista). Ajustes ⋯ → «Controles avanzados»: ¿vuelve todo?
+3. **Mis remixes** (icono lista) → «De serie» → abre «Himno de la alegría» (dembow): ¿suena? Arriba, «7 partes · 1:12».
+4. **✎ Editar parte:** ◀ ▶ entre partes; encender/apagar capas; **✎ editar batería** (círculo y cuadrícula; 🎤 solo si diste permiso con «Usar el micro»); **✎ editar melodía** (el Órgano).
+5. **Órgano:** casillas de corchea (¿40 px, cómodas?); **● grabar** (al doble de lento, ¿se entiende la cuenta?); **🎹 piano**; **↻ responder**; **🔒** (¿la parte se queda en bucle y al cerrar la canción sigue?); barra de tiempo en pausa.
+6. **⧉ Duplicar con variación** y **▶ Tocar en el Laboratorio**: ¿abre Remixes con ese remix, sin duplicados en Mis remixes?
+7. **Laboratorio → Remixes:** 7 botones en 2 columnas; la parte que suena en **blanco**, la que entra **parpadea**; ● Grabar mi versión → ■ Terminar → ▶ → 🎬 vídeo (¿dura lo mismo?).
+8. **Estilos (de oído):** la etiqueta → house y techno: ¿se distinguen **en 4 compases**? (palmada y piano frente a bajo rodante y percusión hipnótica). Abre una canción vieja de house o techno: ¿suena **igual que antes**?
+9. **Colores:** bombo ámbar, caja rosa, platillo azul en todas partes; «mi ritmo»/«mi melodía» con su contorno extra; ningún texto del lienzo diminuto en el iPhone.
+
+---
+
 Todo en `main`, **sin push**. Un commit por parte, con tests (926), `nuxt typecheck` y `nuxt build` en verde antes de cada uno.
 Además de los tests, esta vez **sí he probado la interfaz con Chrome sin pantalla** (micro de mentira; guion en `tests/browser/`): arranca, carga demo, Escenario, grabar canción, convertir y deshacer, copiar con variación, el piloto y la voz funcionan. **Nada se ha oído** (no hay altavoces) ni se ha visto en un móvil.
 
