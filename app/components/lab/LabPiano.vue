@@ -44,6 +44,10 @@ async function tap(x: number, y: number) {
   stage.value?.ripple(C + Math.cos(a) * 170, C + Math.sin(a) * 170, '#fff', 4, 10)
   navigator.vibrate?.(6)
 }
+// el mando (opcional): cualquier botón o gatillo es un toque
+const { connected: padOn } = useGamepad((b) => {
+  if (b <= 7) void tap(C + (Math.random() - 0.5) * 300, C + (Math.random() - 0.5) * 300)
+})
 defineExpose({ tap })
 function other() {
   tuneIdx.value++
@@ -83,7 +87,7 @@ function draw(g: CanvasRenderingContext2D, f: StageFrame) {
 </script>
 
 <template>
-  <LabShell title="Piano mágico" phrase="Toca donde sea: cada toque es la siguiente nota. Tú marcas el ritmo." @back="emit('back')" @style="pickStyle" @play="lab.start()" @stop="lab.stopAll()">
+  <LabShell title="Piano mágico" :phrase="`Toca donde sea: cada toque es la siguiente nota. Tú marcas el ritmo.${padOn ? ' (mando: cualquier botón)' : ''}`" @back="emit('back')" @style="pickStyle" @play="lab.start()" @stop="lab.stopAll()">
     <LabStage ref="stage" :draw="draw" @down="tap" />
     <template #extra>
       <button v-if="hasMore" class="mt-4 rounded-lg border border-white/20 px-4 py-2 text-sm" @click="other">otra melodía ↻</button>

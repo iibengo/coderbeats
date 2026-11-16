@@ -54,6 +54,15 @@ async function down(x: number, y: number) {
     }
   })
 }
+// el mando (opcional): A B X Y = bombo, caja, platillo, bajo; LB y RB = acordes y melodía
+const PAD_LAYER: Record<number, number> = { 0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5 }
+const { connected: padOn } = useGamepad(async (b) => {
+  const i = PAD_LAYER[b]
+  if (i === undefined) return
+  if (!engine.playing.value) await lab.start()
+  toggleLayer(LAYERS[i]!.id)
+  stage.value?.ripple(POS[i]![0], POS[i]![1], COLOR[LAYERS[i]!.id], 4, 44)
+})
 defineExpose({ toggleLayer })
 
 function draw(g: CanvasRenderingContext2D, f: StageFrame) {
@@ -113,7 +122,7 @@ function shot(kind: 'crash' | 'riser') {
 </script>
 
 <template>
-  <LabShell title="Capas" phrase="Toca los círculos para encender y apagar capas. Empieza con el ritmo; el resto lo pones tú." @back="emit('back')" @style="pickStyle" @play="lab.start()" @stop="lab.stopAll()">
+  <LabShell title="Capas" :phrase="`Toca los círculos para encender y apagar capas. Empieza con el ritmo; el resto lo pones tú.${padOn ? ' (mando: A B X Y, LB, RB)' : ''}`" @back="emit('back')" @style="pickStyle" @play="lab.start()" @stop="lab.stopAll()">
     <LabStage ref="stage" :rings="[190]" :draw="draw" @down="down" />
     <template #extra>
       <section class="mt-4" aria-label="DJ">

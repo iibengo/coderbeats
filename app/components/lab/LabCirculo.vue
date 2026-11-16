@@ -74,6 +74,22 @@ watch(exact, () => {
   if (mode.value !== 'ruedas') return
   for (const i of LAB_INSTRUMENTS) setHits(i, hitsOf(wheelSteps(stepsOfInst(i).length, exact.value)))
 })
+// el mando (opcional): la cruceta mueve el cursor (izquierda-derecha, el paso; arriba-abajo, el anillo) y A pone o quita el golpe
+const cursor = ref({ ring: 2, step: 0 })
+const { connected: padOn } = useGamepad(async (b) => {
+  const c = cursor.value
+  if (b === 14) cursor.value = { ...c, step: (c.step + STEPS - 1) % STEPS }
+  else if (b === 15) cursor.value = { ...c, step: (c.step + 1) % STEPS }
+  else if (b === 12) cursor.value = { ...c, ring: Math.min(2, c.ring + 1) }
+  else if (b === 13) cursor.value = { ...c, ring: Math.max(0, c.ring - 1) }
+  else if (b === 0) {
+    if (!engine.playing.value) await lab.start()
+    const inst = LAB_INSTRUMENTS[c.ring]!
+    setHits(inst, toggleStep(engine.loops.value.loops.find((l) => l.instrument === inst)?.hits ?? [], c.step))
+    const [x, y] = pt(c.step, R[c.ring]!)
+    stage.value?.ripple(x, y, COLOR[inst], 5, 14)
+  }
+})
 function clear() {
   for (const i of LAB_INSTRUMENTS) setHits(i, [])
 }
@@ -126,6 +142,14 @@ function draw(g: CanvasRenderingContext2D, f: StageFrame) {
   poly(g, 'hh', R[2]!, f)
   poly(g, 'sd', R[1]!, f)
   poly(g, 'bd', R[0]!, f)
+  if (padOn.value) {
+    const [x, y] = pt(cursor.value.step, R[cursor.value.ring]!)
+    g.beginPath()
+    g.arc(x, y, 18, 0, 7)
+    g.strokeStyle = '#fff'
+    g.lineWidth = 2
+    g.stroke()
+  }
 }
 </script>
 
