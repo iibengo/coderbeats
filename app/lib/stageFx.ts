@@ -26,13 +26,16 @@ export const DEAD_MARGIN = 14
 
 const inRect = (r: Rect, x: number, y: number, m = 0): boolean => x >= r.x - m && x <= r.x + r.w + m && y >= r.y - m && y <= r.y + r.h + m
 
+/** ¿Está (x, y) dentro de alguno de los rectángulos de los controles o a menos de `DEAD_MARGIN` px de ellos? (zona muerta: ahí no se toca el agua) */
+export const inDeadZone = (x: number, y: number, dead: readonly Rect[]): boolean => dead.some((r) => inRect(r, x, y, DEAD_MARGIN))
+
 /**
  * ¿Qué golpe dispara un toque en (x, y) de una pantalla de `w`×`h`? Cuatro zonas: abajo (ancha) = bombo, centro = boom, arriba = crash, lados = barrido
  * (que se mantiene pulsado). `dead` son los rectángulos de los botones: alrededor de ellos no dispara nada.
  */
 export function fxAt(x: number, y: number, w: number, h: number, dead: readonly Rect[] = []): FxKind | null {
   if (w <= 0 || h <= 0 || x < 0 || y < 0 || x > w || y > h) return null
-  if (dead.some((r) => inRect(r, x, y, DEAD_MARGIN))) return null
+  if (inDeadZone(x, y, dead)) return null
   if (x < w * 0.16 || x > w * 0.84) return 'barrido'
   if (y > h * 0.62) return 'bombo'
   if (y < h * 0.3) return 'crash'

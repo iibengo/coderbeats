@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { MIDI_MAX, MIDI_MIN } from '../../app/lib/melody'
-import { FX_COLOR, FX_KINDS, FxLimiter, fxAt, fxToLoops, fxValue, fxVoice, rootMidi } from '../../app/lib/stageFx'
+import { FX_COLOR, FX_KINDS, FxLimiter, fxAt, inDeadZone, fxToLoops, fxValue, fxVoice, rootMidi } from '../../app/lib/stageFx'
 import { VOICE_HEX } from '../../app/lib/palette'
 import type { StyleId } from '../../app/lib/types'
 
@@ -96,5 +96,16 @@ describe('Escenario: la capa grabada suena como lo tocado', () => {
       expect(hit, synth).toBeTruthy()
       expect(hit!.value.note).toBe(synth === 'boom' ? 'c1' : 'c1')
     }
+  })
+})
+
+describe('zona muerta (teclado de agua)', () => {
+  it('dentro de un control o a menos de 14 px no se toca; lejos, sí', () => {
+    const dead = [{ x: 100, y: 100, w: 50, h: 30 }]
+    expect(inDeadZone(120, 110, dead)).toBe(true)
+    expect(inDeadZone(90, 110, dead)).toBe(true)
+    expect(inDeadZone(80, 110, dead)).toBe(false)
+    expect(inDeadZone(120, 200, dead)).toBe(false)
+    expect(inDeadZone(0, 0, [])).toBe(false)
   })
 })

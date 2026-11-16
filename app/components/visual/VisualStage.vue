@@ -78,6 +78,7 @@ import { AroCanvas, type AroDot, type AroFrame } from './AroCanvas'
 import MelodyOrgan from './MelodyOrgan.vue'
 import { governorStep, initialGovernor } from '~/lib/frameGovernor'
 import StageOverlay from './StageOverlay.vue'
+import { inDeadZone, type Rect } from '~/lib/stageFx'
 import WaterKeysOverlay from './WaterKeysOverlay.vue'
 
 const props = withDefaults(defineProps<{ themeId?: string }>(), { themeId: DEFAULT_THEME })
@@ -278,10 +279,23 @@ const ringDots = computed<AroDot[]>(() => {
   return dotsOf(ls, shownBar())
 })
 const keysOv = ref<InstanceType<typeof WaterKeysOverlay> | null>(null)
+/** los controles visibles (y su margen) no tocan el agua */
+function nearControls(x: number, y: number): boolean {
+  const el = root.value
+  if (!el) return false
+  const r = el.getBoundingClientRect()
+  const dead: Rect[] = [...el.querySelectorAll<HTMLElement>('button, select, [role=button]')].filter((b) => b.offsetParent !== null).map((b) => {
+    const q = b.getBoundingClientRect()
+    return { x: q.x - r.x, y: q.y - r.y, w: q.width, h: q.height }
+  })
+  return inDeadZone(x - r.x, y - r.y, dead)
+}
 function keyTouch(x: number, y: number) {
+  if (nearControls(x, y)) return
   if (engine.keysPlay(x / view.w, y / view.h)) keysOv.value?.hit(x, y, y / view.h)
 }
 function keyDrag(x: number, y: number) {
+  if (nearControls(x, y)) return
   if (engine.keysPlay(x / view.w, y / view.h, true)) keysOv.value?.hit(x, y, y / view.h)
 }
 const phraseDots = computed(() =>
