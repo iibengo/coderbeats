@@ -28,4 +28,8 @@ for (let i = 0; i < 40 && !(await p.evaluate(() => /tocando/.test(document.query
 for (const r of [3, 3, 3, 3]) { await p.mouse.click(...at(6, r)); await sleep(700) }
 console.log('piano mágico (4 toques, las notas las pone la melodía):', await mel())
 console.log('acaba sola:', await p.evaluate(() => document.querySelector('[data-organ-rec]').textContent.trim()), await mel(), errs)
+await p.evaluate(() => window.__engine.stop()); await sleep(500)
+const info = await p.evaluate(() => { const i = document.querySelector('[data-seek]'); return { disabled: i.disabled, max: i.max } })
+await p.evaluate(() => { const i = document.querySelector('[data-seek]'); i.value = 9; i.dispatchEvent(new Event('input', { bubbles: true })) }); await sleep(300)
+console.log('barra de tiempo en pausa:', JSON.stringify(info), '→ valor', await p.evaluate(() => document.querySelector('[data-seek]').value))
 await b.close()

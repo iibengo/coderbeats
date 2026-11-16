@@ -251,6 +251,23 @@ function recNote(e: PointerEvent) {
   else if (st.loops.length < 8) engine.editLoops({ loops: [...st.loops, { id: st.nextId, instrument: 'mel', bars: r.bars, phaseBar: 0, hits: recHits, muted: false, bornAt: 0, fromTemplate: false }], nextId: st.nextId + 1 })
 }
 
+// ── barra de tiempo (spec 024 §3): sonando, sigue a la aguja; en pausa se arrastra a cualquier punto del loop y tocar una casilla suena sola ──
+// (la pausa no toca el reloj del motor: la aguja en pausa solo marca el punto; ▶ arranca desde el principio de la parte)
+const cursor = ref(0)
+const headStep = ref(0)
+const seekMax = computed(() => steps.value)
+const timeValue = computed(() => (playing.value ? headStep.value : cursor.value))
+function seek(e: Event) {
+  if (playing.value) return
+  cursor.value = Math.min(steps.value, Math.max(0, Math.round(Number((e.target as HTMLInputElement).value))))
+  // el punto elegido se ve en la rejilla, desplazándola si hace falta
+  const sc = scroller.value
+  if (sc) sc.scrollLeft = Math.max(0, cursor.value * cellW.value - sc.clientWidth / 2)
+  // y suena la nota que hay ahí (si la hay), para colocar con calma
+  const n = notes.value.find((h) => cursor.value >= h.pos && cursor.value < h.pos + h.dur)
+  if (n) engine.previewNote(n.midi, synth.value)
+}
+
 // ── dibujo ───────────────────────────────────────────────────────────────────────
 let raf = 0
 function draw() {
@@ -310,11 +327,20 @@ function draw() {
         x.stroke()
       }
     }
+  } else if (!playing.value) {
+    // en pausa: la aguja en el punto elegido
+    x.strokeStyle = 'rgba(255,255,255,0.8)'
+    x.lineWidth = 1.5
+    x.beginPath()
+    x.moveTo(cursor.value * cw, 0)
+    x.lineTo(cursor.value * cw, H)
+    x.stroke()
   } else if (playing.value && loop.value) {
     const phase = engine.clockNow().barPhase
     const bar = engine.currentBar.value
     const b = ((bar - loop.value.phaseBar) % bars.value + bars.value) % bars.value
     const px = (b * 16 + phase * 16) * cw
+    headStep.value = b * 16 + phase * 16
     x.strokeStyle = 'rgba(255,255,255,0.8)'
     x.lineWidth = 1.5
     x.beginPath()
@@ -474,6 +500,11 @@ const label = (m: number) => midiName(m).replace('#', '♯')
         <button v-if="extras" class="rounded-full border border-amber-300/60 px-3 py-1.5 text-amber-200" data-organ-extras @click="dropExtras">+{{ extras }} melodía{{ extras === 1 ? '' : 's' }} apilada{{ extras === 1 ? '' : 's' }} · quitar</button>
         <span v-if="rec?.mode === 'media'" class="text-[#ff4d6d]">toca al doble de lento; se cuadra solo y acaba al llegar al final</span>
         <span v-if="rec?.mode === 'piano'" class="text-[#ff4d6d]">toca el ritmo donde quieras: cada toque es la siguiente nota</span>
+      </div>
+
+      <div class="flex items-center gap-2 px-4 pb-2" data-timebar>
+        <button class="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-white/30" :aria-label="playing ? 'pausa' : 'reproducir'" @click="playing ? engine.stop() : engine.play()">{{ playing ? '⏸' : '▶' }}</button>
+        <input class="h-11 min-w-0 flex-1 accent-[#F496BC]" type="range" min="0" :max="seekMax" step="1" :value="timeValue" :disabled="playing" aria-label="tiempo del loop: en pausa, arrastra la aguja" data-seek @input="seek" />
       </div>
 
       <div class="flex min-h-0 flex-1 px-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
