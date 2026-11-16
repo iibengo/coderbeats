@@ -11,6 +11,7 @@ import VisualStage from './visual/VisualStage.vue'
 
 const emit = defineEmits<{ recalibrate: ['latency' | 'sounds']; simple: [] }>()
 const engine = useAudioEngine()
+const route = useRoute()
 const { playing, style } = engine
 const prefs = usePrefs()
 prefs.load()
@@ -133,9 +134,22 @@ async function openSharedLink() {
   if (!(await askConfirm(`Abrir la canción compartida «${saved.name}»? Sustituye lo que tienes ahora (guárdalo antes en «Mis canciones» si quieres conservarlo).`))) return
   await engine.openSaved(saved)
 }
+/** «Abrir en el Estudio» desde el Laboratorio (`?abrir=<id>`): abre la copia guardada en Mis canciones; si no está, no hace nada. */
+async function openFromQuery() {
+  const id = route.query.abrir
+  if (typeof id !== 'string') return
+  history.replaceState(null, '', location.pathname)
+  const library = useLibrary()
+  library.load()
+  const e = library.lib.value.entries.find((x) => x.id === id)
+  if (!e?.saved) return
+  await engine.openSaved(e.saved)
+  library.setCurrent(e.id)
+}
 onMounted(() => {
   document.addEventListener('visibilitychange', onVisibility)
   void openSharedLink()
+  void openFromQuery()
 })
 onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibility))
 </script>

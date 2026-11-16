@@ -1,7 +1,8 @@
 <script setup lang="ts">
 type Screen = 'start' | 'latency' | 'sounds' | 'portada' | 'studio'
 
-const screen = ref<Screen>('start')
+// si ya hay audio en marcha (venimos del Laboratorio con «Abrir en el Estudio») se entra directo
+const screen = ref<Screen>(useAudioEngine().ready.value && useRoute().query.abrir !== undefined ? 'studio' : 'start')
 const { data } = useCalibration()
 const engine = useAudioEngine()
 const route = useRoute()

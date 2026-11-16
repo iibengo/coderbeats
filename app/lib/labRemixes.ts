@@ -263,3 +263,11 @@ export function remixTake(remix: LabRemix): TakeBar[] {
   return remix.parts.flatMap((p) => Array.from({ length: p.bars }, () => ({ part: p.name, on: [...p.start] })))
 }
 export { songBars }
+
+/** Un remix guardado desde el Estudio (con la marca `lab`) como remix «mío» del Laboratorio: las mismas partes que tiene la canción (`partsFromSong`). `null` si no vale. */
+export function labRemixFromSaved(saved: { id: string; name: string; style: StyleId; kit: KitId; song: Song; lab?: { remixId: string } }): LabRemix | null {
+  const base = saved.lab ? labRemixById(saved.lab.remixId) : undefined
+  const parts = partsFromSong(saved.song)
+  if (!parts.length) return null
+  return { id: `mio:${saved.id}`, title: saved.name, composer: base?.composer ?? 'mío', style: saved.style, kit: saved.kit, key: base?.key ?? '', song: saved.song, parts }
+}

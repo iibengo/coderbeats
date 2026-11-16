@@ -3,7 +3,8 @@
 // Lo que actúas se graba como «mi versión» (hasta 2 min; el final entra solo ≈ 8 s antes del tope y termina en el compás justo) y se comparte en vídeo.
 import { useLab } from '~/composables/useLab'
 import { AMBER, LAB_W } from '~/lib/lab'
-import { barSeconds, finalPartOf, LAB_REMIXES, partLoops, partsOn, remixTake, songFromTake, takePlan, type LabLayer, type LabRemix, type TakeBar } from '~/lib/labRemixes'
+import { addSong, isLabMark, makeSaved, newId } from '~/lib/library'
+import { barSeconds, finalPartOf, labRemixFromSaved, LAB_REMIXES, partLoops, partsOn, remixTake, songFromTake, takePlan, type LabLayer, type LabRemix, type TakeBar } from '~/lib/labRemixes'
 import { readJson, writeText } from '~/lib/storage'
 import type { StageFrame } from './LabStage.vue'
 
@@ -14,6 +15,10 @@ const stage = ref<{ ripple: (x: number, y: number, c: string, g?: number, r?: nu
 const C = LAB_W / 2
 
 const remix = ref<LabRemix | null>(null)
+// los míos: lo que se editó en el Estudio y se guardó en Mis canciones (con la marca `lab`) vuelve aquí
+const library = useLibrary()
+onMounted(() => library.load())
+const mios = computed(() => library.lib.value.entries.flatMap((e) => (e.saved && isLabMark(e.saved.lab) ? [labRemixFromSaved(e.saved)] : [])).filter((r): r is LabRemix => !!r))
 const part = ref('') // la parte elegida, por nombre (entra en el siguiente compás)
 const shown = ref('') // la que suena ya
 let shownFrom = 0 // compás desde el que `shown` vale `part`
@@ -160,6 +165,25 @@ onBeforeUnmount(() => {
   lab.stopAll()
 })
 
+// ── Abrir en el Estudio (spec 020): una copia en Mis canciones (el original no se toca) y se abre para editarla ──
+const openError = ref('')
+async function openInStudio() {
+  const r = remix.value
+  if (!r) return
+  const take = mine.value ?? remixTake(r)
+  const song = songFromTake(r, take)
+  if (!song) return
+  const base = r.id.startsWith('mio:') ? library.lib.value.entries.find((e) => `mio:${e.id}` === r.id)?.saved?.lab?.remixId ?? '' : r.id
+  const saved = { ...makeSaved({ style: r.style, kit: r.kit, bgMode: 'manual', fx: { filter: 1, space: 0, warmth: engine.snapshot().fx.warmth }, song }, newId(Date.now()), `Mi ${r.title}`, new Date()), ...(base ? { lab: { remixId: base } } : {}) }
+  if (!library.persist(addSong(library.lib.value, saved))) {
+    openError.value = library.error.value ?? 'No se ha podido guardar la copia.'
+    return
+  }
+  library.setCurrent(saved.id)
+  lab.stopAll()
+  await navigateTo(`/estudio?abrir=${encodeURIComponent(saved.id)}`)
+}
+
 // ── escuchar y compartir ──
 async function listen(take: TakeBar[]) {
   const r = remix.value
@@ -258,9 +282,9 @@ const phrase = computed(() => (remix.value ? 'Toca una parte: entra en el siguie
 <template>
   <LabShell title="Remixes" :phrase="phrase" hide-style @back="emit('back')" @style="() => {}" @play="remix ? goPart(part) : undefined" @stop="lab.stopAll()">
     <div v-if="!remix" class="grid gap-3 py-2">
-      <button v-for="r in LAB_REMIXES" :key="r.id" class="rounded-2xl border border-white/15 bg-white/5 p-4 text-left" @click="pick(r)">
+      <button v-for="r in [...LAB_REMIXES, ...mios]" :key="r.id" class="rounded-2xl border border-white/15 bg-white/5 p-4 text-left" @click="pick(r)">
         <div class="text-lg">{{ r.title }}</div>
-        <div class="text-sm text-white/60">{{ r.composer }} · {{ r.key }} · {{ r.style }}</div>
+        <div class="text-sm text-white/60">{{ r.id.startsWith('mio:') ? 'mío · editado en el Estudio' : r.composer }}{{ r.key ? ` · ${r.key}` : '' }} · {{ r.style }}</div>
       </button>
     </div>
     <template v-else>
@@ -288,6 +312,7 @@ const phrase = computed(() => (remix.value ? 'Toca una parte: entra en el siguie
           <button v-if="mine && !rec" class="rounded-lg border border-white/25 px-4 py-2 text-sm" @click="listenMine">▶ Mi versión ({{ fmt(mine.length * barSeconds(remix.style)) }})</button>
           <button v-if="mine && !rec" class="rounded-lg border border-white/25 px-4 py-2 text-sm" :disabled="video.phase === 'recording' || video.phase === 'waiting'" @click="makeVideo">🎬 Mi vídeo</button>
         </div>
+        <p v-if="openError" class="mt-2 text-sm text-red-300" role="alert">{{ openError }}</p>
         <p v-if="video.phase === 'waiting' || video.phase === 'recording'" class="mt-2 text-sm text-white/60" role="status">Grabando el vídeo {{ video.elapsed.toFixed(0) }}/{{ video.total.toFixed(0) }} s <button class="ml-2 underline" @click="exporter.stop()">■ parar</button></p>
         <p v-else-if="video.phase === 'error'" class="mt-2 text-sm text-red-300" role="alert">{{ video.message }}</p>
         <div v-else-if="video.phase === 'done'" class="mt-2 flex gap-2 text-sm">
@@ -296,6 +321,7 @@ const phrase = computed(() => (remix.value ? 'Toca una parte: entra en el siguie
         </div>
         <div class="mt-3 flex items-center gap-4 text-xs text-white/40">
           <button class="underline decoration-white/20" @click="listenOriginal">escuchar el remix original</button>
+          <button class="underline decoration-white/20" @click="openInStudio">Abrir en el Estudio</button>
           <button class="underline decoration-white/20" @click="remix = null; lab.stopAll()">otra canción</button>
         </div>
       </template>

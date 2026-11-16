@@ -79,7 +79,7 @@ function saveNew() {
 function saveChanges() {
   const cur = current.value
   if (empty.value || !cur) return
-  const saved = makeSaved(engine.snapshot(), cur.id, name.value || cur.name, new Date())
+  const saved = { ...makeSaved(engine.snapshot(), cur.id, name.value || cur.name, new Date()), ...(cur.saved?.lab ? { lab: cur.saved.lab } : {}) }
   if (!library.persist(replaceSong(lib.value, saved))) return
   name.value = saved.name
   flashSaved()

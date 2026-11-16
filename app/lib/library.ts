@@ -32,6 +32,8 @@ export interface SongSnapshot {
 export interface SavedSong extends SongSnapshot {
   id: string
   name: string
+  /** viene de un remix del Laboratorio («Abrir en el Estudio», spec 020): vuelve a Remixes como «mío». Campo opcional; las versiones anteriores lo ignoran. */
+  lab?: { remixId: string }
   /** de la última vez que se guardó (ISO) */
   savedAt: string
 }
@@ -85,6 +87,9 @@ const isEnvelope = (x: unknown): x is { id: string; name: string; savedAt: strin
 }
 
 /** ¿Es una canción guardada que se puede abrir? Estilo y kit conocidos, efectos entre 0 y 1 y una canción válida. */
+/** ¿Es una marca `lab` válida? (solo un id de texto corto) */
+export const isLabMark = (x: unknown): x is { remixId: string } => !!x && typeof x === 'object' && typeof (x as { remixId?: unknown }).remixId === 'string' && (x as { remixId: string }).remixId.length > 0 && (x as { remixId: string }).remixId.length <= 60
+
 export function isSavedSong(x: unknown): x is SavedSong {
   if (!isEnvelope(x)) return false
   const o = x as unknown as Record<string, unknown>
