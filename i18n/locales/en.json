@@ -312,6 +312,7 @@
     "demo": "demo",
     "demoAria": "load the {style} demo",
     "demoConfirm": "Replace what you have with the {style} demo?",
-    "replace": "Replace"
+    "replace": "Replace",
+    "editPartShort": "Part"
   }
 }

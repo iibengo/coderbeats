@@ -312,6 +312,7 @@
     "demo": "demoa",
     "demoAria": "kargatu {style} demoa",
     "demoConfirm": "Dituzunaren ordez {style} demoa jarri?",
-    "replace": "Ordezkatu"
+    "replace": "Ordezkatu",
+    "editPartShort": "Zatia"
   }
 }

@@ -125,17 +125,17 @@ const libraryStyle = computed(() =>
     ? 'position: absolute; top: max(0.5rem, env(safe-area-inset-top)); right: calc(env(safe-area-inset-right, 0px) + 74px); width: 44px; height: 44px'
     : 'position: absolute; top: max(0.5rem, env(safe-area-inset-top)); left: 0.5rem; width: 44px; height: 44px',
 )
-// ▶ Laboratorio (spec 024): el paso directo del Estudio al Laboratorio con el remix de ahora; al lado de Editar parte
+// 🧪 Laboratorio (spec 024): el paso directo del Estudio al Laboratorio con el remix de ahora; arriba, debajo de Mis remixes
 const labStyle = computed(() =>
-  compact.value
-    ? 'position: absolute; top: max(0.5rem, env(safe-area-inset-top)); right: calc(env(safe-area-inset-right, 0px) + 170px); height: 44px; padding: 0 10px'
-    : 'position: absolute; top: calc(max(0.5rem, env(safe-area-inset-top)) + 96px); left: 0.5rem; height: 44px; padding: 0 10px',
-)
-// Editar parte (spec 020): debajo de Mis remixes; en horizontal, a su lado
-const partStyle = computed(() =>
   compact.value
     ? 'position: absolute; top: max(0.5rem, env(safe-area-inset-top)); right: calc(env(safe-area-inset-right, 0px) + 122px); width: 44px; height: 44px'
     : 'position: absolute; top: calc(max(0.5rem, env(safe-area-inset-top)) + 48px); left: 0.5rem; width: 44px; height: 44px',
+)
+// ✎ Editar parte (spec 020): es el corazón del Estudio, así que va abajo, grande y a la vista, junto a Play
+const partStyle = computed(() =>
+  compact.value
+    ? 'position: absolute; bottom: max(0.75rem, env(safe-area-inset-bottom)); left: 0.75rem; height: 52px; padding: 0 20px'
+    : 'position: absolute; bottom: max(1.5rem, env(safe-area-inset-bottom)); left: 0.75rem; height: 56px; padding: 0 20px',
 )
 function openOrgan(e: MouseEvent) {
   const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
@@ -242,10 +242,10 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
     </button>
 
     <!-- editar parte (spec 020): las capas de la parte, con la batería y la melodía dentro -->
-    <button class="flex items-center justify-center text-xl text-white/60" :style="partStyle" :aria-label="t('studio.editPart')" @pointerdown.stop @click="partOpen = true">✎</button>
+    <button class="flex items-center justify-center gap-2 rounded-full border border-white/30 bg-white/10 text-base font-medium text-white backdrop-blur" :style="partStyle" :aria-label="t('studio.editPart')" data-edit-part @pointerdown.stop @click="partOpen = true">✎ {{ t('studio.editPartShort') }}</button>
 
     <!-- tocar en el Laboratorio (spec 024): el paso directo, a la vista -->
-    <button class="flex items-center justify-center gap-1 rounded-full border border-white/20 text-xs text-white/80" :style="labStyle" :aria-label="t('studio.toLabAria')" data-to-lab-main @pointerdown.stop @click="toLab.playInLab()">▶ {{ t('studio.toLab') }}</button>
+    <button class="flex items-center justify-center text-xl" :style="labStyle" :aria-label="t('studio.toLabAria')" :title="t('studio.toLabAria')" data-to-lab-main @pointerdown.stop @click="toLab.playInLab()">🧪</button>
 
     <!-- modo (spec 011): Jugar | Componer -->
     <ModeSwitch v-if="adv" :model-value="engine.mode.value" :style="modeStyle" @pointerdown.stop @update:model-value="stage?.switchMode($event)" />
