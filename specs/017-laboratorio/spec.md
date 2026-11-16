@@ -1,6 +1,6 @@
 # 017 · Laboratorio (la nueva entrada de coderbeats)
 
-Estado: en curso. Sustituye a la spec 016 (portada), que queda **pausada** (código y spec intactos, fuera del arranque).
+Estado: hecho en una primera versión (Capas, Piano mágico, Coro, Círculo con Ruedas, mando); **sin probar de oído ni en iPhone**. Sustituye a la spec 016 (portada), que queda **pausada** (código y spec intactos, fuera del arranque).
 
 ## 1. Por qué
 La app creció demasiado: pasan muchas cosas a la vez y la premisa «no puedes sonar mal» no se cumple. El prototipo `docs/laboratorio-prototipo.html` (Capas · Piano mágico · Coro · Círculo de ritmo) lo hace bien porque **cada pantalla hace una sola cosa**.
@@ -34,7 +34,7 @@ La app creció demasiado: pasan muchas cosas a la vez y la premisa «no puedes s
 1. *Una pantalla, una cosa*: cuatro pantallas; DJ y Ruedas van **dentro** de Capas y del Círculo como controles, no como pantallas (se quitan Theremín y DJ aparte: **quitar antes de añadir**, 8).
 2. *No se puede sonar mal*: melodías de `tunesFor(estilo)`; Coro en la escala del estilo; la base es la demo del estilo; todo al compás del motor.
 3. *Respuesta inmediata*: onda y sonido en cada toque (la onda se dibuja en `pointerdown`).
-4. *Se siente tuyo*: **aviso**: la base suena sola al entrar (como en el prototipo) y en Capas empiezan encendidas bombo, caja y platillo. El gesto de la persona es lo que añade (capas, notas, voz, golpes). Si se prefiere silencio hasta el primer toque, es un cambio pequeño.
+4. *Se siente tuyo*: al entrar en una pantalla **no suena nada**; el **primer toque** pone la base (y es ese gesto el que la arranca). Capas empieza con bombo, caja y platillo; lo demás lo enciende la persona. Piano, Coro y Círculo: la persona decide cuándo y qué altura/golpe.
 5. *Pocas cosas a la vez*: Capas máximo 6; Coro 3 voces; las ondas y la estela se desvanecen.
 6. *Compartir fácil*: **aviso: no se cumple todavía** en el Laboratorio (sin guardar ni compartir). Propuesta: enlace con el estado de la pantalla (estilo + capas/golpes) y vídeo por la frontera del motor; queda como siguiente paso (§7), no en esta tanda.
 7. *Precedente*: Capas = Incredibox/Groovepad; Piano = Magic Piano; Coro = Bebot/Blob Opera; Círculo = Groove Pizza; DJ = Pocket Operator; mando = débil, solo opcional. Ver `docs/investigacion-instrumentos.md`.

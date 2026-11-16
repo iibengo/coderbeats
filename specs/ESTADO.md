@@ -352,3 +352,51 @@ Tests (1111), typecheck y build en verde; comprobado en Chrome (`tests/browser/p
 ## Undécima tanda, parte 2: 🎤 Voz (spec 016 §17)
 La portada **no escucha hasta que pulsas «🎤 Voz»**, aunque ya tenga el permiso: con la voz apagada el micro sigue abierto pero la app lo ignora (no detecta golpes, no graba ni guarda nada). Así **no vuelve a pedir permiso** al encender/apagar. Tras 2,5 min apagada, o al pasar la web a segundo plano, el micro se **cierra de verdad** (al encender de nuevo se reabre). En el Estudio sigue escuchando siempre. Comprobado en Chrome (`tests/browser/portada-voz.mjs`): apagada no entra nada, encendida sí, cerrar y reabrir funciona; **no probado en iPhone**.
 - **Probar en el iPhone:** 1) abre y elige estilo: ¿el botón sale apagado y los golpes del ruido no entran? 2) Enciéndela y haz bum · pff · ts. 3) Apágala y enciéndela varias veces: **¿pregunta el permiso otra vez?** (no debería). 4) Apágala, bloquea la pantalla y vuelve: ¿se cierra el micro y al encender **pregunta de nuevo**? (puede). 5) Con la voz apagada, ¿el volumen es el mismo que con ella encendida? (iOS lo baja mientras el micro está abierto).
+
+
+---
+
+# Duodécima tanda (2026-11-16) — el Laboratorio como entrada (spec 017)
+
+Cambio de rumbo: la app creció demasiado. **La portada (spec 016) queda pausada** y el **Laboratorio** es lo primero que se abre. Tests (1121), typecheck y build en verde; cada pantalla comprobada en Chrome con guion (`tests/browser/lab-*.mjs`, `redireccion.mjs`). **Nada oído ni probado en iPhone.**
+
+## Cómo se entra
+| Qué | Dónde |
+|---|---|
+| **Laboratorio** (la entrada) | `/` → te lleva a `/lab` |
+| Capas · Piano mágico · Coro · Círculo de ritmo | menú de `/lab` (un toque abre la pantalla) |
+| **Estudio** (la app de antes, congelada) | botón discreto «Estudio» al pie del menú de `/lab`, o `/estudio`. Un enlace compartido (`/#…`) abre el Estudio solo |
+| Portada (pausada, solo para pruebas) | `/estudio?portada` |
+| Estado anterior | etiqueta de git `estudio-v1` |
+
+Lo guardado no se toca: la preferencia `coderbeats:ui:v1` se lee tal cual y **no se reescribe**; el arranque ya no depende de ella. En el Estudio «Modo simple» (ajustes) ahora te lleva al Laboratorio.
+
+## Las pantallas (todas: fondo negro, aguja con estela, una onda en cada toque, estilo arriba, ▶/■ que para todo y una frase)
+1. **Capas**: seis círculos en hexágono; empieza con bombo, caja y platillo; el primer toque pone la base. **Panel DJ** debajo: mantener y mover = filtro (izq-der) y eco (arriba); soltar con el filtro cerrado = drop; botones platillo y subida.
+2. **Piano mágico**: cada toque = la siguiente nota de una melodía que encaja con el estilo (la biblioteca de siempre); «otra melodía ↻».
+3. **Coro**: arrastras una voz y suenan otras dos a dos y cuatro grados por encima, siempre en la escala del estilo; el lado = brillo.
+4. **Círculo de ritmo**: tocar un anillo pone/quita golpes (dentro bombo, medio caja, fuera platillo); cada uno forma su figura. **Ruedas** (botón): arrastrar alrededor de un anillo cambia cuántos golpes; «exacto» = reparto a partes iguales (3 contra 4).
+5. **Mando** (opcional): Capas = A B X Y, LB, RB; Piano = cualquier botón; Círculo = cruceta + A.
+
+Se quitaron Theremín y DJ **como pantallas** (ahora el DJ está en Capas y el sintetizador de dedo es el Coro).
+
+## Motor y interfaz
+`app/engine/index.ts` es la frontera (audio, estilos, kits, melodías, guardado/compartir, vídeo); `tests/unit/engineBoundary.test.ts` impide que el Laboratorio importe componentes del Estudio. **No moví archivos** (riesgo alto para poco beneficio): es una frontera por contrato.
+
+## Principios (`specs/PRINCIPIOS.md`)
+Escritos. En la spec 017 va cada uno. **Aviso de lo que no se cumple:** el principio 6 (compartir/guardar a mano) **no está en el Laboratorio todavía**; propongo enlace con el estado de la pantalla y vídeo por la frontera del motor como siguiente paso.
+
+## Qué probar (en el móvil, en orden)
+1. Abre coderbeats: ¿te lleva al Laboratorio y no suena nada? Entra en **Capas**: ¿el primer toque arranca el ritmo? ¿Las capas (bajo, acordes, melodía) encajan con cada uno de los 5 estilos?
+2. **DJ**: mantén y mueve; suelta con el filtro cerrado (¿cae el drop en el compás siguiente?). «platillo» y «subida»: **no sé cómo suenan** (ruido sintético, sin probar).
+3. **Piano mágico** en los 5 estilos: ¿las melodías pegan? ¿El toque cae en el compás (cuantizado suave)? Sin que se guarde nada.
+4. **Coro**: ¿las tres voces suenan bien juntas en cada estilo? ¿El deslizar se oye bien (la nota cambia suave)?
+5. **Círculo**: pon golpes; **ruedas** y «exacto»: ¿el 3 contra 4 se nota como polirritmo? (los golpes decimales se tocan con un pequeño desplazamiento).
+6. ■ en cada pantalla: ¿para **todo** (incluida la voz del coro)?
+7. «Estudio» (abajo del menú): ¿todo sigue igual? ¿«Mis canciones» conserva lo tuyo? Abre un enlace compartido antiguo: ¿va al Estudio?
+8. Con un mando conectado (pulsa un botón para que el navegador lo vea): Capas, Piano y Círculo.
+
+## Decisiones a revisar
+- Los sonidos del Coro y del Piano son osciladores del motor (como el sinte de dedo), **no** Strudel/kits; si no gustan, se cambia por los sonidos de Strudel del estilo.
+- El Laboratorio no guarda ni comparte aún (ver principio 6).
+- Piano y Círculo usan el bajo del estilo como fondo; Coro solo el bombo y el bajo (pocas cosas a la vez).
