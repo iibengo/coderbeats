@@ -39,7 +39,9 @@ export default defineNuxtConfig({
         { name: 'theme-color', content: '#0B0B0F' },
         { name: 'description', content: 'Haz beatbox con el micro y míralo convertirse en batería, melodía y código Strudel. Software libre (AGPL).' },
         { name: 'apple-mobile-web-app-capable', content: 'yes' },
+        { name: 'apple-mobile-web-app-title', content: 'coderbeats' },
       ],
+      link: [{ rel: 'apple-touch-icon', href: '/apple-touch-icon.png' }],
     },
   },
 
@@ -50,6 +52,18 @@ export default defineNuxtConfig({
       theme_color: '#0B0B0F',
       background_color: '#0B0B0F',
       lang: 'es',
+      display: 'standalone',
+      icons: [
+        { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
+        { src: 'icon-512.png', sizes: '512x512', type: 'image/png' },
+        { src: 'icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+      ],
+    },
+    // sin esto el service worker solo guardaba 3 archivos y la app no abría sin conexión (ni los samples ni los worklets)
+    workbox: {
+      globPatterns: ['**/*.{js,css,html,png,svg,ico,woff2,wav,webmanifest}'],
+      maximumFileSizeToCacheInBytes: 3_000_000,
+      navigateFallback: '/',
     },
   },
 })
