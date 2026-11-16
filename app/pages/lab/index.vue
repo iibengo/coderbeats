@@ -8,10 +8,11 @@ import { onBeforeUnmount } from 'vue'
 definePageMeta({ ssr: false })
 useHead({ title: 'Laboratorio · coderbeats' })
 
-type Id = 'piano' | 'theremin'
+type Id = 'piano' | 'theremin' | 'layers'
 const SCREENS: { id: Id; title: string; text: string }[] = [
   { id: 'piano', title: '1 · Piano mágico', text: 'cada toque, la siguiente nota de una melodía' },
   { id: 'theremin', title: '2 · Theremín', text: 'desliza el dedo: suena continuo y siempre en la escala' },
+  { id: 'layers', title: '3 · Capas', text: 'base entera: enciende y apaga bombo, caja, platillo, bajo, acordes y melodía' },
 ]
 const screen = ref<Id | null>(null)
 const engine = useAudioEngine()
@@ -40,6 +41,7 @@ onBeforeUnmount(() => engine.stopAll())
 <template>
   <LabPiano v-if="screen === 'piano'" @back="back" />
   <LabTheremin v-else-if="screen === 'theremin'" @back="back" />
+  <LabLayers v-else-if="screen === 'layers'" @back="back" />
   <main v-else class="mx-auto min-h-dvh max-w-xl bg-[#0a0a0d] px-4 py-8 text-white">
     <NuxtLink to="/" class="text-sm text-white/50">← coderbeats</NuxtLink>
     <h1 class="mt-3 text-3xl font-medium tracking-tight">Laboratorio</h1>
