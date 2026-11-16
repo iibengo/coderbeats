@@ -51,6 +51,7 @@ const firstPlay = computed(
 const settingsOpen = ref(false)
 const libraryOpen = ref(false)
 const drumsOpen = ref(false)
+const partOpen = ref(false)
 const stage = ref<InstanceType<typeof VisualStage> | null>(null)
 const renderer = computed(() => stage.value?.rendererName ?? '')
 const layoutInfo = () => stage.value?.layoutInfo() ?? ''
@@ -100,17 +101,11 @@ const libraryStyle = computed(() =>
     ? 'position: absolute; top: max(0.5rem, env(safe-area-inset-top)); right: calc(env(safe-area-inset-right, 0px) + 74px); width: 44px; height: 44px'
     : 'position: absolute; top: max(0.5rem, env(safe-area-inset-top)); left: 0.5rem; width: 44px; height: 44px',
 )
-// Batería de la parte (spec 020): al lado de Remixes
-const drumsStyle = computed(() =>
+// Editar parte (spec 020): debajo de Mis remixes; en horizontal, a su lado
+const partStyle = computed(() =>
   compact.value
-    ? 'position: absolute; top: max(0.5rem, env(safe-area-inset-top)); right: calc(env(safe-area-inset-right, 0px) + 170px); width: 44px; height: 44px'
-    : 'position: absolute; top: calc(max(0.5rem, env(safe-area-inset-top)) + 96px); left: 0.5rem; width: 44px; height: 44px',
-)
-// Órgano de la melodía (spec 020): un botón a la vista (también se abre tocando la franja de la melodía), junto a la batería
-const organStyle = computed(() =>
-  compact.value
-    ? 'position: absolute; top: max(0.5rem, env(safe-area-inset-top)); right: calc(env(safe-area-inset-right, 0px) + 218px); width: 44px; height: 44px'
-    : 'position: absolute; top: calc(max(0.5rem, env(safe-area-inset-top)) + 144px); left: 0.5rem; width: 44px; height: 44px',
+    ? 'position: absolute; top: max(0.5rem, env(safe-area-inset-top)); right: calc(env(safe-area-inset-right, 0px) + 122px); width: 44px; height: 44px'
+    : 'position: absolute; top: calc(max(0.5rem, env(safe-area-inset-top)) + 48px); left: 0.5rem; width: 44px; height: 44px',
 )
 function openOrgan(e: MouseEvent) {
   const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
@@ -212,11 +207,8 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
       </svg>
     </button>
 
-    <!-- batería de la parte (spec 020) -->
-    <button class="flex items-center justify-center text-lg text-white/50" :style="drumsStyle" aria-label="batería de la parte" @pointerdown.stop @click="drumsOpen = true">🥁</button>
-
-    <!-- órgano de la melodía (spec 020) -->
-    <button class="flex items-center justify-center text-lg text-white/50" :style="organStyle" aria-label="melodía: abrir el órgano" @pointerdown.stop @click="openOrgan">♪</button>
+    <!-- editar parte (spec 020): las capas de la parte, con la batería y la melodía dentro -->
+    <button class="flex items-center justify-center text-xl text-white/60" :style="partStyle" aria-label="editar parte" @pointerdown.stop @click="partOpen = true">✎</button>
 
     <!-- modo (spec 011): Jugar | Componer -->
     <ModeSwitch :model-value="engine.mode.value" :style="modeStyle" @pointerdown.stop @update:model-value="stage?.switchMode($event)" />
@@ -257,7 +249,8 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
   </VisualStage>
 
   <LibrarySheet v-model:open="libraryOpen" @preview="(t) => startPreview(t)" />
-  <DrumEditor v-model:open="drumsOpen" @mic="stage?.switchMode('jugar')" />
+  <PartPanel v-model:open="partOpen" @drums="drumsOpen = true" @organ="openOrgan" />
+  <DrumEditor v-model:open="drumsOpen" @mic="partOpen = false; stage?.switchMode('jugar')" />
   <SettingsSheet v-model:open="settingsOpen" :renderer="renderer" :layout="layoutInfo" @recalibrate="(w) => emit('recalibrate', w)" @simple="emit('simple')" @pilot="startPilot" @preview="startPreview()" @video="videoOpen = true" />
   <VideoSheet v-model:open="videoOpen" :exporter="exporter" />
   <button
