@@ -177,8 +177,6 @@ watch(open, (o) => {
             <InfoTip :text="t('settings.info.video')" />
           </div>
 
-          <button class="rounded-full border border-white/15 px-4 py-2 text-left text-white/80" data-to-lab @click="open = false; emit('simple')">{{ t('settings.toLab') }}</button>
-
           <!-- avanzado: se abre y se cierra -->
           <button class="flex w-full items-center justify-between rounded-xl border border-white/15 px-3 py-2.5 text-left" :aria-expanded="adv" data-advanced-toggle @click="prefsStudio.setAdvanced(!adv)">
             <span>{{ t('settings.advanced') }} <span class="block text-xs text-neutral-500">{{ t('settings.advancedHint') }}</span></span>

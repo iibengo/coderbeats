@@ -54,6 +54,7 @@ const settingsOpen = ref(false)
 const libraryOpen = ref(false)
 const drumsOpen = ref(false)
 const partOpen = ref(false)
+const toLab = useToLab()
 const stage = ref<InstanceType<typeof VisualStage> | null>(null)
 const renderer = computed(() => stage.value?.rendererName ?? '')
 const layoutInfo = () => stage.value?.layoutInfo() ?? ''
@@ -67,6 +68,14 @@ async function pickStyle(id: StyleId) {
   if (id === style.value) return
   if ((engine.loops.value.loops.length || engine.multi.value) && !(await askConfirm(t('studio.styleChange'), t('studio.change')))) return
   await engine.setStyle(id)
+}
+/** «demo» de cada estilo (botón a la vista): pone el estilo y su ritmo de demostración; si hay algo hecho, pide confirmar */
+async function loadStyleDemo(id: StyleId) {
+  styleMenu.value = false
+  if ((engine.loops.value.loops.length || engine.multi.value) && !(await askConfirm(t('studio.demoConfirm', { style: STYLE_SHORT[id] }), t('studio.replace')))) return
+  if (id !== style.value) await engine.setStyle(id)
+  engine.loadDemo()
+  useLibrary().setCurrent(null)
 }
 const navStyles = computed(() => Object.values(STYLES).filter((s) => !s.legacy || s.id === style.value))
 
@@ -115,6 +124,12 @@ const libraryStyle = computed(() =>
   compact.value
     ? 'position: absolute; top: max(0.5rem, env(safe-area-inset-top)); right: calc(env(safe-area-inset-right, 0px) + 74px); width: 44px; height: 44px'
     : 'position: absolute; top: max(0.5rem, env(safe-area-inset-top)); left: 0.5rem; width: 44px; height: 44px',
+)
+// ▶ Laboratorio (spec 024): el paso directo del Estudio al Laboratorio con el remix de ahora; al lado de Editar parte
+const labStyle = computed(() =>
+  compact.value
+    ? 'position: absolute; top: max(0.5rem, env(safe-area-inset-top)); right: calc(env(safe-area-inset-right, 0px) + 170px); height: 44px; padding: 0 10px'
+    : 'position: absolute; top: calc(max(0.5rem, env(safe-area-inset-top)) + 96px); left: 0.5rem; height: 44px; padding: 0 10px',
 )
 // Editar parte (spec 020): debajo de Mis remixes; en horizontal, a su lado
 const partStyle = computed(() =>
@@ -185,9 +200,12 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
       <!-- el estilo es una decisión del remix (spec 023): una etiqueta; tocarla abre la lista de los 5 estilos -->
       <div class="relative">
         <button class="whitespace-nowrap px-1 py-2 text-white" aria-haspopup="listbox" :aria-expanded="styleMenu" data-style-label @click="styleMenu = !styleMenu">{{ STYLE_SHORT[style] }} ▾</button>
-        <ul v-if="styleMenu" class="absolute left-0 top-full z-20 grid min-w-32 gap-0.5 rounded-xl border border-white/15 bg-[#121217] p-1 text-sm shadow-xl" role="listbox" data-style-menu>
+        <ul v-if="styleMenu" class="absolute left-0 top-full z-20 grid min-w-56 gap-0.5 rounded-xl border border-white/15 bg-[#121217] p-1 text-sm shadow-xl" role="listbox" data-style-menu>
           <li v-for="s in navStyles" :key="s.id">
-            <button class="w-full rounded-lg px-3 py-2 text-left" :class="style === s.id ? 'text-white' : 'text-white/60'" role="option" :aria-selected="style === s.id" @click="pickStyle(s.id as StyleId)">{{ STYLE_SHORT[s.id as StyleId] }} <span class="text-xs text-white/35">{{ s.bpm }}</span></button>
+            <div class="flex items-center gap-1">
+              <button class="min-w-0 flex-1 rounded-lg px-3 py-2 text-left" :class="style === s.id ? 'text-white' : 'text-white/60'" role="option" :aria-selected="style === s.id" @click="pickStyle(s.id as StyleId)">{{ STYLE_SHORT[s.id as StyleId] }} <span class="text-xs text-white/35">{{ s.bpm }}</span></button>
+              <button class="shrink-0 rounded-full border border-white/20 px-2.5 py-1 text-xs text-white/70" :aria-label="t('studio.demoAria', { style: STYLE_SHORT[s.id as StyleId] })" data-load-demo :data-style="s.id" @click="loadStyleDemo(s.id as StyleId)">{{ t('studio.demo') }}</button>
+            </div>
           </li>
         </ul>
       </div>
@@ -225,6 +243,9 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
 
     <!-- editar parte (spec 020): las capas de la parte, con la batería y la melodía dentro -->
     <button class="flex items-center justify-center text-xl text-white/60" :style="partStyle" :aria-label="t('studio.editPart')" @pointerdown.stop @click="partOpen = true">✎</button>
+
+    <!-- tocar en el Laboratorio (spec 024): el paso directo, a la vista -->
+    <button class="flex items-center justify-center gap-1 rounded-full border border-white/20 text-xs text-white/80" :style="labStyle" :aria-label="t('studio.toLabAria')" data-to-lab-main @pointerdown.stop @click="toLab.playInLab()">▶ {{ t('studio.toLab') }}</button>
 
     <!-- modo (spec 011): Jugar | Componer -->
     <ModeSwitch v-if="adv" :model-value="engine.mode.value" :style="modeStyle" @pointerdown.stop @update:model-value="stage?.switchMode($event)" />

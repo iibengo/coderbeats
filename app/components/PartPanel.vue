@@ -4,7 +4,6 @@
 import { VOICE_HEX } from '~/lib/palette'
 import { isFxLoop, melLoopOf } from '~/lib/melodyEdit'
 import type { FreeLoop } from '~/lib/freeLoops'
-import { addSong, autoName, makeSaved, newId, replaceSong } from '~/lib/library'
 
 const open = defineModel<boolean>('open', { required: true })
 const emit = defineEmits<{ drums: []; organ: [MouseEvent] }>()
@@ -64,30 +63,11 @@ function duplicate() {
   }
   open.value = false
 }
-// ▶ Tocar en el Laboratorio (spec 024 §1): guarda lo que hay en **el mismo remix** (o lo crea una sola vez) y abre Remixes del Laboratorio con él elegido
-const library = useLibrary()
-const labError = ref('')
+// ▶ Tocar en el Laboratorio: ver `useToLab`
+const toLab = useToLab()
+const labError = toLab.error
 async function playInLab() {
-  library.load()
-  const snap = engine.snapshot()
-  const cur = library.lib.value.entries.find((e) => e.id === library.currentId.value && e.saved)
-  let id: string
-  let next
-  if (cur?.saved) {
-    id = cur.id
-    next = replaceSong(library.lib.value, { ...makeSaved(snap, id, cur.name, new Date()), ...(cur.saved.lab ? { lab: cur.saved.lab } : {}) })
-  } else {
-    id = newId(Date.now())
-    next = addSong(library.lib.value, makeSaved(snap, id, autoName(engine.style.value, new Date()), new Date()))
-  }
-  if (!library.persist(next)) {
-    labError.value = library.error.value ?? 'No se ha podido guardar.'
-    return
-  }
-  library.setCurrent(id)
-  engine.stop()
-  open.value = false
-  await navigateTo(`/lab?remix=${encodeURIComponent(`mio:${id}`)}`)
+  if (await toLab.playInLab()) open.value = false
 }
 const many = computed(() => slots.value.filter((x) => x.has && x.on).length > 4)
 if (import.meta.dev && import.meta.client) (window as unknown as Record<string, unknown>).__parte = { slots: () => slots.value.map((s) => [s.key, s.has, s.on]), name: () => name.value }

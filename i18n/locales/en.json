@@ -297,8 +297,7 @@
       "calibration": "Tunes the app to your voice and your headphones' delay. Only needed if you use the mic.",
       "drop": "DJ effect: the rhythm and bass cut out and come back with a bang.",
       "fresh": "Clears what you have and starts from scratch."
-    },
-    "toLab": "← Go to the Lab"
+    }
   },
   "studio": {
     "duration": "{n} parts · {time}",
@@ -307,6 +306,12 @@
     "styleChange": "This changes the bass, the chords and the tempo; your rhythm and melody stay. Change style?",
     "change": "Change",
     "editPart": "edit part",
-    "myRemixes": "my remixes"
+    "myRemixes": "my remixes",
+    "toLab": "Lab",
+    "toLabAria": "play this remix in the Lab",
+    "demo": "demo",
+    "demoAria": "load the {style} demo",
+    "demoConfirm": "Replace what you have with the {style} demo?",
+    "replace": "Replace"
   }
 }

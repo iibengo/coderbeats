@@ -297,8 +297,7 @@
       "calibration": "Ajusta la app a tu voz y al retraso de tus cascos. Solo hace falta si usas el micro.",
       "drop": "Efecto de DJ: el ritmo y el bajo se cortan y vuelven de golpe.",
       "fresh": "Borra lo que tienes y empieza de cero."
-    },
-    "toLab": "← Ir al Laboratorio"
+    }
   },
   "studio": {
     "duration": "{n} partes · {time}",
@@ -307,6 +306,12 @@
     "styleChange": "Cambia el bajo, los acordes y el tempo; tu ritmo y tu melodía se quedan. ¿Cambiar de estilo?",
     "change": "Cambiar",
     "editPart": "editar parte",
-    "myRemixes": "mis remixes"
+    "myRemixes": "mis remixes",
+    "toLab": "Lab",
+    "toLabAria": "tocar este remix en el Laboratorio",
+    "demo": "demo",
+    "demoAria": "cargar la demo de {style}",
+    "demoConfirm": "¿Reemplazar lo que tienes por la demo de {style}?",
+    "replace": "Reemplazar"
   }
 }

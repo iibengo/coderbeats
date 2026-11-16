@@ -297,8 +297,7 @@
       "calibration": "Aplikazioa zure ahotsera eta aurikularren atzerapenera doitzen du. Mikrofonoa erabiltzen baduzu bakarrik behar da.",
       "drop": "DJ efektua: erritmoa eta baxua moztu eta kolpe batean itzultzen dira.",
       "fresh": "Dituzunak garbitu eta hutsetik hasten da."
-    },
-    "toLab": "← Joan Laborategira"
+    }
   },
   "studio": {
     "duration": "{n} zati · {time}",
@@ -307,6 +306,12 @@
     "styleChange": "Baxua, akordeak eta tempoa aldatzen dira; zure erritmoa eta melodia geratzen dira. Estiloa aldatu?",
     "change": "Aldatu",
     "editPart": "editatu zatia",
-    "myRemixes": "nire remixak"
+    "myRemixes": "nire remixak",
+    "toLab": "Lab",
+    "toLabAria": "jo remix hau Laborategian",
+    "demo": "demoa",
+    "demoAria": "kargatu {style} demoa",
+    "demoConfirm": "Dituzunaren ordez {style} demoa jarri?",
+    "replace": "Ordezkatu"
   }
 }
