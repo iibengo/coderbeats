@@ -2140,7 +2140,7 @@ defineExpose({ videoSource, colonyPoints, pointOf: (voice: Voice, step: number) 
 
     <!-- zona de acciones (spec 005, §19): un solo sitio, en orden fijo, solo lo que tiene sentido ahora -->
     <!-- durante el primer minuto guiado no hay botones avanzados: solo la frase -->
-    <div v-if="hasActions && !engine.stageOn.value && !guideText" class="actions absolute" :style="actionsStyle" @pointerdown.stop>
+    <div v-if="hasActions && !engine.stageOn.value && !guideText && !engine.hideActions.value" class="actions absolute" :style="actionsStyle" @pointerdown.stop>
       <button v-if="looping" class="act-btn" aria-label="soltar el bucle: la canción sigue" @click="engine.resume()">
         <span class="chapa-inf">∞</span> Soltar bucle
       </button>

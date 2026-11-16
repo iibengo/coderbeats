@@ -341,6 +341,8 @@ let thereminVoice: { osc: OscillatorNode; filter: BiquadFilterNode; gain: GainNo
 const thereminNote = ref<number | null>(null)
 /** el sintetizador está abierto (los avisos de Studio se esconden) */
 const thereminShown = ref(false)
+/** el tutorial enseña algo: los botones avanzados se esconden (primer minuto, spec 011) */
+const hideActions = ref(false)
 /** Escenario (spec 011 §13.1): la pantalla entera dispara golpes de efecto. */
 const stageOn = ref(false)
 const fxLimiter = new FxLimiter()
@@ -2700,6 +2702,7 @@ export function useAudioEngine() {
     },
     thereminNote,
     thereminShown,
+    hideActions,
     /** Empieza (o sigue) el sonido continuo del sintetizador: `fy` = altura (nota de la escala, con histéresis), `fx` = filtro. Devuelve la nota (MIDI) o null si no se puede. */
     thereminMove: (fx: number, fy: number): number | null => {
       const c = ctx
