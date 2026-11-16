@@ -101,3 +101,31 @@ describe('canciones', () => {
     expect(songFromTake(r, [])).toBeNull()
   })
 })
+
+import { isLabMark } from '~/lib/library'
+import { labRemixById, labRemixFromSaved } from '~/lib/labRemixes'
+describe('remixes míos (guardados desde el Estudio)', () => {
+  const base = labRemixById('sinfonia-40-techno')!
+  const saved = { id: 'x1', name: 'Mi remix', style: base.style, kit: base.kit, song: base.song, lab: { remixId: base.id } }
+  it('las partes salen de la canción guardada, con la tonalidad del original', () => {
+    const r = labRemixFromSaved(saved)!
+    expect(r.id).toBe('mio:x1')
+    expect(r.parts.map((p) => p.name)).toEqual(base.parts.map((p) => p.name))
+    expect(r.key).toBe(base.key)
+  })
+  it('una canción cualquiera de Mis remixes (sin marca) también se puede actuar', () => {
+    const { lab: _l, ...plain } = saved
+    expect(labRemixFromSaved(plain)!.parts.length).toBeGreaterThan(0)
+  })
+  it('sin nada que sonar no es un remix', () => {
+    expect(labRemixFromSaved({ ...saved, song: { ...base.song, cells: base.song.cells.map((c) => ({ ...c, loops: [], parts: { bass: false, chords: false } })) } })).toBeNull()
+  })
+  it('la marca lab solo vale con un id de texto corto', () => {
+    expect(isLabMark({ remixId: 'a' })).toBe(true)
+    expect(isLabMark({ remixId: '' })).toBe(false)
+    expect(isLabMark({ remixId: 'x'.repeat(61) })).toBe(false)
+    expect(isLabMark({ remixId: 3 })).toBe(false)
+    expect(isLabMark(null)).toBe(false)
+    expect(isLabMark({ remixId: '__proto__', constructor: 1 })).toBe(true) // un id de texto vale; solo se usa para buscar en una lista, nunca como clave
+  })
+})

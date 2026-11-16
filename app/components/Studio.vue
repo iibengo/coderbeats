@@ -183,7 +183,7 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
     >
       <!-- el estilo es una decisión del remix (spec 023): una etiqueta; tocarla abre la lista de los 5 estilos -->
       <div class="relative">
-        <button class="px-1 py-2 text-white" aria-haspopup="listbox" :aria-expanded="styleMenu" data-style-label @click="styleMenu = !styleMenu">{{ STYLE_SHORT[style] }} ▾</button>
+        <button class="whitespace-nowrap px-1 py-2 text-white" aria-haspopup="listbox" :aria-expanded="styleMenu" data-style-label @click="styleMenu = !styleMenu">{{ STYLE_SHORT[style] }} ▾</button>
         <ul v-if="styleMenu" class="absolute left-0 top-full z-20 grid min-w-32 gap-0.5 rounded-xl border border-white/15 bg-[#121217] p-1 text-sm shadow-xl" role="listbox" data-style-menu>
           <li v-for="s in navStyles" :key="s.id">
             <button class="w-full rounded-lg px-3 py-2 text-left" :class="style === s.id ? 'text-white' : 'text-white/60'" role="option" :aria-selected="style === s.id" @click="pickStyle(s.id as StyleId)">{{ STYLE_SHORT[s.id as StyleId] }} <span class="text-xs text-white/35">{{ s.bpm }}</span></button>
@@ -191,7 +191,7 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
         </ul>
       </div>
       <button
-        class="bpm px-1 py-2 tabular-nums transition-colors"
+        class="bpm whitespace-nowrap px-1 py-2 tabular-nums transition-colors"
         :class="engine.tempoTap.value.active ? 'text-[#F496BC]' : bpmCustom ? 'text-white/70' : 'text-white/35'"
         :aria-label="engine.tempoTap.value.active ? 'tempo: toca 4 veces' : `tempo ${engine.bpm.value} bpm: tocar para fijarlo con 4 toques, mantener para volver al del estilo`"
         @pointerdown="bpmDown"
@@ -203,7 +203,7 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
         <template v-if="engine.tempoTap.value.active">toca 4 veces <span class="tracking-widest">{{ tapDots }}</span></template>
         <template v-else>{{ engine.bpm.value }}</template>
       </button>
-      <span v-if="engine.multi.value" class="px-1 py-2 tabular-nums" :class="totalSeconds > 120 ? 'text-amber-300' : 'text-white/45'" data-duration :aria-label="`el remix dura ${totalText}${totalSeconds > 120 ? ', más de 2 minutos' : ''}`">{{ engine.song.value.order.length }} partes · {{ totalText }}</span>
+      <span v-if="engine.multi.value" class="whitespace-nowrap px-1 py-2 tabular-nums" :class="totalSeconds > 120 ? 'text-amber-300' : 'text-white/45'" data-duration :aria-label="`el remix dura ${totalText}${totalSeconds > 120 ? ', más de 2 minutos' : ''}`">{{ engine.song.value.order.length }} partes · {{ totalText }}</span>
     </nav>
 
     <!-- mis canciones (spec 006) -->
