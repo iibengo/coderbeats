@@ -1,7 +1,8 @@
 <script setup lang="ts">
 // 1 · Capas (Incredibox/Groovepad): tocas los círculos para encender y apagar capas; la base suena al primer toque. Dentro, el panel DJ (mantener = filtro y eco, soltar = drop; platillo y subida).
 import { demoSteps, useLab } from '~/composables/useLab'
-import { AMBER, LAB_W, LAYERS, type LayerKind } from '~/lib/lab'
+import { AMBER, LAB_INSTRUMENTS, LAB_W, LAYERS, drumLoop } from '~/lib/lab'
+import type { FreeLoop } from '~/lib/freeLoops'
 import type { StageFrame } from './LabStage.vue'
 
 const lab = useLab()
@@ -9,25 +10,52 @@ const { engine, style } = lab
 const emit = defineEmits<{ back: [] }>()
 const stage = ref<{ ripple: (x: number, y: number, c: string, g?: number, r?: number) => void } | null>(null)
 
-const COLOR: Record<LayerKind, string> = { bd: AMBER, sd: '#F496BC', hh: '#8ECFF2', bass: '#B7A6F2', chords: '#cfcfd6', mel: '#7fd6c2' }
+const mine = useMyLayers()
 const C = LAB_W / 2
-const POS = LAYERS.map((_, i) => {
-  const a = -Math.PI / 2 + (i * Math.PI * 2) / 6
-  return [C + Math.cos(a) * 190, C + Math.sin(a) * 190] as const
+
+/** un círculo: las capas de la base (bombo, caja, platillo, bajo, acordes, melodía) y, si existen, «mi ritmo» y «mi melodía» (spec 018) */
+interface Layer { key: string; label: string; color: string; part?: 'bass' | 'chords'; ids: number[] }
+const COLOR: Record<string, string> = { bd: AMBER, sd: '#F496BC', hh: '#8ECFF2', bass: '#B7A6F2', chords: '#cfcfd6', mel: '#7fd6c2', mydrums: '#F5A97A', mymel: '#A6F2C2' }
+const BASE_IDS: Record<string, number[]> = { bd: [1], sd: [2], hh: [3], mel: [4] }
+const extraIds = ref<{ drums: number[]; melody: number[] }>({ drums: [], melody: [] })
+const layers = computed<Layer[]>(() => {
+  const out: Layer[] = LAYERS.map((l) => ({ key: l.id, label: l.label, color: COLOR[l.id]!, part: l.id === 'bass' || l.id === 'chords' ? l.id : undefined, ids: BASE_IDS[l.id] ?? [] }))
+  if (extraIds.value.drums.length) out.push({ key: 'mydrums', label: 'mi ritmo', color: COLOR.mydrums!, ids: extraIds.value.drums })
+  if (extraIds.value.melody.length) out.push({ key: 'mymel', label: 'mi melodía', color: COLOR.mymel!, ids: extraIds.value.melody })
+  return out
 })
-const isOn = (k: LayerKind): boolean => {
-  if (k === 'bass' || k === 'chords') return engine.bgManual.value[k]
-  const l = engine.loops.value.loops.find((x) => x.instrument === k)
-  return !!l && !l.muted
+const posOf = (i: number, n: number) => {
+  const a = -Math.PI / 2 + (i * Math.PI * 2) / n
+  return [C + Math.cos(a) * 190, C + Math.sin(a) * 190] as const
+}
+const POS = computed(() => layers.value.map((_, i) => posOf(i, layers.value.length)))
+const isOn = (l: Layer): boolean => {
+  if (l.part) return engine.bgManual.value[l.part]
+  return l.ids.some((id) => {
+    const x = engine.loops.value.loops.find((y) => y.id === id)
+    return !!x && !x.muted
+  })
 }
 
+/** las capas propias, tal como están guardadas, como loops apagados (las enciendo yo) */
+function extraLoops(): FreeLoop[] {
+  const out: FreeLoop[] = []
+  const d = mine.layers.value.drums
+  if (d) for (const k of LAB_INSTRUMENTS) if (d[k].length) out.push({ ...drumLoop(0, k, []), hits: d[k].map((h) => ({ ...h })), muted: true })
+  return out
+}
 async function setup() {
-  await lab.scene({ drums: { bd: demoSteps(style.value, 'bd'), sd: demoSteps(style.value, 'sd'), hh: demoSteps(style.value, 'hh') }, parts: { bass: false, chords: false }, melody: 'muted' })
+  const drums = extraLoops()
+  const m = mine.layers.value.melody
+  const extra: FreeLoop[] = [...drums]
+  if (m && m.length >= 2) extra.push({ id: 0, instrument: 'mel', bars: 4, phaseBar: 0, hits: m.map((h) => ({ ...h })), muted: true, bornAt: 0, fromTemplate: false })
+  const ids = await lab.scene({ drums: { bd: demoSteps(style.value, 'bd'), sd: demoSteps(style.value, 'sd'), hh: demoSteps(style.value, 'hh') }, parts: { bass: false, chords: false }, melody: 'muted', extra })
+  extraIds.value = { drums: ids.slice(0, drums.length), melody: ids.slice(drums.length) }
 }
 onMounted(() => {
   void setup()
   // solo en desarrollo: lo que miran los guiones de prueba
-  if (import.meta.dev) (window as unknown as Record<string, unknown>).__capas = { state: () => LAYERS.map((l) => (isOn(l.id) ? 1 : 0)).join(''), playing: () => engine.playing.value }
+  if (import.meta.dev) (window as unknown as Record<string, unknown>).__capas = { state: () => layers.value.map((l) => (isOn(l) ? 1 : 0)).join(''), playing: () => engine.playing.value, count: () => layers.value.length }
 })
 onBeforeUnmount(() => {
   engine.setFx({ filter: 1, space: 0 })
@@ -37,19 +65,16 @@ async function pickStyle(id: Parameters<typeof lab.changeStyle>[0]) {
   await lab.changeStyle(id)
   await setup()
 }
-function toggleLayer(k: LayerKind) {
-  if (k === 'bass' || k === 'chords') engine.toggleBackgroundPart(k)
-  else {
-    const l = engine.loops.value.loops.find((x) => x.instrument === k)
-    if (l) engine.mute(l.id)
-  }
+function toggleLayer(l: Layer) {
+  if (l.part) engine.toggleBackgroundPart(l.part)
+  else for (const id of l.ids) engine.mute(id)
 }
 async function down(x: number, y: number) {
   if (!engine.playing.value) await lab.start()
-  LAYERS.forEach((l, i) => {
-    if (Math.hypot(x - POS[i]![0], y - POS[i]![1]) < 55) {
-      toggleLayer(l.id)
-      stage.value?.ripple(POS[i]![0], POS[i]![1], COLOR[l.id], 4, 44)
+  layers.value.forEach((l, i) => {
+    if (Math.hypot(x - POS.value[i]![0], y - POS.value[i]![1]) < 55) {
+      toggleLayer(l)
+      stage.value?.ripple(POS.value[i]![0], POS.value[i]![1], l.color, 4, 44)
       navigator.vibrate?.(8)
     }
   })
@@ -58,36 +83,37 @@ async function down(x: number, y: number) {
 const PAD_LAYER: Record<number, number> = { 0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5 }
 const { connected: padOn } = useGamepad(async (b) => {
   const i = PAD_LAYER[b]
-  if (i === undefined) return
+  const l = i === undefined ? undefined : layers.value[i]
+  if (!l || i === undefined) return
   if (!engine.playing.value) await lab.start()
-  toggleLayer(LAYERS[i]!.id)
-  stage.value?.ripple(POS[i]![0], POS[i]![1], COLOR[LAYERS[i]!.id], 4, 44)
+  toggleLayer(l)
+  stage.value?.ripple(POS.value[i]![0], POS.value[i]![1], l.color, 4, 44)
 })
 defineExpose({ toggleLayer })
 
 function draw(g: CanvasRenderingContext2D, f: StageFrame) {
-  LAYERS.forEach((l, i) => {
-    const [x, y] = POS[i]!
-    const on = isOn(l.id)
+  layers.value.forEach((l, i) => {
+    const [x, y] = POS.value[i]!
+    const on = isOn(l)
     g.beginPath()
     g.arc(x, y, 44 + (on && f.beat ? 8 : 0), 0, 7)
-    g.fillStyle = on ? COLOR[l.id] : 'rgba(255,255,255,.05)'
+    g.fillStyle = on ? l.color : 'rgba(255,255,255,.05)'
     g.globalAlpha = on ? 0.9 : 1
     g.fill()
     g.globalAlpha = 1
-    g.strokeStyle = on ? COLOR[l.id] : 'rgba(255,255,255,.2)'
+    g.strokeStyle = on ? l.color : 'rgba(255,255,255,.2)'
     g.lineWidth = 2
     g.stroke()
     g.fillStyle = on ? '#0b0b0d' : 'rgba(255,255,255,.6)'
-    g.font = '500 22px system-ui, sans-serif'
+    g.font = `500 ${l.label.length > 8 ? 17 : 22}px system-ui, sans-serif`
     g.textAlign = 'center'
     g.textBaseline = 'middle'
     g.fillText(l.label, x, y)
   })
-  const n = LAYERS.filter((l) => isOn(l.id)).length
+  const n = layers.value.filter((l) => isOn(l)).length
   g.beginPath()
-  g.arc(C, C, 30 + n * 8 + (f.beat ? 6 : 0), 0, 7)
-  g.fillStyle = n === 6 ? '#F496BC' : 'rgba(244,150,188,.25)'
+  g.arc(C, C, 30 + n * 6 + (f.beat ? 6 : 0), 0, 7)
+  g.fillStyle = n === layers.value.length ? '#F496BC' : 'rgba(244,150,188,.25)'
   g.fill()
 }
 
