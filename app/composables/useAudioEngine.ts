@@ -2864,7 +2864,7 @@ export function useAudioEngine() {
      * Suena la nota `midi` de un toque de la melodía de la portada (spec 016 §16): con el sinte del estilo, **al instante** (si hay un paso del compás a ≤ 70 ms por delante, cae en él)
      * y se apunta en la toma; 1,2 s después del último toque, la toma pasa a ser el loop de melodía (cuantizado al paso más cercano, una nota por paso, 4 compases).
      */
-    tapNote: (midi: number): boolean => {
+    tapNote: (midi: number, commit = true): boolean => {
       const c = ctx
       if (!c || !S || c.state !== 'running') return false
       const now = c.currentTime + 0.01
@@ -2874,7 +2874,7 @@ export function useAudioEngine() {
       void (S as unknown as { superdough: (v: object, t: number, d: number) => Promise<unknown> }).superdough({ s: wave, note: midi, lpf: 3200, attack: 0.005, decay: 0.35, sustain: 0.25, release: 0.3, gain: 0.55, room: 0.25 }, t, 0.55)
       toWorker({ type: 'output', times: [t] })
       keysLast.value = { n: keysLast.value.n + 1, midi }
-      if (clock) {
+      if (clock && commit) {
         tapTake.add({ time: t, midi })
         if (tapCommit) clearTimeout(tapCommit)
         tapCommit = setTimeout(() => {
@@ -2883,6 +2883,22 @@ export function useAudioEngine() {
           const hits = keysToHits([...tapTake.list], barTime(0), stepSeconds(), 4)
           if (hits.length) commitMelody(hits)
         }, COMMIT_IDLE * 1000)
+      }
+      return true
+    },
+    /**
+     * Efectos sueltos del laboratorio (DJ): un platillo de ruido (`crash`) o una subida de ruido que se abre a lo largo de `bars` compases (`riser`). Salen por la cadena maestra.
+     * Sin probar de oído.
+     */
+    fxShot: (kind: 'crash' | 'riser', bars = 1): boolean => {
+      const c = ctx
+      if (!c || !S || c.state !== 'running') return false
+      const sd = (S as unknown as { superdough: (v: object, t: number, d: number) => Promise<unknown> }).superdough
+      const t = c.currentTime + 0.02
+      if (kind === 'crash') void sd({ s: 'white', hpf: 5500, attack: 0.002, decay: 1.4, sustain: 0, release: 0.6, gain: 0.5, room: 0.35 }, t, 0.1)
+      else {
+        const dur = Math.max(0.5, (clock?.barSec ?? 2) * bars)
+        void sd({ s: 'pink', hpf: 400, hpenv: 6, hpattack: dur, hpdecay: 0.01, attack: dur * 0.9, decay: 0.05, sustain: 1, release: 0.05, gain: 0.45 }, t, dur)
       }
       return true
     },
