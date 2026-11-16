@@ -5,8 +5,8 @@
  * entero validado; nunca un valor leído tal cual de lo guardado.
  */
 /** `drone`: un sine con mucha reverb, para fondos (la demo del dembow); no es de los que se eligen para cantar */
-export type MelodySynth = 'lead' | 'piano' | 'pad' | 'drone' | 'riser' | 'crash' | 'boom' | 'impacto'
-export const MELODY_SYNTHS: readonly MelodySynth[] = ['lead', 'piano', 'pad', 'drone', 'riser', 'crash', 'boom', 'impacto']
+export type MelodySynth = 'lead' | 'piano' | 'pad' | 'drone' | 'riser' | 'crash' | 'boom' | 'impacto' | 'downlifter'
+export const MELODY_SYNTHS: readonly MelodySynth[] = ['lead', 'piano', 'pad', 'drone', 'riser', 'crash', 'boom', 'impacto', 'downlifter']
 
 /** Rango MIDI que se admite en un loop de melodía o bajo (C1–C7). */
 export const MIDI_MIN = 24
@@ -30,6 +30,7 @@ export const REGISTER: Record<MelodySynth | 'bass', readonly [number, number]> =
   crash: [48, 72], // ruido: la altura no cuenta (spec 008, §12)
   boom: [24, 48], // golpes de efecto del Escenario (spec 011 §13.1): la nota es la raíz
   impacto: [24, 48],
+  downlifter: [48, 72], // ruido: la altura no cuenta (spec 014 §9)
   bass: [28, 52], // E1–E3
 }
 
@@ -45,6 +46,8 @@ export const SYNTH_SOUND: Record<MelodySynth, string> = {
   // golpes de efecto del Escenario (spec 011 §13.1): un bombo de síntesis (`sbd`) muy grave; la nota es la raíz del acorde
   boom: '.s("sbd").decay(1.6).pdecay(0.35).penv(12).gain(0.8).room(0.3)',
   impacto: '.s("sbd").decay(0.9).pdecay(0.12).penv(24).shape(0.4).gain(0.9)',
+  // el barrido que baja (spec 014 §9): ruido rosa con el filtro cayendo desde arriba; sin probar de oído
+  downlifter: '.s("pink").attack(0.02).decay(1.6).sustain(0).release(0.2).lpf(8000).lpenv(-4).lpd(1.6).lps(0).gain(0.5).room(0.4)',
   riser: '.s("pink").attack(0.12).decay(0.2).sustain(0.7).release(0.05).gain(0.6).room(0.3)',
 }
 

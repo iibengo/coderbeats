@@ -149,3 +149,39 @@ describe('reglas de producción en las plantillas (spec 014, fases 1b y 3): solo
     expect(ev.some((e) => e.value.s === 'pink')).toBe(true)
   })
 })
+
+describe('transiciones y automatización (spec 014 §9): solo con la opción', () => {
+  const song = full('techno', 'dies')
+  const on = () => convertToSong(song, 'techno', { variation: true, transitions: true })!
+  it('con la opción: la intro y «entra» abren el filtro (sube vuelta a vuelta) y el Final lleva el barrido que baja; sin ella, nada de eso', () => {
+    const out = on()
+    const by = (n: string) => out.cells.find((c) => c.name === n)
+    const intro = by('Intro')
+    if (intro?.lpf) for (let i = 1; i < intro.lpf.length; i++) expect(intro.lpf[i]!).toBeGreaterThanOrEqual(intro.lpf[i - 1]!)
+    const fin = by('Final')!
+    const dl = fin.loops.find((l) => l.synth === 'downlifter')
+    expect(dl).toBeTruthy()
+    expect(dl!.hits[0]!.pos).toBe(0)
+    expect(isSong(out)).toBe(true)
+    const ids = out.cells.flatMap((c) => c.loops.map((l) => l.id))
+    expect(new Set(ids).size).toBe(ids.length)
+    const off = convertToSong(song, 'techno', { variation: true })!
+    expect(off.cells.find((c) => c.name === 'Final')!.loops).toEqual([])
+    expect(off.cells.find((c) => c.name === 'Intro')?.lpf).toBeUndefined()
+    expect(convertToSong(song, 'techno', { transitions: false, variation: false })).toEqual(convertToSong(song, 'techno'))
+  })
+  it('el Drop no cambia con las transiciones (mismos loops y sin filtro) y la canción suena en Strudel con el barrido en el Final', async () => {
+    const withT = on()
+    const withoutT = convertToSong(song, 'techno', { variation: true })!
+    expect(withT.cells.find((c) => c.name === 'Drop')!.loops).toEqual(withoutT.cells.find((c) => c.name === 'Drop')!.loops)
+    expect(withT.cells.find((c) => c.name === 'Drop')!.lpf).toBeUndefined()
+    const code = songCode(
+      { loops: [], style: 'techno', kit: 'electro', background: { mode: 'manual', parts: { bass: false, chords: false } }, metronome: false, fx: { filter: 1, space: 0, warmth: 0 }, cells: { list: withT.cells, order: withT.order, window: [] } },
+      'display',
+    )
+    expect(code).toContain('lpenv')
+    const ev = await events(code, songBars(withT))
+    expect(ev.some((e) => e.value.s === 'pink')).toBe(true)
+  })
+})
+

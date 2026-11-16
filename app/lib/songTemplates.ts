@@ -23,6 +23,9 @@ export const PART_TURNS: Record<StyleId, Record<PartName, Turns>> = {
 export const PART_ORDER: readonly PartName[] = ['Intro', 'Entra', 'Subida', 'Drop', 'Final']
 
 /** El filtro que se abre en la subida (Hz por vuelta; el último valor vale para las vueltas que sobren) y el que se cierra al final. */
+/** automatización de filtro de la intro y de «entra» (spec 014 §9): se van abriendo vuelta a vuelta */
+const INTRO_OPEN = [1400, 2200, 3600, 6000]
+const ENTRA_OPEN = [4000, 6000, 9000, 14000]
 const OPEN = [600, 1500, 4000, 12000]
 const CLOSE = [1800, 1100, 650, 350]
 
@@ -46,6 +49,21 @@ function withSnareFill(cell: Cell, style: StyleId): Cell {
 }
 
 /** El loop del barrido que sube (el último compás de 4) y el impacto final; monofónico como toda la melodía. */
+/** El barrido que baja al empezar el Final (spec 014 §9): un golpe de melodía con el sinte `downlifter` en la primera posición, largo como el primer compás. */
+export function downlifterLoop(): FreeLoop {
+  return {
+    id: 0,
+    instrument: 'mel',
+    bars: 1,
+    phaseBar: 0,
+    muted: false,
+    bornAt: 0,
+    fromTemplate: false,
+    synth: 'downlifter',
+    hits: [{ pos: 0, strength: 1, midi: 60, dur: 15 }],
+  }
+}
+
 export function riserLoop(): FreeLoop {
   return {
     id: 0,
@@ -77,7 +95,12 @@ function partCells(base: Cell, style: StyleId, o: TemplateOptions = {}): { name:
   // la subida: sin bombo (ya lo está), con la caja en roll y el filtro que se abre
   subida.lpf = fitLpf(OPEN, turns.Subida)
   if (o.transitions && !subida.loops.some((l) => l.instrument === 'mel') && subida.loops.length < MAX_LOOPS) subida.loops.push(riserLoop())
-  const final: Cell = { ...varyCell(base, 'same', 0, style), loops: [], parts: { bass: false, chords: true }, lpf: fitLpf(CLOSE, turns.Final) }
+  if (o.transitions) {
+    // automatización del filtro: la intro y «entra» se abren poco a poco hasta el drop (sin tocar el original)
+    intro.lpf = fitLpf(INTRO_OPEN, turns.Intro)
+    entra.lpf = fitLpf(ENTRA_OPEN, turns.Entra)
+  }
+  const final: Cell = { ...varyCell(base, 'same', 0, style), loops: o.transitions ? [downlifterLoop()] : [], parts: { bass: false, chords: true }, lpf: fitLpf(CLOSE, turns.Final) }
   const all: { name: PartName; cell: Cell }[] = [
     { name: 'Intro', cell: intro },
     { name: 'Entra', cell: entra },
