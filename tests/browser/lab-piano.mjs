@@ -1,11 +1,15 @@
-// Laboratorio · Piano mágico: entra sin micro, suena, cada toque avanza el contador y ■ para todo.
+// Laboratorio · Piano mágico: al entrar no suena; cada toque avanza el contador (y el primero pone la base); ■ para todo; otro estilo cambia la melodía.
 import { labOpen, click, sleep } from './lab-lib.mjs'
 const { b, p, errs, O } = await labOpen()
-console.log(await click(p,'Piano'), 'piano'); await sleep(5000)
-await p.screenshot({ path: `${O}/l1a.png` })
-console.log('botón', await p.evaluate(()=>document.querySelector('header button[aria-label]:last-of-type')?.getAttribute('aria-label')))
-for (let i=0;i<5;i++){ await p.touchscreen.tap(100+i*40, 400+i*30); await sleep(300) }
-await p.screenshot({ path: `${O}/l1b.png` })
-console.log(await p.evaluate(()=>document.body.innerText.replace(/\n+/g,' | ').slice(0,200)), errs)
-await click(p,'parar todo'); await sleep(500); console.log('botón', await p.evaluate(()=>document.querySelector('header button[aria-label]:last-of-type')?.getAttribute('aria-label')))
+await click(p, 'Piano'); await sleep(4000)
+const r = await p.evaluate(() => { const c = document.querySelector('canvas').getBoundingClientRect(); return [c.x, c.y, c.width] })
+const info = () => p.evaluate(() => `${window.__piano.played()}/${window.__piano.total()} · ${document.querySelector('header + nav + div + div button')?.getAttribute('aria-label')}`)
+console.log('al entrar:', await info())
+for (let i = 0; i < 5; i++) { await p.touchscreen.tap(r[0] + 60 + i * 50, r[1] + 100 + i * 40); await sleep(350) }
+await p.screenshot({ path: `${O}/p1.png` })
+console.log('tras 5 toques:', await info())
+await click(p, 'techno'); await sleep(3000)
+console.log('techno:', await info(), await p.evaluate(() => document.body.innerText.includes('Sinfonía')))
+await click(p, 'parar todo'); await sleep(500)
+console.log('tras ■:', await info(), errs)
 await b.close()
