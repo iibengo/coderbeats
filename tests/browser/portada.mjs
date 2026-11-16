@@ -1,0 +1,20 @@
+// La portada simple (spec 016): estilo → base sonando; Estudio se recuerda; el Estudio vuelve a la portada.
+import { open, sleep, clickLabel } from './lib.mjs'
+const OUT = process.env.OUT || '/tmp'
+const { b, p, errs } = await open({ simple: true })
+const txt = () => p.evaluate(() => document.body.innerText.replace(/\n+/g, ' | ').slice(0, 160))
+console.log('al empezar:', await txt())
+await p.screenshot({ path: `${OUT}/portada-0.png` })
+await clickLabel(p, 'Techno'); await sleep(2500)
+console.log('tras elegir techno: suena', await p.evaluate(() => window.__engine.playing.value), '| estilo', await p.evaluate(() => window.__engine.style.value), '| fondo', await p.evaluate(() => JSON.stringify(window.__engine.bgManual.value)))
+await p.screenshot({ path: `${OUT}/portada-1.png` })
+console.log('botones visibles:', await p.$$eval('button', (bs) => bs.filter((x) => x.offsetParent).map((x) => (x.getAttribute('aria-label') || x.textContent).trim().slice(0, 20)).join(' · ')))
+await clickLabel(p, 'más'); await sleep(400)
+console.log('menú:', await p.evaluate(() => [...document.querySelectorAll('button')].filter((x) => x.offsetParent).map((x) => x.textContent.trim()).join(' · ').slice(0, 160)))
+await p.evaluate(() => [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Estudio')?.click()); await sleep(1500)
+console.log('Estudio:', /Jugar/.test(await txt()), '| preferencia', await p.evaluate(() => localStorage.getItem('coderbeats:ui:v1')))
+await clickLabel(p, 'ajustes'); await sleep(500)
+await clickLabel(p, 'Modo simple'); await sleep(1200)
+console.log('vuelta a la portada:', !/Jugar/.test(await txt()), '| preferencia', await p.evaluate(() => localStorage.getItem('coderbeats:ui:v1')), '| suena', await p.evaluate(() => window.__engine.playing.value))
+console.log('errores', errs)
+await b.close()

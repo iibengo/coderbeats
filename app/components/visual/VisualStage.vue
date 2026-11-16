@@ -86,7 +86,8 @@ import ThereminOverlay from './ThereminOverlay.vue'
 import { lissajousOf } from '~/lib/theremin'
 import type { MelodyHit } from '~/lib/melody'
 
-const props = withDefaults(defineProps<{ themeId?: string }>(), { themeId: DEFAULT_THEME })
+/** `simple`: la portada (spec 016): solo el agua y la gota; sin botones de acciones, bolas de fondo, tira de células, guía ni cambio de modo por pellizco */
+const props = withDefaults(defineProps<{ themeId?: string; simple?: boolean }>(), { themeId: DEFAULT_THEME, simple: false })
 const emit = defineEmits<{ preview: [] }>()
 const engine = useAudioEngine()
 const { loops, playing, phrase, fx, bgParts, bgMode, bgManual, style, currentBar, looping } = engine
@@ -199,7 +200,7 @@ const editingName = computed(() => {
   return c?.name?.trim() || `célula ${engine.viewCellId.value}`
 })
 /** la tira de células de Jugar: solo si hay más de una parte */
-const strip = computed(() => (mode.value === 'jugar' ? cellStrip(engine.song.value, engine.viewCellId.value) : []))
+const strip = computed(() => (!props.simple && mode.value === 'jugar' ? cellStrip(engine.song.value, engine.viewCellId.value) : []))
 const stripStyle = computed(() =>
   compact.value
     ? 'bottom: max(0.5rem, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); width: min(40vw, 220px)'
@@ -1794,7 +1795,7 @@ const guide = ref<GuideState>(guideDone() ? GUIDE_DONE : GUIDE_START)
 let guideHeard = 0
 // con el piloto automático en marcha, la guía no habla ni toca el fondo (el piloto lo hace todo)
 const pilotState = usePilotState()
-const guideText = computed(() => (!pilotState.active && !engine.noMic.value && mode.value === 'jugar' && guideVisible(guide.value) ? guideLine(guide.value.step, engine.melodyOn.value, !!engine.suggestion.value) : ''))
+const guideText = computed(() => (!props.simple && !pilotState.active && !engine.noMic.value && mode.value === 'jugar' && guideVisible(guide.value) ? guideLine(guide.value.step, engine.melodyOn.value, !!engine.suggestion.value) : ''))
 function guideTo(next: GuideState) {
   if (next === guide.value) return
   const was = guide.value.step
@@ -1871,7 +1872,7 @@ function endPinch() {
   pinchLive = null
   // pellizcar más allá del tramo del modo cambia de modo (spec 011, §4.2): alejar desde Jugar = Componer; acercar desde Componer = Jugar
   const b = zoomBounds.value
-  if (mode.value === 'jugar' && cellPoints.value.length >= 1 && z < b.min * PUSH_FRAC) return switchMode('componer', { hint: true })
+  if (!props.simple && mode.value === 'jugar' && cellPoints.value.length >= 1 && z < b.min * PUSH_FRAC) return switchMode('componer', { hint: true })
   if (mode.value === 'componer' && z > b.max / PUSH_FRAC) return switchMode('jugar', { hint: true })
   setZoom(z)
 }
@@ -1888,7 +1889,7 @@ function onWheel(e: WheelEvent) {
   const atEdge = out ? before <= b.min + 1e-3 && mode.value === 'jugar' : before >= b.max - 1e-3 && mode.value === 'componer'
   if (atEdge) {
     wheelPush += Math.abs(e.deltaY)
-    if (wheelPush > WHEEL_PUSH && (mode.value !== 'jugar' || cellPoints.value.length >= 1)) {
+    if (!props.simple && wheelPush > WHEEL_PUSH && (mode.value !== 'jugar' || cellPoints.value.length >= 1)) {
       wheelPush = 0
       return switchMode(mode.value === 'jugar' ? 'componer' : 'jugar', { hint: true })
     }
@@ -2114,7 +2115,7 @@ defineExpose({ videoSource, colonyPoints, pointOf: (voice: Voice, step: number) 
 
     <!-- chapa de vueltas (spec 005, §6): vuelta en la que va; tocarla deja la célula en bucle, y en bucle sigue la canción -->
     <button
-      v-show="chapa.show"
+      v-show="chapa.show && !simple"
       ref="chapaEl"
       class="chapa absolute top-0 left-0"
       :data-loop="chapa.free ? chapa.on : chapa.loop"
@@ -2141,7 +2142,7 @@ defineExpose({ videoSource, colonyPoints, pointOf: (voice: Voice, step: number) 
 
     <!-- zona de acciones (spec 005, §19): un solo sitio, en orden fijo, solo lo que tiene sentido ahora -->
     <!-- durante el primer minuto guiado no hay botones avanzados: solo la frase -->
-    <div v-if="hasActions && !engine.stageOn.value && !guideText && !engine.hideActions.value" class="actions absolute" :style="actionsStyle" @pointerdown.stop>
+    <div v-if="!simple && hasActions && !engine.stageOn.value && !guideText && !engine.hideActions.value" class="actions absolute" :style="actionsStyle" @pointerdown.stop>
       <button v-if="looping" class="act-btn" aria-label="soltar el bucle: la canción sigue" @click="engine.resume()">
         <span class="chapa-inf">∞</span> Soltar bucle
       </button>
@@ -2182,7 +2183,7 @@ defineExpose({ videoSource, colonyPoints, pointOf: (voice: Voice, step: number) 
     </div>
 
     <!-- bolas del fondo (modo manual, §16.17) -->
-    <template v-if="bgMode === 'manual' && !colony && !engine.viewIsFree.value">
+    <template v-if="!simple && bgMode === 'manual' && !colony && !engine.viewIsFree.value">
       <button
         v-for="b in bgBalls"
         :key="b.part"

@@ -8,7 +8,7 @@ import type { PhraseMode, RepeatMode } from '~/composables/useAudioEngine'
 
 const open = defineModel<boolean>('open', { required: true })
 const props = defineProps<{ renderer: string; layout: () => string }>()
-const emit = defineEmits<{ recalibrate: ['latency' | 'sounds']; pilot: []; preview: []; video: [] }>()
+const emit = defineEmits<{ recalibrate: ['latency' | 'sounds']; pilot: []; preview: []; video: []; simple: [] }>()
 const engine = useAudioEngine()
 // lo que reemplaza la canción la desvincula de la guardada de la que venía (spec 006, §10.4): así "Guardar" no machaca una guardada
 const library = useLibrary()
@@ -301,6 +301,10 @@ watch(open, (o) => {
             <span class="text-xs text-neutral-500">
               Un grupo de una célula que suena en paralelo a la canción. En el mapa, un toque lo enciende o lo apaga.
             </span>
+          </div>
+          <div class="flex items-center gap-3">
+            <button class="shrink-0 rounded-full border border-white/15 px-4 py-2" @click="open = false; emit('simple')">Modo simple</button>
+            <span class="text-xs text-neutral-500">la portada: elige un estilo, toca la melodía con el dedo y añade ritmo con tu voz.</span>
           </div>
           <div class="flex items-center gap-3">
             <button class="shrink-0 rounded-full border border-white/15 px-4 py-2" @click="engine.addMelodyCell(); open = false">+ melodía</button>
