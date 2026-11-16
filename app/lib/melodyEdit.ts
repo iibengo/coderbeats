@@ -140,3 +140,18 @@ export function setMelBars(s: LoopsState, loopId: number, bars: 1 | 2 | 4): Loop
   if (!hits.length) return { ...s, loops: s.loops.filter((l) => l.id !== loopId) }
   return replace(s, { ...loop, bars, hits, fromTemplate: false })
 }
+
+// ── una sola melodía por parte (spec 020 §1.2) ──
+const FX_SYNTHS = ['riser', 'crash', 'boom', 'impacto', 'downlifter']
+/** ¿Es un efecto (subida, platillo, impacto…) y no una melodía? Esos loops de melodía no cuentan como «otra melodía». */
+export const isFxLoop = (l: FreeLoop): boolean => FX_SYNTHS.includes(l.synth ?? '') || (l.synth === 'pad' && l.hits.length <= 4)
+/** Las melodías que sobran: todas las de la célula menos la última (la que edita el Órgano); los efectos no cuentan. */
+export function extraMelodies(s: LoopsState): FreeLoop[] {
+  const main = melLoopOf(s)
+  return s.loops.filter((l) => l.instrument === 'mel' && !isFxLoop(l) && l.id !== main?.id)
+}
+/** Deja solo la melodía principal (quita las extra). */
+export function dropExtraMelodies(s: LoopsState): LoopsState {
+  const extra = new Set(extraMelodies(s).map((l) => l.id))
+  return extra.size ? { ...s, loops: s.loops.filter((l) => !extra.has(l.id)) } : s
+}

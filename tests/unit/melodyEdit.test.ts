@@ -185,3 +185,21 @@ describe('deshacer (restoreMel)', () => {
     expect(notes(r)).toEqual([[0, 4, 57], [8, 4, 60]])
   })
 })
+
+import { dropExtraMelodies, extraMelodies, isFxLoop } from '~/lib/melodyEdit'
+describe('una sola melodía por parte', () => {
+  const mel = (id: number, bornAt: number, synth?: FreeLoop['synth'], n = 6): FreeLoop => ({ id, instrument: 'mel', bars: 4, phaseBar: 0, hits: Array.from({ length: n }, (_, i) => ({ pos: i * 4, dur: 2, midi: 60, strength: 0.8 })), muted: false, bornAt, fromTemplate: false, ...(synth ? { synth } : {}) })
+  const kick: FreeLoop = { id: 9, instrument: 'bd', bars: 1, phaseBar: 0, hits: [{ pos: 0, strength: 1 }], muted: false, bornAt: 0, fromTemplate: false }
+  it('la principal es la última; las demás melodías son extra; los efectos no cuentan', () => {
+    const s = { loops: [kick, mel(1, 0), mel(2, 5), mel(3, 3), mel(4, 0, 'riser', 12), mel(5, 0, 'pad', 3)], nextId: 10 }
+    expect(extraMelodies(s).map((l) => l.id).sort()).toEqual([1, 3])
+    expect(isFxLoop(mel(4, 0, 'riser'))).toBe(true)
+    const d = dropExtraMelodies(s)
+    expect(d.loops.map((l) => l.id).sort()).toEqual([2, 4, 5, 9])
+    expect(extraMelodies(d)).toEqual([])
+  })
+  it('sin extras no cambia nada (mismo objeto)', () => {
+    const s = { loops: [kick, mel(1, 0)], nextId: 10 }
+    expect(dropExtraMelodies(s)).toBe(s)
+  })
+})

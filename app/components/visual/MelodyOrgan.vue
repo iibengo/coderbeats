@@ -7,7 +7,7 @@
 // Se abre y se cierra con una transición de agua desde el punto donde se tocó la franja.
 import { removeHit } from '~/lib/loopEdit'
 import { answerPhrase } from '~/lib/melodyGrid'
-import { addMelNote, gForBar, melLoopOf, moveMelNote, resizeMelNote, restoreMel, setMelBars, snapMelStep, type MelEditOptions } from '~/lib/melodyEdit'
+import { addMelNote, dropExtraMelodies, extraMelodies, gForBar, melLoopOf, moveMelNote, resizeMelNote, restoreMel, setMelBars, snapMelStep, type MelEditOptions } from '~/lib/melodyEdit'
 import type { FreeLoop, LoopsState } from '~/lib/freeLoops'
 import { isTonic, rangeOf, rowOf, scaleNotes } from '~/lib/melodyView'
 import type { MelodyHit } from '~/lib/melody'
@@ -175,6 +175,13 @@ function onUp(e: PointerEvent, cancelled = false) {
 function setBars(n: 1 | 2 | 4) {
   const l = loop.value
   if (l) commit(setMelBars(loops.value, l.id, n))
+}
+
+// una sola melodía por parte: si hay más, se avisa y se pueden quitar las extra (los efectos no cuentan)
+const extras = computed(() => extraMelodies(loops.value).length)
+async function dropExtras() {
+  if (!(await askConfirm(`Esta parte tiene ${extras.value} ${extras.value === 1 ? 'melodía más' : 'melodías más'} apiladas. ¿Quitarlas y dejar solo la que ves?`, 'Quitar'))) return
+  engine.editLoops(dropExtraMelodies(loops.value))
 }
 
 // ── ↻ responder (spec 020 §1.3): la frase de 2 compases pregunta; los 2 siguientes contestan, con otra variación cada vez, y cierran en la tónica ──
@@ -449,6 +456,7 @@ const label = (m: number) => midiName(m).replace('#', '♯')
         <button class="rounded-full border px-3 py-1.5" :class="rec ? 'border-[#ff4d6d] text-[#ff4d6d]' : 'border-white/30 text-white'" data-organ-rec @click="startRec">{{ recState === 'cuenta' ? 'cuenta…' : recState === 'grabando' ? '■ grabando' : '● grabar' }}</button>
         <button class="rounded-full border border-[#F496BC]/60 px-3 py-1.5 text-white disabled:opacity-30" :disabled="!canRespond" data-organ-respond @click="respond">↻ responder</button>
         <button v-if="engine.assist.value" class="rounded-full border px-3 py-1.5" :class="fine ? 'border-white text-white' : 'border-white/25 text-white/60'" aria-label="casillas más finas (semicorcheas)" @click="fine = !fine">fino</button>
+        <button v-if="extras" class="rounded-full border border-amber-300/60 px-3 py-1.5 text-amber-200" data-organ-extras @click="dropExtras">+{{ extras }} melodía{{ extras === 1 ? '' : 's' }} apilada{{ extras === 1 ? '' : 's' }} · quitar</button>
         <span v-if="rec" class="text-[#ff4d6d]">toca al doble de lento; se cuadra solo y acaba al llegar al final</span>
       </div>
 
