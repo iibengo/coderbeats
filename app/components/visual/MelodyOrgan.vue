@@ -19,6 +19,9 @@ const props = defineProps<{ origin: { x: number; y: number } }>()
 const emit = defineEmits<{ close: [] }>()
 const engine = useAudioEngine()
 const { loops, style, playing } = engine
+const partLock = usePartLock()
+onMounted(() => partLock.enter())
+onBeforeUnmount(() => partLock.leave())
 
 const root = ref<HTMLElement | null>(null)
 const ripples = ref<HTMLElement | null>(null)
@@ -442,6 +445,7 @@ const label = (m: number) => midiName(m).replace('#', '♯')
       <header class="flex items-center gap-3 px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2">
         <button class="h-9 w-9 rounded-full border border-white/30 text-lg leading-none" aria-label="cerrar el órgano" @click="close">✕</button>
         <h2 class="text-sm font-medium tracking-wide text-white/80">Melodía</h2>
+        <button v-if="partLock.available.value || partLock.locked.value" class="h-9 rounded-full border px-3 text-sm" :class="partLock.locked.value ? 'border-[#F496BC] text-[#F496BC]' : 'border-white/30 text-white/70'" :aria-pressed="partLock.locked.value" :aria-label="partLock.locked.value ? 'parte fija: tocar para que la canción siga' : 'fijar la parte en bucle'" data-lock @click="partLock.toggle()">{{ partLock.locked.value ? '🔒' : '🔓' }}</button>
         <span class="text-xs text-white/40">{{ STYLE_MUSIC[style].key }}</span>
         <button v-if="undo" class="rounded-full border border-white/40 px-3 py-1 text-xs text-white" aria-label="deshacer la última edición" @click="doUndo">↶ deshacer</button>
         <div class="ml-auto flex items-center gap-1" role="group" aria-label="compases del loop">

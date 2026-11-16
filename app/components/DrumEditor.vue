@@ -10,6 +10,9 @@ import type { StageFrame } from './lab/LabStage.vue'
 const open = defineModel<boolean>('open', { required: true })
 const emit = defineEmits<{ mic: [] }>()
 const engine = useAudioEngine()
+const partLock = usePartLock()
+watch(open, (o) => (o ? partLock.enter() : partLock.leave()))
+onBeforeUnmount(() => open.value && partLock.leave())
 const C = LAB_W / 2
 const R = [100, 175, 245]
 const COLOR: Record<Instrument, string> = { bd: AMBER, sd: VOICE_HEX.sd, hh: VOICE_HEX.hh }
@@ -92,6 +95,7 @@ if (import.meta.dev && import.meta.client) (window as unknown as Record<string, 
       <header class="mx-auto flex w-full max-w-md items-center gap-2">
         <button class="rounded-lg border border-white/20 px-3 py-2 text-sm" aria-label="cerrar la batería" @click="open = false">✕</button>
         <h2 class="ml-1 text-base font-medium">Batería</h2>
+        <button v-if="partLock.available.value || partLock.locked.value" class="h-10 rounded-lg border px-3 text-sm" :class="partLock.locked.value ? 'border-[#F496BC] text-[#F496BC]' : 'border-white/30 text-white/70'" :aria-pressed="partLock.locked.value" :aria-label="partLock.locked.value ? 'parte fija: tocar para que la canción siga' : 'fijar la parte en bucle'" data-lock @click="partLock.toggle()">{{ partLock.locked.value ? '🔒' : '🔓' }}</button>
         <button class="ml-auto grid h-10 w-10 place-items-center rounded-lg border border-white/25" :aria-label="engine.playing.value ? 'parar' : 'tocar'" @click="engine.playing.value ? engine.stop() : engine.play()">{{ toggleLabel }}</button>
       </header>
       <div class="mx-auto mt-3 flex w-full max-w-md items-center gap-2 text-sm">

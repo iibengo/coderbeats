@@ -1,0 +1,18 @@
+// Parte fija 🔒 (spec 024 §2): al abrir un editor la parte queda en bucle; al cerrarlo se suelta.
+import { open, clickLabel, sleep } from './lib.mjs'
+const { b, p, errs } = await open()
+await clickLabel(p, 'mis remixes'); await sleep(800)
+await p.evaluate(() => document.querySelector('[data-remixes-serie] li button').click()); await sleep(1500)
+await p.evaluate(() => window.__engine.play()); await sleep(4000)
+const loop = () => p.evaluate(() => window.__engine.loopTarget.value)
+console.log('antes de editar, bucle:', await loop())
+await clickLabel(p, 'editar parte'); await sleep(500)
+await p.evaluate(() => document.querySelector('[data-edit=bateria]').click()); await sleep(1500)
+console.log('con la batería abierta, bucle:', await loop(), '| 🔒:', await p.evaluate(() => document.querySelector('[data-lock]')?.textContent))
+await p.evaluate(() => document.querySelector('[data-lock]').click()); await sleep(800)
+console.log('desbloqueado (🔓), bucle:', await loop())
+await p.evaluate(() => document.querySelector('[data-lock]').click()); await sleep(800)
+console.log('fijado otra vez, bucle:', await loop())
+await p.evaluate(() => document.querySelector('[aria-label="cerrar la batería"]').click()); await sleep(1500)
+console.log('al cerrar, bucle:', await loop(), errs)
+await b.close()
