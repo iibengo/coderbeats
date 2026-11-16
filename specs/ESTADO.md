@@ -222,3 +222,37 @@ Con las cifras de tu registro: el iPhone suena muy distinto al laboratorio (cent
 ## Qué probar y qué mandarme
 1. Abre la app de nuevo (recarga completa) y haz **8 «ts», pausa larga, 8 «pff», pausa larga, 8 «bum»**, mirando el reloj para anotar los segundos de cada grupo. Pégame el diagnóstico con esos tiempos. Ahora cada golpe trae `c`, `z`, `graves`, `medios` y `agudos`.
 2. Si «bum» ya va bien y los otros dos se mezclan, el siguiente paso es ⋯ → «Calibrar mis sonidos» (es lo que de verdad resuelve un micro distinto); con tu registro etiquetado ajusto el modelo genérico.
+
+---
+
+# Octava tanda (2026-11-16) — sintetizador de dedo, producción, publicar
+
+Todo en `main`, **sin push**; tests (1064), `nuxt typecheck` y `nuxt build` en verde. Comprobado en Chrome sin pantalla (guiones `tests/browser/`: `sin-micro`, `sintetizador`, `sin-conexion`, `audio-parado`); **nada oído ni probado en un iPhone**. Lista completa de lo pendiente: [`PENDIENTES.md`](PENDIENTES.md). Preparación para publicar: [`PUBLICAR.md`](PUBLICAR.md).
+
+| Qué | Detalle |
+|---|---|
+| **Célula de melodía + sintetizador de dedo** (spec 015 §12, escrita antes) | «+ melodía» (⋯) crea una célula libre de tipo `melodia` (campo opcional: lo guardado no cambia) y abre un sintetizador a pantalla completa: **mantener y deslizar suena continuo** (un oscilador propio que se desliza entre notas de la escala; arriba/abajo = nota, lados = filtro), **curva de luz** que deja el dedo, notas de la escala marcadas suaves, «Desliza el dedo». «● Grabar» pasa lo tocado a la melodía (cuantizada, en la franja del aro). En el mapa, su silueta lleva la **curva de Lissajous** de su melodía. «🎹 Agua» queda como estaba. Bug cazado en Chrome: el padre capturaba el puntero y el deslizamiento no llegaba (arreglado). |
+| **Producción** (014 §9) | Con el interruptor: Intro y «Entra» abren el filtro vuelta a vuelta, el Final lleva un **downlifter** (sinte nuevo). Apagado = idéntico (test). Saltado y por qué: hat abierto, bajo cada 8, silencio antes de caer (piden formato nuevo o el motor; **no se ha tocado el reloj**). |
+| **«¿Te afino a tu voz?»** (001 §17.10) | También cuando de los últimos 10 golpes que no son bombo **ninguno es platillo**. **Calibrar a manos libres**: «Empezar» una vez y va pidiendo «bum» ×5, «pff» ×5, «ts» ×5 (~20 s). |
+| **Primer minuto** | Mientras el tutorial enseña algo, los botones avanzados se esconden (la frase tapaba una fila). |
+| **Sin micro** | Si se deniega o falta el micro: «Entrar sin micro» abre una demo para tocar con el dedo (micro mudo, sin guía de beatbox). |
+| **Acerca de** | ⋯ → «acerca de» y en la pantalla de inicio: AGPL, código fuente (AGPL §13) y créditos; datos comprobados por test contra `package.json`, `LICENSE` y `CREDITS.md`. |
+| **Publicar** | `PUBLICAR.md`: README público; **hallazgos graves en la historia** (tu correo en 228 commits, capturas con tu barra de marcadores, una grabación de pantalla, samples 909/acoustic sin licencia) y un **script que hace una copia limpia** (probado; no toca este repositorio). Las capturas y la grabación las moví a `../coderbeats-material-privado/`. |
+| **PWA** | Antes el service worker guardaba 3 archivos (no abría sin conexión) y no había iconos. Ahora **iconos** (192, 512, maskable, apple-touch) y **67 archivos en caché**; comprobado abriendo sin conexión en Chrome. |
+| **Audio parado** | ▶ y volver a la app despiertan el audio si iOS lo paró (llamada, bloqueo); antes quedaba mudo. |
+
+## Decisiones a revisar
+- **El sintetizador usa un oscilador propio** (no el sinte de Strudel): suena distinto a lo grabado/reproducido. Si no te gusta, se graba y suena con `lead`/`piano` de Strudel y el oscilador queda para tocar.
+- La URL del código fuente en «Acerca de» es `github.com/iibengo/coderbeats` (`app/lib/about.ts`): cámbiala si el repositorio se llama distinto.
+- El icono es un dibujo propio (aros y puntos, la paleta de la app); cámbialo si quieres otro.
+- Entrar en una célula de melodía abre el sintetizador **siempre**; «✕» lo cierra hasta cambiar de célula, y «🎛 Tocar» lo reabre.
+
+## Qué escuchar y probar en el móvil, en orden
+1. **Sintetizador:** ⋯ → «+ melodía». ¿Se entiende sin leer («Desliza el dedo»)? Mantén y desliza: ¿suena continuo, se desliza entre notas, y a los lados cambia el brillo? ¿La curva de luz sigue al dedo? Con la música sonando: «● Grabar», toca 4 compases, «■»: ¿la melodía grabada se parece a lo que tocaste? En Componer, ¿la célula se distingue por su curva?
+2. **Comparar** con «🎹 Agua» y decidir cuál se queda.
+3. **Calibrar a manos libres:** ⋯ → «Calibrar mis sonidos» → «Empezar»: ¿el ritmo de «Di “bum” 1/5…» te sigue bien? ¿Se confunde con la respiración?
+4. **Producción** encendida + «✦ Convertir en canción» de un loop sin melodía: ¿la Intro «se abre»? ¿suena el downlifter al empezar el Final, o raro?
+5. **iPhone:** bloquea la pantalla con música, vuelve y dale a ▶: ¿suena? «Añadir a pantalla de inicio»: ¿icono bonito y abre sin conexión (modo avión)?
+6. **Sin micro:** niega el permiso del micro: ¿«Entrar sin micro» y la demo se tocan bien con el dedo?
+7. **Tu registro etiquetado** (8 «ts», 8 «pff», 8 «bum», con segundos) para cerrar el reconocimiento en el iPhone.
+8. Lo de las tandas anteriores (ver cada una).
