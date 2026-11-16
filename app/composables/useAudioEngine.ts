@@ -2818,6 +2818,20 @@ export function useAudioEngine() {
       if (!c || !clock) return null
       return { bar: nextBarLine(), at: barTime, now: c.currentTime, stepSec: stepSeconds() }
     },
+    /**
+     * Una pastilla de la portada (spec 016): suena el golpe **al instante** y entra en el loop como un golpe de voz hecho en ese momento (mismo camino: frase, compás de nacimiento,
+     * gota). `false` si no suena la música o no hay audio.
+     */
+    tapPad: (instrument: 'bd' | 'sd' | 'hh'): boolean => {
+      const c = ctx
+      if (!c || !S || c.state !== 'running') return false
+      const t = c.currentTime + 0.01
+      const k = KITS[kit.value]
+      void (S as unknown as { superdough: (v: object, t: number, d: number) => Promise<unknown> }).superdough({ s: k.strudelBank ? `${k.strudelBank}_${instrument}` : instrument, gain: 0.9 }, t, 0.6)
+      toWorker({ type: 'output', times: [t] })
+      if (playing.value && tracker) onWorkerMessage({ type: 'hit', time: t + latencySec, instrument, confidence: 1, strength: 0.3, vol: 1, decisionMs: 0 }, true)
+      return true
+    },
     /** Solo el filtro (el brillo) de la nota que suena, sin cambiar de nota (modo espiral: el dedo solo da el brillo). */
     thereminFilter: (fx: number) => {
       if (thereminVoice && ctx) thereminVoice.filter.frequency.setTargetAtTime(brightnessAtX(fx), ctx.currentTime, 0.03)

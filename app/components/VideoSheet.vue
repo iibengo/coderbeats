@@ -3,7 +3,8 @@
 import { FORMAT_LABEL, formatMB, secondsFor, type VideoFormat, type VideoSize } from '~/lib/videoExport'
 
 const open = defineModel<boolean>('open', { required: true })
-const props = defineProps<{ exporter: ReturnType<typeof useVideoExport> }>()
+/** `simple` (la portada, spec 016): sin opciones, 4 compases en vertical a 720; solo «Grabar», guardar y compartir */
+const props = defineProps<{ exporter: ReturnType<typeof useVideoExport>; simple?: boolean }>()
 const engine = useAudioEngine()
 const state = useVideoState()
 
@@ -37,7 +38,7 @@ async function go() {
         <h2 class="mb-3 text-xs tracking-wide text-neutral-400 uppercase">Exportar vídeo</h2>
         <p v-if="!supported" class="mb-3 text-amber-300">Este navegador no puede grabar vídeo con sonido.</p>
         <template v-else>
-          <div class="mb-3 grid gap-3">
+          <div v-if="!simple" class="mb-3 grid gap-3">
             <label class="flex items-center justify-between gap-3">Qué grabar
               <select v-model="what" class="rounded-lg border border-white/15 bg-black/30 px-3 py-2"><option value="cell">La célula actual</option><option value="song">La canción completa</option><option value="preview">La previsualización (se construye sola)</option></select>
             </label>

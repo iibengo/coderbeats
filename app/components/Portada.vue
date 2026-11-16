@@ -2,6 +2,9 @@
 // La portada simple (spec 016): elige un estilo → la base suena → la espiral te da la melodía → añades ritmo con la voz o con toques → guardas o compartes. Todo lo demás está en el Estudio.
 import { STYLES } from '~/lib/constants'
 import { needsPick } from '~/lib/ui'
+import { LoopHistory, loopsSignature } from '~/lib/loopHistory'
+import { makeSaved, newId, replaceSong } from '~/lib/library'
+import { readText, writeText } from '~/lib/storage'
 import type { StyleId } from '~/lib/types'
 import ThereminOverlay from './visual/ThereminOverlay.vue'
 import VisualStage from './visual/VisualStage.vue'
@@ -25,6 +28,79 @@ onBeforeUnmount(() => (engine.mode.value = prevMode))
 
 const reduced = import.meta.client && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 const stage = ref<InstanceType<typeof VisualStage> | null>(null)
+// ── deshacer / rehacer lo que haces con los loops (una frase de voz entera, una melodía…) ──
+const history = new LoopHistory()
+history.record(engine.loops.value)
+const canUndo = ref(false)
+const canRedo = ref(false)
+let applying = false
+watch(
+  () => engine.loops.value,
+  (l) => {
+    if (applying) return
+    history.record(l)
+    canUndo.value = history.canUndo
+    canRedo.value = history.canRedo
+  },
+)
+function undo() {
+  const prev = history.undo()
+  if (prev) apply(prev)
+}
+function redo() {
+  const next = history.redo()
+  if (next) apply(next)
+}
+function apply(state: typeof engine.loops.value) {
+  applying = true
+  engine.editLoops(state)
+  canUndo.value = history.canUndo
+  canRedo.value = history.canRedo
+  setTimeout(() => (applying = false), 0)
+}
+
+// ── guardado automático como «Mi canción» (la biblioteca de siempre: se puede renombrar y abrir desde «Mis canciones») ──
+const library = useLibrary()
+library.load()
+const ENTRY_KEY = 'coderbeats:portada:entry:v1'
+let entryId = readText(ENTRY_KEY)
+const savedFlash = ref(false)
+let saveTimer: ReturnType<typeof setTimeout> | undefined
+let flashTimer: ReturnType<typeof setTimeout> | undefined
+function autosave() {
+  const snap = engine.snapshot()
+  if (!snap.song.cells.some((c) => c.loops.length)) return
+  const id = entryId ?? newId(Date.now())
+  const old = library.lib.value.entries.find((e) => e.id === id)
+  const saved = makeSaved(snap, id, old?.name ?? 'Mi canción', new Date())
+  if (!library.persist(replaceSong(library.lib.value, saved))) return
+  entryId = id
+  writeText(ENTRY_KEY, id)
+  library.setCurrent(id)
+  savedFlash.value = true
+  clearTimeout(flashTimer)
+  flashTimer = setTimeout(() => (savedFlash.value = false), 1800)
+}
+watch(
+  () => loopsSignature(engine.loops.value) + engine.style.value,
+  () => {
+    // como mucho 3 s después del primer cambio (no «cuando se calme»: con la voz sonando casi nunca se calma)
+    if (saveTimer) return
+    saveTimer = setTimeout(() => {
+      saveTimer = undefined
+      autosave()
+    }, 3000)
+  },
+)
+onBeforeUnmount(() => {
+  clearTimeout(saveTimer)
+  clearTimeout(flashTimer)
+})
+
+// ── compartir en vídeo (la exportación de siempre, con lo mínimo) ──
+const videoOpen = ref(false)
+const exporter = useVideoExport(() => (stage.value as unknown as { videoSource: () => never } | null)?.videoSource() ?? null, () => Promise.resolve())
+
 const spiralEl = ref<InstanceType<typeof ThereminOverlay> | null>(null)
 const menuOpen = ref(false)
 const libraryOpen = ref(false)
@@ -69,18 +145,32 @@ function toEstudio() {
     </button>
 
     <!-- 2 · la espiral: pon el dedo en el agua; las notas del tema vienen a él -->
-    <div v-if="picked" class="absolute right-0 left-0" style="top: 56px; bottom: 96px">
+    <div v-if="picked" class="absolute right-0 left-0" style="top: 56px; bottom: 164px">
       <ThereminOverlay ref="spiralEl" bare :reduced="reduced" :bar="engine.currentBar.value" />
     </div>
 
-    <!-- abajo: otro tema, parar / seguir -->
-    <div v-if="picked" class="absolute left-1/2 flex -translate-x-1/2 items-center gap-4" style="bottom: max(1rem, env(safe-area-inset-bottom))" @pointerdown.stop>
-      <button class="flex h-12 items-center justify-center rounded-full border border-white/25 px-4 text-sm text-white" aria-label="otra melodía" @click="spiralEl?.otherTune()">↻ Otra</button>
+    <!-- 3 · ritmo: tu voz (siempre escuchando) o las tres pastillas -->
+    <div v-if="picked" class="absolute right-0 left-0" style="bottom: calc(max(0.75rem, env(safe-area-inset-bottom)) + 64px)">
+      <p v-if="!engine.loops.value.loops.length" class="mb-1.5 text-center text-xs text-white/50">Tu voz — bum · pff · ts — o toca aquí</p>
+      <PadsRow />
+    </div>
+
+    <!-- 4 · abajo: deshacer, otra melodía, parar / seguir, compartir -->
+    <div v-if="picked" class="absolute right-0 left-0 flex items-center justify-between gap-2 px-3" style="bottom: max(0.75rem, env(safe-area-inset-bottom))" @pointerdown.stop>
+      <div class="flex w-24 gap-1">
+        <button class="h-11 w-11 rounded-full border border-white/20 text-lg text-white disabled:opacity-30" :disabled="!canUndo" aria-label="deshacer lo último que hice" @click="undo">↶</button>
+        <button v-if="canRedo" class="h-11 w-11 rounded-full border border-white/20 text-lg text-white" aria-label="volver a poner lo que quité" @click="redo">↷</button>
+      </div>
+      <button class="flex h-11 items-center justify-center rounded-full border border-white/25 px-4 text-sm text-white" aria-label="otra melodía" @click="spiralEl?.otherTune()">↻ Otra</button>
       <button class="flex h-12 w-12 items-center justify-center rounded-full border border-white/25 text-white" :aria-label="playing ? 'parar' : 'tocar'" @click="playing ? engine.stop() : engine.play()">
         <span v-if="!playing">▶</span>
         <span v-else>■</span>
       </button>
+      <div class="flex w-24 justify-end">
+        <button class="h-11 rounded-full bg-white px-4 text-sm font-medium text-black" aria-label="compartir en vídeo" @click="videoOpen = true">🎬</button>
+      </div>
     </div>
+    <p v-if="savedFlash" class="pointer-events-none absolute left-1/2 -translate-x-1/2 text-xs text-white/50" style="bottom: calc(max(0.75rem, env(safe-area-inset-bottom)) + 52px)" role="status">● guardado</p>
   </VisualStage>
 
   <!-- 1 · elige cómo suena -->
@@ -119,5 +209,6 @@ function toEstudio() {
   </Transition>
 
   <LibrarySheet v-model:open="libraryOpen" />
+  <VideoSheet v-model:open="videoOpen" :exporter="exporter" simple />
   <ConfirmDialog />
 </template>
