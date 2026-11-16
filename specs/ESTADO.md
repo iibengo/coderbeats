@@ -109,3 +109,33 @@ Aun así, es posible que sea lo que viste en el móvil: los cuadros nativos pued
 3. **«Producción»** en ⋯ con una canción sonando: ¿se nota el swing y los matices? ¿Mejor o peor?
 4. **«🎹 Agua»** (Jugar, sonando): toca el fondo fuera del aro; ¿suena al instante, a notas que encajan? «● Grabar» y comprueba la melodía.
 5. **«🎬 Exportar vídeo» → «La previsualización»** en el iPhone.
+
+---
+
+# Tercera tanda (2026-11-16) — Agua legible + plan autónomo 2
+
+Todo en `main`, **sin push**; un commit por parte con tests (1023), `nuxt typecheck` y `nuxt build` en verde. Lo de Agua, **comprobado en Chrome** (`tests/browser/agua.mjs` y `agua-visual.mjs`); nada oído ni visto en un móvil real.
+
+| Commit | Qué |
+|---|---|
+| `600f3fd` | **«🎹 Agua» se entiende** (lo que viste negro): franjas suaves por nota (graves **abajo**, rosa/lila/azul por altura) solo con el modo encendido; al tocar, **onda de color** en el punto exacto (más grande cuanto más grave) y la franja se ilumina; rótulo «🎹 Agua · toca el fondo» y al grabar «● Grabando · compás n/4 · N notas»; lo grabado **se ve ya en la franja de melodía del aro**. Movimiento reducido: solo un cambio de brillo. |
+| `e49e97f` | **Zona muerta** de 14 px alrededor de cualquier botón: ahí no se toca el agua. |
+| `4d24ec5` | **Producción en «Convertir en canción»** (spec 014 §8): con el interruptor «Producción» (⋯) encendido, fill de caja en Entra y Drop y, en la Subida, barrido de ruido (`riser`) + impacto al final. Apagado = igual que antes. |
+| `7ea6634` | **Voz sin audio:** la bola sale apagada y discontinua, «audio no disponible». |
+| `f46460d` | Tests de `useTutorial` y `useSuggestions`. |
+
+**Decisión que cambia cómo se toca:** para que lo que se ve coincida con lo que suena, ahora **la altura del dedo es la nota** (arriba agudas, abajo graves) y la posición horizontal es el brillo (izquierda cálido, derecha brillante). Antes era al revés.
+
+## Saltado (y por qué)
+- **Estela larga del dedo y «venas» por los hilos** (015 fase 2): sin poder medir rendimiento en móvil.
+- **014:** hat abierto, cambio de nota del bajo, automatización por compás, downlifter, silencio antes de caer e impacto solo en el drop (un loop se repite cada vuelta), reglas en los remixes (datos fijos). Detalle en la spec 014 §8.
+- **Fundir sin reiniciar la música** y su animación/anillo azul: tocan el reloj del motor (`replaceSong`), arriesgado sin oído. **👁 de Mis canciones grabable en vídeo:** sin tocar.
+- **015 fase 3** (célula de melodía, Lissajous, adjuntar por fundir) y **partir `useAudioEngine.ts`:** no sin tu supervisión. **Tests de `useVideoExport`:** casi todo es navegador (MediaRecorder).
+- El **estado de «Agua» no se guarda** a propósito.
+
+## Qué probar en el móvil, en orden
+1. **Agua:** música sonando → «🎹 Agua». ¿Se ven las franjas y el rótulo? Toca arriba/abajo del fondo: ¿onda de color donde tocas, franja iluminada, graves abajo/agudas arriba? Arrastra izquierda↔derecha: ¿el brillo cambia?
+2. «● Grabar», toca unas notas durante 4 compases: ¿el rótulo cuenta el compás y se ven las notas en la franja de melodía del aro? «■» → ¿suena como lo tocado? ¿Los botones no disparan notas al pulsarlos?
+3. **Producción:** ⋯ → «Producción» encendido, con un loop de ritmo sin melodía «✦ Convertir en canción» → ¿la Subida sube con ruido y cae bien el impacto (¿llega un paso pronto?), el fill de caja cada 4 compases? ↶ deshacer.
+4. Con una canción guardada con voz en otro dispositivo (o borrando datos del sitio): la bola de voz sale discontinua.
+5. Lo pendiente de antes (bloqueo al cambiar de canción sonando, previsualizar, vídeo, compartir, fundir).
