@@ -345,6 +345,17 @@ const keysLast = ref<{ n: number; midi: number }>({ n: 0, midi: 60 })
 let keyEvents: KeyEvent[] = []
 let lastKey = { midi: -1, at: 0 }
 /** el sintetizador de dedo (spec 015 §12): un oscilador continuo que se desliza entre notas de la escala */
+/** el coro del laboratorio (spec 017): tres voces (la que se arrastra y dos que armonizan) por un mismo filtro */
+let choir: { oscs: OscillatorNode[]; filter: BiquadFilterNode; gain: GainNode; idx: number | null } | null = null
+function choirStopNow(fast: boolean) {
+  const v = choir
+  choir = null
+  if (!v || !ctx) return
+  const t = ctx.currentTime
+  v.gain.gain.cancelScheduledValues(t)
+  v.gain.gain.setTargetAtTime(0, t, fast ? 0.004 : 0.08)
+  for (const o of v.oscs) try { o.stop(t + (fast ? 0.03 : 0.5)) } catch { /* ya parada */ }
+}
 let thereminVoice: { osc: OscillatorNode; filter: BiquadFilterNode; gain: GainNode; idx: number | null } | null = null
 const thereminNote = ref<number | null>(null)
 /** la melodía por toques de la portada (spec 016 §16): la toma en curso y el temporizador que la pasa al loop */
@@ -2917,6 +2928,7 @@ export function useAudioEngine() {
       tapCommit = null
       tapTake.reset()
       thereminStopNow()
+      choirStopNow(true)
       stop()
       if (ctx && masterIn) {
         masterIn.gain.cancelScheduledValues(ctx.currentTime)
@@ -2984,6 +2996,42 @@ export function useAudioEngine() {
     thereminFilter: (fx: number) => {
       if (thereminVoice && ctx) thereminVoice.filter.frequency.setTargetAtTime(brightnessAtX(fx), ctx.currentTime, 0.03)
     },
+    /**
+     * El coro (laboratorio): `fy` (0 arriba … 1 abajo) elige la nota de la escala del estilo y suenan otras dos a dos y cuatro grados por encima (siempre en la escala: no hay nota mala);
+     * `fx` es el brillo. Devuelve los tres índices de nota (del grave al agudo) y las notas MIDI, o null si no hay audio. Sin probar de oído.
+     */
+    choirMove: (fx: number, fy: number): { idx: number[]; midi: number[] } | null => {
+      const c = ctx
+      if (!c || c.state !== 'running' || !masterIn) return null
+      const notes = scaleNotes(style.value)
+      if (notes.length < 5) return null
+      const idx0 = noteIndexAt(fy, notes.length - 4, choir?.idx ?? null)
+      const idx = [idx0, idx0 + 2, idx0 + 4]
+      const midi = idx.map((i) => notes[i]!)
+      const now = c.currentTime
+      if (!choir) {
+        const synth = STYLE_MUSIC[style.value].synth
+        const type = ({ piano: 'triangle', lead: 'sawtooth', pad: 'sawtooth', drone: 'sine' } as Record<string, OscillatorType>)[synth] ?? 'sawtooth'
+        const filter = new BiquadFilterNode(c, { type: 'lowpass', frequency: brightnessAtX(fx), Q: 3 })
+        const gain = new GainNode(c, { gain: 0 })
+        const oscs = midi.map((m) => new OscillatorNode(c, { type, frequency: midiToHz(m), detune: (Math.random() - 0.5) * 12 }))
+        for (const o of oscs) {
+          o.connect(filter)
+          o.start()
+        }
+        filter.connect(gain).connect(masterIn)
+        gain.gain.setTargetAtTime(0.16, now, 0.05)
+        choir = { oscs, filter, gain, idx: null }
+      }
+      const v = choir
+      v.filter.frequency.setTargetAtTime(brightnessAtX(fx), now, 0.04)
+      if (v.idx !== idx0) {
+        v.oscs.forEach((o, k) => o.frequency.setTargetAtTime(midiToHz(midi[k]!), now, 0.04))
+        v.idx = idx0
+      }
+      return { idx, midi }
+    },
+    choirStop: () => choirStopNow(false),
     /** Suelta el dedo: la nota se apaga con una cola corta. */
     thereminStop: () => {
       const v = thereminVoice
