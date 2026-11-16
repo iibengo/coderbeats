@@ -2,7 +2,7 @@
 // Pantalla principal (§16.16): solo el agua, los loops flotando, Play y el estilo.
 import { STYLES } from '~/lib/constants'
 import { TEMPO_RESET_MS, TEMPO_TAPS } from '~/lib/tempo'
-import type { Song } from '~/lib/cells'
+import { songBars, type Song } from '~/lib/cells'
 import type { KitId, StyleId } from '~/lib/types'
 import { readJson } from '~/lib/storage'
 import { decodeShare, payloadFromHash } from '~/lib/shareLink'
@@ -60,6 +60,9 @@ const layoutInfo = () => stage.value?.layoutInfo() ?? ''
 const STYLE_SHORT: Record<StyleId, string> = { hiphop90: 'hip hop', house: 'house', dnb: 'dnb', dembow: 'dembow', techno: 'techno' }
 
 // tempo fácil (spec 005, §6): tocar el BPM lo enciende ("toca 4 veces"); mantenerlo vuelve al tempo del estilo
+// duración del remix a la vista (spec 020): partes y tiempo total; ámbar si pasa de los 2 min
+const totalSeconds = computed(() => songBars(engine.song.value) * (60 / engine.bpm.value) * 4)
+const totalText = computed(() => `${Math.floor(totalSeconds.value / 60)}:${String(Math.round(totalSeconds.value % 60)).padStart(2, '0')}`)
 const bpmCustom = computed(() => engine.bpm.value !== STYLES[style.value].bpm)
 const tapDots = computed(() => '●'.repeat(engine.tempoTap.value.count) + '○'.repeat(Math.max(0, TEMPO_TAPS - engine.tempoTap.value.count)))
 let bpmTimer: ReturnType<typeof setTimeout> | null = null
@@ -190,6 +193,7 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
         <template v-if="engine.tempoTap.value.active">toca 4 veces <span class="tracking-widest">{{ tapDots }}</span></template>
         <template v-else>{{ engine.bpm.value }}</template>
       </button>
+      <span v-if="engine.multi.value" class="px-1 py-2 tabular-nums" :class="totalSeconds > 120 ? 'text-amber-300' : 'text-white/45'" data-duration :aria-label="`el remix dura ${totalText}${totalSeconds > 120 ? ', más de 2 minutos' : ''}`">{{ engine.song.value.order.length }} partes · {{ totalText }}</span>
     </nav>
 
     <!-- mis canciones (spec 006) -->

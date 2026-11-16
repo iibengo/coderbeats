@@ -6,5 +6,6 @@ console.log('títulos:', await p.evaluate(() => [...document.querySelectorAll('h
 console.log('de serie:', await p.evaluate(() => [...document.querySelectorAll('[data-remixes-serie] li')].map((l) => l.querySelector('p').textContent)))
 await p.evaluate(() => document.querySelector('[data-remixes-serie] li button').click()); await sleep(1500)
 console.log('tras Abrir:', await p.evaluate(() => ({ cells: window.__engine.song.value.cells.length, name: window.__engine.song.value.cells.map((c) => c.name).join(), style: window.__engine.style.value, cerrada: !document.querySelector('[data-remixes-serie]') })), errs)
+console.log('duración a la vista:', await p.evaluate(() => document.querySelector('[data-duration]')?.textContent))
 await p.screenshot({ path: `${process.env.OUT || '/tmp'}/remixes-u.png` })
 await b.close()
