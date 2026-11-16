@@ -28,3 +28,9 @@ coverage
 tests/fixtures/voice/
 *.take.wav
 *.take.json
+
+# Material personal que no va al repositorio público
+tem/
+/f_*.png
+docs/anecdotas.md
+*.mkv

@@ -29,7 +29,7 @@ git filter-branch -f --prune-empty --tag-name-filter cat \
     if [ \"\$GIT_AUTHOR_EMAIL\" = '$OLD_EMAIL' ]; then export GIT_AUTHOR_EMAIL='$NEW_EMAIL' GIT_AUTHOR_NAME='$NEW_NAME'; fi
     if [ \"\$GIT_COMMITTER_EMAIL\" = '$OLD_EMAIL' ]; then export GIT_COMMITTER_EMAIL='$NEW_EMAIL' GIT_COMMITTER_NAME='$NEW_NAME'; fi" \
   --tree-filter "[ -f tests/browser/compartir.mjs ] && sed -i 's#/home/[A-Za-z0-9._-]*/#./#g' tests/browser/compartir.mjs || true" \
-  -- --all
+  -- --all 2>&1 | tr '\r' '\n' | tail -n 2
 
 # fuera las copias de seguridad de filter-branch y la basura
 rm -rf .git/refs/original
