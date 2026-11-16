@@ -1,0 +1,73 @@
+/**
+ * Editor de melodía tipo Song Maker (spec 020 §1): una cuadrícula de **corcheas** (8 por compás) por **notas de la escala del estilo**. Puro y sin DOM.
+ * Monofónico (una nota por columna), la nota dura de la columna a la siguiente nota como mucho, y todo cabe en el loop (1, 2 o 4 compases).
+ */
+import type { MelodyHit } from './melody'
+import type { StyleId } from './types'
+import { scaleNotes } from './waterKeys'
+
+export const COLS_PER_BAR = 8
+export const STEPS_PER_COL = 2
+export const GRID_ROWS = 9
+export const DEFAULT_DUR = STEPS_PER_COL
+
+export const colsOf = (bars: number): number => bars * COLS_PER_BAR
+export const colOfPos = (pos: number): number => Math.round(pos / STEPS_PER_COL)
+
+/** Las filas visibles: `GRID_ROWS` notas de la escala del estilo, de la más grave (índice 0) a la más aguda, empezando en la nota `shift` de la escala. */
+export function rowsFor(style: StyleId, shift: number): number[] {
+  const all = scaleNotes(style)
+  const s = Math.max(0, Math.min(Math.max(0, all.length - GRID_ROWS), shift))
+  return all.slice(s, s + GRID_ROWS)
+}
+/** El desplazamiento máximo (para los botones ▲▼). */
+export const maxShift = (style: StyleId): number => Math.max(0, scaleNotes(style).length - GRID_ROWS)
+/** El desplazamiento que deja la mayoría de las notas a la vista (la mediana en el centro); sin notas, el centro de la escala. */
+export function fitShift(style: StyleId, hits: readonly Pick<MelodyHit, 'midi'>[]): number {
+  const all = scaleNotes(style)
+  const idx = hits.length ? hits.map((h) => all.findIndex((m) => m >= h.midi)).filter((i) => i >= 0).sort((a, b) => a - b) : [Math.floor(all.length / 2)]
+  const mid = idx[Math.floor(idx.length / 2)] ?? Math.floor(all.length / 2)
+  return Math.max(0, Math.min(maxShift(style), mid - Math.floor(GRID_ROWS / 2)))
+}
+
+const byPos = (a: MelodyHit, b: MelodyHit) => a.pos - b.pos
+
+/** Deja la melodía en forma: de menor a mayor, una nota por columna, cada duración hasta la siguiente nota (como mucho) y dentro del loop. */
+export function normalize(hits: readonly MelodyHit[], bars: number): MelodyHit[] {
+  const total = bars * 16
+  const seen = new Set<number>()
+  const sorted = [...hits].filter((h) => h.pos >= 0 && h.pos < total).sort(byPos).filter((h) => (seen.has(colOfPos(h.pos)) ? false : (seen.add(colOfPos(h.pos)), true)))
+  return sorted.map((h, i) => {
+    const next = sorted[i + 1]?.pos ?? total
+    return { ...h, pos: colOfPos(h.pos) * STEPS_PER_COL, dur: Math.max(1, Math.min(h.dur, next - colOfPos(h.pos) * STEPS_PER_COL, total - colOfPos(h.pos) * STEPS_PER_COL)) }
+  })
+}
+
+/** La nota que empieza en la columna `col`, si hay. */
+export const noteAt = (hits: readonly MelodyHit[], col: number): MelodyHit | undefined => hits.find((h) => colOfPos(h.pos) === col)
+/** La nota que suena en la columna `col` (empiece ahí o venga de antes). */
+export const soundingAt = (hits: readonly MelodyHit[], col: number): MelodyHit | undefined =>
+  [...hits].sort(byPos).filter((h) => colOfPos(h.pos) <= col && col * STEPS_PER_COL < h.pos + h.dur).pop()
+
+/**
+ * Tocar la casilla (`col`, `midi`): vacía → pone la nota (una corchea); con esa misma altura → la quita; con otra altura en la misma columna → cambia la altura.
+ * Si la casilla estaba dentro de una nota larga, la larga se acorta hasta ahí.
+ */
+export function tapCell(hits: readonly MelodyHit[], col: number, midi: number, bars: number): MelodyHit[] {
+  if (col < 0 || col >= colsOf(bars)) return [...hits]
+  const here = noteAt(hits, col)
+  if (here && here.midi === midi) return normalize(hits.filter((h) => h !== here), bars)
+  if (here) return normalize(hits.map((h) => (h === here ? { ...h, midi } : h)), bars)
+  return normalize([...hits, { pos: col * STEPS_PER_COL, dur: DEFAULT_DUR, midi, strength: 0.8 }], bars)
+}
+
+/** Estira (o encoge) la nota que empieza en `col` hasta que ocupe hasta la columna `toCol` (incluida), sin pasar de la siguiente nota. */
+export function stretchNote(hits: readonly MelodyHit[], col: number, toCol: number, bars: number): MelodyHit[] {
+  const n = noteAt(hits, col)
+  if (!n) return [...hits]
+  const cols = Math.max(1, toCol - col + 1)
+  return normalize(hits.map((h) => (h === n ? { ...h, dur: cols * STEPS_PER_COL } : h)), bars)
+}
+
+/** El índice de fila (0 = la más grave de las visibles) de una altura, o −1 si no está en la ventana. */
+export const rowOf = (rows: readonly number[], midi: number): number => rows.indexOf(midi)
