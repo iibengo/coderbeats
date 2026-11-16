@@ -17,7 +17,7 @@ export interface Ghost extends P2 {
 
 /**
  * Dónde pone la nota fantasma: un punto de la curva a la altura de su franja (o lo más cerca que llegue la curva). Entre los puntos igual de buenos
- * elige el más cercano al anterior que quede a más de `2,5·r` de él (que una nota repetida no esté ya bajo el dedo); sin anterior, el más centrado.
+ * elige **el más cercano al anterior** (el punto se mueve poco y es fácil de seguir); si la nota es repetida, uno a más de `1,6·r`; sin anterior, el más centrado.
  */
 export function placeGhost(p: LissajousParams, w: number, h: number, idx: number, n: number, prev: P2 | null, phase: number, r = GHOST_R, steps = 192): Ghost {
   const y0 = noteY(idx, n, h)
@@ -30,9 +30,12 @@ export function placeGhost(p: LissajousParams, w: number, h: number, idx: number
   const tol = minDy + (h / Math.max(1, n)) * 0.4
   const good = cands.filter((c) => Math.abs(c.y - y0) <= tol)
   if (!prev) return good.reduce((b, c) => (Math.abs(c.x - w / 2) < Math.abs(b.x - w / 2) ? c : b), good[0]!)
-  const far = good.filter((c) => Math.hypot(c.x - prev.x, c.y - prev.y) >= 2.5 * r)
-  if (far.length) return far.reduce((b, c) => (Math.hypot(c.x - prev.x, c.y - prev.y) < Math.hypot(b.x - prev.x, b.y - prev.y) ? c : b), far[0]!)
-  return good.reduce((b, c) => (Math.hypot(c.x - prev.x, c.y - prev.y) > Math.hypot(b.x - prev.x, b.y - prev.y) ? c : b), good[0]!)
+  const dist = (c: P2) => Math.hypot(c.x - prev.x, c.y - prev.y)
+  // la nota repetida (misma altura que la anterior) cae un poco aparte, para no estar ya bajo el dedo; las demás, **lo más cerca de la anterior** (que el punto no salte de un lado a otro)
+  const repeated = Math.abs(prev.y - y0) < (h / Math.max(1, n)) * 0.6
+  const pool = repeated ? good.filter((c) => dist(c) >= 1.6 * r) : good
+  const from = pool.length ? pool : good
+  return from.reduce((b, c) => (dist(c) < dist(b) ? c : b), from[0]!)
 }
 
 export interface GuideState {

@@ -264,6 +264,7 @@ Todo en `main`, **sin push**; tests (1064), `nuxt typecheck` y `nuxt build` en v
 Tests (1074), typecheck y build en verde; comprobado en Chrome (`tests/browser/sintetizador.mjs`: el guiado de principio a fin, 15 aciertos con el dedo táctil → la melodía queda guardada en la célula). **Nada oído ni probado en un móvil.**
 
 - **Curva viva:** ocupa casi toda la pantalla, lila vivo en reposo y **rosa con brillo** al sonar; respira, gira despacio, se deforma con la nota, se estira hacia el dedo y cada nota lanza una onda de color que corre por la curva. Respeta el vigilante de frames (`drawLevel`: 0 todo, 1 sin brillos/deformación/ondas, 2 además sin respiración ni tirón) y el movimiento reducido. Arreglado: con a = b el Lissajous era una elipse sosa.
+- **Corregido tras tu prueba:** el punto saltaba y costaba seguirlo; ahora la curva no gira en el guiado, el punto se desliza, elige el sitio más cercano al anterior y se ve tenue la siguiente nota (spec 015 §13.3).
 - **Modo guiado (por defecto):** 6 temas de dominio público adaptados al estilo (Himno de la alegría, Sinfonía n.º 40, Fray Santiago, Estrellita, Para Elisa, Dies irae). La siguiente nota es **un punto de luz sobre la curva**; llevas el dedo y suena esa nota; la nota espera, y lo grabado son las posiciones del tema (encajado en ritmo y escala). Al acabar, queda como la melodía de la célula. «↻ Otra», «✋ Libre» (el de antes, con «● Grabar») y «🎯 Guiado».
 
 ## Decisiones a revisar

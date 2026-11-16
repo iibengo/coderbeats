@@ -53,23 +53,28 @@ const hOf = (midi: number | null) => {
   return i < 0 || notes.value.length < 2 ? 0.5 : i / (notes.value.length - 1)
 }
 const now = () => performance.now() / 1000
-const phaseAt = (t: number) => (props.reduced ? 0 : (t * Math.PI * 2) / 30)
+// en el guiado la curva no gira (el punto de luz se queda quieto y es fácil de seguir); en libre, gira despacio
+const phaseAt = (t: number) => (props.reduced || guided.value ? 0 : (t * Math.PI * 2) / 30)
 const breathAt = (t: number) => (props.reduced ? 1 : 1 + 0.03 * Math.sin((t * Math.PI * 2) / (120 / Math.max(40, bpm.value))))
 
 /** el punto `t` de la curva tal como se ve ahora (con respiración, giro, deformación y tirón del dedo) */
 function shown(t: number, tm: number): P2 {
   const base = curvePoint(params.value, t, size.w, size.h, phaseAt(tm), breathAt(tm))
   if (props.reduced || engine.drawLevel.value >= 2) return base
-  const d = deformOffset(base, t, size.w, { wobble: engine.drawLevel.value ? 0 : wobble, k: Math.max(0, notes.value.indexOf(lastNote ?? -1)), time: tm, finger: down.value ? fingerS : null, pull })
+  const d = deformOffset(base, t, size.w, { wobble: engine.drawLevel.value ? 0 : wobble, k: Math.max(0, notes.value.indexOf(lastNote ?? -1)), time: tm, finger: down.value && !guided.value ? fingerS : null, pull })
   return { x: base.x + d.x, y: base.y + d.y }
 }
+
+/** la nota fantasma: sobre la curva base (sin deformar ni tirar del dedo), así no se escapa */
+const ghostAt = (t: number): P2 => curvePoint(params.value, t, size.w, size.h, phaseAt(now()), 1)
+let ghostShown: P2 | null = null
 
 function placeNext() {
   if (!guided.value || gstate.done) return (ghost = null)
   const m = tuneHits.value[gstate.k]?.midi
   const idx = m === undefined ? -1 : notes.value.indexOf(m)
   if (idx < 0) return (ghost = null)
-  ghost = placeGhost(params.value, size.w, size.h, idx, notes.value.length, ghost ? shown(ghost.t, now()) : null, phaseAt(now()), GHOST_R)
+  ghost = placeGhost(params.value, size.w, size.h, idx, notes.value.length, ghost ? ghostAt(ghost.t) : null, phaseAt(now()), GHOST_R)
 }
 function restart() {
   gstate = { ...GUIDE_FRESH }
@@ -108,7 +113,7 @@ function sound(e: PointerEvent | null) {
   let force: number | undefined
   if (guided.value && !gstate.done && ghost) {
     const target = ghost.t
-    const r = guideStep(gstate, tuneHits.value.length, p, shown(target, now()))
+    const r = guideStep(gstate, tuneHits.value.length, p, ghostAt(target))
     if (r.hit) {
       force = tuneHits.value[gstate.k]!.midi
       gstate = r.state
@@ -238,23 +243,43 @@ function draw() {
     }
     x.globalAlpha = 1
   }
-  // la nota fantasma
+  // la nota fantasma (se desliza hasta su sitio) y, tenue, la siguiente, para ver adónde va
   if (ghost) {
-    const g = shown(ghost.t, tm)
+    const target = ghostAt(ghost.t)
+    ghostShown = ghostShown ? { x: ghostShown.x + (target.x - ghostShown.x) * (1 - Math.exp(-dt / 0.09)), y: ghostShown.y + (target.y - ghostShown.y) * (1 - Math.exp(-dt / 0.09)) } : target
+    const g = ghostShown
+    const nextMidi = tuneHits.value[gstate.k + 1]?.midi
+    const ni = nextMidi === undefined ? -1 : notes.value.indexOf(nextMidi)
+    if (ni >= 0) {
+      const nx = placeGhost(params.value, size.w, size.h, ni, notes.value.length, target, phaseAt(tm), GHOST_R)
+      const np = ghostAt(nx.t)
+      x.strokeStyle = 'rgba(255,255,255,0.25)'
+      x.setLineDash([4, 6])
+      x.lineWidth = 1.5
+      x.beginPath()
+      x.moveTo(g.x, g.y)
+      x.lineTo(np.x, np.y)
+      x.stroke()
+      x.setLineDash([])
+      x.fillStyle = 'rgba(255,255,255,0.35)'
+      x.beginPath()
+      x.arc(np.x, np.y, 4.5, 0, Math.PI * 2)
+      x.fill()
+    }
     const pulse = props.reduced ? 0 : Math.sin(tm * 5)
     x.shadowColor = '#ffffff'
     x.shadowBlur = level === 0 ? 22 : 0
     x.fillStyle = 'rgba(255,255,255,0.95)'
     x.beginPath()
-    x.arc(g.x, g.y, 7 + pulse * 1.5, 0, Math.PI * 2)
+    x.arc(g.x, g.y, 8 + pulse * 1.5, 0, Math.PI * 2)
     x.fill()
     x.shadowBlur = 0
-    x.strokeStyle = 'rgba(255,255,255,0.55)'
+    x.strokeStyle = 'rgba(255,255,255,0.6)'
     x.lineWidth = 1.5
     x.beginPath()
     x.arc(g.x, g.y, GHOST_R * (0.62 + pulse * 0.04), 0, Math.PI * 2)
     x.stroke()
-  }
+  } else ghostShown = null
   // la curva de luz del dedo
   if (!props.reduced) {
     for (let i = 1; i < trail.length; i++) {
@@ -288,7 +313,7 @@ onMounted(() => {
   raf = requestAnimationFrame(draw)
   engine.thereminShown.value = true
   // solo en desarrollo: las pruebas con Chrome necesitan saber dónde está la nota fantasma
-  if (import.meta.dev) (window as unknown as Record<string, unknown>).__thGhost = () => (ghost ? shown(ghost.t, now()) : null)
+  if (import.meta.dev) (window as unknown as Record<string, unknown>).__thGhost = () => (ghost ? ghostAt(ghost.t) : null)
 })
 onBeforeUnmount(() => {
   cancelAnimationFrame(raf)

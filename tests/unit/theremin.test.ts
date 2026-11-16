@@ -102,14 +102,14 @@ describe('curva viva', () => {
 
 describe('modo guiado', () => {
   const p = { a: 3, b: 2, phase: 1 }
-  it('la nota fantasma queda sobre la curva, a la altura de su franja y lejos de la anterior', () => {
+  it('la nota fantasma queda sobre la curva, a la altura de su franja y las repetidas, aparte de la anterior', () => {
     let prev: { x: number; y: number } | null = null
     for (const idx of [4, 4, 4, 5, 3]) {
       const g = placeGhost(p, 390, 800, idx, 8, prev, 0)
       const onCurve = curvePoint(p, g.t, 390, 800, 0)
       expect(onCurve.x).toBeCloseTo(g.x)
       expect(Math.abs(g.y - noteY(idx, 8, 800))).toBeLessThan(800 / 8)
-      if (prev) expect(Math.hypot(g.x - prev.x, g.y - prev.y)).toBeGreaterThanOrEqual(2.5 * GHOST_R - 1)
+      if (prev && idx === 4) expect(Math.hypot(g.x - prev.x, g.y - prev.y)).toBeGreaterThanOrEqual(1.6 * GHOST_R - 1)
       prev = g
     }
     expect(noteY(0, 8, 800)).toBeGreaterThan(noteY(7, 8, 800))
@@ -141,6 +141,28 @@ describe('Lissajous nunca degenera en elipse', () => {
     for (const t of TUNES) for (const s of ['hiphop90', 'house', 'dnb', 'dembow', 'techno'] as const) {
       const p = lissajousOf(adaptTune(t, s))
       expect(p.a, `${t.id} ${s}`).not.toBe(p.b)
+    }
+  })
+})
+
+describe('modo guiado: el punto no salta de un lado a otro', () => {
+  it('en cada tema y estilo, el salto medio entre notas fantasma es corto (< 45 % del ancho) y ninguno pasa del ancho', async () => {
+    const { TUNES, adaptTune } = await import('../../app/lib/tuneLibrary')
+    const { scaleNotes } = await import('../../app/lib/waterKeys')
+    for (const t of TUNES) for (const s of ['hiphop90', 'techno', 'dembow'] as const) {
+      const hits = adaptTune(t, s)
+      const list = scaleNotes(s)
+      const prm = lissajousOf(hits)
+      let prev: { x: number; y: number } | null = null
+      const hops: number[] = []
+      for (const h of hits) {
+        const g = placeGhost(prm, 390, 800, list.indexOf(h.midi), list.length, prev, 0)
+        if (prev) hops.push(Math.hypot(g.x - prev.x, g.y - prev.y))
+        prev = g
+      }
+      const mean = hops.reduce((a, b) => a + b, 0) / hops.length
+      expect(mean, `${t.id} ${s} media ${mean.toFixed(0)}`).toBeLessThan(390 * 0.45)
+      expect(Math.max(...hops), `${t.id} ${s}`).toBeLessThan(800)
     }
   })
 })
