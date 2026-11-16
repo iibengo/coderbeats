@@ -161,3 +161,26 @@ Todo en `main`, **sin push**; tests (1032), `nuxt typecheck` y `nuxt build` en v
 2. Tras la guía, ¿vuelven los botones y la melodía sugerida se entiende?
 3. **Agua viva:** arrastra el dedo en Jugar: ¿estela lila que se desvanece? En Componer con un remix (Beethoven), ¿puntitos rosa corriendo por los hilos? ¿Va igual de fluido con el interruptor apagado/encendido? Si va lento, ¿se apaga sola?
 4. Lo anterior (Agua legible, Producción en «Convertir en canción»…) sigue sin probar: ver la tanda 3.
+
+---
+
+# Quinta tanda (2026-11-16) — sin calibración obligatoria
+
+Escrito primero en **spec 001 §17** (flujo, modelo, cómo medirlo con tus tomas, propuesta de calibrar, latencia) y luego implementado. Tests (1043), typecheck y build en verde; comprobado en Chrome (`tests/browser/sin-calibrar.mjs`). **No probado con voces reales ni en el móvil.**
+
+- **`Empezar` → Estudio directo.** Latencia y sonidos ya no son obligatorios (se quitaron «Paso 1 de 2 / 2 de 2»); siguen en ⋯ («Medir latencia», «Calibrar mis sonidos») con «Ahora no» para volver. Quien ya tenía calibración la conserva y manda.
+- **Modelo por defecto** (`lib/defaultModel.ts`): 15 muestras sintéticas (5 por clase) en centroide + bandas + cruces por cero; los MFCC no pesan. Prototipos sacados de cómo se agrupan los golpes de tu toma «Beatbox solo».
+- **Medida con tus tomas** (`tests/unit/defaultModel.test.ts`, por subsecuencia común contra «bum pff ts» en bucle): en `t8` **29 golpes, precisión 76 %, cobertura 73 %** (los fallos son sobre todo colas del bum contadas como golpe aparte). Se salta si no están las tomas; `--silent=false` imprime la secuencia.
+- **«¿Te afino a tu voz?»** (`lib/modelFit.ts`): mediana de lo lejos que caen los últimos 12 golpes de su clase; > 0,45 → sale una vez (Sí → «Tus sonidos», «Ahora no» se recuerda). Beatbox: ~0,1; voz cantada: ~1,1.
+- **Latencia sin medir:** 50 ms; 180 ms si la salida parece Bluetooth (nombre de salida o latencia informada > 120 ms). iOS no da nombres de salida.
+
+## Decisiones a revisar
+- El **0,45** y los prototipos son una primera propuesta con **una sola voz** (la tuya, una toma): con otras voces o micros puede acertar menos; por eso la propuesta y ⋯.
+- Sin calibración **no hay filtro de golpes flojos** (no hay volumen de referencia): el ruido de fondo podría colar golpes; si pasa, dímelo y pongo un volumen de referencia por defecto.
+- 180 ms de Bluetooth es una estimación; «Medir latencia» en ⋯ lo ajusta.
+
+## Qué probar en el móvil, en orden
+1. **Borra los datos del sitio** y abre la app: `Empezar` → ¿llegas directo al Estudio, sin pasos? Dale a ▶ y haz «bum · pff · ts»: ¿se reconocen bombo, caja y platillo con tu voz **sin calibrar**? ¿Y con otra persona?
+2. Canta «na» o di algo que no sea beatbox varias veces: ¿sale «¿Te afino a tu voz?»? ¿«Sí» abre «Tus sonidos» y al guardar mejora? ¿«Ahora no» no vuelve a salir?
+3. Con cascos Bluetooth: ¿la imagen va por delante del sonido? ⋯ → «Medir latencia» ¿lo arregla? ¿Cuánto da frente a 180 ms?
+4. ⋯: la línea «Sonidos: modelo por defecto / calibrados» cambia al calibrar.
