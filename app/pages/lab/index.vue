@@ -8,11 +8,12 @@ import { onBeforeUnmount } from 'vue'
 definePageMeta({ ssr: false })
 useHead({ title: 'Laboratorio · coderbeats' })
 
-type Id = 'capas' | 'piano' | 'coro'
+type Id = 'capas' | 'piano' | 'coro' | 'circulo'
 const SCREENS: { id: Id; title: string; text: string }[] = [
   { id: 'capas', title: 'Capas', text: 'enciende y apaga bombo, caja, platillo, bajo, acordes y melodía (con DJ dentro)' },
   { id: 'piano', title: 'Piano mágico', text: 'cada toque, la siguiente nota de una melodía del estilo' },
   { id: 'coro', title: 'Coro', text: 'arrastra una voz y otras dos armonizan solas' },
+  { id: 'circulo', title: 'Círculo de ritmo', text: 'toca los anillos para poner golpes; ruedas para repartirlos (3 contra 4)' },
 ]
 const screen = ref<Id | null>(null)
 const engine = useAudioEngine()
@@ -42,6 +43,7 @@ onBeforeUnmount(() => engine.stopAll())
   <LabCapas v-if="screen === 'capas'" @back="back" />
   <LabPiano v-else-if="screen === 'piano'" @back="back" />
   <LabCoro v-else-if="screen === 'coro'" @back="back" />
+  <LabCirculo v-else-if="screen === 'circulo'" @back="back" />
   <main v-else class="mx-auto min-h-dvh max-w-xl bg-black px-4 py-8 text-white">
     <h1 class="mt-3 text-3xl font-medium tracking-tight">Laboratorio</h1>
     <p class="mt-1 text-white/60">Formas de tocar sin micro. Elige una; todas suenan con el motor de siempre.</p>
