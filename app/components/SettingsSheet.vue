@@ -302,6 +302,10 @@ watch(open, (o) => {
               Un grupo de una célula que suena en paralelo a la canción. En el mapa, un toque lo enciende o lo apaga.
             </span>
           </div>
+          <div class="flex items-center gap-3">
+            <button class="shrink-0 rounded-full border border-white/15 px-4 py-2" @click="engine.addMelodyCell(); open = false">+ melodía</button>
+            <span class="text-xs text-neutral-500">una célula para tocar la melodía con el dedo, como un sintetizador (arriba/abajo = nota, lados = filtro).</span>
+          </div>
           <p class="text-xs text-neutral-500">
             Arrastra en vertical sobre el agua para el filtro y en horizontal para el espacio. Dos dedos: fondo sí/no.
             Toca un loop para silenciarlo; mantenlo para borrarlo.

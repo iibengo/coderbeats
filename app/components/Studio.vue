@@ -264,7 +264,7 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
   <SettingsSheet v-model:open="settingsOpen" :renderer="renderer" :layout="layoutInfo" @recalibrate="(w) => emit('recalibrate', w)" @pilot="startPilot" @preview="startPreview()" @video="videoOpen = true" />
   <VideoSheet v-model:open="videoOpen" :exporter="exporter" />
   <button
-    v-if="tutorial.text.value && !pilotState.active"
+    v-if="tutorial.text.value && !pilotState.active && !engine.thereminShown.value"
     class="tutorial-line absolute left-1/2 z-10 -translate-x-1/2 rounded-full bg-black/45 px-5 py-2 text-sm text-white/90 backdrop-blur"
     style="bottom: calc(max(0.5rem, env(safe-area-inset-bottom)) + 150px)"
     aria-live="polite"
@@ -275,13 +275,13 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
     {{ tutorial.text.value.big }}<span v-if="tutorial.text.value.count" class="ml-3 text-xs text-white/50">{{ tutorial.text.value.count }}</span>
   </button>
   <!-- «¿Te afino a tu voz?» (spec 001 §17.4): solo si el modelo por defecto acierta poco -->
-  <div v-if="engine.calibNudge.value && !pilotState.active" class="absolute left-1/2 z-10 flex -translate-x-1/2 items-center gap-2 rounded-full bg-black/60 px-4 py-2 text-sm text-white/90 backdrop-blur" style="top: calc(max(0.5rem, env(safe-area-inset-top)) + 100px)" role="status">
+  <div v-if="engine.calibNudge.value && !pilotState.active && !engine.thereminShown.value" class="absolute left-1/2 z-10 flex -translate-x-1/2 items-center gap-2 rounded-full bg-black/60 px-4 py-2 text-sm text-white/90 backdrop-blur" style="top: calc(max(0.5rem, env(safe-area-inset-top)) + 100px)" role="status">
     <span class="whitespace-nowrap">¿Te afino a tu voz?</span>
     <button class="rounded-full bg-white px-3 py-1 text-xs font-medium text-black" @pointerdown.stop @click="engine.dismissCalibNudge(); engine.stop(); emit('recalibrate', 'sounds')">Sí</button>
     <button class="whitespace-nowrap px-2 py-1 text-xs text-white/60" @pointerdown.stop @click="engine.dismissCalibNudge()">Ahora no</button>
   </div>
   <!-- sin micro: se toca con el dedo -->
-  <p v-if="engine.noMic.value && !pilotState.active" class="pointer-events-none absolute left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-full bg-black/50 px-3 py-1 text-xs text-white/70" style="top: calc(max(0.5rem, env(safe-area-inset-top)) + 100px)" role="status">
+  <p v-if="engine.noMic.value && !pilotState.active && !engine.thereminShown.value" class="pointer-events-none absolute left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-full bg-black/50 px-3 py-1 text-xs text-white/70" style="top: calc(max(0.5rem, env(safe-area-inset-top)) + 100px)" role="status">
     Sin micro · dale a ▶ y toca con el dedo
   </p>
   <ConfirmDialog />

@@ -82,6 +82,9 @@ import { inDeadZone, type Rect } from '~/lib/stageFx'
 import FlowLayer from './FlowLayer.vue'
 import { veinDots, type VeinDot } from '~/lib/flow'
 import WaterKeysOverlay from './WaterKeysOverlay.vue'
+import ThereminOverlay from './ThereminOverlay.vue'
+import { lissajousOf } from '~/lib/theremin'
+import type { MelodyHit } from '~/lib/melody'
 
 const props = withDefaults(defineProps<{ themeId?: string }>(), { themeId: DEFAULT_THEME })
 const emit = defineEmits<{ preview: [] }>()
@@ -138,6 +141,10 @@ const soft = () => (mode.value === 'jugar' ? 1 - CALM_JUGAR : 1)
 const zoomBounds = computed(() => (mode.value === 'jugar' ? limits.value : { ...limits.value, min: fullLimits.value.min, max: COLONY_ENTER - 0.01 }))
 /** gestos de colonia (el mapa); la interfaz de cerca (bolas, chapa, marcadores) se oculta */
 const colony = ref(false)
+// célula de melodía (spec 015 §12): al entrar, la pantalla es un sintetizador; «✕» lo cierra hasta cambiar de célula
+const melCell = computed(() => engine.song.value.cells.find((c) => c.id === engine.viewCellId.value)?.kind === 'melodia')
+const thClosed = ref<number | null>(null)
+const thereminOpen = computed(() => melCell.value && thClosed.value !== engine.viewCellId.value && mode.value === 'jugar' && !colony.value && !engine.stageOn.value && !pilotState.active)
 /** centro de las columnas laterales en horizontal (Play, bajo y acordes a la derecha; estilo y bolas a la izquierda) */
 const sideX = computed(() => ({ left: safe.left + 40, right: view.w - safe.right - 48 }))
 
@@ -682,6 +689,7 @@ function cellScene(
           geo: placed.get(c.id)!,
           weights: weightsOf(c),
           dots: crowdDots(c),
+          ...(c.kind === 'melodia' ? { melody: lissajousOf((c.loops.find((l) => l.instrument === 'mel')?.hits ?? []) as MelodyHit[]) } : {}),
           ...(songHead && c.id === songHead.cellId
             ? { ring: 'on' as const, ringProgress: headProgress(songHead, c.turns) }
             : groupOfId.get(c.id)?.gid !== MAIN && groupOfId.get(c.id)
@@ -2157,6 +2165,7 @@ defineExpose({ videoSource, colonyPoints, pointOf: (voice: Voice, step: number) 
       </template>
       <button v-if="engine.playing.value" class="act-btn" :aria-label="mode === 'jugar' ? 'Escenario: toda la pantalla dispara golpes de efecto' : 'Efectos: los toques en el fondo disparan golpes de efecto'" @click="engine.setStage(true)">{{ mode === 'jugar' ? '⚡ Escenario' : '⚡ Efectos' }}</button>
       <button v-if="mode === 'jugar' && !pilotState.active && (engine.canConvert.value || engine.multi.value)" class="act-btn" aria-label="previsualizar: tu canción se construye sola" @click="emit('preview')">👁 Previsualizar</button>
+      <button v-if="mode === 'jugar' && melCell && !thereminOpen" class="act-btn" aria-label="abrir el sintetizador de dedo de esta célula" @click="thClosed = null">🎛 Tocar</button>
       <button v-if="mode === 'jugar' && engine.playing.value" class="act-btn" :data-on="engine.keysOn.value" aria-label="teclado de agua: tocar el fondo hace sonar notas de la escala" @click="engine.setKeys(!engine.keysOn.value)">🎹 Agua</button>
       <button v-if="mode === 'jugar' && engine.keysOn.value" class="act-btn" :data-on="!!engine.keysRec.value" :aria-label="engine.keysRec.value ? 'terminar y guardar lo tocado como melodía' : 'grabar lo que toques en el agua como melodía'" @click="engine.toggleKeysRec()">{{ engine.keysRec.value ? `■ ${engine.keysRec.value.count} notas` : '● Grabar' }}</button>
       <button v-if="mode === 'jugar' && (engine.canVoice.value || engine.voiceRec.value !== 'idle')" class="act-btn" :data-on="engine.voiceRec.value !== 'idle'" :aria-label="engine.voiceRec.value === 'idle' ? 'grabar tu voz en bucle (2 compases, con cascos)' : 'cancelar la grabación de voz'" @click="engine.recordVoice(2)">{{ engine.voiceRec.value === 'idle' ? '🎤 Voz' : engine.voiceRec.value === 'armed' ? 'Espera el compás…' : engine.voiceRec.value === 'recording' ? '● Cantando' : 'Guardando…' }}</button>
@@ -2234,6 +2243,8 @@ defineExpose({ videoSource, colonyPoints, pointOf: (voice: Voice, step: number) 
     <StageOverlay v-if="engine.stageOn.value" :reduced="reduced" />
 
     <WaterKeysOverlay v-if="engine.keysOn.value && mode === 'jugar' && !colony && !engine.stageOn.value" ref="keysOv" :reduced="reduced" :style-id="style" :recording="!!engine.keysRec.value" :bar="currentBar" :count="engine.keysRec.value?.count ?? 0" />
+
+ <ThereminOverlay v-if="thereminOpen" :reduced="reduced" :bar="currentBar" @close="thClosed = engine.viewCellId.value" />
 
     <MelodyOrgan v-if="organ" :origin="organ" @close="organ = null" />
   </div>

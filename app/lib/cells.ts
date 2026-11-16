@@ -46,6 +46,8 @@ export interface Cell {
   groupOn?: number[]
   /** Grupos en paralelo que **apaga** al empezar (spec 005, §22). Si un mismo grupo está en las dos, se reinicia. */
   groupOff?: number[]
+  /** célula de melodía (spec 015 §12): una libre que solo lleva melodía y se toca como un sintetizador. Opcional: lo guardado de antes no la trae. */
+  kind?: 'melodia'
   /** posición en el mapa (unidades = radio de una gota) y profundidad 0..1 (0 = delante) */
   at: { x: number; y: number; depth: number }
 }
@@ -265,6 +267,7 @@ const isCell = (x: unknown): x is Cell => {
   if (!isObj(parts) || typeof parts.bass !== 'boolean' || typeof parts.chords !== 'boolean') return false
   if (x.lpf !== undefined && !isLpf(x.lpf)) return false
   if (x.wow !== undefined && !isWow(x.wow)) return false
+  if (x.kind !== undefined && x.kind !== 'melodia') return false
   if ((x.groupOn !== undefined && !isGroupIds(x.groupOn)) || (x.groupOff !== undefined && !isGroupIds(x.groupOff))) return false
   const at = x.at
   if (!isObj(at) || !isNum(at.x) || !isNum(at.y) || !isNum(at.depth)) return false

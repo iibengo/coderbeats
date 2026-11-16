@@ -65,6 +65,8 @@ export interface AroPull {
 }
 
 /** La otra célula que se ve en una transición: la que entra (tenue) o la que se apaga. Solo se ve. */
+import { lissajousPoints, type LissajousParams } from '~/lib/theremin'
+
 export interface AroGhost {
   /**
    * Grupo en paralelo (§16): anillo a trazos si su grupo está apagado; si es la célula que suena de un grupo
@@ -76,6 +78,8 @@ export interface AroGhost {
   weights: Weights
   dots: AroDot[]
   alpha: number
+  /** célula de melodía (spec 015 §12): en vez de franjas y golpes, la curva de Lissajous de su melodía */
+  melody?: LissajousParams
 }
 
 /** Puente de agua entre dos gotas (spec 005, §5.2): tramo visible y brillo, de 0 (la que sale) a 1. */
@@ -691,6 +695,26 @@ export class AroCanvas {
     }
     x.save()
     x.globalAlpha = Math.min(1, g.alpha)
+    if (g.melody) {
+      // silueta y la curva de Lissajous de su melodía (cuesta ~64 segmentos, a cualquier nivel de detalle)
+      const sil = new Path2D()
+      contour(sil, 1, false)
+      x.fillStyle = 'rgba(255,255,255,0.05)'
+      x.fill(sil)
+      x.strokeStyle = 'rgba(255,255,255,0.4)'
+      x.lineWidth = 1.2
+      x.stroke(sil)
+      const pts = lissajousPoints(g.melody, 64)
+      const R = geo.core * 0.9
+      x.strokeStyle = 'rgba(255,255,255,0.85)'
+      x.lineWidth = 1.5
+      x.beginPath()
+      pts.forEach((p, i) => (i ? x.lineTo(geo.cx + p.x * R, geo.cy + p.y * R) : x.moveTo(geo.cx + p.x * R, geo.cy + p.y * R)))
+      x.stroke()
+      if (g.ring) this.strokeRing(contour, g.ring, g.ringProgress, geo)
+      x.restore()
+      return
+    }
     if (level >= 2) {
       // solo la silueta: un trazo y un relleno, sin franjas ni golpes
       const sil = new Path2D()

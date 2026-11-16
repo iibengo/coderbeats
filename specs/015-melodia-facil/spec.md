@@ -103,3 +103,31 @@ Probado en el móvil: «Agua» sonaba pero no se entendía (todo negro). Ahora, 
 
 ## 11. Implementado (2026-11-16): fase 2, el fluido (estela y venas)
 `lib/flow.ts` (puro, con tests) y `FlowLayer.vue` (canvas propio, sin recoger toques, solo dibuja si hay algo): **estela del dedo** en Jugar (lila, ≤28 puntos, 0,55 s, un dedo quieto no la llena) y **venas** en Componer (≤48 puntitos rosa que corren por los hilos entre células, 3 por hilo). **Rendimiento:** el vigilante de frames (`frameGovernor`) tiene un escalón nuevo, `flow`, que es **lo primero que se apaga y lo último que vuelve**; con movimiento reducido no se dibuja; y hay un interruptor **«Agua viva»** en ⋯ → ajustes (encendido por defecto, se guarda) para comparar en el móvil. Comprobado en Chrome (`tests/browser/flujo.mjs`: estela con el dedo y nada al soltar; venas en el remix de Beethoven; nada con el interruptor apagado). **Sin medir en móvil real**; coste a vigilar: un canvas extra a pantalla completa (a 1,5× de resolución como mucho).
+
+## 12. Célula de melodía: el sintetizador de dedo (2026-11-16, escrito antes de programar)
+
+**Por qué:** «🎹 Agua» es un teclado escondido en el fondo y no se sabe qué pulsar. La idea buena es otra: **una célula de melodía propia**, y al entrar en ella la pantalla entera es **un instrumento**. «🎹 Agua» se queda tal cual para comparar.
+
+### 12.1 Qué es
+- **Célula de melodía** (`Cell.kind = 'melodia'`, campo opcional: lo guardado de antes no cambia y se lee igual). Es una **célula libre** (grupo en paralelo, 005 §16) que solo lleva un loop de melodía; **«+ melodía»** (⋯) la crea y **entra** en ella.
+- **Se distingue** de las de batería: en el mapa, su silueta lleva dentro una **curva de Lissajous** blanca (el color de la melodía) en vez de franjas y golpes; la curva sale de **la propia melodía** (§12.4), así que cambia al grabar.
+- Entrar en ella (tocarla en el mapa, o crearla) abre el **sintetizador**; «✕» lo cierra y deja ver la célula (para reabrirlo: botón «🎛» en las acciones mientras se mira una célula de melodía).
+
+### 12.2 El sintetizador (como un theremín)
+- **Mantener y deslizar suena continuo**: un oscilador propio (no un golpe por nota) que **se desliza** entre notas. **Arriba/abajo = nota**, siempre **dentro de la escala del estilo** (la misma `scaleNotes` de §3; abajo grave, arriba agudo; cada nota ocupa una franja del mismo alto, con una **histéresis** del 20 % para que no tiemble en el borde). **A los lados = filtro** (el «wowo»: izquierda cálido, derecha brillante, `brightnessAtX`).
+- Al soltar, la nota se apaga con una cola corta. **No toca el reloj del motor** (un oscilador por Web Audio, sin pasar por Strudel): suena al instante aunque la música no suene.
+- Las salidas se registran para el micro (EchoGate) como en el agua.
+
+### 12.3 La curva de luz y la guía
+- **El dedo deja una curva de luz** (estela larga, ~1,4 s, 64 puntos máx., color por altura de la nota: rosa/lila/azul) que dibuja lo tocado; con movimiento reducido, solo el punto.
+- **Las notas de la escala, marcadas muy suaves**: una línea fina por nota con su nombre al borde; la nota que suena se enciende.
+- **Guía mínima**: «Desliza el dedo» hasta el primer toque (una vez por sesión). Nada más.
+
+### 12.4 Grabar
+- **«● Grabar»** apunta las notas (cada cambio de nota es un evento) y, al **«■»**, pasa a la célula como el loop de melodía (4 compases, **cuantizado** a semicorcheas por `keysToHits`, monofónico; sustituye al anterior con «deshacer»). Se ve en la **franja de melodía** del aro y en la curva de Lissajous del mapa.
+- Mientras graba, el rótulo cuenta el compás (n/4) y las notas, como en el agua.
+- **La curva** (`lissajousOf(hits)`): `x = sin(a·t + φ)`, `y = sin(b·t)`; `a` = notas distintas (1–5), `b` = 2 + (notas mod 4), `φ` según la primera nota. Determinista; sin melodía, una curva por defecto (3:2).
+
+### 12.5 Qué no hace (todavía)
+- Sin 3D ni giro con dos dedos; sin enlace vivo con la reproductora; **adjuntar a otra célula = fundir** (005 §21), ya existente. El glide y el sonido **no se han oído** (sin probar de oído).
+- El oscilador usa la onda del sinte del estilo (`lead`→cuadrada, `piano`→triangular, `pad`→sierra, `drone`→seno) con un filtro paso bajo; no es el sinte de Strudel, así que **al grabar y reproducir suena distinto** que mientras tocas (anotado para decidirlo de oído).

@@ -1,5 +1,6 @@
 import { computed, reactive, ref, shallowRef } from 'vue'
 import { brightnessAtX, keysToHits, noteAtY, scaleNotes, type KeyEvent } from '~/lib/waterKeys'
+import { midiToHz, noteIndexAt } from '~/lib/theremin'
 import { DEFAULT_PRODUCTION } from '~/lib/production'
 import { mergeCells as mergeCellsPure } from '~/lib/mergeCells'
 import { bluetoothWarning } from '~/lib/voiceWarn'
@@ -334,6 +335,11 @@ const keysHits = ref<MelodyHit[]>([])
 const keysLast = ref<{ n: number; midi: number }>({ n: 0, midi: 60 })
 let keyEvents: KeyEvent[] = []
 let lastKey = { midi: -1, at: 0 }
+/** el sintetizador de dedo (spec 015 §12): un oscilador continuo que se desliza entre notas de la escala */
+let thereminVoice: { osc: OscillatorNode; filter: BiquadFilterNode; gain: GainNode; idx: number | null } | null = null
+const thereminNote = ref<number | null>(null)
+/** el sintetizador está abierto (los avisos de Studio se esconden) */
+const thereminShown = ref(false)
 /** Escenario (spec 011 §13.1): la pantalla entera dispara golpes de efecto. */
 const stageOn = ref(false)
 const fxLimiter = new FxLimiter()
@@ -2688,6 +2694,63 @@ export function useAudioEngine() {
         voiceRec.value = 'idle'
         voiceCancel = false
       }
+    },
+    thereminNote,
+    thereminShown,
+    /** Empieza (o sigue) el sonido continuo del sintetizador: `fy` = altura (nota de la escala, con histéresis), `fx` = filtro. Devuelve la nota (MIDI) o null si no se puede. */
+    thereminMove: (fx: number, fy: number): number | null => {
+      const c = ctx
+      if (!c || c.state !== 'running' || !masterIn) return null
+      const notes = scaleNotes(style.value)
+      if (!notes.length) return null
+      const idx = noteIndexAt(fy, notes.length, thereminVoice?.idx ?? null)
+      const midi = notes[idx]!
+      const now = c.currentTime
+      if (!thereminVoice) {
+        const synth = STYLE_MUSIC[style.value].synth
+        const type = ({ piano: 'triangle', lead: 'square', pad: 'sawtooth', drone: 'sine' } as Record<string, OscillatorType>)[synth] ?? 'triangle'
+        const osc = new OscillatorNode(c, { type, frequency: midiToHz(midi) })
+        const filter = new BiquadFilterNode(c, { type: 'lowpass', frequency: brightnessAtX(fx), Q: 4 })
+        const gain = new GainNode(c, { gain: 0 })
+        osc.connect(filter).connect(gain).connect(masterIn)
+        osc.start()
+        gain.gain.setTargetAtTime(0.3, now, 0.02)
+        thereminVoice = { osc, filter, gain, idx: null }
+      }
+      const v = thereminVoice
+      v.filter.frequency.setTargetAtTime(brightnessAtX(fx), now, 0.03)
+      if (v.idx !== idx) {
+        v.osc.frequency.setTargetAtTime(midiToHz(midi), now, 0.025) // se desliza en vez de saltar
+        v.idx = idx
+        thereminNote.value = midi
+        keysLast.value = { n: keysLast.value.n + 1, midi }
+        toWorker({ type: 'output', times: [now + 0.01] })
+        if (keysRec.value && clock) {
+          keyEvents.push({ time: now, midi })
+          keysRec.value = { count: keyEvents.length }
+          keysHits.value = keysToHits(keyEvents, barTime(0), stepSeconds(), 4)
+        }
+      }
+      return midi
+    },
+    /** Suelta el dedo: la nota se apaga con una cola corta. */
+    thereminStop: () => {
+      const v = thereminVoice
+      thereminVoice = null
+      thereminNote.value = null
+      if (!v || !ctx) return
+      const now = ctx.currentTime
+      v.gain.gain.cancelScheduledValues(now)
+      v.gain.gain.setTargetAtTime(0, now, 0.06)
+      v.osc.stop(now + 0.5)
+      setTimeout(() => { try { v.osc.disconnect(); v.filter.disconnect(); v.gain.disconnect() } catch { /* ya soltado */ } }, 700)
+    },
+    /** «+ melodía»: crea una célula libre de tipo melodía y entra en ella. */
+    addMelodyCell: (): number | null => {
+      const id = addGroupCell()
+      if (id === null) return null
+      song.value = { ...song.value, cells: song.value.cells.map((c) => (c.id === id ? { ...c, kind: 'melodia' as const } : c)) }
+      return id
     },
     keysOn,
     keysRec,
