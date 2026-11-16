@@ -3,6 +3,7 @@
 import { STYLES } from '~/lib/constants'
 import { needsPick } from '~/lib/ui'
 import { LoopHistory, loopsSignature } from '~/lib/loopHistory'
+import { GUARDAR_MS, PORTADA_LINE, portadaStep } from '~/lib/portadaGuide'
 import { makeSaved, newId, replaceSong } from '~/lib/library'
 import { readText, writeText } from '~/lib/storage'
 import type { StyleId } from '~/lib/types'
@@ -100,13 +101,32 @@ onBeforeUnmount(() => {
 // ── compartir en vídeo (la exportación de siempre, con lo mínimo) ──
 const videoOpen = ref(false)
 const exporter = useVideoExport(() => (stage.value as unknown as { videoSource: () => never } | null)?.videoSource() ?? null, () => Promise.resolve())
+if (import.meta.dev && import.meta.client) (window as unknown as Record<string, unknown>).__video = exporter
+
+/** ¿ya se eligió estilo? Con algo hecho o sonando, no se pregunta */
+const picked = ref(!needsPick({ loops: engine.loops.value.loops.length, cells: engine.song.value.cells.length, playing: playing.value }))
+
+// ── la guía de los dos primeros minutos: una frase cada vez (se recuerda cuando se acaba) ──
+const GUIDE_KEY = 'coderbeats:portada:guide:v1'
+const guideDone = ref(readText(GUIDE_KEY) === 'done')
+const fingered = ref(engine.loops.value.loops.some((l) => l.instrument === 'mel'))
+const hasRhythm = computed(() => engine.loops.value.loops.some((l) => l.instrument !== 'mel' && l.hits.length > 0))
+const step = computed(() => portadaStep({ picked: picked.value, fingered: fingered.value || engine.thereminNote.value !== null, rhythm: hasRhythm.value, finished: guideDone.value }))
+let guideTimer: ReturnType<typeof setTimeout> | undefined
+watch(step, (st) => {
+  if (st === 'guardar') guideTimer = setTimeout(endGuide, GUARDAR_MS)
+})
+watch(() => engine.thereminNote.value, (n) => n !== null && (fingered.value = true))
+function endGuide() {
+  guideDone.value = true
+  writeText(GUIDE_KEY, 'done')
+}
+onBeforeUnmount(() => clearTimeout(guideTimer))
 
 const spiralEl = ref<InstanceType<typeof ThereminOverlay> | null>(null)
 const menuOpen = ref(false)
 const libraryOpen = ref(false)
 const aboutOpen = ref(false)
-/** ¿ya se eligió estilo? Con algo hecho o sonando, no se pregunta */
-const picked = ref(!needsPick({ loops: engine.loops.value.loops.length, cells: engine.song.value.cells.length, playing: playing.value }))
 
 const STYLE_CARDS: { id: StyleId; name: string; hint: string }[] = [
   { id: 'hiphop90', name: 'Hip hop', hint: '90 bpm · suave' },
@@ -145,19 +165,19 @@ function toEstudio() {
     </button>
 
     <!-- 2 · la espiral: pon el dedo en el agua; las notas del tema vienen a él -->
-    <div v-if="picked" class="absolute right-0 left-0" style="top: 56px; bottom: 164px">
-      <ThereminOverlay ref="spiralEl" bare :reduced="reduced" :bar="engine.currentBar.value" />
+    <div v-if="picked && (hasRhythm || guideDone || fingered)" class="absolute right-0 left-0" style="top: 56px; bottom: 164px">
+      <ThereminOverlay ref="spiralEl" bare @touch="fingered = true" :reduced="reduced" :bar="engine.currentBar.value" />
     </div>
 
     <!-- 3 · ritmo: tu voz (siempre escuchando) o las tres pastillas -->
     <div v-if="picked" class="absolute right-0 left-0" style="bottom: calc(max(0.75rem, env(safe-area-inset-bottom)) + 64px)">
-      <p v-if="!engine.loops.value.loops.length" class="mb-1.5 text-center text-xs text-white/50">Tu voz — bum · pff · ts — o toca aquí</p>
+      <p v-if="step !== 'hecho' && step !== 'estilo'" data-guide class="mb-1.5 text-center text-sm text-white/70" role="status" aria-live="polite">{{ PORTADA_LINE[step] }}</p>
       <PadsRow />
     </div>
 
     <!-- 4 · abajo: deshacer, otra melodía, parar / seguir, compartir -->
     <div v-if="picked" class="absolute right-0 left-0 flex items-center justify-between gap-2 px-3" style="bottom: max(0.75rem, env(safe-area-inset-bottom))" @pointerdown.stop>
-      <div class="flex w-24 gap-1">
+      <div class="flex w-20 gap-1">
         <button class="h-11 w-11 rounded-full border border-white/20 text-lg text-white disabled:opacity-30" :disabled="!canUndo" aria-label="deshacer lo último que hice" @click="undo">↶</button>
         <button v-if="canRedo" class="h-11 w-11 rounded-full border border-white/20 text-lg text-white" aria-label="volver a poner lo que quité" @click="redo">↷</button>
       </div>
@@ -166,8 +186,8 @@ function toEstudio() {
         <span v-if="!playing">▶</span>
         <span v-else>■</span>
       </button>
-      <div class="flex w-24 justify-end">
-        <button class="h-11 rounded-full bg-white px-4 text-sm font-medium text-black" aria-label="compartir en vídeo" @click="videoOpen = true">🎬</button>
+      <div class="flex justify-end">
+        <button class="h-11 whitespace-nowrap rounded-full bg-white px-4 text-sm font-medium text-black" aria-label="compartir en vídeo: mi reel" @click="videoOpen = true; endGuide()">🎬 Mi reel</button>
       </div>
     </div>
     <p v-if="savedFlash" class="pointer-events-none absolute left-1/2 -translate-x-1/2 text-xs text-white/50" style="bottom: calc(max(0.75rem, env(safe-area-inset-bottom)) + 52px)" role="status">● guardado</p>

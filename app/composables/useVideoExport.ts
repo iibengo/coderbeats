@@ -3,6 +3,7 @@
  * Un lienzo de salida 2D se redibuja cada frame (también si la escena está quieta) copiando los lienzos de la escena justo después de pintarlos; el audio sale de una derivación del
  * final de la cadena maestra (el micro no entra). Fases 1–3 (célula actual, formatos, canción completa); la previsualización (fase 4) y probar en iOS quedan pendientes.
  */
+import { STYLES } from '~/lib/constants'
 import { reactive } from 'vue'
 import { songBars } from '~/lib/cells'
 import { MAX_SECONDS, AUDIO_BPS, coverRect, estimateBytes, fileName, outputSize, pickMime, secondsFor, VIDEO_BPS, type VideoFormat, type VideoSize } from '~/lib/videoExport'
@@ -27,6 +28,8 @@ export interface VideoOptions {
   size: VideoSize
   fps: 30 | 60
   mark: boolean
+  /** arriba, el estilo y los BPM, como en los reels de ritmos en círculo (spec 016 §2b) */
+  header?: boolean
 }
 
 let stopFlag: (() => void) | null = null
@@ -88,6 +91,12 @@ export function useVideoExport(getSource: () => Source | null, runPreview?: () =
           if (!cv || !cv.width) continue
           const k = cv.width / s.width
           g.drawImage(cv, r.sx * k, r.sy * (cv.height / s.height), r.sw * k, r.sh * (cv.height / s.height), 0, 0, w, h)
+        }
+        if (o.header) {
+          g.font = `600 ${Math.round(w / 20)}px system-ui, sans-serif`
+          g.fillStyle = 'rgba(255,255,255,0.9)'
+          g.textAlign = 'center'
+          g.fillText(`${STYLES[engine.style.value].label.toUpperCase()}  ·  ${engine.bpm.value} BPM`, w / 2, Math.round(h * 0.085))
         }
         if (o.mark) {
           g.font = `500 ${Math.round(w / 34)}px system-ui, sans-serif`

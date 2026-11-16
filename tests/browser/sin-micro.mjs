@@ -14,7 +14,7 @@ const err = await p.evaluate(() => document.body.innerText); console.log(JSON.st
 console.log('error visible:', /micro/i.test(err), '| botón sin micro:', await click('Entrar sin micro'))
 await sleep(9000)
 const st = await p.evaluate(() => ({ text: document.body.innerText, loops: window.__engine?.loops?.value?.loops?.length, noMic: window.__engine?.noMic?.value }))
-console.log('noMic', st.noMic, '| loops', st.loops, '| rótulo', /Sin micro/.test(st.text), '| guía beatbox', /bum · pff/.test(st.text))
+console.log('noMic', st.noMic, '| loops', st.loops, '| pastillas', /bum/.test(st.text), '| guía beatbox', /bum · pff/.test(st.text))
 await p.screenshot({ path: `${process.env.OUT || '/tmp'}/sin-micro.png` })
 console.log('errores', errs)
 await b.close()

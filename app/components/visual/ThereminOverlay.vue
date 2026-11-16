@@ -12,7 +12,7 @@ import type { MelodyHit } from '~/lib/melody'
 
 /** `bare`: dentro de la portada (spec 016): solo la espiral, sin fondo ni botones; los controles los pone quien la usa */
 const props = defineProps<{ reduced: boolean; bar: number; bare?: boolean }>()
-const emit = defineEmits<{ close: [] }>()
+const emit = defineEmits<{ close: []; touch: [] }>()
 const engine = useAudioEngine()
 const { style, playing, keysRec, loops, bpm } = engine
 
@@ -192,6 +192,7 @@ function onDown(e: PointerEvent) {
     /* sin captura */
   }
   touched.value = true
+  emit('touch')
   down.value = true
   fingerS = pos(e)
   if (spiral.value && !sync) startSync()
@@ -515,7 +516,7 @@ defineExpose({ otherTune, tuneName: computed(() => tune.value.name) })
         </button>
       </template>
     </div>
-    <p v-if="spiral" class="tag" role="status">
+    <p v-if="spiral && !(bare && !touched)" class="tag" role="status">
       {{ tune.name }} · {{ arrived }}/{{ tuneHits.length }}
       <span v-if="finished" class="sub">¡Melodía guardada en la célula!</span>
       <span v-else-if="!touched" class="sub">{{ bare ? 'Pon el dedo en el agua y muévelo' : 'Pon el dedo y muévelo sin levantar: las notas vienen a él' }}</span>

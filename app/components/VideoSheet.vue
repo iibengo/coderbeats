@@ -19,7 +19,9 @@ const supported = import.meta.client ? props.exporter.supported() : true
 
 async function go() {
   open.value = false
-  await props.exporter.start({ what: what.value, bars: bars.value, format: format.value, size: size.value, fps: 30, mark: mark.value })
+  // «Mi reel» (portada): vertical, ≥ 10 s (4 compases, 8 si el tempo es rápido), estilo y BPM arriba y la marca discreta
+  const reelBars = engine.bpm.value > 110 ? 8 : 4
+  await props.exporter.start(props.simple ? { what: 'cell', bars: reelBars, format: 'vertical', size: 720, fps: 30, mark: true, header: true } : { what: what.value, bars: bars.value, format: format.value, size: size.value, fps: 30, mark: mark.value })
   if (state.phase === 'done' || state.phase === 'error') open.value = true
 }
 </script>
@@ -35,7 +37,7 @@ async function go() {
       <div class="absolute inset-0 bg-black/50" @click="open = false" />
       <section class="relative max-h-[85dvh] w-full overflow-y-auto rounded-t-2xl border-t border-white/10 bg-[#121217] px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] text-sm" @pointerdown.stop>
         <div class="mx-auto mb-3 h-1 w-10 rounded-full bg-white/20" />
-        <h2 class="mb-3 text-xs tracking-wide text-neutral-400 uppercase">Exportar vídeo</h2>
+        <h2 class="mb-3 text-xs tracking-wide text-neutral-400 uppercase">{{ simple ? 'Mi reel' : 'Exportar vídeo' }}</h2>
         <p v-if="!supported" class="mb-3 text-amber-300">Este navegador no puede grabar vídeo con sonido.</p>
         <template v-else>
           <div v-if="!simple" class="mb-3 grid gap-3">
@@ -55,7 +57,7 @@ async function go() {
           </div>
           <p class="mb-3 text-xs text-neutral-500">≈ {{ seconds.toFixed(0) }} s · ≈ {{ formatMB(props.exporter.estimate(seconds, size)) }} · empieza en la siguiente línea de compás; sale la pantalla sin botones y el audio de la app (no el micro).</p>
           <p v-if="state.phase === 'error'" class="mb-3 text-amber-300" role="alert">{{ state.message }}</p>
-          <button class="w-full rounded-full bg-white px-4 py-3 font-medium text-black" @click="go">● Grabar</button>
+          <button class="w-full rounded-full bg-white px-4 py-3 font-medium text-black" @click="go">{{ simple ? '● Grabar mi reel' : '● Grabar' }}</button>
           <div v-if="state.phase === 'done'" class="mt-4 rounded-xl bg-white/5 p-3">
             <p class="mb-2 truncate text-white">{{ state.name }} · {{ formatMB(state.bytes) }}</p>
             <video :src="state.url" controls playsinline class="mb-2 max-h-60 w-full rounded-lg bg-black" />

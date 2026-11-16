@@ -53,7 +53,7 @@ async function onStart(noMic = false) {
     <button v-if="canSkipMic" class="rounded-full border border-white/20 px-5 py-2 text-sm" :disabled="busy" @click="onStart(true)">
       Entrar sin micro
     </button>
-    <p v-if="canSkipMic" class="max-w-xs text-xs text-neutral-500">Verás una demo y podrás tocar con el dedo («🎹 Agua», «⚡ Escenario», el aro).</p>
+    <p v-if="canSkipMic" class="max-w-xs text-xs text-neutral-500">Verás una demo y podrás tocar con el dedo (la espiral y las pastillas).</p>
     <p class="max-w-xs text-xs text-neutral-500">
       Mejor con cascos con cable.
     </p>

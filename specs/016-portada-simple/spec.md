@@ -14,6 +14,12 @@ coderbeats ya hace muchas cosas (Jugar y Componer, células y grupos, Escenario,
 
 Cualquier cosa que no ayude a una de las tres se queda fuera de la portada.
 
+## 2b. Ajuste (2026-11-16, tras ver muchos reels de Instagram de ritmos en círculo)
+Esos vídeos son **para mirar, no para tocar**. **Nuestra diferencia es que el ritmo lo haces tú con la boca.** Por eso:
+1. **La voz va primero.** Lo primero que se invita a hacer es **«Haz bum · pff · ts»**, y tus golpes **aparecen al instante en el círculo**. **La espiral de melodía viene después**, como segundo paso (no aparece hasta que hay ritmo).
+2. **El vídeo es el gancho:** el de la portada queda **como esos reels** (círculo limpio, golpes de colores, aguja, **el estilo y los BPM arriba**), pero hecho con tu voz. El botón se llama **«🎬 Mi reel»**.
+3. Apuntado para más adelante (sin programar): mando de consola y polirritmos (§13).
+
 ## 3. Principio: fácil pero **mío**
 El riesgo de lo fácil es que la app parezca tocar sola. Reglas para que se note que **lo has hecho tú**:
 - **La base es la única cosa que pone la app** (bajo y acordes del estilo, y un pulso suave). **Todo lo demás que se oye es un gesto tuyo.** Si no tocas ni cantas, la melodía y el ritmo no aparecen.
@@ -36,11 +42,12 @@ El riesgo de lo fácil es que la app parezca tocar sola. Reglas para que se note
 └────────────────────────────────┘
 ```
 1. **Estilo.** Al abrir, cinco tarjetas grandes (hip hop, house, dnb, dembow, techno). Al tocar una, **empieza a sonar la base** y la pantalla pasa a «tocar». Se puede cambiar de estilo cuando sea (conserva lo que hiciste, adaptado a la escala nueva).
-2. **Melodía: la espiral.** «Pon el dedo en el agua.» Mantener y mover sin levantar: las notas del tema vienen al dedo y suenan al llegar (015 §14). «↻» cambia de tema (los 6 de la biblioteca, adaptados al estilo). Al acabar el tema, **queda como la melodía de la canción** y se puede volver a tocar encima (sustituye con deshacer).
+2. **Ritmo primero.** (Ver abajo, «Ritmo».) La espiral aparece cuando hay ritmo.
+2b. **Melodía: la espiral.** «Ahora pon el dedo en el agua.» Mantener y mover sin levantar: las notas del tema vienen al dedo y suenan al llegar (015 §14). «↻» cambia de tema (los 6 de la biblioteca, adaptados al estilo). Al acabar el tema, **queda como la melodía de la canción** y se puede volver a tocar encima (sustituye con deshacer).
 3. **Ritmo.** El micro está **siempre escuchando**: «bum · pff · ts» entra directo. Para quien no tenga micro o esté en un sitio con gente, **tres pastillas** (bum, pff, ts) en la parte baja que se tocan con el dedo y entran igual en el loop. Sin calibración obligatoria (como hoy: modelo por defecto, y «¿te afino a tu voz?» si no acierta).
-4. **Guardar y compartir.** Se guarda **solo** como «Mi canción» (la biblioteca de siempre). **🎬 Compartir** abre la exportación de vídeo actual (vertical/cuadrado, con el agua y tu audio) con el mínimo de opciones; el enlace de la canción queda en «más».
+4. **Guardar y compartir.** Se guarda **solo** como «Mi canción» (la biblioteca de siempre). **🎬 Mi reel** graba un vídeo vertical **como un reel**: el círculo limpio con tus golpes de colores y la aguja, **el estilo y los BPM arriba** (`header`), 4 u 8 compases (≥ 10 s) y tu audio; sin opciones. El enlace de la canción queda en «más».
 
-**Los dos primeros minutos guiados** (sustituyen a la guía y al tutorial actuales en la portada): una sola frase cada vez, tenue — «Elige cómo suena» → «Pon el dedo en el agua» → «Ahora tu voz: bum · pff · ts» → «Guárdalo o compártelo».
+**Los dos primeros minutos guiados** (sustituyen a la guía y al tutorial actuales en la portada): una sola frase cada vez, tenue — «Elige cómo suena» → **«Haz bum · pff · ts»** → «Ahora pon el dedo en el agua» → «Se guarda solo. Compártelo con 🎬 Mi reel».
 
 ## 5. Lo que entra en la portada
 | Pieza | De dónde sale | Qué cambia |
@@ -98,3 +105,10 @@ Melodía sin tema (§9.2) · más temas en la biblioteca y por estilo (que cada 
 - **Espiral en la portada** (`ThereminOverlay` con `bare`): el dedo pone el brillo (x) y la **octava** (y: `octaveZone`, `shiftToList`: la nota desplazada es siempre una del sinte; si no cabe, la octava más cercana que sí); lo grabado es **lo que sonó** (`interpretedHits`).
 - **Melodía en el compás** (`ui.syncMelody`, por defecto **encendida**; «⋯» de la portada y ajustes del Estudio): el motor **no cambia**; la espiral **lee** el reloj (`engine.barClock()`), el tema **empieza en la primera línea de compás con ≥ 1,2 s por delante** (`syncStart`) y cada nota se **programa a su hora de audio** (`thereminAt`, hasta 150 ms antes), con el paso del motor (`stepSec`); la imagen va corrida por la latencia de salida. Al acabar cada vuelta, lo que sonó pasa a ser la melodía del loop **con la fase del compás de salida** (`phaseBarOf`: el loop suena (g − fase) mod 4, así cae donde se tocó). Sin música, con varias células o con la opción apagada: el reloj propio de antes. **Comprobado:** 64 notas programadas en Chrome con **desvío 0,00 ms** respecto a la rejilla de pasos del motor; test de que la melodía con fase suena en los compases correctos (Strudel evaluado); tests de `syncStart`, vueltas y finales de nota.
 - **Mientras tocas en vivo, y ya hay una melodía grabada, suenan las dos** (la grabada y tu voz de sintetizador): la grabada es tu vuelta anterior, así que se superponen. Decisión a oír (ESTADO).
+
+## 13. Para más adelante (apuntado, **sin programar**)
+- **Mando de consola (Gamepad API):** tocar con un mando: los botones como pastillas (bum · pff · ts), un stick para el dedo de la espiral (brillo y octava). Pensar el mapeo y la latencia (el mando se lee por fotograma).
+- **Polirritmos («3 contra 4»):** un estilo cuyos loops tienen pulsos distintos (3 y 4 pasos por vuelta) que **se vea en el círculo** (dos anillos con aguja propia que se alinean cada 12 pasos). Exige loops de longitud no potencia de 2 (hoy 1, 2 o 4 compases de 16 pasos): decidir si es un tipo de loop nuevo.
+
+## 14. Implementado: fases 3, 4 y 5 (2026-11-16)
+Pastillas (`tapPad`), ↶ ↷ (`LoopHistory`), guardado automático como «Mi canción» (como mucho 3 s tras el primer cambio), **«🎬 Mi reel»** (`header` en `useVideoExport`: estilo y BPM arriba) y la **guía en el orden nuevo** (`portadaStep`: estilo → voz → dedo → guardar). **La espiral solo aparece cuando hay ritmo.**
