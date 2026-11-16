@@ -2429,7 +2429,7 @@ export function useAudioEngine() {
       const hadSuggestion = !!suggestion.value
       if (hadSuggestion) acceptSuggestion()
       const base = liveSong()
-      const next = convertToSong(base, style.value)
+      const next = convertToSong(base, style.value, production.value ? { variation: true, transitions: true } : {})
       if (!next) {
         say('Hace falta un ritmo para convertirlo en canción')
         return false

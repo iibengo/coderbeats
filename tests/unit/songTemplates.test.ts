@@ -110,3 +110,42 @@ describe('Convertir en canción (spec 011 §14.2, 012 §6): una receta de variac
     expect(bd(starts.Drop!, starts.Drop! + 8)).toBeGreaterThan(0)
   })
 })
+
+describe('reglas de producción en las plantillas (spec 014, fases 1b y 3): solo con la opción', () => {
+  const noMel = (song: Song): Song => ({ ...song, cells: song.cells.map((c) => ({ ...c, loops: c.loops.filter((l) => l.instrument !== 'mel') })) })
+  const songs: Song[] = [full('techno', 'dies'), noMel(full('techno', 'dies'))]
+  it('sin opciones, el resultado es idéntico al de siempre', () => {
+    for (const song of songs) expect(convertToSong(song, 'techno', {})).toEqual(convertToSong(song, 'techno'))
+  })
+  it('con la opción: la subida lleva el barrido (riser) y el impacto si no tiene melodía; ids únicos; el Drop conserva sus ids y la caja llega a 4 compases con fill', () => {
+    let risers = 0
+    for (const song of songs) {
+      const out = convertToSong(song, 'techno', { variation: true, transitions: true })!
+      expect(out).not.toBeNull()
+      expect(isSong(out)).toBe(true)
+      const ids = out.cells.flatMap((c) => c.loops.map((l) => l.id))
+      expect(new Set(ids).size).toBe(ids.length)
+      const r = out.cells.find((c) => c.name === 'Subida')?.loops.find((l) => l.synth === 'riser')
+      if (r) {
+        expect(r.hits.map((h) => h.pos)).toEqual([48, 63])
+        risers++
+      }
+      const drop = out.cells.find((c) => c.name === 'Drop')!
+      expect(drop.loops.map((l) => l.id)).toEqual(song.cells[0]!.loops.map((l) => l.id))
+      const sd = drop.loops.find((l) => l.instrument === 'sd')
+      expect(sd?.bars).toBe(4)
+      expect(sd?.hits.some((h) => h.pos >= 56)).toBe(true)
+    }
+    expect(risers).toBeGreaterThan(0)
+  })
+  it('lo convertido se toca en Strudel: la subida suena con ruido (riser) y la canción completa tiene golpes', async () => {
+    const out = convertToSong(songs[1]!, 'techno', { variation: true, transitions: true })!
+    const code = songCode(
+      { loops: [], style: 'techno', kit: 'electro', background: { mode: 'manual', parts: { bass: false, chords: false } }, metronome: false, fx: { filter: 1, space: 0, warmth: 0 }, cells: { list: out.cells, order: out.order, window: [] } },
+      'display',
+    )
+    const ev = await events(code, songBars(out))
+    expect(ev.length).toBeGreaterThan(100)
+    expect(ev.some((e) => e.value.s === 'pink')).toBe(true)
+  })
+})
