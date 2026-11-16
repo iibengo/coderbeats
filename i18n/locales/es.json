@@ -1,40 +1,181 @@
 {
-  "app": { "back": "← Menú", "menuAria": "volver al menú", "stopAll": "parar todo", "play": "tocar", "estudio": "Estudio" },
+  "app": {
+    "back": "← Menú",
+    "menuAria": "volver al menú",
+    "stopAll": "parar todo",
+    "play": "tocar",
+    "estudio": "Estudio"
+  },
   "lab": {
     "title": "Laboratorio",
     "intro": "Formas de tocar sin micro. Elige una; todas suenan con el motor de siempre.",
     "screens": {
-      "capas": { "title": "Capas", "text": "enciende y apaga bombo, caja, platillo, bajo, acordes y melodía (con DJ dentro)" },
-      "piano": { "title": "Piano mágico", "text": "cada toque, la siguiente nota de una melodía del estilo" },
-      "coro": { "title": "Coro", "text": "arrastra una voz y otras dos armonizan solas" },
-      "circulo": { "title": "Círculo de ritmo", "text": "toca los anillos para poner golpes; ruedas para repartirlos (3 contra 4)" },
-      "remixes": { "title": "Remixes", "text": "elige una canción y actúa sus partes: intro, subida, drop y final" }
+      "capas": {
+        "title": "Capas",
+        "text": "enciende y apaga bombo, caja, platillo, bajo, acordes y melodía (con DJ dentro)"
+      },
+      "piano": {
+        "title": "Piano mágico",
+        "text": "cada toque, la siguiente nota de una melodía del estilo"
+      },
+      "coro": {
+        "title": "Coro",
+        "text": "arrastra una voz y otras dos armonizan solas"
+      },
+      "circulo": {
+        "title": "Círculo de ritmo",
+        "text": "toca los anillos para poner golpes; ruedas para repartirlos (3 contra 4)"
+      },
+      "remixes": {
+        "title": "Remixes",
+        "text": "elige una canción y actúa sus partes: intro, subida, drop y final"
+      }
     },
-    "capas": { "phrase": "Toca los círculos para encender y apagar capas. Empieza con el ritmo; el resto lo pones tú.", "pad": " (mando: A B X Y, LB, RB)", "mineRhythm": "mi\nritmo", "mineMelody": "mi\nmelodía" },
-    "piano": { "phrase": "Toca donde sea: cada toque es la siguiente nota. Tú marcas el ritmo.", "pad": " (mando: cualquier botón)", "other": "otra melodía ↻", "tapAnywhere": "toca donde quieras" },
-    "coro": { "phrase": "Arrastra el dedo: arriba agudo, abajo grave. Las otras voces armonizan solas.", "drag": "arrastra el dedo" },
+    "capas": {
+      "phrase": "Toca los círculos para encender y apagar capas. Empieza con el ritmo; el resto lo pones tú.",
+      "pad": " (mando: A B X Y, LB, RB)",
+      "mineRhythm": "mi\nritmo",
+      "mineMelody": "mi\nmelodía"
+    },
+    "piano": {
+      "phrase": "Toca donde sea: cada toque es la siguiente nota. Tú marcas el ritmo.",
+      "pad": " (mando: cualquier botón)",
+      "other": "otra melodía ↻",
+      "tapAnywhere": "toca donde quieras"
+    },
+    "coro": {
+      "phrase": "Arrastra el dedo: arriba agudo, abajo grave. Las otras voces armonizan solas.",
+      "drag": "arrastra el dedo"
+    },
     "circulo": {
       "phraseDots": "Toca los anillos para poner o quitar golpes. Cada instrumento forma su figura.",
       "phraseWheels": "Arrastra alrededor de un anillo: más vueltas, más golpes, repartidos a partes iguales.",
-      "dots": "puntos", "wheels": "ruedas", "exact": "exacto (3 contra 4)", "clear": "vaciar", "base": "base"
+      "dots": "puntos",
+      "wheels": "ruedas",
+      "exact": "exacto (3 contra 4)",
+      "clear": "vaciar",
+      "base": "base"
     },
-    "dj": { "hint": "DJ · mantén y mueve; suelta con el filtro cerrado y cae el drop", "pad": "filtro · eco", "padHeld": "filtro {f}% · eco {e}%", "crash": "platillo", "riser": "subida" },
+    "dj": {
+      "hint": "DJ · mantén y mueve; suelta con el filtro cerrado y cae el drop",
+      "pad": "filtro · eco",
+      "padHeld": "filtro {f}% · eco {e}%",
+      "crash": "platillo",
+      "riser": "subida"
+    },
     "remix": {
       "pick": "Elige una canción.",
       "phrase": "Toca una parte: entra en el siguiente compás y se queda hasta que elijas otra. Dentro, enciende y apaga capas.",
       "mineKind": "mi versión · editada en el Estudio",
-      "entering": "entra…", "listening": "escuchando",
-      "rec": "● Grabar mi versión", "finish": "■ Terminar", "finishing": "terminando…",
-      "mine": "▶ Mi versión ({time})", "video": "🎬 Mi vídeo", "videoRec": "Grabando el vídeo {a}/{b} s", "stop": "■ parar", "share": "Compartir vídeo", "save": "Guardar",
-      "original": "escuchar el remix original", "openStudio": "Abrir en el Estudio", "other": "otra canción",
-      "layers": { "bombo": "bombo", "ritmo": "ritmo", "caja": "caja", "hat": "platillo", "bajo": "bajo", "acordes": "acordes", "tema": "tema", "subida": "subida" }
+      "entering": "entra…",
+      "listening": "escuchando",
+      "rec": "● Grabar mi versión",
+      "finish": "■ Terminar",
+      "finishing": "terminando…",
+      "mine": "▶ Mi versión ({time})",
+      "video": "🎬 Mi vídeo",
+      "videoRec": "Grabando el vídeo {a}/{b} s",
+      "stop": "■ parar",
+      "share": "Compartir vídeo",
+      "save": "Guardar",
+      "original": "escuchar el remix original",
+      "openStudio": "Abrir en el Estudio",
+      "other": "otra canción",
+      "layers": {
+        "bombo": "bombo",
+        "ritmo": "ritmo",
+        "caja": "caja",
+        "hat": "platillo",
+        "bajo": "bajo",
+        "acordes": "acordes",
+        "tema": "tema",
+        "subida": "subida"
+      }
     }
   },
-  "start": { "tagline": "Tu música, a tu manera.", "start": "Empezar", "wait": "Un momento…", "mic": "Usar el micro (opcional)", "secure": "Para usar el micro hace falta una conexión segura (https).", "withMic": "Con el micro, mejor con cascos.", "about": "Acerca de", "close": "Cerrar", "denied": "Permiso de micro denegado. Actívalo en los ajustes del navegador para esta web y vuelve a intentarlo.", "noMic": "No se ha encontrado ningún micro." },
-  "part": {
-    "edit": "editar parte", "prev": "parte anterior", "next": "parte siguiente", "n": "Parte {n}", "of": "parte {n} de {total}", "tapToCreate": "vacía · toca para crearla", "on": "suena", "off": "apagada", "editBtn": "✎ editar",
-    "drums": "batería", "drumsHint": "bombo, caja y platillo", "melody": "melodía", "melodyHint": "el tema", "bass": "bajo", "bassHint": "el del estilo", "chords": "acordes", "chordsHint": "los del estilo", "fx": "subida", "fxHint": "efectos",
-    "playLab": "▶ Tocar en el Laboratorio", "duplicate": "⧉ Duplicar con variación", "max8": "Un remix lleva como mucho 8 partes.", "many": "Esta parte lleva más de 4 capas a la vez: se ven todas, pero con menos se oye mejor."
+  "start": {
+    "tagline": "Tu música, a tu manera.",
+    "start": "Empezar",
+    "wait": "Un momento…",
+    "mic": "Usar el micro (opcional)",
+    "secure": "Para usar el micro hace falta una conexión segura (https).",
+    "withMic": "Con el micro, mejor con cascos.",
+    "about": "Acerca de",
+    "close": "Cerrar",
+    "denied": "Permiso de micro denegado. Actívalo en los ajustes del navegador para esta web y vuelve a intentarlo.",
+    "noMic": "No se ha encontrado ningún micro."
   },
-  "lang": { "label": "Idioma" }
+  "part": {
+    "edit": "editar parte",
+    "prev": "parte anterior",
+    "next": "parte siguiente",
+    "n": "Parte {n}",
+    "of": "parte {n} de {total}",
+    "tapToCreate": "vacía · toca para crearla",
+    "on": "suena",
+    "off": "apagada",
+    "editBtn": "✎ editar",
+    "drums": "batería",
+    "drumsHint": "bombo, caja y platillo",
+    "melody": "melodía",
+    "melodyHint": "el tema",
+    "bass": "bajo",
+    "bassHint": "el del estilo",
+    "chords": "acordes",
+    "chordsHint": "los del estilo",
+    "fx": "subida",
+    "fxHint": "efectos",
+    "playLab": "▶ Tocar en el Laboratorio",
+    "duplicate": "⧉ Duplicar con variación",
+    "max8": "Un remix lleva como mucho 8 partes.",
+    "many": "Esta parte lleva más de 4 capas a la vez: se ven todas, pero con menos se oye mejor."
+  },
+  "lang": {
+    "label": "Idioma"
+  },
+  "drums": {
+    "title": "Batería",
+    "circle": "círculo",
+    "grid": "cuadrícula",
+    "mouth": "🎤 boca",
+    "mouthAria": "grabar con la boca (opcional)",
+    "clear": "vaciar",
+    "close": "cerrar la batería",
+    "help": "Toca para poner o quitar golpes; suena en bucle con la parte. Con 🎤 puedes decir «bum · pff · ts» y luego corregirlo aquí.",
+    "kick": "bombo",
+    "snare": "caja",
+    "hat": "platillo",
+    "step": "{name} paso {n}"
+  },
+  "lock": {
+    "on": "parte fija: tocar para que la canción siga",
+    "off": "fijar la parte en bucle"
+  },
+  "organ": {
+    "title": "Melodía",
+    "close": "cerrar el órgano",
+    "record": "● grabar",
+    "count": "cuenta…",
+    "playing": "■ grabando",
+    "piano": "🎹 piano",
+    "pianoPlaying": "■ tocando",
+    "pianoAria": "piano mágico: tocas el ritmo y la app pone las notas",
+    "respond": "↻ responder",
+    "fine": "fino",
+    "fineAria": "casillas más finas (semicorcheas)",
+    "helpHalf": "toca al doble de lento; se cuadra solo y acaba al llegar al final",
+    "helpPiano": "toca el ritmo donde quieras: cada toque es la siguiente nota",
+    "stacked": "+{n} melodía(s) apilada(s) · quitar",
+    "timeAria": "tiempo del loop: en pausa, arrastra la aguja",
+    "pause": "pausa",
+    "playAria": "reproducir",
+    "help": "Toca un hueco para poner una nota (arrastra a la derecha para alargarla) · toca una nota para oírla · arrástrala para moverla, o fuera del cuadro para borrarla · tira de su extremo para cambiar su duración"
+  },
+  "remixes": {
+    "title": "Mis remixes",
+    "empty": "Todavía no hay remixes tuyos.",
+    "serie": "De serie · melodías de dominio público",
+    "archive": "Archivo · versiones largas (hasta 4 min)",
+    "open": "Abrir"
+  }
 }

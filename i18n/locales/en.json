@@ -1,40 +1,181 @@
 {
-  "app": { "back": "← Menu", "menuAria": "back to the menu", "stopAll": "stop everything", "play": "play", "estudio": "Studio" },
+  "app": {
+    "back": "← Menu",
+    "menuAria": "back to the menu",
+    "stopAll": "stop everything",
+    "play": "play",
+    "estudio": "Studio"
+  },
   "lab": {
     "title": "Lab",
     "intro": "Ways to play without a mic. Pick one; they all use the same sound engine.",
     "screens": {
-      "capas": { "title": "Layers", "text": "switch kick, snare, hi-hat, bass, chords and melody on and off (DJ inside)" },
-      "piano": { "title": "Magic piano", "text": "each tap is the next note of a melody that fits the style" },
-      "coro": { "title": "Choir", "text": "drag one voice and two more harmonise by themselves" },
-      "circulo": { "title": "Rhythm circle", "text": "tap the rings to place hits; wheels to spread them (3 against 4)" },
-      "remixes": { "title": "Remixes", "text": "pick a song and perform its parts: intro, build-up, drop and outro" }
+      "capas": {
+        "title": "Layers",
+        "text": "switch kick, snare, hi-hat, bass, chords and melody on and off (DJ inside)"
+      },
+      "piano": {
+        "title": "Magic piano",
+        "text": "each tap is the next note of a melody that fits the style"
+      },
+      "coro": {
+        "title": "Choir",
+        "text": "drag one voice and two more harmonise by themselves"
+      },
+      "circulo": {
+        "title": "Rhythm circle",
+        "text": "tap the rings to place hits; wheels to spread them (3 against 4)"
+      },
+      "remixes": {
+        "title": "Remixes",
+        "text": "pick a song and perform its parts: intro, build-up, drop and outro"
+      }
     },
-    "capas": { "phrase": "Tap the circles to switch layers on and off. It starts with the rhythm; you add the rest.", "pad": " (gamepad: A B X Y, LB, RB)", "mineRhythm": "my\nrhythm", "mineMelody": "my\nmelody" },
-    "piano": { "phrase": "Tap anywhere: each tap is the next note. You set the rhythm.", "pad": " (gamepad: any button)", "other": "another melody ↻", "tapAnywhere": "tap anywhere" },
-    "coro": { "phrase": "Drag your finger: high up, low down. The other voices harmonise by themselves.", "drag": "drag your finger" },
+    "capas": {
+      "phrase": "Tap the circles to switch layers on and off. It starts with the rhythm; you add the rest.",
+      "pad": " (gamepad: A B X Y, LB, RB)",
+      "mineRhythm": "my\nrhythm",
+      "mineMelody": "my\nmelody"
+    },
+    "piano": {
+      "phrase": "Tap anywhere: each tap is the next note. You set the rhythm.",
+      "pad": " (gamepad: any button)",
+      "other": "another melody ↻",
+      "tapAnywhere": "tap anywhere"
+    },
+    "coro": {
+      "phrase": "Drag your finger: high up, low down. The other voices harmonise by themselves.",
+      "drag": "drag your finger"
+    },
     "circulo": {
       "phraseDots": "Tap the rings to add or remove hits. Each instrument draws its own shape.",
       "phraseWheels": "Drag around a ring: more turns, more hits, evenly spread.",
-      "dots": "dots", "wheels": "wheels", "exact": "exact (3 against 4)", "clear": "clear", "base": "base"
+      "dots": "dots",
+      "wheels": "wheels",
+      "exact": "exact (3 against 4)",
+      "clear": "clear",
+      "base": "base"
     },
-    "dj": { "hint": "DJ · hold and move; release with the filter closed and the drop lands", "pad": "filter · echo", "padHeld": "filter {f}% · echo {e}%", "crash": "crash", "riser": "riser" },
+    "dj": {
+      "hint": "DJ · hold and move; release with the filter closed and the drop lands",
+      "pad": "filter · echo",
+      "padHeld": "filter {f}% · echo {e}%",
+      "crash": "crash",
+      "riser": "riser"
+    },
     "remix": {
       "pick": "Pick a song.",
       "phrase": "Tap a part: it comes in on the next bar and stays until you pick another. Inside, switch layers on and off.",
       "mineKind": "my version · edited in the Studio",
-      "entering": "coming in…", "listening": "listening",
-      "rec": "● Record my version", "finish": "■ Finish", "finishing": "finishing…",
-      "mine": "▶ My version ({time})", "video": "🎬 My video", "videoRec": "Recording the video {a}/{b} s", "stop": "■ stop", "share": "Share video", "save": "Save",
-      "original": "listen to the original remix", "openStudio": "Open in the Studio", "other": "another song",
-      "layers": { "bombo": "kick", "ritmo": "rhythm", "caja": "snare", "hat": "hi-hat", "bajo": "bass", "acordes": "chords", "tema": "theme", "subida": "riser" }
+      "entering": "coming in…",
+      "listening": "listening",
+      "rec": "● Record my version",
+      "finish": "■ Finish",
+      "finishing": "finishing…",
+      "mine": "▶ My version ({time})",
+      "video": "🎬 My video",
+      "videoRec": "Recording the video {a}/{b} s",
+      "stop": "■ stop",
+      "share": "Share video",
+      "save": "Save",
+      "original": "listen to the original remix",
+      "openStudio": "Open in the Studio",
+      "other": "another song",
+      "layers": {
+        "bombo": "kick",
+        "ritmo": "rhythm",
+        "caja": "snare",
+        "hat": "hi-hat",
+        "bajo": "bass",
+        "acordes": "chords",
+        "tema": "theme",
+        "subida": "riser"
+      }
     }
   },
-  "start": { "tagline": "Your music, your way.", "start": "Start", "wait": "One moment…", "mic": "Use the mic (optional)", "secure": "The mic needs a secure connection (https).", "withMic": "With the mic, headphones work best.", "about": "About", "close": "Close", "denied": "Microphone permission denied. Enable it in your browser settings for this site and try again.", "noMic": "No microphone found." },
-  "part": {
-    "edit": "edit part", "prev": "previous part", "next": "next part", "n": "Part {n}", "of": "part {n} of {total}", "tapToCreate": "empty · tap to create it", "on": "playing", "off": "off", "editBtn": "✎ edit",
-    "drums": "drums", "drumsHint": "kick, snare and hi-hat", "melody": "melody", "melodyHint": "the theme", "bass": "bass", "bassHint": "the style's own", "chords": "chords", "chordsHint": "the style's own", "fx": "riser", "fxHint": "effects",
-    "playLab": "▶ Play in the Lab", "duplicate": "⧉ Duplicate with variation", "max8": "A remix has at most 8 parts.", "many": "This part has more than 4 layers at once: all are shown, but it sounds better with fewer."
+  "start": {
+    "tagline": "Your music, your way.",
+    "start": "Start",
+    "wait": "One moment…",
+    "mic": "Use the mic (optional)",
+    "secure": "The mic needs a secure connection (https).",
+    "withMic": "With the mic, headphones work best.",
+    "about": "About",
+    "close": "Close",
+    "denied": "Microphone permission denied. Enable it in your browser settings for this site and try again.",
+    "noMic": "No microphone found."
   },
-  "lang": { "label": "Language" }
+  "part": {
+    "edit": "edit part",
+    "prev": "previous part",
+    "next": "next part",
+    "n": "Part {n}",
+    "of": "part {n} of {total}",
+    "tapToCreate": "empty · tap to create it",
+    "on": "playing",
+    "off": "off",
+    "editBtn": "✎ edit",
+    "drums": "drums",
+    "drumsHint": "kick, snare and hi-hat",
+    "melody": "melody",
+    "melodyHint": "the theme",
+    "bass": "bass",
+    "bassHint": "the style's own",
+    "chords": "chords",
+    "chordsHint": "the style's own",
+    "fx": "riser",
+    "fxHint": "effects",
+    "playLab": "▶ Play in the Lab",
+    "duplicate": "⧉ Duplicate with variation",
+    "max8": "A remix has at most 8 parts.",
+    "many": "This part has more than 4 layers at once: all are shown, but it sounds better with fewer."
+  },
+  "lang": {
+    "label": "Language"
+  },
+  "drums": {
+    "title": "Drums",
+    "circle": "circle",
+    "grid": "grid",
+    "mouth": "🎤 mouth",
+    "mouthAria": "record with your mouth (optional)",
+    "clear": "clear",
+    "close": "close the drums",
+    "help": "Tap to add or remove hits; it loops with the part. With 🎤 you can say “boom · tss · ts” and then fix it here.",
+    "kick": "kick",
+    "snare": "snare",
+    "hat": "hi-hat",
+    "step": "{name} step {n}"
+  },
+  "lock": {
+    "on": "part locked: tap to let the song move on",
+    "off": "lock the part in a loop"
+  },
+  "organ": {
+    "title": "Melody",
+    "close": "close the organ",
+    "record": "● record",
+    "count": "count-in…",
+    "playing": "■ recording",
+    "piano": "🎹 piano",
+    "pianoPlaying": "■ playing",
+    "pianoAria": "magic piano: you play the rhythm and the app picks the notes",
+    "respond": "↻ answer",
+    "fine": "fine",
+    "fineAria": "finer cells (16th notes)",
+    "helpHalf": "play at half speed; it snaps to the grid and stops by itself at the end",
+    "helpPiano": "tap the rhythm anywhere: each tap is the next note",
+    "stacked": "+{n} stacked melody(ies) · remove",
+    "timeAria": "loop time: when paused, drag the playhead",
+    "pause": "pause",
+    "playAria": "play",
+    "help": "Tap an empty cell to place a note (drag right to lengthen it) · tap a note to hear it · drag it to move it, or outside the box to delete it · pull its end to change its length"
+  },
+  "remixes": {
+    "title": "My remixes",
+    "empty": "You have no remixes yet.",
+    "serie": "Built-in · public-domain melodies",
+    "archive": "Archive · long versions (up to 4 min)",
+    "open": "Open"
+  }
 }

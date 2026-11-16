@@ -8,7 +8,7 @@ Etiquetas de git: `estudio-v1`, `lab-v1`, `estudio-v2` (justo antes de esta tand
 ## Hecho (commits, de más nuevo a más viejo, lo importante)
 | Commit | Qué |
 |---|---|
-| `1b5aeb5` | **Multilenguaje** (spec 025): `@nuxtjs/i18n`, es/en/eu, idioma del navegador, selector (menú Lab, inicio, Acerca de). Migrado: Laboratorio, inicio, «Editar parte» (≈ 35 %). |
+| `1b5aeb5` | **Multilenguaje** (spec 025): `@nuxtjs/i18n`, es/en/eu, idioma del navegador, selector (menú Lab, inicio, Acerca de). Migrado: Laboratorio, inicio, «Editar parte», Batería, Órgano y cabecera de Mis remixes (≈ 45 %). |
 | `7cb1391` | Se quita el **Teclado de agua** de la interfaz (lo cubre el Piano mágico). |
 | `5dd50cf` | **Estilos** (spec 023): `house2` y `techno2` diferenciados por patrones; `house` y `techno` clásicos intactos (lo guardado suena igual); etiqueta de estilo; «Cargar demo» fuera. |
 | `9352086`, `c616e75`, `0aefc4a` | **Spec 024:** barra de tiempo en el Órgano, 🔒 parte fija al editar, «▶ Tocar en el Laboratorio». |
@@ -28,7 +28,7 @@ Etiquetas de git: `estudio-v1`, `lab-v1`, `estudio-v2` (justo antes de esta tand
 - **Importar remix / IA** (spec 021): solo spec.
 - **Capas del Laboratorio** (spec 018: ● Grabar, ✦ Hazme una canción): sin hacer.
 - **Mozart:** las notas siguen «de oído», sin contrastar con la partitura.
-- **Multilenguaje:** falta migrar ≈ 65 % de los textos (Batería, Órgano, Mis remixes, Ajustes, calibración, vídeo, piloto, guía, avisos del motor, nombres de las partes). El euskera **hay que revisarlo** (traducción mía).
+- **Multilenguaje:** falta migrar ≈ 55 % de los textos (filas de Mis remixes, Ajustes, calibración, vídeo, piloto, guía, avisos del motor, nombres de las partes). El euskera **hay que revisarlo** (traducción mía).
 - **Remix principal** de hip hop y dnb; los remixes de serie de techno siguen en el techno clásico.
 - Guiones de navegador antiguos que tocan lo escondido (bolas de capas, botones de efectos) pueden fallar sin «Controles avanzados».
 

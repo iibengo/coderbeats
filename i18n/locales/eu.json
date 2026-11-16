@@ -1,40 +1,181 @@
 {
-  "app": { "back": "← Menua", "menuAria": "menura itzuli", "stopAll": "dena gelditu", "play": "jo", "estudio": "Estudioa" },
+  "app": {
+    "back": "← Menua",
+    "menuAria": "menura itzuli",
+    "stopAll": "dena gelditu",
+    "play": "jo",
+    "estudio": "Estudioa"
+  },
   "lab": {
     "title": "Laborategia",
     "intro": "Mikrofonorik gabe jotzeko moduak. Aukeratu bat; denak ohiko soinu-motorrarekin entzuten dira.",
     "screens": {
-      "capas": { "title": "Geruzak", "text": "piztu eta itzali bonboa, danborra, platera, baxua, akordeak eta melodia (DJ barruan)" },
-      "piano": { "title": "Piano magikoa", "text": "ukitu bakoitza estiloari dagokion melodia baten hurrengo nota da" },
-      "coro": { "title": "Abesbatza", "text": "arrastatu ahots bat eta beste biak berez harmonizatzen dira" },
-      "circulo": { "title": "Erritmo-zirkulua", "text": "ukitu eraztunak kolpeak jartzeko; gurpilak kolpeak banatzeko (3 4ren aurka)" },
-      "remixes": { "title": "Remixak", "text": "aukeratu abesti bat eta jo bere zatiak: sarrera, igoera, drop-a eta amaiera" }
+      "capas": {
+        "title": "Geruzak",
+        "text": "piztu eta itzali bonboa, danborra, platera, baxua, akordeak eta melodia (DJ barruan)"
+      },
+      "piano": {
+        "title": "Piano magikoa",
+        "text": "ukitu bakoitza estiloari dagokion melodia baten hurrengo nota da"
+      },
+      "coro": {
+        "title": "Abesbatza",
+        "text": "arrastatu ahots bat eta beste biak berez harmonizatzen dira"
+      },
+      "circulo": {
+        "title": "Erritmo-zirkulua",
+        "text": "ukitu eraztunak kolpeak jartzeko; gurpilak kolpeak banatzeko (3 4ren aurka)"
+      },
+      "remixes": {
+        "title": "Remixak",
+        "text": "aukeratu abesti bat eta jo bere zatiak: sarrera, igoera, drop-a eta amaiera"
+      }
     },
-    "capas": { "phrase": "Ukitu zirkuluak geruzak piztu eta itzaltzeko. Erritmoarekin hasten da; gainerakoa zuk jartzen duzu.", "pad": " (agintea: A B X Y, LB, RB)", "mineRhythm": "nire\nerritmoa", "mineMelody": "nire\nmelodia" },
-    "piano": { "phrase": "Ukitu edonon: ukitu bakoitza hurrengo nota da. Erritmoa zuk markatzen duzu.", "pad": " (agintea: edozein botoi)", "other": "beste melodia bat ↻", "tapAnywhere": "ukitu edonon" },
-    "coro": { "phrase": "Arrastatu hatza: goian, altua; behean, baxua. Beste ahotsak berez harmonizatzen dira.", "drag": "arrastatu hatza" },
+    "capas": {
+      "phrase": "Ukitu zirkuluak geruzak piztu eta itzaltzeko. Erritmoarekin hasten da; gainerakoa zuk jartzen duzu.",
+      "pad": " (agintea: A B X Y, LB, RB)",
+      "mineRhythm": "nire\nerritmoa",
+      "mineMelody": "nire\nmelodia"
+    },
+    "piano": {
+      "phrase": "Ukitu edonon: ukitu bakoitza hurrengo nota da. Erritmoa zuk markatzen duzu.",
+      "pad": " (agintea: edozein botoi)",
+      "other": "beste melodia bat ↻",
+      "tapAnywhere": "ukitu edonon"
+    },
+    "coro": {
+      "phrase": "Arrastatu hatza: goian, altua; behean, baxua. Beste ahotsak berez harmonizatzen dira.",
+      "drag": "arrastatu hatza"
+    },
     "circulo": {
       "phraseDots": "Ukitu eraztunak kolpeak jarri edo kentzeko. Instrumentu bakoitzak bere irudia osatzen du.",
       "phraseWheels": "Arrastatu eraztun baten inguruan: bira gehiago, kolpe gehiago, berdin banatuta.",
-      "dots": "puntuak", "wheels": "gurpilak", "exact": "zehatza (3 4ren aurka)", "clear": "garbitu", "base": "oinarria"
+      "dots": "puntuak",
+      "wheels": "gurpilak",
+      "exact": "zehatza (3 4ren aurka)",
+      "clear": "garbitu",
+      "base": "oinarria"
     },
-    "dj": { "hint": "DJ · eutsi eta mugitu; askatu iragazkia itxita eta drop-a erortzen da", "pad": "iragazkia · oihartzuna", "padHeld": "iragazkia {f}% · oihartzuna {e}%", "crash": "platera", "riser": "igoera" },
+    "dj": {
+      "hint": "DJ · eutsi eta mugitu; askatu iragazkia itxita eta drop-a erortzen da",
+      "pad": "iragazkia · oihartzuna",
+      "padHeld": "iragazkia {f}% · oihartzuna {e}%",
+      "crash": "platera",
+      "riser": "igoera"
+    },
     "remix": {
       "pick": "Aukeratu abesti bat.",
       "phrase": "Ukitu zati bat: hurrengo konpasean sartzen da eta beste bat aukeratu arte geratzen da. Barruan, piztu eta itzali geruzak.",
       "mineKind": "nire bertsioa · Estudioan editatua",
-      "entering": "sartzen…", "listening": "entzuten",
-      "rec": "● Grabatu nire bertsioa", "finish": "■ Amaitu", "finishing": "amaitzen…",
-      "mine": "▶ Nire bertsioa ({time})", "video": "🎬 Nire bideoa", "videoRec": "Bideoa grabatzen {a}/{b} s", "stop": "■ gelditu", "share": "Partekatu bideoa", "save": "Gorde",
-      "original": "entzun jatorrizko remixa", "openStudio": "Ireki Estudioan", "other": "beste abesti bat",
-      "layers": { "bombo": "bonboa", "ritmo": "erritmoa", "caja": "danborra", "hat": "platera", "bajo": "baxua", "acordes": "akordeak", "tema": "gaia", "subida": "igoera" }
+      "entering": "sartzen…",
+      "listening": "entzuten",
+      "rec": "● Grabatu nire bertsioa",
+      "finish": "■ Amaitu",
+      "finishing": "amaitzen…",
+      "mine": "▶ Nire bertsioa ({time})",
+      "video": "🎬 Nire bideoa",
+      "videoRec": "Bideoa grabatzen {a}/{b} s",
+      "stop": "■ gelditu",
+      "share": "Partekatu bideoa",
+      "save": "Gorde",
+      "original": "entzun jatorrizko remixa",
+      "openStudio": "Ireki Estudioan",
+      "other": "beste abesti bat",
+      "layers": {
+        "bombo": "bonboa",
+        "ritmo": "erritmoa",
+        "caja": "danborra",
+        "hat": "platera",
+        "bajo": "baxua",
+        "acordes": "akordeak",
+        "tema": "gaia",
+        "subida": "igoera"
+      }
     }
   },
-  "start": { "tagline": "Zure musika, zure erara.", "start": "Hasi", "wait": "Une bat…", "mic": "Erabili mikrofonoa (aukerakoa)", "secure": "Mikrofonoak konexio segurua behar du (https).", "withMic": "Mikrofonoarekin, aurikularrekin hobe.", "about": "Honi buruz", "close": "Itxi", "denied": "Mikrofonoaren baimena ukatu da. Gaitu ezazu nabigatzailearen ezarpenetan webgune honetarako eta saiatu berriro.", "noMic": "Ez da mikrofonorik aurkitu." },
-  "part": {
-    "edit": "editatu zatia", "prev": "aurreko zatia", "next": "hurrengo zatia", "n": "{n}. zatia", "of": "{n}. zatia, {total}tik", "tapToCreate": "hutsik · ukitu sortzeko", "on": "entzuten da", "off": "itzalita", "editBtn": "✎ editatu",
-    "drums": "bateria", "drumsHint": "bonboa, danborra eta platera", "melody": "melodia", "melodyHint": "gaia", "bass": "baxua", "bassHint": "estiloarena", "chords": "akordeak", "chordsHint": "estiloarenak", "fx": "igoera", "fxHint": "efektuak",
-    "playLab": "▶ Jo Laborategian", "duplicate": "⧉ Bikoiztu aldaerarekin", "max8": "Remix batek gehienez 8 zati ditu.", "many": "Zati honek 4 geruza baino gehiago ditu aldi berean: guztiak ikusten dira, baina gutxiagorekin hobeto entzuten da."
+  "start": {
+    "tagline": "Zure musika, zure erara.",
+    "start": "Hasi",
+    "wait": "Une bat…",
+    "mic": "Erabili mikrofonoa (aukerakoa)",
+    "secure": "Mikrofonoak konexio segurua behar du (https).",
+    "withMic": "Mikrofonoarekin, aurikularrekin hobe.",
+    "about": "Honi buruz",
+    "close": "Itxi",
+    "denied": "Mikrofonoaren baimena ukatu da. Gaitu ezazu nabigatzailearen ezarpenetan webgune honetarako eta saiatu berriro.",
+    "noMic": "Ez da mikrofonorik aurkitu."
   },
-  "lang": { "label": "Hizkuntza" }
+  "part": {
+    "edit": "editatu zatia",
+    "prev": "aurreko zatia",
+    "next": "hurrengo zatia",
+    "n": "{n}. zatia",
+    "of": "{n}. zatia, {total}tik",
+    "tapToCreate": "hutsik · ukitu sortzeko",
+    "on": "entzuten da",
+    "off": "itzalita",
+    "editBtn": "✎ editatu",
+    "drums": "bateria",
+    "drumsHint": "bonboa, danborra eta platera",
+    "melody": "melodia",
+    "melodyHint": "gaia",
+    "bass": "baxua",
+    "bassHint": "estiloarena",
+    "chords": "akordeak",
+    "chordsHint": "estiloarenak",
+    "fx": "igoera",
+    "fxHint": "efektuak",
+    "playLab": "▶ Jo Laborategian",
+    "duplicate": "⧉ Bikoiztu aldaerarekin",
+    "max8": "Remix batek gehienez 8 zati ditu.",
+    "many": "Zati honek 4 geruza baino gehiago ditu aldi berean: guztiak ikusten dira, baina gutxiagorekin hobeto entzuten da."
+  },
+  "lang": {
+    "label": "Hizkuntza"
+  },
+  "drums": {
+    "title": "Bateria",
+    "circle": "zirkulua",
+    "grid": "koadrikula",
+    "mouth": "🎤 ahoa",
+    "mouthAria": "grabatu ahoarekin (aukerakoa)",
+    "clear": "garbitu",
+    "close": "itxi bateria",
+    "help": "Ukitu kolpeak jarri edo kentzeko; zatiarekin batera begizta egiten du. 🎤rekin «bum · pff · ts» esan dezakezu eta gero hemen zuzendu.",
+    "kick": "bonboa",
+    "snare": "danborra",
+    "hat": "platera",
+    "step": "{name}, {n}. urratsa"
+  },
+  "lock": {
+    "on": "zati finkoa: ukitu abestiak aurrera jarrai dezan",
+    "off": "finkatu zatia begiztan"
+  },
+  "organ": {
+    "title": "Melodia",
+    "close": "itxi organoa",
+    "record": "● grabatu",
+    "count": "kontaketa…",
+    "playing": "■ grabatzen",
+    "piano": "🎹 pianoa",
+    "pianoPlaying": "■ jotzen",
+    "pianoAria": "piano magikoa: zuk erritmoa jotzen duzu eta aplikazioak notak jartzen ditu",
+    "respond": "↻ erantzun",
+    "fine": "fina",
+    "fineAria": "gelaxka finagoak (hamaseiren notak)",
+    "helpHalf": "jo erdi abiaduran; sareara doitzen da eta bukaeran berez gelditzen da",
+    "helpPiano": "jo erritmoa edonon: ukitu bakoitza hurrengo nota da",
+    "stacked": "+{n} melodia pilatuta · kendu",
+    "timeAria": "begiztaren denbora: geldituta, arrastatu orratza",
+    "pause": "pausa",
+    "playAria": "erreproduzitu",
+    "help": "Ukitu gelaxka huts bat nota bat jartzeko (arrastatu eskuinera luzatzeko) · ukitu nota bat entzuteko · arrastatu mugitzeko, edo koadrotik kanpora ezabatzeko · tiratu bere muturretik luzera aldatzeko"
+  },
+  "remixes": {
+    "title": "Nire remixak",
+    "empty": "Oraindik ez duzu remixik.",
+    "serie": "Fabrikakoak · jabari publikoko melodiak",
+    "archive": "Artxiboa · bertsio luzeak (4 min arte)",
+    "open": "Ireki"
+  }
 }

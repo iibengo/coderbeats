@@ -2,7 +2,9 @@
 import { open, clickLabel, sleep } from './lib.mjs'
 const { b, p, errs } = await open()
 const st = () => p.evaluate(() => ({ bd: window.__drums?.steps('bd'), sd: window.__drums?.steps('sd'), hh: window.__drums?.steps('hh') }))
-console.log('abre:', await clickLabel(p, 'batería de la parte')); await sleep(800)
+await clickLabel(p, 'editar parte'); await sleep(500)
+await p.evaluate(() => document.querySelector('[data-edit=bateria]').click()); await sleep(800)
+console.log('abre:', await p.evaluate(() => !!document.querySelector('[role=dialog][aria-label="batería de la parte"]')))
 console.log('al abrir (demo o vacío):', JSON.stringify(await st()))
 await p.evaluate(() => document.querySelector('[role=dialog] button[aria-label="vaciar"]'))
 await p.evaluate(() => [...document.querySelectorAll('[role=dialog] button')].find((b) => b.textContent.trim() === 'vaciar').click()); await sleep(200)

@@ -19,6 +19,7 @@ const props = defineProps<{ origin: { x: number; y: number } }>()
 const emit = defineEmits<{ close: [] }>()
 const engine = useAudioEngine()
 const { loops, style, playing } = engine
+const { t } = useI18n()
 const partLock = usePartLock()
 onMounted(() => partLock.enter())
 onBeforeUnmount(() => partLock.leave())
@@ -469,9 +470,9 @@ const label = (m: number) => midiName(m).replace('#', '♯')
       @contextmenu.prevent
     >
       <header class="flex items-center gap-3 px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2">
-        <button class="h-9 w-9 rounded-full border border-white/30 text-lg leading-none" aria-label="cerrar el órgano" @click="close">✕</button>
-        <h2 class="text-sm font-medium tracking-wide text-white/80">Melodía</h2>
-        <button v-if="partLock.available.value || partLock.locked.value" class="h-9 rounded-full border px-3 text-sm" :class="partLock.locked.value ? 'border-[#F496BC] text-[#F496BC]' : 'border-white/30 text-white/70'" :aria-pressed="partLock.locked.value" :aria-label="partLock.locked.value ? 'parte fija: tocar para que la canción siga' : 'fijar la parte en bucle'" data-lock @click="partLock.toggle()">{{ partLock.locked.value ? '🔒' : '🔓' }}</button>
+        <button class="h-9 w-9 rounded-full border border-white/30 text-lg leading-none" :aria-label="t('organ.close')" @click="close">✕</button>
+        <h2 class="text-sm font-medium tracking-wide text-white/80">{{ t('organ.title') }}</h2>
+        <button v-if="partLock.available.value || partLock.locked.value" class="h-9 rounded-full border px-3 text-sm" :class="partLock.locked.value ? 'border-[#F496BC] text-[#F496BC]' : 'border-white/30 text-white/70'" :aria-pressed="partLock.locked.value" :aria-label="partLock.locked.value ? t('lock.on') : t('lock.off')" data-lock @click="partLock.toggle()">{{ partLock.locked.value ? '🔒' : '🔓' }}</button>
         <span class="text-xs text-white/40">{{ STYLE_MUSIC[style].key }}</span>
         <button v-if="undo" class="rounded-full border border-white/40 px-3 py-1 text-xs text-white" aria-label="deshacer la última edición" @click="doUndo">↶ deshacer</button>
         <div class="ml-auto flex items-center gap-1" role="group" aria-label="compases del loop">
@@ -493,18 +494,18 @@ const label = (m: number) => midiName(m).replace('#', '♯')
       </header>
 
       <div class="flex flex-wrap items-center gap-2 px-4 pb-2 text-xs">
-        <button class="rounded-full border px-3 py-1.5" :class="rec?.mode === 'media' ? 'border-[#ff4d6d] text-[#ff4d6d]' : 'border-white/30 text-white'" :disabled="rec?.mode === 'piano'" data-organ-rec @click="startRec('media')">{{ rec?.mode !== 'media' ? '● grabar' : recState === 'cuenta' ? 'cuenta…' : '■ grabando' }}</button>
-        <button class="rounded-full border px-3 py-1.5" :class="rec?.mode === 'piano' ? 'border-[#ff4d6d] text-[#ff4d6d]' : 'border-white/30 text-white'" :disabled="rec?.mode === 'media'" data-organ-piano aria-label="piano mágico: tocas el ritmo y la app pone las notas" @click="startRec('piano')">{{ rec?.mode !== 'piano' ? '🎹 piano' : recState === 'cuenta' ? 'cuenta…' : '■ tocando' }}</button>
-        <button class="rounded-full border border-[#F496BC]/60 px-3 py-1.5 text-white disabled:opacity-30" :disabled="!canRespond" data-organ-respond @click="respond">↻ responder</button>
-        <button v-if="engine.assist.value" class="rounded-full border px-3 py-1.5" :class="fine ? 'border-white text-white' : 'border-white/25 text-white/60'" aria-label="casillas más finas (semicorcheas)" @click="fine = !fine">fino</button>
-        <button v-if="extras" class="rounded-full border border-amber-300/60 px-3 py-1.5 text-amber-200" data-organ-extras @click="dropExtras">+{{ extras }} melodía{{ extras === 1 ? '' : 's' }} apilada{{ extras === 1 ? '' : 's' }} · quitar</button>
-        <span v-if="rec?.mode === 'media'" class="text-[#ff4d6d]">toca al doble de lento; se cuadra solo y acaba al llegar al final</span>
-        <span v-if="rec?.mode === 'piano'" class="text-[#ff4d6d]">toca el ritmo donde quieras: cada toque es la siguiente nota</span>
+        <button class="rounded-full border px-3 py-1.5" :class="rec?.mode === 'media' ? 'border-[#ff4d6d] text-[#ff4d6d]' : 'border-white/30 text-white'" :disabled="rec?.mode === 'piano'" data-organ-rec @click="startRec('media')">{{ rec?.mode !== 'media' ? t('organ.record') : recState === 'cuenta' ? t('organ.count') : t('organ.playing') }}</button>
+        <button class="rounded-full border px-3 py-1.5" :class="rec?.mode === 'piano' ? 'border-[#ff4d6d] text-[#ff4d6d]' : 'border-white/30 text-white'" :disabled="rec?.mode === 'media'" data-organ-piano :aria-label="t('organ.pianoAria')" @click="startRec('piano')">{{ rec?.mode !== 'piano' ? t('organ.piano') : recState === 'cuenta' ? t('organ.count') : t('organ.pianoPlaying') }}</button>
+        <button class="rounded-full border border-[#F496BC]/60 px-3 py-1.5 text-white disabled:opacity-30" :disabled="!canRespond" data-organ-respond @click="respond">{{ t('organ.respond') }}</button>
+        <button v-if="engine.assist.value" class="rounded-full border px-3 py-1.5" :class="fine ? 'border-white text-white' : 'border-white/25 text-white/60'" :aria-label="t('organ.fineAria')" @click="fine = !fine">{{ t('organ.fine') }}</button>
+        <button v-if="extras" class="rounded-full border border-amber-300/60 px-3 py-1.5 text-amber-200" data-organ-extras @click="dropExtras">{{ t('organ.stacked', { n: extras }) }}</button>
+        <span v-if="rec?.mode === 'media'" class="text-[#ff4d6d]">{{ t('organ.helpHalf') }}</span>
+        <span v-if="rec?.mode === 'piano'" class="text-[#ff4d6d]">{{ t('organ.helpPiano') }}</span>
       </div>
 
       <div class="flex items-center gap-2 px-4 pb-2" data-timebar>
-        <button class="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-white/30" :aria-label="playing ? 'pausa' : 'reproducir'" @click="playing ? engine.stop() : engine.play()">{{ playing ? '⏸' : '▶' }}</button>
-        <input class="h-11 min-w-0 flex-1 accent-[#F496BC]" type="range" min="0" :max="seekMax" step="1" :value="timeValue" :disabled="playing" aria-label="tiempo del loop: en pausa, arrastra la aguja" data-seek @input="seek" />
+        <button class="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-white/30" :aria-label="playing ? t('organ.pause') : t('organ.playAria')" @click="playing ? engine.stop() : engine.play()">{{ playing ? '⏸' : '▶' }}</button>
+        <input class="h-11 min-w-0 flex-1 accent-[#F496BC]" type="range" min="0" :max="seekMax" step="1" :value="timeValue" :disabled="playing" :aria-label="t('organ.timeAria')" data-seek @input="seek" />
       </div>
 
       <div class="flex min-h-0 flex-1 px-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
@@ -538,7 +539,7 @@ const label = (m: number) => midiName(m).replace('#', '♯')
         </div>
       </div>
       <p class="px-4 pb-2 text-center text-[11px] text-white/35">
-        Toca un hueco para poner una nota (arrastra a la derecha para alargarla) · toca una nota para oírla · arrástrala para moverla, o fuera del cuadro para borrarla · tira de su extremo para cambiar su duración
+        {{ t('organ.help') }}
       </p>
     </div>
   </Teleport>

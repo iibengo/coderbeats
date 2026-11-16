@@ -10,13 +10,14 @@ import type { StageFrame } from './lab/LabStage.vue'
 const open = defineModel<boolean>('open', { required: true })
 const emit = defineEmits<{ mic: [] }>()
 const engine = useAudioEngine()
+const { t } = useI18n()
 const partLock = usePartLock()
 watch(open, (o) => (o ? partLock.enter() : partLock.leave()))
 onBeforeUnmount(() => open.value && partLock.leave())
 const C = LAB_W / 2
 const R = [100, 175, 245]
 const COLOR: Record<Instrument, string> = { bd: AMBER, sd: VOICE_HEX.sd, hh: VOICE_HEX.hh }
-const NAME: Record<Instrument, string> = { bd: 'bombo', sd: 'caja', hh: 'platillo' }
+const NAME = computed<Record<Instrument, string>>(() => ({ bd: t('drums.kick'), sd: t('drums.snare'), hh: t('drums.hat') }))
 const view = ref<'circulo' | 'cuadricula'>('circulo')
 const stage = ref<{ ripple: (x: number, y: number, c: string, g?: number, r?: number) => void } | null>(null)
 
@@ -93,15 +94,15 @@ if (import.meta.dev && import.meta.client) (window as unknown as Record<string, 
   <Transition name="sheet">
     <div v-if="open" class="fixed inset-0 z-30 flex flex-col overflow-y-auto bg-black px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[max(0.5rem,env(safe-area-inset-top))] text-white" role="dialog" aria-label="batería de la parte" @pointerdown.stop>
       <header class="mx-auto flex w-full max-w-md items-center gap-2">
-        <button class="rounded-lg border border-white/20 px-3 py-2 text-sm" aria-label="cerrar la batería" @click="open = false">✕</button>
-        <h2 class="ml-1 text-base font-medium">Batería</h2>
-        <button v-if="partLock.available.value || partLock.locked.value" class="h-10 rounded-lg border px-3 text-sm" :class="partLock.locked.value ? 'border-[#F496BC] text-[#F496BC]' : 'border-white/30 text-white/70'" :aria-pressed="partLock.locked.value" :aria-label="partLock.locked.value ? 'parte fija: tocar para que la canción siga' : 'fijar la parte en bucle'" data-lock @click="partLock.toggle()">{{ partLock.locked.value ? '🔒' : '🔓' }}</button>
+        <button class="rounded-lg border border-white/20 px-3 py-2 text-sm" :aria-label="t('drums.close')" @click="open = false">✕</button>
+        <h2 class="ml-1 text-base font-medium">{{ t('drums.title') }}</h2>
+        <button v-if="partLock.available.value || partLock.locked.value" class="h-10 rounded-lg border px-3 text-sm" :class="partLock.locked.value ? 'border-[#F496BC] text-[#F496BC]' : 'border-white/30 text-white/70'" :aria-pressed="partLock.locked.value" :aria-label="partLock.locked.value ? t('lock.on') : t('lock.off')" data-lock @click="partLock.toggle()">{{ partLock.locked.value ? '🔒' : '🔓' }}</button>
         <button class="ml-auto grid h-10 w-10 place-items-center rounded-lg border border-white/25" :aria-label="engine.playing.value ? 'parar' : 'tocar'" @click="engine.playing.value ? engine.stop() : engine.play()">{{ toggleLabel }}</button>
       </header>
       <div class="mx-auto mt-3 flex w-full max-w-md items-center gap-2 text-sm">
-        <button v-for="v in ([['circulo', 'círculo'], ['cuadricula', 'cuadrícula']] as const)" :key="v[0]" class="rounded-lg px-3 py-1.5" :class="view === v[0] ? 'border border-[#F496BC]' : 'border border-white/15 text-white/60'" @click="view = v[0]">{{ v[1] }}</button>
-        <button v-if="!engine.noMic.value" class="ml-auto rounded-lg border border-white/25 px-3 py-1.5" aria-label="grabar con la boca (opcional)" @click="open = false; emit('mic')">🎤 boca</button>
-        <button class="rounded-lg border border-white/15 px-3 py-1.5 text-white/70" :class="{ 'ml-auto': engine.noMic.value }" @click="clear">vaciar</button>
+        <button v-for="v in ([['circulo', t('drums.circle')], ['cuadricula', t('drums.grid')]] as const)" :key="v[0]" class="rounded-lg px-3 py-1.5" :class="view === v[0] ? 'border border-[#F496BC]' : 'border border-white/15 text-white/60'" @click="view = v[0]">{{ v[1] }}</button>
+        <button v-if="!engine.noMic.value" class="ml-auto rounded-lg border border-white/25 px-3 py-1.5" :aria-label="t('drums.mouthAria')" @click="open = false; emit('mic')">{{ t('drums.mouth') }}</button>
+        <button class="rounded-lg border border-white/15 px-3 py-1.5 text-white/70" :class="{ 'ml-auto': engine.noMic.value }" @click="clear">{{ t('drums.clear') }}</button>
       </div>
       <div class="mx-auto mt-3 w-full max-w-md">
         <LabStage v-if="view === 'circulo'" ref="stage" :rings="R" :draw="draw" @down="down" />
@@ -109,12 +110,12 @@ if (import.meta.dev && import.meta.client) (window as unknown as Record<string, 
           <div v-for="i in LAB_INSTRUMENTS" :key="i">
             <div class="mb-1 text-xs" :style="{ color: COLOR[i] }">{{ NAME[i] }}</div>
             <div class="grid grid-cols-8 gap-[3px]" style="grid-template-columns: repeat(16, minmax(0, 1fr))">
-              <button v-for="s in STEPS" :key="s" class="h-10 rounded-md" :class="s % 4 === 1 ? 'border border-white/20' : ''" :style="{ background: isOn(i, s - 1) ? COLOR[i] : 'rgba(255,255,255,.06)' }" :aria-label="`${NAME[i]} paso ${s}`" :aria-pressed="isOn(i, s - 1)" @click="toggle(i, s - 1)" />
+              <button v-for="s in STEPS" :key="s" class="h-10 rounded-md" :class="s % 4 === 1 ? 'border border-white/20' : ''" :style="{ background: isOn(i, s - 1) ? COLOR[i] : 'rgba(255,255,255,.06)' }" :aria-label="t('drums.step', { name: NAME[i], n: s })" :aria-pressed="isOn(i, s - 1)" @click="toggle(i, s - 1)" />
             </div>
           </div>
         </div>
       </div>
-      <p class="mx-auto mt-3 w-full max-w-md text-xs text-white/45">Toca para poner o quitar golpes; suena en bucle con la parte. Con 🎤 puedes decir «bum · pff · ts» y luego corregirlo aquí.</p>
+      <p class="mx-auto mt-3 w-full max-w-md text-xs text-white/45">{{ t('drums.help') }}</p>
     </div>
   </Transition>
 </template>
