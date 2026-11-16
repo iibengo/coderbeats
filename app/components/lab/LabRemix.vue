@@ -18,7 +18,18 @@ const C = LAB_W / 2
 const remix = ref<LabRemix | null>(null)
 // los míos: lo que se editó en el Estudio y se guardó en Mis canciones (con la marca `lab`) vuelve aquí
 const library = useLibrary()
-onMounted(() => library.load())
+const route = useRoute()
+onMounted(async () => {
+  library.load()
+  // «▶ Tocar en el Laboratorio» desde el Estudio: ese remix ya elegido
+  const want = route.query.remix
+  if (typeof want === 'string') {
+    await nextTick()
+    const r = [...LAB_REMIXES, ...mios.value].find((x) => x.id === want)
+    history.replaceState(null, '', location.pathname)
+    if (r) await pick(r)
+  }
+})
 const mios = computed(() => library.lib.value.entries.flatMap((e) => (e.saved ? [labRemixFromSaved(e.saved)] : [])).filter((r): r is LabRemix => !!r))
 const part = ref('') // la parte elegida, por nombre (entra en el siguiente compás)
 const shown = ref('') // la que suena ya

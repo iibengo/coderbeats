@@ -16,6 +16,7 @@ const SCREENS: { id: Id; title: string; text: string }[] = [
   { id: 'circulo', title: 'Círculo de ritmo', text: 'toca los anillos para poner golpes; ruedas para repartirlos (3 contra 4)' },
   { id: 'remixes', title: 'Remixes', text: 'elige una canción y actúa sus partes: intro, subida, drop y final' },
 ]
+const route = useRoute()
 const screen = ref<Id | null>(null)
 const engine = useAudioEngine()
 const lab = useLab()
@@ -38,6 +39,10 @@ function back() {
   screen.value = null
 }
 onBeforeUnmount(() => engine.stopAll())
+// «▶ Tocar en el Laboratorio» desde el Estudio (`?remix=<id>`): directo a Remixes
+onMounted(() => {
+  if (route.query.remix !== undefined) void go('remixes')
+})
 </script>
 
 <template>

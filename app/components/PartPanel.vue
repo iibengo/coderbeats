@@ -4,6 +4,7 @@
 import { VOICE_HEX } from '~/lib/palette'
 import { isFxLoop, melLoopOf } from '~/lib/melodyEdit'
 import type { FreeLoop } from '~/lib/freeLoops'
+import { addSong, autoName, makeSaved, newId, replaceSong } from '~/lib/library'
 
 const open = defineModel<boolean>('open', { required: true })
 const emit = defineEmits<{ drums: []; organ: [MouseEvent] }>()
@@ -62,6 +63,31 @@ function duplicate() {
   }
   open.value = false
 }
+// ▶ Tocar en el Laboratorio (spec 024 §1): guarda lo que hay en **el mismo remix** (o lo crea una sola vez) y abre Remixes del Laboratorio con él elegido
+const library = useLibrary()
+const labError = ref('')
+async function playInLab() {
+  library.load()
+  const snap = engine.snapshot()
+  const cur = library.lib.value.entries.find((e) => e.id === library.currentId.value && e.saved)
+  let id: string
+  let next
+  if (cur?.saved) {
+    id = cur.id
+    next = replaceSong(library.lib.value, { ...makeSaved(snap, id, cur.name, new Date()), ...(cur.saved.lab ? { lab: cur.saved.lab } : {}) })
+  } else {
+    id = newId(Date.now())
+    next = addSong(library.lib.value, makeSaved(snap, id, autoName(engine.style.value, new Date()), new Date()))
+  }
+  if (!library.persist(next)) {
+    labError.value = library.error.value ?? 'No se ha podido guardar.'
+    return
+  }
+  library.setCurrent(id)
+  engine.stop()
+  open.value = false
+  await navigateTo(`/lab?remix=${encodeURIComponent(`mio:${id}`)}`)
+}
 const many = computed(() => slots.value.filter((x) => x.has && x.on).length > 4)
 if (import.meta.dev && import.meta.client) (window as unknown as Record<string, unknown>).__parte = { slots: () => slots.value.map((s) => [s.key, s.has, s.on]), name: () => name.value }
 </script>
@@ -93,7 +119,9 @@ if (import.meta.dev && import.meta.client) (window as unknown as Record<string, 
             <p v-else class="mt-3 text-center text-xs text-neutral-600">{{ s.hint }}</p>
           </div>
         </div>
-        <button class="mt-3 w-full rounded-full border border-white/20 py-2.5 text-white disabled:opacity-40" :disabled="!canDuplicate" data-duplicate @click="duplicate">⧉ Duplicar con variación</button>
+        <button class="mt-3 w-full rounded-full bg-white py-2.5 font-medium text-black" data-play-lab @click="playInLab">▶ Tocar en el Laboratorio</button>
+        <p v-if="labError" class="mt-1 text-xs text-amber-300" role="alert">{{ labError }}</p>
+        <button class="mt-2 w-full rounded-full border border-white/20 py-2.5 text-white disabled:opacity-40" :disabled="!canDuplicate" data-duplicate @click="duplicate">⧉ Duplicar con variación</button>
         <p v-if="!canDuplicate" class="mt-1 text-xs text-neutral-500">Un remix lleva como mucho 8 partes.</p>
         <p v-if="many" class="mt-3 text-xs text-amber-300">Esta parte lleva más de 4 capas a la vez: se ven todas, pero con menos se oye mejor.</p>
       </section>
