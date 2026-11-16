@@ -1,8 +1,9 @@
 <script setup lang="ts">
 // 3 · Coro (Bebot, Blob Opera): arrastras una voz y otras dos armonizan solas; la escala está bloqueada, no hay nota mala. Arriba agudo, abajo grave; a la derecha, más brillo.
 import { demoSteps, useLab } from '~/composables/useLab'
-import { LAB_W } from '~/lib/lab'
+import { fontPx, LAB_W } from '~/lib/lab'
 import { scaleNotes } from '~/lib/waterKeys'
+import type { StageFrame } from './LabStage.vue'
 
 const lab = useLab()
 const { engine, style } = lab
@@ -61,7 +62,7 @@ function up() {
   engine.choirStop()
   voice.value = null
 }
-function draw(g: CanvasRenderingContext2D) {
+function draw(g: CanvasRenderingContext2D, f: StageFrame) {
   notes.value.forEach((_, i) => {
     const y = yOfIdx(i)
     const lit = voice.value?.idx.includes(i)
@@ -94,7 +95,7 @@ function draw(g: CanvasRenderingContext2D) {
     })
   } else if (!trail.length) {
     g.fillStyle = 'rgba(255,255,255,.4)'
-    g.font = '400 24px system-ui, sans-serif'
+    g.font = `400 ${fontPx(24, f.scale)}px system-ui, sans-serif`
     g.textAlign = 'center'
     g.fillText('arrastra el dedo', W / 2, W / 2)
   }

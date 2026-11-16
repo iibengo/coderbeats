@@ -13,6 +13,8 @@ export interface StageFrame {
   beat: boolean
   /** segundos */
   t: number
+  /** escala real del lienzo: ancho en pantalla / 680 (para que los textos no bajen de 11 px reales, `fontPx`) */
+  scale: number
 }
 const props = withDefaults(defineProps<{ draw?: (g: CanvasRenderingContext2D, f: StageFrame) => void; rings?: number[]; needle?: boolean }>(), { needle: true })
 const emit = defineEmits<{ down: [x: number, y: number, e: PointerEvent]; move: [x: number, y: number, e: PointerEvent]; up: [e: PointerEvent] }>()
@@ -61,7 +63,7 @@ onMounted(() => {
     const playing = engine.playing.value
     const phase = playing ? engine.clockNow().barPhase : 0
     const step = playing ? Math.floor(phase * 16) % 16 : -1
-    const f: StageFrame = { phase, step, playing, beat: playing && step % 4 === 0 && (phase * 16) % 1 < 0.6, t: (performance.now() - t0) / 1000 }
+    const f: StageFrame = { phase, step, playing, beat: playing && step % 4 === 0 && (phase * 16) % 1 < 0.6, t: (performance.now() - t0) / 1000, scale: (cv.value?.clientWidth || LAB_W) / LAB_W }
     g.fillStyle = '#0b0b0d'
     g.fillRect(0, 0, LAB_W, LAB_W)
     g.lineWidth = 1

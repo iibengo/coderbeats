@@ -47,3 +47,17 @@ describe('laboratorio', () => {
     expect(deadzone(-1)).toBe(-1)
   })
 })
+
+import { fontPx, MIN_TEXT_REAL } from '../../app/lib/lab'
+describe('texto del lienzo: nunca menos de 11 px reales', () => {
+  it('a la escala de un iPhone (≈ 0,53) 17 px de lienzo se suben', () => {
+    expect(fontPx(17, 0.53) * 0.53).toBeGreaterThanOrEqual(MIN_TEXT_REAL - 0.3)
+    expect(fontPx(22, 0.53) * 0.53).toBeGreaterThanOrEqual(MIN_TEXT_REAL)
+  })
+  it('a una escala grande se respeta el tamaño pedido', () => {
+    expect(fontPx(22, 1)).toBe(22)
+  })
+  it('para cualquier escala razonable y base ≥ 20 nunca baja de 11', () => {
+    for (let sc = 0.3; sc <= 1.2; sc += 0.05) for (const base of [20, 21, 22, 24, 26]) expect(fontPx(base, sc) * sc).toBeGreaterThanOrEqual(MIN_TEXT_REAL - 0.5)
+  })
+})

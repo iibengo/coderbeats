@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // 1 · Capas (Incredibox/Groovepad): tocas los círculos para encender y apagar capas; la base suena al primer toque. Dentro, el panel DJ (mantener = filtro y eco, soltar = drop; platillo y subida).
 import { demoSteps, useLab } from '~/composables/useLab'
-import { AMBER, LAB_INSTRUMENTS, LAB_W, LAYERS, drumLoop } from '~/lib/lab'
+import { AMBER, LAB_INSTRUMENTS, LAB_W, LAYERS, drumLoop, fontPx } from '~/lib/lab'
 import type { FreeLoop } from '~/lib/freeLoops'
 import type { StageFrame } from './LabStage.vue'
 
@@ -14,14 +14,14 @@ const mine = useMyLayers()
 const C = LAB_W / 2
 
 /** un círculo: las capas de la base (bombo, caja, platillo, bajo, acordes, melodía) y, si existen, «mi ritmo» y «mi melodía» (spec 018) */
-interface Layer { key: string; label: string; color: string; part?: 'bass' | 'chords'; ids: number[] }
-const COLOR: Record<string, string> = { bd: AMBER, sd: '#F496BC', hh: '#8ECFF2', bass: '#B7A6F2', chords: '#cfcfd6', mel: '#7fd6c2', mydrums: '#F5A97A', mymel: '#A6F2C2' }
+interface Layer { key: string; label: string; color: string; part?: 'bass' | 'chords'; ids: number[]; /** hecha por mí (Círculo, Piano, Coro): lleva el color de su instrumento y una marca */ mine?: boolean }
+const COLOR: Record<string, string> = { bd: AMBER, sd: '#F496BC', hh: '#8ECFF2', bass: '#B7A6F2', chords: '#cfcfd6', mel: '#7fd6c2' }
 const BASE_IDS: Record<string, number[]> = { bd: [1], sd: [2], hh: [3], mel: [4] }
 const extraIds = ref<{ drums: number[]; melody: number[] }>({ drums: [], melody: [] })
 const layers = computed<Layer[]>(() => {
   const out: Layer[] = LAYERS.map((l) => ({ key: l.id, label: l.label, color: COLOR[l.id]!, part: l.id === 'bass' || l.id === 'chords' ? l.id : undefined, ids: BASE_IDS[l.id] ?? [] }))
-  if (extraIds.value.drums.length) out.push({ key: 'mydrums', label: 'mi ritmo', color: COLOR.mydrums!, ids: extraIds.value.drums })
-  if (extraIds.value.melody.length) out.push({ key: 'mymel', label: 'mi melodía', color: COLOR.mymel!, ids: extraIds.value.melody })
+  if (extraIds.value.drums.length) out.push({ key: 'mydrums', label: 'mi\nritmo', color: COLOR.bd!, ids: extraIds.value.drums, mine: true })
+  if (extraIds.value.melody.length) out.push({ key: 'mymel', label: 'mi\nmelodía', color: COLOR.mel!, ids: extraIds.value.melody, mine: true })
   return out
 })
 const posOf = (i: number, n: number) => {
@@ -72,9 +72,9 @@ function toggleLayer(l: Layer) {
 async function down(x: number, y: number) {
   if (!engine.playing.value) await lab.start()
   layers.value.forEach((l, i) => {
-    if (Math.hypot(x - POS.value[i]![0], y - POS.value[i]![1]) < 55) {
+    if (Math.hypot(x - POS.value[i]![0], y - POS.value[i]![1]) < 62) {
       toggleLayer(l)
-      stage.value?.ripple(POS.value[i]![0], POS.value[i]![1], l.color, 4, 44)
+      stage.value?.ripple(POS.value[i]![0], POS.value[i]![1], l.color, 4, 50)
       navigator.vibrate?.(8)
     }
   })
@@ -87,7 +87,7 @@ const { connected: padOn } = useGamepad(async (b) => {
   if (!l || i === undefined) return
   if (!engine.playing.value) await lab.start()
   toggleLayer(l)
-  stage.value?.ripple(POS.value[i]![0], POS.value[i]![1], l.color, 4, 44)
+  stage.value?.ripple(POS.value[i]![0], POS.value[i]![1], l.color, 4, 50)
 })
 defineExpose({ toggleLayer })
 
@@ -96,7 +96,7 @@ function draw(g: CanvasRenderingContext2D, f: StageFrame) {
     const [x, y] = POS.value[i]!
     const on = isOn(l)
     g.beginPath()
-    g.arc(x, y, 44 + (on && f.beat ? 8 : 0), 0, 7)
+    g.arc(x, y, 50 + (on && f.beat ? 8 : 0), 0, 7)
     g.fillStyle = on ? l.color : 'rgba(255,255,255,.05)'
     g.globalAlpha = on ? 0.9 : 1
     g.fill()
@@ -105,10 +105,20 @@ function draw(g: CanvasRenderingContext2D, f: StageFrame) {
     g.lineWidth = 2
     g.stroke()
     g.fillStyle = on ? '#0b0b0d' : 'rgba(255,255,255,.6)'
-    g.font = `500 ${l.label.length > 8 ? 17 : 22}px system-ui, sans-serif`
+    // lo mío: un segundo contorno del mismo color (la marca de «mío»; el color sigue siendo el de su instrumento)
+    if (l.mine) {
+      g.beginPath()
+      g.arc(x, y, 50 + 8, 0, 7)
+      g.strokeStyle = l.color
+      g.lineWidth = 2
+      g.stroke()
+    }
+    g.font = `500 ${fontPx(22, f.scale)}px system-ui, sans-serif`
     g.textAlign = 'center'
     g.textBaseline = 'middle'
-    g.fillText(l.label, x, y)
+    const lines = l.label.split('\n')
+    const lh = fontPx(22, f.scale) * 1.05
+    lines.forEach((t, k) => g.fillText(t, x, y + (k - (lines.length - 1) / 2) * lh))
   })
   const n = layers.value.filter((l) => isOn(l)).length
   g.beginPath()

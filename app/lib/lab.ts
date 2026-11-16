@@ -6,6 +6,11 @@ import type { FreeLoop, LoopHit } from './freeLoops'
 import { VOICE_HEX } from './palette'
 import type { Instrument } from './types'
 
+/** Ningún texto del lienzo baja de 11 px **reales** (specs/DISENO.md): el lienzo de 680 se ve a ~360 px en un iPhone (escala ≈ 0,53). */
+export const MIN_TEXT_REAL = 11
+/** El tamaño de letra en unidades del lienzo para que, a la escala real (`scale` = ancho en pantalla / 680), nunca quede por debajo de 11 px. */
+export const fontPx = (px: number, scale: number): number => Math.round(Math.max(px, MIN_TEXT_REAL / Math.max(0.1, scale)))
+
 /** lado del escenario cuadrado del Laboratorio (unidades de dibujo) */
 export const LAB_W = 680
 export const STEPS = 16

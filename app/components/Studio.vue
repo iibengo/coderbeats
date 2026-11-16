@@ -113,6 +113,16 @@ const drumsStyle = computed(() =>
     ? 'position: absolute; top: max(0.5rem, env(safe-area-inset-top)); right: calc(env(safe-area-inset-right, 0px) + 170px); width: 44px; height: 44px'
     : 'position: absolute; top: calc(max(0.5rem, env(safe-area-inset-top)) + 96px); left: 0.5rem; width: 44px; height: 44px',
 )
+// Órgano de la melodía (spec 020): un botón a la vista (también se abre tocando la franja de la melodía), junto a la batería
+const organStyle = computed(() =>
+  compact.value
+    ? 'position: absolute; top: max(0.5rem, env(safe-area-inset-top)); right: calc(env(safe-area-inset-right, 0px) + 218px); width: 44px; height: 44px'
+    : 'position: absolute; top: calc(max(0.5rem, env(safe-area-inset-top)) + 144px); left: 0.5rem; width: 44px; height: 44px',
+)
+function openOrgan(e: MouseEvent) {
+  const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
+  stage.value?.openOrgan(r.left + r.width / 2, r.top + r.height / 2)
+}
 // el selector de modo (spec 011): bajo ⋯ en vertical y escritorio; en horizontal, bajo Play
 const modeStyle = computed(() =>
   compact.value
@@ -225,6 +235,9 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
 
     <!-- batería de la parte (spec 020) -->
     <button class="flex items-center justify-center text-lg text-white/50" :style="drumsStyle" aria-label="batería de la parte" @pointerdown.stop @click="drumsOpen = true">🥁</button>
+
+    <!-- órgano de la melodía (spec 020) -->
+    <button class="flex items-center justify-center text-lg text-white/50" :style="organStyle" aria-label="melodía: abrir el órgano" @pointerdown.stop @click="openOrgan">♪</button>
 
     <!-- modo (spec 011): Jugar | Componer -->
     <ModeSwitch :model-value="engine.mode.value" :style="modeStyle" @pointerdown.stop @update:model-value="stage?.switchMode($event)" />

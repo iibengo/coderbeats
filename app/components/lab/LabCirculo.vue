@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // 4 · Círculo de ritmo (Groove Pizza): tocas los anillos para poner o quitar golpes y cada instrumento forma su figura. Modo «ruedas»: arrastrar alrededor de un anillo cambia cuántos golpes tiene.
 import { demoSteps, useLab } from '~/composables/useLab'
-import { AMBER, LAB_INSTRUMENTS, LAB_W, STEPS, hitsOf, stepsOf, toggleStep, wheelSteps } from '~/lib/lab'
+import { AMBER, LAB_INSTRUMENTS, LAB_W, STEPS, fontPx, hitsOf, stepsOf, toggleStep, wheelSteps } from '~/lib/lab'
 import type { Instrument } from '~/lib/types'
 import type { StageFrame } from './LabStage.vue'
 
@@ -129,7 +129,7 @@ function poly(g: CanvasRenderingContext2D, inst: Instrument, r: number, f: Stage
   }
   if (mode.value === 'ruedas') {
     g.fillStyle = col
-    g.font = '500 22px system-ui, sans-serif'
+    g.font = `500 ${fontPx(22, f.scale)}px system-ui, sans-serif`
     g.textAlign = 'center'
     g.fillText(String(pts.length), C, C + (LAB_INSTRUMENTS.indexOf(inst) - 1) * 26 + 8)
   }

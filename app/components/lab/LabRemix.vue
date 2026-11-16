@@ -2,7 +2,8 @@
 // 5 · Remixes (spec 019): eliges una canción y actúas sus partes. Nada avanza solo: tocas una parte y entra en el siguiente compás; dentro, enciendes y apagas capas y usas el DJ.
 // Lo que actúas se graba como «mi versión» (hasta 2 min; el final entra solo ≈ 8 s antes del tope y termina en el compás justo) y se comparte en vídeo.
 import { useLab } from '~/composables/useLab'
-import { AMBER, LAB_W } from '~/lib/lab'
+import { fontPx, LAB_W } from '~/lib/lab'
+import { VOICE_HEX } from '~/lib/palette'
 import { addSong, isLabMark, makeSaved, newId } from '~/lib/library'
 import { barSeconds, finalPartOf, labRemixFromSaved, LAB_REMIXES, partLoops, partsOn, remixTake, songFromTake, takePlan, type LabLayer, type LabRemix, type TakeBar } from '~/lib/labRemixes'
 import { readJson, writeText } from '~/lib/storage'
@@ -26,10 +27,9 @@ const on = ref<Set<string>>(new Set())
 let ids: Record<string, number[]> = {}
 const mode = ref<'actuar' | 'escuchar'>('actuar')
 
-const COLOR: Record<string, string> = { bombo: AMBER, ritmo: AMBER, caja: '#F496BC', hat: '#8ECFF2', bajo: '#B7A6F2', acordes: '#cfcfd6', tema: '#7fd6c2', subida: '#F5A97A' }
-const PART_COLOR: Record<string, string> = { Intro: '#8ECFF2', Estrofa: '#7fd6c2', Subida: '#F5A97A', Drop: '#F496BC', Break: '#cfcfd6', Final: '#B7A6F2', Salida: '#B7A6F2', Puente: '#cfcfd6' }
-/** el color de una parte por su nombre sin número («Drop 2» → Drop) */
-const colorOfPart = (name: string): string => PART_COLOR[name.replace(/\s+\d+$/, '')] ?? '#B7A6F2'
+// el color es solo de los instrumentos (el mismo que en todas partes); acordes y subida, gris (fondo y efecto). Las partes no tienen color: la que suena, blanca; la que entra, parpadea; las demás, tenues.
+const GREY = '#CFCFD6'
+const COLOR: Record<string, string> = { bombo: VOICE_HEX.bd, ritmo: VOICE_HEX.bd, caja: VOICE_HEX.sd, hat: VOICE_HEX.hh, bajo: VOICE_HEX.bass, acordes: GREY, tema: VOICE_HEX.mel, subida: GREY }
 const cur = computed(() => remix.value?.parts.find((p) => p.name === part.value) ?? null)
 
 // ── mi versión: se guarda aparte (clave propia; nada del Estudio) ──
@@ -238,7 +238,7 @@ function draw(g: CanvasRenderingContext2D, f: StageFrame) {
   g.textBaseline = 'middle'
   if (mode.value === 'escuchar') {
     g.fillStyle = 'rgba(255,255,255,.55)'
-    g.font = '400 24px system-ui, sans-serif'
+    g.font = `400 ${fontPx(24, f.scale)}px system-ui, sans-serif`
     g.fillText('escuchando', C, C)
     return
   }
@@ -246,13 +246,13 @@ function draw(g: CanvasRenderingContext2D, f: StageFrame) {
   const queued = shown.value !== part.value
   g.beginPath()
   g.arc(C, C, 62 + (f.beat ? 6 : 0), 0, 7)
-  g.strokeStyle = colorOfPart(part.value)
+  g.strokeStyle = '#fff'
   g.globalAlpha = queued && Math.floor(f.t * 4) % 2 ? 0.3 : 1
   g.lineWidth = 3
   g.stroke()
   g.globalAlpha = 1
-  g.fillStyle = colorOfPart(part.value)
-  g.font = '500 26px system-ui, sans-serif'
+  g.fillStyle = '#fff'
+  g.font = `500 ${fontPx(26, f.scale)}px system-ui, sans-serif`
   g.fillText(part.value, C, C)
   cur.value.layers.forEach((l, i) => {
     const [x, y] = POS.value[i]!
@@ -268,7 +268,7 @@ function draw(g: CanvasRenderingContext2D, f: StageFrame) {
     g.lineWidth = 2
     g.stroke()
     g.fillStyle = isOn ? '#0b0b0d' : 'rgba(255,255,255,.6)'
-    g.font = '500 21px system-ui, sans-serif'
+    g.font = `500 ${fontPx(21, f.scale)}px system-ui, sans-serif`
     g.fillText(l.label, x, y)
   })
   if (rec.value) {
@@ -277,7 +277,7 @@ function draw(g: CanvasRenderingContext2D, f: StageFrame) {
     g.fillStyle = '#ff4d6d'
     g.fill()
     g.fillStyle = 'rgba(255,255,255,.8)'
-    g.font = '400 20px system-ui, sans-serif'
+    g.font = `400 ${fontPx(20, f.scale)}px system-ui, sans-serif`
     g.textAlign = 'left'
     g.fillText(`${recBars.value}/${plan.value.maxBars}${rec.value.endBar !== null ? ' · final' : ''}`, 52, 34)
   }
@@ -305,8 +305,7 @@ const phrase = computed(() => (remix.value ? 'Toca una parte: entra en el siguie
             :key="pt.name"
             :data-part="pt.name"
             class="rounded-2xl border px-4 py-5 text-lg"
-            :class="mode === 'actuar' && part === pt.name ? 'border-2 text-white' : 'border-white/20 text-white/70'"
-            :style="mode === 'actuar' && part === pt.name ? { borderColor: colorOfPart(pt.name) } : {}"
+            :class="mode === 'actuar' && part === pt.name ? (shown === pt.name ? 'border-2 border-white text-white' : 'animate-pulse border-2 border-white/70 text-white') : 'border-white/15 text-white/45'"
             @pointerdown.prevent="goPart(pt.name)"
           >
             {{ pt.name }}<span v-if="mode === 'actuar' && part === pt.name && shown !== pt.name" class="ml-2 text-xs text-white/50">entra…</span>

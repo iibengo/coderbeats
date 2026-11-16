@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // 2 · Piano mágico (Magic Piano): tú marcas el ritmo con el dedo y la app pone la nota. La melodía es de la biblioteca y encaja con el estilo.
 import { demoSteps, tuneFor, useLab } from '~/composables/useLab'
-import { LAB_W } from '~/lib/lab'
+import { fontPx, LAB_W } from '~/lib/lab'
 import { adaptTune, tunesFor } from '~/lib/tuneLibrary'
 import type { StageFrame } from './LabStage.vue'
 
@@ -59,7 +59,7 @@ function other() {
 function draw(g: CanvasRenderingContext2D, f: StageFrame) {
   g.textAlign = 'center'
   g.fillStyle = 'rgba(255,255,255,.55)'
-  g.font = '400 22px system-ui, sans-serif'
+  g.font = `400 ${fontPx(22, f.scale)}px system-ui, sans-serif`
   g.fillText(`${tune.value.name} · ${played.value % hits.value.length}/${hits.value.length}`, C, 40)
   // el círculo de las alturas: la siguiente nota, hueca, en su sitio
   g.beginPath()
@@ -83,7 +83,7 @@ function draw(g: CanvasRenderingContext2D, f: StageFrame) {
   }
   if (!f.playing) {
     g.fillStyle = 'rgba(255,255,255,.4)'
-    g.font = '400 24px system-ui, sans-serif'
+    g.font = `400 ${fontPx(24, f.scale)}px system-ui, sans-serif`
     g.fillText('toca donde quieras', C, C + 8)
   }
 }
