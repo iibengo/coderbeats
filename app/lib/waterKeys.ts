@@ -3,6 +3,7 @@
  * el brillo según la altura del dedo, el espacio libre que queda fuera del aro (fase 0) y la conversión de lo tocado en un loop de melodía por paso.
  */
 import { MIDI_MAX, MIDI_MIN, REGISTER, type MelodyHit, type MelodySynth } from './melody'
+import { VOICE_HEX } from './palette'
 import { STYLE_MUSIC } from './styles'
 import type { StyleId } from './types'
 
@@ -38,6 +39,28 @@ export function noteAtX(fx: number, notes: readonly number[], style: StyleId, ba
 export function brightnessAtY(fy: number): number {
   const f = 1 - Math.min(1, Math.max(0, Number.isFinite(fy) ? fy : 1))
   return Math.round(700 * (9000 / 700) ** f)
+}
+
+/**
+ * Teclado de agua: **la altura del dedo es la nota** (abajo graves, arriba agudas; `fy` 0 = arriba) y la posición horizontal el brillo (izquierda cálido, derecha brillante).
+ * Así lo que se ve (franjas horizontales, graves abajo) coincide con lo que suena.
+ */
+export function noteAtY(fy: number, notes: readonly number[], style: StyleId, bar: number, strong: boolean): number {
+  const f = Number.isFinite(fy) ? Math.min(1, Math.max(0, fy)) : 1
+  return noteAtX(1 - f, notes, style, bar, strong)
+}
+export const brightnessAtX = (fx: number): number => brightnessAtY(1 - (Number.isFinite(fx) ? Math.min(1, Math.max(0, fx)) : 0))
+
+/** La franja (0 = la más grave, abajo) que corresponde a la altura `fy` entre `n` notas; la misma cuenta que `noteAtY`. */
+export function bandAtY(fy: number, n: number): number {
+  if (n <= 0) return 0
+  const f = Number.isFinite(fy) ? Math.min(1, Math.max(0, fy)) : 1
+  return Math.min(n - 1, Math.floor((1 - f) * n))
+}
+
+/** El color de una nota por su altura en la escala (0 grave … 1 aguda): rosa, lila y azul de la paleta única. */
+export function pitchColor(frac: number): string {
+  return frac < 1 / 3 ? VOICE_HEX.bd : frac < 2 / 3 ? VOICE_HEX.sd : VOICE_HEX.hh
 }
 
 /** Tocar el agua en `t` (s) la nota `midi`. */

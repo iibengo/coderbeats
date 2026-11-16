@@ -78,6 +78,7 @@ import { AroCanvas, type AroDot, type AroFrame } from './AroCanvas'
 import MelodyOrgan from './MelodyOrgan.vue'
 import { governorStep, initialGovernor } from '~/lib/frameGovernor'
 import StageOverlay from './StageOverlay.vue'
+import WaterKeysOverlay from './WaterKeysOverlay.vue'
 
 const props = withDefaults(defineProps<{ themeId?: string }>(), { themeId: DEFAULT_THEME })
 const emit = defineEmits<{ preview: [] }>()
@@ -268,7 +269,21 @@ function crowdDots(c: Cell): AroDot[] {
   crowdDotsCache.set(c.id, { loops: c.loops, style: style.value, dots })
   return dots
 }
-const ringDots = computed<AroDot[]>(() => dotsOf(loops.value.loops, shownBar()))
+/** lo que se va tocando en el agua se ve ya en la franja de melodía del aro (un loop provisional con id −2, que no se puede coger) */
+const KEYS_LIVE_ID = -2
+const ringDots = computed<AroDot[]>(() => {
+  const ls = engine.keysRec.value && engine.keysHits.value.length
+    ? [...loops.value.loops.filter((l) => l.instrument !== 'mel'), { id: KEYS_LIVE_ID, instrument: 'mel', bars: 4, phaseBar: 0, hits: engine.keysHits.value, muted: false, bornAt: 0, fromTemplate: false } as FreeLoop]
+    : loops.value.loops
+  return dotsOf(ls, shownBar())
+})
+const keysOv = ref<InstanceType<typeof WaterKeysOverlay> | null>(null)
+function keyTouch(x: number, y: number) {
+  if (engine.keysPlay(x / view.w, y / view.h)) keysOv.value?.hit(x, y, y / view.h)
+}
+function keyDrag(x: number, y: number) {
+  if (engine.keysPlay(x / view.w, y / view.h, true)) keysOv.value?.hit(x, y, y / view.h)
+}
 const phraseDots = computed(() =>
   (phrase.value?.hits ?? []).filter((h) => h.instrument !== 'mel').map((h, i) => ({
     key: `${Math.round(h.globalStep)}-${h.instrument}-${i}`,
@@ -1443,7 +1458,8 @@ function onDown(e: PointerEvent) {
     gesture = { kind: 'aro-pending', id: e.pointerId, x0: x, y0: y, dot: edit.dot, stretch: edit.stretch }
     return
   }
-  const dot = edit?.kind === 'move' ? edit.dot : aro?.pick(x, y)
+  const picked = aro?.pick(x, y)
+  const dot = edit?.kind === 'move' ? edit.dot : picked && picked.loopId !== KEYS_LIVE_ID ? picked : null
   if (dot) {
     editBar.value = shownBar()
     armLoop()
@@ -1461,7 +1477,7 @@ function onDown(e: PointerEvent) {
   else if (engine.keysOn.value && mode.value === 'jugar' && !colony.value) {
     // teclado de agua (spec 015): un dedo fuera del aro toca notas de la escala del estilo
     gesture = { kind: 'keys', id: e.pointerId }
-    engine.keysPlay(x / view.w, y / view.h)
+    keyTouch(x, y)
   } else if (mouse) gesture = { kind: 'fx', id: e.pointerId, x0: x, y0: y, filter: fx.filter, space: fx.space, axis: null }
   else gesture = null
 }
@@ -1493,7 +1509,7 @@ function onMove(e: PointerEvent) {
     gs.lx = p.x
     gs.ly = p.y
   } else if (gs.kind === 'keys' && gs.id === e.pointerId) {
-    engine.keysPlay(p.x / view.w, p.y / view.h, true)
+    keyDrag(p.x, p.y)
   } else if (gs.kind === 'fx' && gs.id === e.pointerId) {
     const dx = p.x - gs.x0
     const dy = p.y - gs.y0
@@ -2178,6 +2194,8 @@ defineExpose({ videoSource, colonyPoints, pointOf: (voice: Voice, step: number) 
 
     <!-- Escenario: la pantalla entera es para tocar (spec 011 §13.1) -->
     <StageOverlay v-if="engine.stageOn.value" :reduced="reduced" />
+
+    <WaterKeysOverlay v-if="engine.keysOn.value && mode === 'jugar' && !colony && !engine.stageOn.value" ref="keysOv" :reduced="reduced" :style-id="style" :recording="!!engine.keysRec.value" :bar="currentBar" :count="engine.keysRec.value?.count ?? 0" />
 
     <MelodyOrgan v-if="organ" :origin="organ" @close="organ = null" />
   </div>

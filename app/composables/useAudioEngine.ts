@@ -1,5 +1,5 @@
 import { computed, reactive, ref, shallowRef } from 'vue'
-import { brightnessAtY, keysToHits, noteAtX, scaleNotes, type KeyEvent } from '~/lib/waterKeys'
+import { brightnessAtX, keysToHits, noteAtY, scaleNotes, type KeyEvent } from '~/lib/waterKeys'
 import { DEFAULT_PRODUCTION } from '~/lib/production'
 import { mergeCells as mergeCellsPure } from '~/lib/mergeCells'
 import { bluetoothWarning } from '~/lib/voiceWarn'
@@ -12,7 +12,7 @@ import { timelineToSong, type BarLayers } from '~/lib/liveCompose'
 import { NO_PARTS, PART_ORBIT, planTransitions, targetParts, type BackgroundMode, type Part, type Parts } from '~/lib/background'
 import { KIT_ORDER, KITS, kitFromSaved, STYLES } from '~/lib/constants'
 import { MELODY_DECISION_SEC } from '~/lib/liveMelody'
-import type { MelodySynth } from '~/lib/melody'
+import type { MelodyHit, MelodySynth } from '~/lib/melody'
 import { melodyOfPhrase } from '~/lib/melodyAssist'
 import { midiName } from '~/lib/noteScore'
 import type { Remix } from '~/lib/remixes'
@@ -305,6 +305,10 @@ async function ensureVoices() {
 /** Teclado de agua (spec 015): tocar el fondo fuera del aro suena notas de la escala del estilo; se puede grabar como melodía */
 const keysOn = ref(false)
 const keysRec = ref<{ count: number } | null>(null)
+/** lo apuntado mientras se graba (ya cuantizado), para verlo en la franja de melodía del aro */
+const keysHits = ref<MelodyHit[]>([])
+/** la última nota tocada (para ondas y franja iluminada) */
+const keysLast = ref<{ n: number; midi: number }>({ n: 0, midi: 60 })
 let keyEvents: KeyEvent[] = []
 let lastKey = { midi: -1, at: 0 }
 /** Escenario (spec 011 §13.1): la pantalla entera dispara golpes de efecto. */
@@ -2635,11 +2639,14 @@ export function useAudioEngine() {
     },
     keysOn,
     keysRec,
+    keysHits,
+    keysLast,
     setKeys: (on: boolean) => {
       keysOn.value = on
       if (!on) {
         keysRec.value = null
         keyEvents = []
+        keysHits.value = []
       }
     },
     /**
@@ -2652,7 +2659,7 @@ export function useAudioEngine() {
       const stepSec = stepSeconds()
       const bar = clock ? Math.floor((c.currentTime - clock.time) / clock.barSec) + clock.cycle : 0
       const step = clock ? Math.floor((((c.currentTime - barTime(bar)) / stepSec) % 16 + 16) % 16) : 0
-      const midi = noteAtX(fx, scaleNotes(style.value), style.value, bar, step % 4 === 0)
+      const midi = noteAtY(fy, scaleNotes(style.value), style.value, bar, step % 4 === 0)
       if (drag && midi === lastKey.midi && c.currentTime - lastKey.at < 0.4) return false
       if (c.currentTime - lastKey.at < 0.12) return false
       lastKey = { midi, at: c.currentTime }
@@ -2660,12 +2667,14 @@ export function useAudioEngine() {
       const synth = STYLE_MUSIC[style.value].synth
       const wave = { piano: 'triangle', lead: 'square', pad: 'sawtooth', drone: 'sine' }[synth as 'piano'] ?? 'triangle'
       void (S as unknown as { superdough: (v: object, t: number, d: number) => Promise<unknown> }).superdough(
-        { s: wave, note: midi, lpf: brightnessAtY(fy), attack: 0.005, decay: 0.3, sustain: 0.3, release: 0.3, gain: 0.5, room: 0.3 }, t, 0.35,
+        { s: wave, note: midi, lpf: brightnessAtX(fx), attack: 0.005, decay: 0.3, sustain: 0.3, release: 0.3, gain: 0.5, room: 0.3 }, t, 0.35,
       )
       toWorker({ type: 'output', times: [t] })
+      keysLast.value = { n: keysLast.value.n + 1, midi }
       if (keysRec.value && clock) {
         keyEvents.push({ time: t, midi })
         keysRec.value = { count: keyEvents.length }
+        keysHits.value = keysToHits(keyEvents, barTime(0), stepSeconds(), 4)
       }
       return true
     },
@@ -2674,12 +2683,14 @@ export function useAudioEngine() {
       if (!keysRec.value) {
         if (!playing.value) return false
         keyEvents = []
+        keysHits.value = []
         keysRec.value = { count: 0 }
         return true
       }
       const events = keyEvents
       keyEvents = []
       keysRec.value = null
+      keysHits.value = []
       if (!clock || !events.length) return false
       const hits = keysToHits(events, barTime(0), stepSeconds(), 4)
       const born = nextBarLine()

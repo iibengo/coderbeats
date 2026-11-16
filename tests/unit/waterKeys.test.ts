@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { brightnessAtY, freeWater, keysToHits, nearestChordTone, noteAtX, scaleNotes } from '../../app/lib/waterKeys'
+import { bandAtY, brightnessAtX, noteAtY, pitchColor, brightnessAtY, freeWater, keysToHits, nearestChordTone, noteAtX, scaleNotes } from '../../app/lib/waterKeys'
 import { STYLE_MUSIC } from '../../app/lib/styles'
 import { REGISTER } from '../../app/lib/melody'
 import type { StyleId } from '../../app/lib/types'
@@ -68,5 +68,21 @@ describe('teclado de agua: partes puras (spec 015)', () => {
     const small = freeWater({ w: 360, h: 640, top: 110, bottom: 220, cx: 180, cy: 300, R: 170 })
     expect(small.usable).toBe(false)
     expect(freeWater({ w: 800, h: 400, top: 20, bottom: 20, cx: 400, cy: 200, R: 150 }).usable).toBe(true)
+  })
+  it('la altura es la nota: abajo graves, arriba agudas; la franja coincide con la nota', () => {
+    for (const st of STYLES) {
+      const n = scaleNotes(st)
+      expect(noteAtY(1, n, st, 0, false)).toBe(n[0])
+      expect(noteAtY(0, n, st, 0, false)).toBe(n.at(-1))
+      for (const y of [0.05, 0.3, 0.5, 0.9]) expect(n[bandAtY(y, n.length)]).toBe(noteAtY(y, n, st, 0, false))
+      expect(noteAtY(Number.NaN, n, st, 0, false)).toBe(n[0])
+    }
+    expect(bandAtY(0.5, 0)).toBe(0)
+  })
+  it('el brillo sube de izquierda a derecha y el color de la nota va de rosa a azul', () => {
+    expect(brightnessAtX(0)).toBe(700)
+    expect(brightnessAtX(1)).toBe(9000)
+    expect(brightnessAtX(Number.NaN)).toBe(700)
+    expect(new Set([0.1, 0.5, 0.9].map(pitchColor)).size).toBe(3)
   })
 })
