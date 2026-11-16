@@ -6,10 +6,10 @@
  */
 import { cellById, MAX_CELLS, type Song } from './cells'
 import type { PilotScript, PilotStep } from './pilotScripts'
+import { hasGhostNotes, layerCaption } from './layerCaptions'
 import type { Instrument, KitId, StyleId } from './types'
 
 const ORDER: Instrument[] = ['hh', 'bd', 'sd']
-const NAMES: Record<Instrument, string> = { bd: 'el bombo', sd: 'la caja', hh: 'el platillo' }
 
 /** Los pasos enteros (0..15) de un loop de batería gesticulable, o `null` (más de un compás, golpe a medio paso o vacío). */
 export function gestureSteps(hits: readonly { pos: number }[], bars: number): number[] | null {
@@ -23,22 +23,30 @@ export function previewScript(song: Song, style: StyleId, kit: KitId, title = 'T
   const first = cellById(song, song.order[0] ?? song.cells[0]?.id ?? -1) ?? song.cells[0]
   const steps: PilotStep[] = [{ do: 'caption', text: title }, { do: 'tap', on: { t: 'play' } }, { do: 'wait', bars: 1 }]
   const loops: PilotScript['final']['loops'] = {}
+  /** el número de la capa que entra (spec 016 §15): «1 · Bombo: el pulso» */
+  let layer = 0
   for (const inst of ORDER) {
     const l = first?.loops.find((x) => x.instrument === inst && !x.muted)
     const g = l ? gestureSteps(l.hits, l.bars) : null
     if (!g) continue
     loops[inst] = g
-    steps.push({ do: 'caption', text: `${NAMES[inst]}${g.length >= 8 ? ', con la boca' : ', tocando el aro'}` })
+    steps.push({ do: 'caption', text: layerCaption(++layer, inst, style, g) })
     if (g.length >= 8) steps.push({ do: 'mouth', instrument: inst, steps: g, says: inst === 'hh' ? 'ts' : inst === 'sd' ? 'pff' : 'bum' })
     else for (const step of g) steps.push({ do: 'tap', on: { t: 'strip', voice: inst, step } })
     steps.push({ do: 'wait', bars: 2 })
   }
   const parts = { bass: !!first?.parts.bass, chords: !!first?.parts.chords }
-  if (parts.chords) steps.push({ do: 'tap', on: { t: 'ball', part: 'chords' }, caption: '+ acordes' })
-  if (parts.bass) steps.push({ do: 'tap', on: { t: 'ball', part: 'bass' }, caption: '+ bajo' })
+  if (parts.chords) steps.push({ do: 'tap', on: { t: 'ball', part: 'chords' }, caption: layerCaption(++layer, 'chords', style) })
+  if (parts.bass) steps.push({ do: 'tap', on: { t: 'ball', part: 'bass' }, caption: layerCaption(++layer, 'bass', style) })
   steps.push({ do: 'wait', bars: 2 })
   // la primera célula se completa con lo que ningún gesto hace (melodía, loops de 4 compases, filtro…)
-  steps.push({ do: 'caption', text: 'lo que falta de esta parte' }, { do: 'fill', cell: 0 })
+  // lo que ningún gesto hace, con su rótulo: las ghost notes de la caja y la melodía, si la canción las tiene
+  const snare = first?.loops.find((x) => x.instrument === 'sd' && !x.muted)
+  const melody = first?.loops.find((x) => x.instrument === 'mel' && !x.muted && x.hits.length)
+  if (snare && hasGhostNotes(snare.hits)) steps.push({ do: 'caption', text: layerCaption(++layer, 'ghost', style) }, { do: 'wait', bars: 1 })
+  if (melody) steps.push({ do: 'caption', text: layerCaption(++layer, 'mel', style) }, { do: 'wait', bars: 1 })
+  if (!melody && !(snare && hasGhostNotes(snare.hits))) steps.push({ do: 'caption', text: 'lo que falta de esta parte' })
+  steps.push({ do: 'fill', cell: 0 })
   // cada célula siguiente, en orden: en Componer se copia la anterior (asa → agua vacía) y se cambia lo necesario
   const rest = song.order.slice(1)
   if (rest.length) steps.push({ do: 'tap', on: { t: 'label', label: 'Componer' } }, { do: 'wait', bars: 1 })

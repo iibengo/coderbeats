@@ -112,3 +112,13 @@ Melodía sin tema (§9.2) · más temas en la biblioteca y por estilo (que cada 
 
 ## 14. Implementado: fases 3, 4 y 5 (2026-11-16)
 Pastillas (`tapPad`), ↶ ↷ (`LoopHistory`), guardado automático como «Mi canción» (como mucho 3 s tras el primer cambio), **«🎬 Mi reel»** (`header` en `useVideoExport`: estilo y BPM arriba) y la **guía en el orden nuevo** (`portadaStep`: estilo → voz → dedo → guardar). **La espiral solo aparece cuando hay ritmo.**
+
+## 15. Ajuste: «la forma de tu ritmo» y «Anatomía de tu ritmo» (2026-11-16)
+Idea tras ver un reel «Anatomía del reggaetón, capa por capa»:
+1. **La forma de tu ritmo.** En el aro, los golpes de cada instrumento (bombo, caja, platillo) se **unen con líneas finas de su color** y cada carril forma una figura (polígono): se ve **la forma de tu ritmo**. Va **encendido en la portada, en Previsualizar y, por tanto, en el vídeo** (el vídeo graba el aro). Es solo un dibujo del aro (`AroFrame.shapes`, `lib/aro/shapes.ts`); no toca datos ni sonido. Con el detalle del aro bajado por el vigilante de frames, se dibuja igual (son 3 trazos).
+2. **Rótulos de capa en Previsualizar.** Al entrar cada capa, un rótulo corto y numerado que la explica: **«1 · Bombo: el pulso»**, **«4 · Ghost notes: golpes suaves de caja justo antes»** (`lib/layerCaptions.ts`).
+   - **Las frases salen de cada estilo** (escritas a mano para los 5: hip hop, house, dnb, dembow y techno) para bombo, caja, platillo, bajo, acordes y melodía.
+   - **Para las canciones de cualquiera se generan de sus datos** (`describeDrums`): el patrón se reconoce (cuatro al suelo, contratiempos, el backbeat de los tiempos 2 y 4, el tresillo del dembow, semicorcheas…) y, si no es ninguno, se cuenta («5 golpes por compás»). Las **ghost notes** se detectan en la caja (golpes suaves justo antes de uno fuerte) y salen como capa propia al final de la primera célula, junto a la melodía.
+   - La numeración sigue el orden en que entran las capas; la frase del estilo y la de los datos se unen cuando las dos aportan.
+3. **El vídeo de Previsualizar es el reel «Anatomía de tu ritmo»:** el rótulo de la capa que entra **se dibuja en el vídeo** (píldora abajo), junto con el círculo con sus figuras, el estilo y los BPM (`header`).
+**Pendiente:** el botón de Previsualizar en la portada (hoy está en el Estudio: el piloto toca las bolas de bajo y acordes y las tiras del aro, que la portada esconde); el círculo sale algo pequeño en el vídeo vertical (encuadre más cerrado).

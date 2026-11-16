@@ -516,7 +516,9 @@ defineExpose({ otherTune, tuneName: computed(() => tune.value.name) })
         </button>
       </template>
     </div>
-    <p v-if="spiral && !(bare && !touched)" class="tag" role="status">
+    <!-- en la portada, hasta el primer toque la guía la pone la portada -->
+    <span v-if="bare && !touched" />
+    <p v-else-if="spiral" class="tag" role="status">
       {{ tune.name }} · {{ arrived }}/{{ tuneHits.length }}
       <span v-if="finished" class="sub">¡Melodía guardada en la célula!</span>
       <span v-else-if="!touched" class="sub">{{ bare ? 'Pon el dedo en el agua y muévelo' : 'Pon el dedo y muévelo sin levantar: las notas vienen a él' }}</span>

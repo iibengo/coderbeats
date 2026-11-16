@@ -1047,6 +1047,8 @@ function tick() {
       weights,
       playing: playing.value,
       calm: CALM_JUGAR * (mode.value === 'jugar' ? 1 : 0),
+      // la forma de tu ritmo (spec 016 §15): en la portada y en Previsualizar (y así en el vídeo)
+      shapes: props.simple || pilotState.active,
       reward: updateReward(clock.bar + clock.barPhase),
       // la que se mira sin sonar (fijada, o de un grupo apagado) no lleva aguja ni estela, ni lejos ni cerca
       idle: playing.value && !plan && !engine.groupHeads().some((h) => h.cellId === engine.viewCellId.value),

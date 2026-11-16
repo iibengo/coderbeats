@@ -98,6 +98,21 @@ export function useVideoExport(getSource: () => Source | null, runPreview?: () =
           g.textAlign = 'center'
           g.fillText(`${STYLES[engine.style.value].label.toUpperCase()}  ·  ${engine.bpm.value} BPM`, w / 2, Math.round(h * 0.085))
         }
+        // el rótulo de la capa que entra (Previsualizar: «Anatomía de tu ritmo»), en una píldora abajo
+        if (o.header && pilot.active && pilot.captions && pilot.caption) {
+          const size = Math.round(w / 26)
+          g.font = `600 ${size}px system-ui, sans-serif`
+          g.textAlign = 'center'
+          const tw = Math.min(w * 0.92, g.measureText(pilot.caption).width + size * 1.6)
+          const ph = size * 2
+          const py = Math.round(h * 0.86)
+          g.fillStyle = 'rgba(0,0,0,0.55)'
+          g.beginPath()
+          g.roundRect(w / 2 - tw / 2, py - ph * 0.7, tw, ph, ph / 2)
+          g.fill()
+          g.fillStyle = 'rgba(255,255,255,0.95)'
+          g.fillText(pilot.caption, w / 2, py + size * 0.3, w * 0.9)
+        }
         if (o.mark) {
           g.font = `500 ${Math.round(w / 34)}px system-ui, sans-serif`
           g.fillStyle = 'rgba(255,255,255,0.45)'

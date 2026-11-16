@@ -66,6 +66,7 @@ export interface AroPull {
 
 /** La otra célula que se ve en una transición: la que entra (tenue) o la que se apaga. Solo se ve. */
 import { lissajousPoints, type LissajousParams } from '~/lib/theremin'
+import { SHAPE_VOICES, shapeSteps } from '~/lib/aro/shapes'
 
 export interface AroGhost {
   /**
@@ -119,6 +120,8 @@ export interface AroLabel {
 }
 
 export interface AroFrame {
+  /** «la forma de tu ritmo» (spec 016 §15): líneas finas que unen los golpes de cada instrumento */
+  shapes?: boolean
   /** segundos de reloj de pared (para la respiración) */
   wall: number
   geo: DropGeo
@@ -527,6 +530,32 @@ export class AroCanvas {
   }
 
   /** u (0..1 en el aro) donde se dibuja un golpe: el medio de su franja; en la melodía, según su altura */
+  /** Una figura por instrumento: sus golpes, por orden de paso, unidos con una línea fina de su color (cerrada si son 3 o más). Debajo de los puntos. */
+  private drawShapes(f: AroFrame, layout: Layout) {
+    const x = this.ctx
+    const steps = shapeSteps(f.dots)
+    x.save()
+    x.lineJoin = 'round'
+    x.lineCap = 'round'
+    for (const v of SHAPE_VOICES) {
+      const list = steps[v]
+      const wt = f.weights[v]
+      if (!list || wt < 0.05) continue
+      const u = (layout[v].a + layout[v].b) / 2
+      x.strokeStyle = `rgba(${VOICE_RGB_CSS[v]},${0.5 * wt})`
+      x.lineWidth = 1.3
+      x.beginPath()
+      list.forEach((st, i) => {
+        const [px, py] = this.at(stepAngle(st), u)
+        if (i) x.lineTo(px, py)
+        else x.moveTo(px, py)
+      })
+      if (list.length >= 3) x.closePath()
+      x.stroke()
+    }
+    x.restore()
+  }
+
   private dotU(d: AroDot, layout: Layout): number {
     const { a, b } = layout[d.voice]
     if (d.voice !== 'mel' || d.frac === undefined) return (a + b) / 2
@@ -1346,6 +1375,8 @@ export class AroCanvas {
       x.arc(gx, gy, DOT_R.mel + 2, 0, TAU)
       x.stroke()
     }
+
+    if (f.shapes) this.drawShapes(f, layout)
 
     // golpes: puntos; el bajo, rayita con el arco de su duración
     let dragged: { d: AroDot; px: number; py: number; r: number } | null = null

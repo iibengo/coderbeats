@@ -21,7 +21,7 @@ async function go() {
   open.value = false
   // «Mi reel» (portada): vertical, ≥ 10 s (4 compases, 8 si el tempo es rápido), estilo y BPM arriba y la marca discreta
   const reelBars = engine.bpm.value > 110 ? 8 : 4
-  await props.exporter.start(props.simple ? { what: 'cell', bars: reelBars, format: 'vertical', size: 720, fps: 30, mark: true, header: true } : { what: what.value, bars: bars.value, format: format.value, size: size.value, fps: 30, mark: mark.value })
+  await props.exporter.start(props.simple ? { what: 'cell', bars: reelBars, format: 'vertical', size: 720, fps: 30, mark: true, header: true } : { what: what.value, bars: bars.value, format: format.value, size: size.value, fps: 30, mark: mark.value, header: what.value === 'preview' })
   if (state.phase === 'done' || state.phase === 'error') open.value = true
 }
 </script>
