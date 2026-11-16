@@ -318,6 +318,10 @@ const personalModel = ref(false)
 const calibNudge = ref(false)
 const fitMonitor = new FitMonitor()
 const NUDGE_KEY = 'coderbeats:calib-nudge:v1'
+/** los tres centros de claridad que el modelo por defecto aprendió de este micro (bum, pff, ts): por dispositivo */
+const CENTERS_KEY = 'coderbeats:auto-centers:v1'
+const isCenters = (x: unknown): x is number[] => Array.isArray(x) && x.length === 3 && x.every((n) => typeof n === 'number' && Number.isFinite(n))
+const savedCenters = (): number[] | null => readJson(CENTERS_KEY, isCenters)
 const nudgeDismissed = (): boolean => !!readJson(NUDGE_KEY, (x): x is { dismissed: true } => !!x && (x as { dismissed?: unknown }).dismissed === true)
 /** Teclado de agua (spec 015): tocar el fondo fuera del aro suena notas de la escala del estilo; se puede grabar como melodía */
 const keysOn = ref(false)
@@ -431,6 +435,8 @@ function outputLatency(): number {
   return reportedOutputLatency() + imageDelaySec()
 }
 
+/** cómo sonó un golpe, para el diagnóstico: centroide, cruces por cero y graves (< 800 Hz) */
+const fmtFeat = (f: { c: number; z: number; low: number } | undefined): string => (f ? ` · c ${f.c.toFixed(2)} z ${f.z.toFixed(2)} graves ${f.low.toFixed(2)}` : '')
 function log(kind: DiagEvent['kind'], text: string, uiMs?: number) {
   diag.value = [{ at: ctx?.currentTime ?? 0, kind, text, uiMs }, ...diag.value].slice(0, 300)
 }
@@ -1190,6 +1196,10 @@ function onWorkerMessage(m: FromWorker, fromPilot = false) {
   const c = ctx
   if (!c) return
   if (pilotStrict && !fromPilot) return
+  if (m.type === 'learned') {
+    writeJson(CENTERS_KEY, m.centers)
+    return log('background', `el modelo por defecto aprendió tu micro: claridad bum ${m.centers[0]!.toFixed(2)} · pff ${m.centers[1]!.toFixed(2)} · ts ${m.centers[2]!.toFixed(2)}`)
+  }
   if (m.type === 'pitch') {
     livePitchState = { midi: m.midi, at: performance.now() }
     return
@@ -1215,7 +1225,7 @@ function onWorkerMessage(m: FromWorker, fromPilot = false) {
   if (m.instrument === 'unknown')
     return log(
       'unknown',
-      `golpe desconocido (${m.strength.toFixed(3)})${fmtVolume(m.vol)}${lanes.value.size ? '' : ' · ningún carril graba'}`,
+      `golpe desconocido (${m.strength.toFixed(3)})${fmtVolume(m.vol)}${fmtFeat(m.feat)}${lanes.value.size ? '' : ' · ningún carril graba'}`,
       uiMs,
     )
   // tempo fácil: cuatro bombos con la boca fijan el tempo (spec 005, §6)
@@ -1230,7 +1240,7 @@ function onWorkerMessage(m: FromWorker, fromPilot = false) {
   if (mode.value === 'componer') return log('unknown', `ignorado: modo Componer (${m.instrument})`, uiMs)
   // con varias células, en estado canción no se graba; en bucle, sí (spec 005, §4.4)
   if (multi() && !loop && !viewAway()) return log('unknown', `ignorado: canción avanzando (${m.instrument} ${(m.confidence * 100).toFixed(0)}%)`, uiMs)
-  log('hit', `${m.instrument} ${(m.confidence * 100).toFixed(0)}%${fmtVolume(m.vol)}`, uiMs)
+  log('hit', `${m.instrument} ${(m.confidence * 100).toFixed(0)}%${fmtVolume(m.vol)}${fmtFeat(m.feat)}`, uiMs)
   const gs = tracker.globalStep(m.time - latencySec)
   const heard: VisualHit = {
     kind: 'heard',
@@ -1384,7 +1394,7 @@ export function useAudioEngine() {
       JSON.stringify(calibration?.samples.length ? { samples: calibration.samples, norm: calibration.norm } : defaultCalibration()),
     ) as { samples: CalibrationSample[]; norm: Norm }
     personalModel.value = !!calibration?.samples.length
-    worker.postMessage({ type: 'init', sampleRate: ctx.sampleRate, ...plain } satisfies ToWorker, [channel.port2])
+    worker.postMessage({ type: 'init', sampleRate: ctx.sampleRate, ...plain, default: !calibration?.samples.length, centers: savedCenters() } satisfies ToWorker, [channel.port2])
 
     // la prueba de eco corre mientras se carga Strudel (en el iPhone el import son ~0,6 s)
     const [echoResult] = await Promise.all([runEchoTest(), strudelReady])
@@ -1400,7 +1410,7 @@ export function useAudioEngine() {
     personalModel.value = personal
     calibNudge.value = false
     fitMonitor.reset()
-    toWorker({ type: 'calibration', ...plain })
+    toWorker({ type: 'calibration', ...plain, default: !personal, centers: personal ? null : savedCenters() })
   }
 
   /**

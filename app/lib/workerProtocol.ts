@@ -2,8 +2,9 @@ import type { CalibrationSample, Instrument, Norm } from './types'
 
 /** hilo principal → worker de análisis */
 export type ToWorker =
-  | { type: 'init'; sampleRate: number; samples: CalibrationSample[]; norm: Norm }
-  | { type: 'calibration'; samples: CalibrationSample[]; norm: Norm }
+  /** `default`: son las muestras del modelo por defecto (se adapta al micro, spec 001 §17.8); `centers`: lo aprendido en otra sesión */
+  | { type: 'init'; sampleRate: number; samples: CalibrationSample[]; norm: Norm; default?: boolean; centers?: number[] | null }
+  | { type: 'calibration'; samples: CalibrationSample[]; norm: Norm; default?: boolean; centers?: number[] | null }
   | {
       type: 'start'
       minGap: number
@@ -36,7 +37,11 @@ export type FromWorker =
       decisionMs: number
       /** lo lejos que cae de las muestras de su clase (distancia al vecino más cercano ÷ distancia media entre muestras); `null` si no hay modelo o fue desconocido (modelFit) */
       fit?: number | null
+      /** cómo sonó el golpe para el diagnóstico: centroide, cruces por cero y energía por debajo de 800 Hz */
+      feat?: { c: number; z: number; low: number }
     }
+  /** el modelo por defecto aprendió (o ajustó) los tres centros de claridad de este micro: bum, pff, ts */
+  | { type: 'learned'; centers: number[] }
   | { type: 'echo'; time: number; strength: number }
   /** golpe de un carril apagado: se ignora (spec 003, E4.2) */
   | { type: 'ignored'; time: number; instrument: Instrument; confidence: number; vol: number | null }

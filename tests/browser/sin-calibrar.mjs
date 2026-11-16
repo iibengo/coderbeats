@@ -15,6 +15,7 @@ console.log('modelo propio:', await p.evaluate(() => window.__engine.personalMod
 await p.evaluate(() => [...document.querySelectorAll('button')].find((b) => b.getAttribute('aria-label') === 'tocar')?.click())
 await sleep(6000)
 console.log('golpes oídos por el modelo por defecto:', await p.evaluate(() => window.__engine.diag.value.filter((d) => d.kind === 'hit').length), 'bolas:', await p.evaluate(() => window.__engine.loops.value.loops.map((l) => l.instrument).join(',')))
+console.log('ejemplo de línea:', await p.evaluate(() => window.__engine.diag.value.find((d) => d.kind === 'hit')?.text))
 await p.screenshot({ path: process.env.OUT + '/s1.png' })
 await p.evaluate(() => { window.__engine.calibNudge.value = true })
 await sleep(400)

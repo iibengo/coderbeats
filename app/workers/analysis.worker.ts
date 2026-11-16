@@ -1,9 +1,10 @@
 /// <reference lib="webworker" />
 // Worker de análisis en vivo: recibe el audio del micro directamente del AudioWorklet
 // (MessagePort transferido) y devuelve golpes clasificados al hilo principal.
+import { AdaptiveClassifier } from '../lib/adaptiveModel'
 import { KnnClassifier } from '../lib/classifier'
 import { decideLane } from '../lib/lanes'
-import type { Instrument } from '../lib/types'
+import type { CalibrationSample, Instrument, Norm } from '../lib/types'
 import { EchoGate } from '../lib/echoGate'
 import { extractFeatures } from '../lib/features'
 import { decideOnset, LiveMelody, MELODY_DECISION_SEC, NoteGate } from '../lib/liveMelody'
@@ -15,6 +16,15 @@ declare const self: DedicatedWorkerGlobalScope
 
 let sampleRate = 48000
 let classifier: KnnClassifier | null = null
+/** sin calibración propia: el modelo por defecto que se adapta al micro (spec 001 §17.8) */
+let adaptive: AdaptiveClassifier | null = null
+let lastLearned: number[] = []
+function setModel(m: { samples: CalibrationSample[]; norm: Norm; default?: boolean; centers?: number[] | null }) {
+  classifier = m.samples.length ? new KnnClassifier(m.samples, m.norm) : null
+  adaptive = m.default && classifier ? new AdaptiveClassifier(m.centers) : null
+  lastLearned = []
+  refs = volumeRefs(m.samples)
+}
 /** carriles que graban (E4.2); por defecto, todos */
 let armed: Set<Instrument> = new Set(['bd', 'sd', 'hh'])
 /** volumen de referencia de tu calibración (E4.0) */
@@ -50,7 +60,13 @@ function processQueue() {
       continue
     }
     const features = extractFeatures(detector.slice(o.sample, FEATURE_SPAN), sampleRate, 0)
-    const c = classifier?.classify(features)
+    const c = adaptive ? adaptive.classify(features) : classifier?.classify(features)
+    const learned = adaptive?.learned()
+    // solo se avisa si los centros se movieron de verdad (se guardan por dispositivo)
+    if (learned && (lastLearned.length !== 3 || learned.some((x, i) => Math.abs(x - lastLearned[i]!) > 0.01))) {
+      lastLearned = learned
+      post({ type: 'learned', centers: learned })
+    }
     if (inNote) {
       // un golpe dentro de una nota: antes siempre era melodía; ahora, si la nota es corta y es batería con confianza, es el golpe (spec 012, F2)
       if (decideOnset(inNote, c ? { instrument: c.instrument, confidence: c.confidence } : null) === 'melody') {
@@ -83,6 +99,7 @@ function processQueue() {
       strength: o.strength,
       vol: relativeVolume(features.rms, instrument, refs),
       decisionMs,
+      feat: { c: features.centroid, z: features.zcr, low: features.bands[0] + features.bands[1] },
       fit: c && classifier && c.instrument !== 'unknown' && Number.isFinite(c.nearestDistance) && classifier.meanPairDistance > 0 ? c.nearestDistance / classifier.meanPairDistance : null,
     })
   }
@@ -127,8 +144,7 @@ self.onmessage = (e: MessageEvent) => {
   switch (m.type) {
     case 'init': {
       sampleRate = m.sampleRate
-      classifier = m.samples.length ? new KnnClassifier(m.samples, m.norm) : null
-      refs = volumeRefs(m.samples)
+      setModel(m)
       const port = e.ports[0]
       if (port)
         port.onmessage = (ev: MessageEvent) => {
@@ -138,8 +154,7 @@ self.onmessage = (e: MessageEvent) => {
       break
     }
     case 'calibration':
-      classifier = m.samples.length ? new KnnClassifier(m.samples, m.norm) : null
-      refs = volumeRefs(m.samples)
+      setModel(m)
       break
     case 'start':
       setMelody(!!m.melody)

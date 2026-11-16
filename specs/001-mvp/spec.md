@@ -1495,3 +1495,18 @@ Si no se midió con palmadas se usa **50 ms** (cascos de cable, altavoz) en luga
 
 ### 17.7 Implementado (2026-11-16)
 `lib/defaultModel.ts`, `lib/sequenceScore.ts`, `lib/modelFit.ts`, `lib/defaultLatency.ts` (puros, con tests: `defaultModel`, `modelFit`). El motor arranca con el modelo por defecto si no hay calibración propia (`personalModel`), el worker manda el `fit` de cada golpe, y `calibNudge` saca «¿Te afino a tu voz?» en `Studio.vue` (Sí → «Tus sonidos», «Ahora no» se recuerda: `coderbeats:calib-nudge:v1`). `pages/index.vue`: `Empezar` → Estudio directo. Latencia y sonidos son opcionales («Ahora no»; en ⋯: «Medir latencia» / «Calibrar mis sonidos»). Los textos «Paso 1 de 2» y «Paso 2 de 2» se quitan. Latencia sin medir: 50 ms, 180 ms con Bluetooth (nombre de salida o latencia > 120 ms). Comprobado en Chrome sin calibración (`tests/browser/sin-calibrar.mjs`: directo al Estudio, 50 ms, el micro de mentira se clasifica, la propuesta lleva a «Tus sonidos»). **El `fit` no se ha medido con voces reales en el móvil**; el 0,45 es una primera propuesta.
+
+### 17.8 El modelo por defecto se adapta al micro (2026-11-16)
+**Lo que pasó en el iPhone sin calibrar** (registro de la persona: 6 bombos, 6 «ts», 6 «pff»): el bombo bien, **los «ts» salían como caja (sd 67–100 %) y los «pff» como bombo**; ningún platillo. Todo bajaba un escalón: el micro del móvil tiene otro espectro que el de la toma del laboratorio, y los prototipos de §17.2 eran absolutos. El registro no traía cifras del espectro de cada golpe, así que **no se puede saber exactamente qué cambió**; lo que sí se ve es que el **orden** (bum < pff < ts) se mantiene.
+**Cambio (`lib/adaptiveModel.ts`):** sin calibración propia, el modelo compara los golpes **entre sí**. La *claridad* de un golpe es una cifra (centroide + cruces por cero). Mientras no ha visto las tres clases, clasifica con los prototipos de siempre; cuando entre sus últimos 24 golpes (mínimo 9, 2 por grupo) aparecen **tres grupos de claridad claramente separados** (corte de Otsu; separación ≥ 0,08 y ≥ 4× lo que varía cada grupo por dentro), **aprende los tres centros** (grave = bombo, medio = caja, agudo = platillo), clasifica por el centro más cercano y los ajusta despacio (6 % por golpe). Los centros se guardan por dispositivo (`coderbeats:auto-centers:v1`) y valen en la próxima sesión; con calibración propia no se usan. Limitación honesta: **hasta que haya oído las tres clases (la primera vez que suena cada una nueva) puede equivocarse**, y con solo dos clases sigue con los prototipos fijos.
+**Diagnóstico:** cada golpe del registro lleva ahora `c` (centroide), `z` (cruces por cero) y `graves` (energía < 800 Hz), y se anota cuando aprende los centros. Con esto, el próximo registro del iPhone permite ajustar los prototipos con cifras reales.
+**Medida (tomas del laboratorio `t8`, «bum pff ts» en bucle; micros simulados que apagan los agudos moviendo centroide, cruces y bandas hacia lo grave; precisión/cobertura por secuencia, §17.3):**
+
+| micro simulado | modelo fijo (antes) | adaptativo (después) |
+|---|---|---|
+| tal cual (laboratorio) | 76 % / 73 % | 76 % / 73 % |
+| un cuarto de escalón más grave | 76 % / 73 % | 76 % / 73 % |
+| medio escalón más grave | 55 % / 53 % | **72 % / 70 %** |
+| 0,7 de escalón más grave | 59 % / 57 % | **72 % / 70 %** |
+
+**Es una simulación**, no el iPhone: no hay datos del espectro de tu móvil. `tests/unit/adaptiveModel.test.ts` exige que no empeore el micro del laboratorio y que mejore con el simulado.
