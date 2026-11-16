@@ -1785,7 +1785,7 @@ const guide = ref<GuideState>(guideDone() ? GUIDE_DONE : GUIDE_START)
 let guideHeard = 0
 // con el piloto automático en marcha, la guía no habla ni toca el fondo (el piloto lo hace todo)
 const pilotState = usePilotState()
-const guideText = computed(() => (!pilotState.active && mode.value === 'jugar' && guideVisible(guide.value) ? guideLine(guide.value.step, engine.melodyOn.value, !!engine.suggestion.value) : ''))
+const guideText = computed(() => (!pilotState.active && !engine.noMic.value && mode.value === 'jugar' && guideVisible(guide.value) ? guideLine(guide.value.step, engine.melodyOn.value, !!engine.suggestion.value) : ''))
 function guideTo(next: GuideState) {
   if (next === guide.value) return
   const was = guide.value.step

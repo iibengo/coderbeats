@@ -1,20 +1,26 @@
 <script setup lang="ts">
 const emit = defineEmits<{ started: [] }>()
-const { start } = useAudioEngine()
+const engine = useAudioEngine()
+const { start } = engine
 const { data } = useCalibration()
 const busy = ref(false)
 const about = ref(false)
 const error = ref<string | null>(null)
 const secure = import.meta.client ? window.isSecureContext : true
 
-async function onStart() {
+const canSkipMic = ref(false)
+
+async function onStart(noMic = false) {
   busy.value = true
   error.value = null
   try {
-    await start(data.value)
+    await start(data.value, { noMic })
+    // sin micro no hay nada que oír: arranca una demo para tener algo que tocar con el dedo
+    if (noMic) await engine.loadDemo()
     emit('started')
   } catch (e) {
     const name = e instanceof DOMException ? e.name : ''
+    canSkipMic.value = name === 'NotAllowedError' || name === 'NotFoundError'
     error.value =
       name === 'NotAllowedError'
         ? 'Permiso de micro denegado. Actívalo en los ajustes del navegador para esta web y vuelve a intentarlo.'
@@ -36,7 +42,7 @@ async function onStart() {
     <button
       class="rounded-full bg-white px-8 py-3 font-medium text-black transition active:scale-[.98] disabled:opacity-50"
       :disabled="busy || !secure"
-      @click="onStart"
+      @click="onStart()"
     >
       {{ busy ? 'Comprobando audio…' : 'Empezar' }}
     </button>
@@ -44,6 +50,10 @@ async function onStart() {
       El micro solo funciona con HTTPS o en localhost. Abre la web con https://
     </p>
     <p v-if="error" class="max-w-sm text-sm text-red-300">{{ error }}</p>
+    <button v-if="canSkipMic" class="rounded-full border border-white/20 px-5 py-2 text-sm" :disabled="busy" @click="onStart(true)">
+      Entrar sin micro
+    </button>
+    <p v-if="canSkipMic" class="max-w-xs text-xs text-neutral-500">Verás una demo y podrás tocar con el dedo («🎹 Agua», «⚡ Escenario», el aro).</p>
     <p class="max-w-xs text-xs text-neutral-500">
       Mejor con cascos con cable.
     </p>

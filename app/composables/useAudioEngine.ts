@@ -241,6 +241,8 @@ const kit = ref<KitId>('electro')
 const mode = ref<Mode>(DEFAULT_MODE)
 /** cuenta las veces que se pide repetir el primer minuto guiado (spec 011, §12.2); la gota lo vigila */
 const guideNonce = ref(0)
+/** Sin micro (denegado o sin dispositivo): se entra igual, con un micro mudo; se toca con el dedo (Agua, Escenario, el aro). */
+const noMic = ref(false)
 /** «Sugerencias» (spec 012, §3.4): la melodía sugerida y las variaciones; apagado, no se propone nada. Separado de «Ayuda» (`assist`) */
 const suggestions = ref(true)
 /** producción opcional (spec 014): swing y matices de volumen; apagada por defecto (las canciones no cambian solas) */
@@ -1312,7 +1314,7 @@ export function useAudioEngine() {
    * Debe llamarse dentro del gesto del usuario (botón Empezar): crea y reanuda el
    * AudioContext de forma síncrona antes de cualquier await (requisito de iOS Safari).
    */
-  async function start(calibration: { samples: CalibrationSample[]; norm: Norm } | null) {
+  async function start(calibration: { samples: CalibrationSample[]; norm: Norm } | null, opts: { noMic?: boolean } = {}) {
     if (ready.value) return
     ctx ??= new AudioContext({ latencyHint: 'interactive' })
     void ctx.resume()
@@ -1369,9 +1371,16 @@ export function useAudioEngine() {
       setupBackgroundNodes()
     })()
 
-    stream = await navigator.mediaDevices.getUserMedia({
-      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 },
-    })
+    if (opts.noMic) {
+      // un micro mudo: toda la cadena (captura, worker, prueba de eco) sigue igual, solo que no oye nada
+      stream = ctx.createMediaStreamDestination().stream
+      noMic.value = true
+    } else {
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 },
+      })
+      noMic.value = false
+    }
     await ctx.audioWorklet.addModule(`${base}worklets/capture-processor.js`)
     await masterGlue() // antes de la prueba de eco: que mida la cadena entera
     const source = ctx.createMediaStreamSource(stream)
@@ -2442,6 +2451,7 @@ export function useAudioEngine() {
     kit,
     mode,
     guideNonce,
+    noMic,
     suggestions,
     production,
     flow,

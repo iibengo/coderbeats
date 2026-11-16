@@ -280,6 +280,10 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
     <button class="rounded-full bg-white px-3 py-1 text-xs font-medium text-black" @pointerdown.stop @click="engine.dismissCalibNudge(); engine.stop(); emit('recalibrate', 'sounds')">Sí</button>
     <button class="whitespace-nowrap px-2 py-1 text-xs text-white/60" @pointerdown.stop @click="engine.dismissCalibNudge()">Ahora no</button>
   </div>
+  <!-- sin micro: se toca con el dedo -->
+  <p v-if="engine.noMic.value && !pilotState.active" class="pointer-events-none absolute left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-full bg-black/50 px-3 py-1 text-xs text-white/70" style="top: calc(max(0.5rem, env(safe-area-inset-top)) + 100px)" role="status">
+    Sin micro · dale a ▶ y toca con el dedo
+  </p>
   <ConfirmDialog />
   <PilotLayer :paused="pilotState.paused" @pause="pilot.togglePause()" @skip="pilot.skip()" @stop="pilot.stop('user')" />
 </template>
