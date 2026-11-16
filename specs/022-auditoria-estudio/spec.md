@@ -142,3 +142,11 @@ Fuentes: `Studio.vue`, `visual/VisualStage.vue`, `SettingsSheet.vue`, `LibrarySh
 4. ¿Se quita el **Teclado de agua** ya o tras el Piano mágico (propongo tras)?
 5. ¿**Entrar sin micro** como camino por defecto (propongo sí)?
 6. ¿Vocabulario: **Armar/Tocar** o esconder el selector?
+
+## K. Aplicado (2026-11-16, tras tus decisiones) y decisiones a revisar
+Hecho **escondiendo, sin borrar**: un único interruptor «Controles avanzados» en ⋯ (`coderbeats:studio:v2`, por defecto apagado) que muestra todo lo escondido.
+- Esconde (sin avanzado): selector Jugar|Componer (y con él el mapa), bolas de capas y de fondo, botones Efectos, Previsualizar, 🎛 Teclado, teclado de agua y su grabar, Voz, ● Grabar canción, ✦ Convertir, «apagar grupos»; en ⋯: Fondo, Frase/Cierre/Repetir, Sugerencias, Producción, Agua viva, Melodía con voz, Movimiento, Metrónomo, Retraso de imagen, Calor, Previsualizar, Ver cómo se construye, Convertir, Repetir guía, Añadir célula libre, Melodía en el compás, Modo simple, + melodía, textos de ayuda, calibración, **Cargar demo**; y las pestañas «código» y «diagnóstico».
+- Las pastillas bum·pff·ts **ya no estaban** en la pantalla principal del Estudio (solo en la portada pausada).
+- **Variaciones:** siguen saliendo solas (contextuales) al duplicar; nuevo **«⧉ Duplicar con variación»** en «Editar parte» (copia detrás de la actual y propone variaciones; máx. 8 partes).
+- **«Empezar» entra sin micro**; «Usar el micro (opcional)» aparte. Vocabulario: parte, Sonido, Ajustar a la escala, Empezar de cero.
+- **Decisiones mías a revisar:** (1) un solo interruptor «avanzado» en vez de una pantalla «Avanzado» (más simple; ordenar por secciones queda para después); (2) «Cargar demo» se esconde ya (la demo de ritmo se carga sola al «Empezar»; la sustituirá el remix principal con la spec 023); (3) «Duplicar con variación» activa «Sugerencias» (ajuste escondido) para que salgan las variaciones; (4) los textos de ayuda largos de ⋯ se esconden en avanzado y no se han reescrito; (5) sin reescribir aún la guía del primer minuto ni el tutorial (siguen en el código, sin pasos visibles que apunten a lo escondido: **sin probar en el móvil**); (6) los guiones de navegador antiguos que tocan bolas o botones escondidos pueden fallar sin «avanzado».

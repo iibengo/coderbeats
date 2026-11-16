@@ -97,6 +97,7 @@ const canvasHost = ref<HTMLElement | null>(null)
 const aroEl = ref<HTMLCanvasElement | null>(null)
 let aro: AroCanvas | null = null
 const view = reactive({ w: 390, h: 844 })
+const adv = useStudioPrefs().advanced // controles avanzados (spec 022): sin ellos se esconden las bolas de capas y de fondo y los botones de efectos, teclado, voz y grabar
 const reduced = import.meta.client && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 const rendererName = ref('')
 
@@ -198,7 +199,7 @@ const showFollow = computed(() => (colony.value && panned.value) || engine.viewA
 /** la célula que se está editando (spec 011, §3.4): la que se ve cuando no es la que suena */
 const editingName = computed(() => {
   const c = engine.song.value.cells.find((x) => x.id === engine.viewCellId.value)
-  return c?.name?.trim() || `célula ${engine.viewCellId.value}`
+  return c?.name?.trim() || `parte ${engine.viewCellId.value}`
 })
 /** la tira de células de Jugar: solo si hay más de una parte */
 const strip = computed(() => (!props.simple && mode.value === 'jugar' ? cellStrip(engine.song.value, engine.viewCellId.value) : []))
@@ -2112,7 +2113,7 @@ defineExpose({ videoSource, colonyPoints, pointOf: (voice: Voice, step: number) 
       :key="c.id"
       :ref="setMarker(c.id)"
       class="marker absolute top-0 left-0 rounded-full"
-      :aria-label="`ir a la célula ${c.name ?? c.id}`"
+      :aria-label="`ir a la parte ${c.name ?? c.id}`"
       @pointerdown.stop
       @click="engine.travelTo(c.id)"
     />
@@ -2150,10 +2151,10 @@ defineExpose({ videoSource, colonyPoints, pointOf: (voice: Voice, step: number) 
       <button v-if="looping" class="act-btn" aria-label="soltar el bucle: la canción sigue" @click="engine.resume()">
         <span class="chapa-inf">∞</span> Soltar bucle
       </button>
-      <button v-if="engine.extrasOn.value" class="act-btn" aria-label="apagar los grupos que suenan a la vez que la canción" @click="engine.stopExtras()">
+      <button v-if="adv && engine.extrasOn.value" class="act-btn" aria-label="apagar los grupos que suenan a la vez que la canción" @click="engine.stopExtras()">
         Apagar extras
       </button>
-      <button v-if="showFollow" class="act-btn" aria-label="volver a la célula que suena en la canción (dejar de editar)" @click="((panned = false), engine.followSong())">
+      <button v-if="showFollow" class="act-btn" aria-label="volver a la parte que suena en la canción (dejar de editar)" @click="((panned = false), engine.followSong())">
         <template v-if="colony">◎ Centrar</template>
         <template v-else>Editando · {{ editingName }} ▶ Seguir la canción</template>
       </button>
@@ -2169,14 +2170,14 @@ defineExpose({ videoSource, colonyPoints, pointOf: (voice: Voice, step: number) 
         <button class="act-btn" aria-label="probar otra variación de este tipo" @click="engine.otherProposal()">↻ otra</button>
         <button class="act-btn" aria-label="aceptar la variación (también tocando la copia)" @click="engine.acceptProposal()">✓</button>
       </template>
-      <button v-if="engine.playing.value" class="act-btn" :aria-label="mode === 'jugar' ? 'Escenario: toda la pantalla dispara golpes de efecto' : 'Efectos: los toques en el fondo disparan golpes de efecto'" @click="engine.setStage(true)">{{ mode === 'jugar' ? '⚡ Escenario' : '⚡ Efectos' }}</button>
-      <button v-if="mode === 'jugar' && !pilotState.active && (engine.canConvert.value || engine.multi.value)" class="act-btn" aria-label="previsualizar: tu canción se construye sola" @click="emit('preview')">👁 Previsualizar</button>
-      <button v-if="mode === 'jugar' && melCell && !thereminOpen" class="act-btn" aria-label="abrir el sintetizador de dedo de esta célula" @click="thClosed = null">🎛 Tocar</button>
-      <button v-if="mode === 'jugar' && engine.playing.value" class="act-btn" :data-on="engine.keysOn.value" aria-label="teclado de agua: tocar el fondo hace sonar notas de la escala" @click="engine.setKeys(!engine.keysOn.value)">🎹 Agua</button>
-      <button v-if="mode === 'jugar' && engine.keysOn.value" class="act-btn" :data-on="!!engine.keysRec.value" :aria-label="engine.keysRec.value ? 'terminar y guardar lo tocado como melodía' : 'grabar lo que toques en el agua como melodía'" @click="engine.toggleKeysRec()">{{ engine.keysRec.value ? `■ ${engine.keysRec.value.count} notas` : '● Grabar' }}</button>
-      <button v-if="mode === 'jugar' && (engine.canVoice.value || engine.voiceRec.value !== 'idle')" class="act-btn" :data-on="engine.voiceRec.value !== 'idle'" :aria-label="engine.voiceRec.value === 'idle' ? 'grabar tu voz en bucle (2 compases, con cascos)' : 'cancelar la grabación de voz'" @click="engine.recordVoice(2)">{{ engine.voiceRec.value === 'idle' ? '🎤 Voz' : engine.voiceRec.value === 'armed' ? 'Espera el compás…' : engine.voiceRec.value === 'recording' ? '● Cantando' : 'Guardando…' }}</button>
-      <button v-if="mode === 'jugar' && (engine.canLive.value || engine.liveRec.value)" class="act-btn" :data-on="!!engine.liveRec.value" :aria-label="engine.liveRec.value ? 'terminar la grabación y convertirla en células' : 'grabar canción: enciende y apaga capas al ritmo'" @click="engine.toggleLive()">{{ engine.liveRec.value ? `■ ${engine.liveRec.value.bars} compases` : '● Grabar canción' }}</button>
-      <button v-if="engine.canConvert.value && mode === 'jugar' && !engine.liveRec.value" class="act-btn" aria-label="convertir este loop en una canción con la estructura del estilo" @click="engine.convertSong()">✦ Convertir en canción</button>
+      <button v-if="adv && engine.playing.value" class="act-btn" :aria-label="mode === 'jugar' ? 'Escenario: toda la pantalla dispara golpes de efecto' : 'Efectos: los toques en el fondo disparan golpes de efecto'" @click="engine.setStage(true)">{{ mode === 'jugar' ? '⚡ Escenario' : '⚡ Efectos' }}</button>
+      <button v-if="adv && mode === 'jugar' && !pilotState.active && (engine.canConvert.value || engine.multi.value)" class="act-btn" aria-label="previsualizar: tu canción se construye sola" @click="emit('preview')">👁 Previsualizar</button>
+      <button v-if="adv && mode === 'jugar' && melCell && !thereminOpen" class="act-btn" aria-label="abrir el sintetizador de dedo de esta célula" @click="thClosed = null">🎛 Tocar</button>
+      <button v-if="adv && mode === 'jugar' && engine.playing.value" class="act-btn" :data-on="engine.keysOn.value" aria-label="teclado de agua: tocar el fondo hace sonar notas de la escala" @click="engine.setKeys(!engine.keysOn.value)">🎹 Agua</button>
+      <button v-if="adv && mode === 'jugar' && engine.keysOn.value" class="act-btn" :data-on="!!engine.keysRec.value" :aria-label="engine.keysRec.value ? 'terminar y guardar lo tocado como melodía' : 'grabar lo que toques en el agua como melodía'" @click="engine.toggleKeysRec()">{{ engine.keysRec.value ? `■ ${engine.keysRec.value.count} notas` : '● Grabar' }}</button>
+      <button v-if="adv && mode === 'jugar' && (engine.canVoice.value || engine.voiceRec.value !== 'idle')" class="act-btn" :data-on="engine.voiceRec.value !== 'idle'" :aria-label="engine.voiceRec.value === 'idle' ? 'grabar tu voz en bucle (2 compases, con cascos)' : 'cancelar la grabación de voz'" @click="engine.recordVoice(2)">{{ engine.voiceRec.value === 'idle' ? '🎤 Voz' : engine.voiceRec.value === 'armed' ? 'Espera el compás…' : engine.voiceRec.value === 'recording' ? '● Cantando' : 'Guardando…' }}</button>
+      <button v-if="adv && mode === 'jugar' && (engine.canLive.value || engine.liveRec.value)" class="act-btn" :data-on="!!engine.liveRec.value" :aria-label="engine.liveRec.value ? 'terminar la grabación y convertirla en células' : 'grabar canción: enciende y apaga capas al ritmo'" @click="engine.toggleLive()">{{ engine.liveRec.value ? `■ ${engine.liveRec.value.bars} compases` : '● Grabar canción' }}</button>
+      <button v-if="adv && engine.canConvert.value && mode === 'jugar' && !engine.liveRec.value" class="act-btn" aria-label="convertir este loop en una canción con la estructura del estilo" @click="engine.convertSong()">✦ Convertir en canción</button>
       <template v-if="engine.suggestion.value && mode === 'jugar'">
         <button class="act-btn" aria-label="melodía sugerida: probar otra" @click="engine.otherSuggestion()">↻ Otra melodía</button>
         <button class="act-btn" aria-label="no proponer esta melodía" @click="engine.dismissSuggestion()">✕</button>
@@ -2187,7 +2188,7 @@ defineExpose({ videoSource, colonyPoints, pointOf: (voice: Voice, step: number) 
     </div>
 
     <!-- bolas del fondo (modo manual, §16.17) -->
-    <template v-if="!simple && bgMode === 'manual' && !colony && !engine.viewIsFree.value">
+    <template v-if="adv && !simple && bgMode === 'manual' && !colony && !engine.viewIsFree.value">
       <button
         v-for="b in bgBalls"
         :key="b.part"
@@ -2207,7 +2208,7 @@ defineExpose({ videoSource, colonyPoints, pointOf: (voice: Voice, step: number) 
     <button
       v-for="l in loops.loops"
       :key="l.id"
-      v-show="!colony && !simple"
+      v-show="adv && !colony && !simple"
       :ref="setEl(l.id)"
       class="loop-ball absolute top-0 left-0 rounded-full will-change-transform"
       :style="{

@@ -7,7 +7,7 @@ await p.setViewport({ width: 400, height: 800, deviceScaleFactor: 1, hasTouch: t
 const errs = []
 p.on('pageerror', (e) => errs.push(String(e).slice(0, 300)))
 await p.goto(`http://localhost:${process.env.PORT || 3999}/estudio`, { waitUntil: 'networkidle2', timeout: 120000 })
-await p.evaluate(() => [...document.querySelectorAll('button')].find((b) => b.textContent.includes('Empezar'))?.click())
+await p.evaluate(() => [...document.querySelectorAll('button')].find((b) => b.textContent.includes('Usar el micro'))?.click())
 await sleep(7000)
 const labels = await p.$$eval('button', (bs) => bs.filter((b) => b.offsetParent !== null).map((b) => (b.getAttribute('aria-label') || b.textContent).trim().slice(0, 30)))
 console.log('estudio directo:', labels.includes('tocar'), '| pantalla de latencia:', await p.evaluate(() => document.body.textContent.includes('Latencia')))

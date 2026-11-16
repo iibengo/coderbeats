@@ -3,7 +3,7 @@ import { open, sleep, clickLabel, clickExact } from './lib.mjs'
 const { b, p, errs } = await open()
 await p.evaluate(() => localStorage.setItem('coderbeats:guide:v1', JSON.stringify({ done: true })))
 await p.reload({ waitUntil: 'networkidle2' }); await sleep(2500)
-await p.evaluate(() => [...document.querySelectorAll('button')].find(b => b.textContent.includes('Empezar'))?.click()); await sleep(7000)
+await p.evaluate(() => [...document.querySelectorAll('button')].find(b => b.textContent.includes('Usar el micro'))?.click()); await sleep(7000)
 await clickLabel(p, 'ajustes'); await sleep(400); await clickLabel(p, 'Cargar demo'); await sleep(600)
 await clickExact(p, 'tocar'); await sleep(3500)
 await p.evaluate(() => window.__engine.pilot.begin()) // (el micro de mentira no cuenta: solo el motor cambia los golpes)

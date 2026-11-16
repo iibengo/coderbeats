@@ -42,7 +42,7 @@ async function go() {
         <template v-else>
           <div v-if="!simple" class="mb-3 grid gap-3">
             <label class="flex items-center justify-between gap-3">Qué grabar
-              <select v-model="what" class="rounded-lg border border-white/15 bg-black/30 px-3 py-2"><option value="cell">La célula actual</option><option value="song">La canción completa</option><option value="preview">La previsualización (se construye sola)</option></select>
+              <select v-model="what" class="rounded-lg border border-white/15 bg-black/30 px-3 py-2"><option value="cell">La parte actual</option><option value="song">La canción completa</option><option value="preview">La previsualización (se construye sola)</option></select>
             </label>
             <label v-if="what === 'cell'" class="flex items-center justify-between gap-3">Compases
               <select v-model.number="bars" class="rounded-lg border border-white/15 bg-black/30 px-3 py-2"><option :value="2">2</option><option :value="4">4</option><option :value="8">8</option></select>

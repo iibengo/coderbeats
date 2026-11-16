@@ -37,26 +37,20 @@ async function onStart(noMic = false) {
   <section class="flex flex-1 flex-col items-center justify-center gap-8 text-center">
     <div>
       <h1 class="text-4xl font-medium tracking-tight">coderbeats</h1>
-      <p class="mt-2 text-neutral-400">Tu beatbox, convertido en batería y en código Strudel.</p>
+      <p class="mt-2 text-neutral-400">Tu música, a tu manera.</p>
     </div>
+    <!-- sin micro por defecto (spec 022): el micro es opcional y se pide solo si lo eliges -->
     <button
       class="rounded-full bg-white px-8 py-3 font-medium text-black transition active:scale-[.98] disabled:opacity-50"
-      :disabled="busy || !secure"
-      @click="onStart()"
+      :disabled="busy"
+      @click="onStart(true)"
     >
-      {{ busy ? 'Comprobando audio…' : 'Empezar' }}
+      {{ busy ? 'Un momento…' : 'Empezar' }}
     </button>
-    <p v-if="!secure" class="max-w-sm text-sm text-amber-300">
-      El micro solo funciona con HTTPS o en localhost. Abre la web con https://
-    </p>
+    <button class="rounded-full border border-white/20 px-5 py-2 text-sm text-white/80" :disabled="busy || !secure" data-start-mic @click="onStart(false)">Usar el micro (opcional)</button>
+    <p v-if="!secure" class="max-w-sm text-sm text-amber-300">Para usar el micro hace falta una conexión segura (https).</p>
     <p v-if="error" class="max-w-sm text-sm text-red-300">{{ error }}</p>
-    <button v-if="canSkipMic" class="rounded-full border border-white/20 px-5 py-2 text-sm" :disabled="busy" @click="onStart(true)">
-      Entrar sin micro
-    </button>
-    <p v-if="canSkipMic" class="max-w-xs text-xs text-neutral-500">Verás una demo y podrás tocar con el dedo (la espiral y las pastillas).</p>
-    <p class="max-w-xs text-xs text-neutral-500">
-      Mejor con cascos con cable.
-    </p>
+    <p class="max-w-xs text-xs text-neutral-500">Con el micro, mejor con cascos.</p>
     <button class="text-xs text-neutral-500 underline underline-offset-4" @click="about = !about">{{ about ? 'Cerrar' : 'Acerca de' }}</button>
     <div v-if="about" class="max-h-[40dvh] max-w-sm overflow-y-auto text-left"><AboutPanel /></div>
   </section>

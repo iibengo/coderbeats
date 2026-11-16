@@ -13,6 +13,7 @@ const emit = defineEmits<{ recalibrate: ['latency' | 'sounds']; simple: [] }>()
 const engine = useAudioEngine()
 const route = useRoute()
 const { playing, style } = engine
+const adv = useStudioPrefs().advanced
 const prefs = usePrefs()
 prefs.load()
 prefs.startSaving()
@@ -211,7 +212,7 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
     <button class="flex items-center justify-center text-xl text-white/60" :style="partStyle" aria-label="editar parte" @pointerdown.stop @click="partOpen = true">✎</button>
 
     <!-- modo (spec 011): Jugar | Componer -->
-    <ModeSwitch :model-value="engine.mode.value" :style="modeStyle" @pointerdown.stop @update:model-value="stage?.switchMode($event)" />
+    <ModeSwitch v-if="adv" :model-value="engine.mode.value" :style="modeStyle" @pointerdown.stop @update:model-value="stage?.switchMode($event)" />
 
     <!-- ajustes -->
     <button

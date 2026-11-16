@@ -48,6 +48,20 @@ const slots = computed<Slot[]>(() => {
   if (fxLoops.value.length) s.push({ key: 'efectos', label: 'subida', color: GREY, has: true, on: anyOn(fxLoops.value), toggle: () => setLoops(fxLoops.value), hint: 'efectos' })
   return s
 })
+const MAX_PARTS = 8
+/** «Duplicar con variación» (decisión de la auditoría: las variaciones solo salen al duplicar una parte): copia la parte justo detrás y propone variaciones (+ energía, − energía, melodía, relleno) */
+const canDuplicate = computed(() => order.value.length < MAX_PARTS)
+function duplicate() {
+  const cur = engine.viewCellId.value
+  const at = engine.song.value.cells.find((c) => c.id === cur)?.at
+  engine.setSuggestions(true)
+  const id = engine.copyCell(cur, { x: (at?.x ?? 0) + 3, y: (at?.y ?? 0) + 1 })
+  if (id !== null) {
+    engine.orderAfter(cur, id)
+    engine.enterCell(id)
+  }
+  open.value = false
+}
 const many = computed(() => slots.value.filter((x) => x.has && x.on).length > 4)
 if (import.meta.dev && import.meta.client) (window as unknown as Record<string, unknown>).__parte = { slots: () => slots.value.map((s) => [s.key, s.has, s.on]), name: () => name.value }
 </script>
@@ -79,6 +93,8 @@ if (import.meta.dev && import.meta.client) (window as unknown as Record<string, 
             <p v-else class="mt-3 text-center text-xs text-neutral-600">{{ s.hint }}</p>
           </div>
         </div>
+        <button class="mt-3 w-full rounded-full border border-white/20 py-2.5 text-white disabled:opacity-40" :disabled="!canDuplicate" data-duplicate @click="duplicate">⧉ Duplicar con variación</button>
+        <p v-if="!canDuplicate" class="mt-1 text-xs text-neutral-500">Un remix lleva como mucho 8 partes.</p>
         <p v-if="many" class="mt-3 text-xs text-amber-300">Esta parte lleva más de 4 capas a la vez: se ven todas, pero con menos se oye mejor.</p>
       </section>
     </div>

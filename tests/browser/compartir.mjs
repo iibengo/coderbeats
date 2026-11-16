@@ -14,7 +14,7 @@ for (const [nombre, url, espera] of [['válido', link, true], ['roto', link.slic
   p2.on('dialog', async (d) => { dialogs.push(d.message().slice(0, 60)); await d.accept() })
   p2.on('framenavigated', () => {})
   await p2.goto(url, { waitUntil: 'networkidle2' }); await sleep(2500)
-  await p2.evaluate(() => [...document.querySelectorAll('button')].find(b => b.textContent.includes('Empezar'))?.click()); await sleep(8000)
+  await p2.evaluate(() => [...document.querySelectorAll('button')].find(b => b.textContent.includes('Usar el micro'))?.click()); await sleep(8000)
   // el cuadro de confirmación es el de la app (el aviso de enlace roto sigue siendo nativo)
   if (await p2.evaluate(() => !!document.querySelector('[role=alertdialog]'))) { dialogs.push('cuadro de la app'); await p2.evaluate(() => [...document.querySelectorAll('[role=alertdialog] button')].find(b => b.textContent.trim() === 'Continuar').click()); await sleep(2500) }
   const got = await p2.evaluate(() => ({ song: JSON.parse(JSON.stringify(window.__engine.snapshot().song)), hash: location.hash }))

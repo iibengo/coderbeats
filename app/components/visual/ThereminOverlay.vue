@@ -520,7 +520,7 @@ defineExpose({ otherTune, tuneName: computed(() => tune.value.name) })
     <span v-if="bare && !touched" />
     <p v-else-if="spiral" class="tag" role="status">
       {{ tune.name }} · {{ arrived }}/{{ tuneHits.length }}
-      <span v-if="finished" class="sub">¡Melodía guardada en la célula!</span>
+      <span v-if="finished" class="sub">¡Melodía guardada en la parte!</span>
       <span v-else-if="!touched" class="sub">{{ bare ? 'Pon el dedo en el agua y muévelo' : 'Pon el dedo y muévelo sin levantar: las notas vienen a él' }}</span>
     </p>
     <p v-else-if="guided && finished" class="tag" role="status">¡Melodía guardada! Toca para repetirla</p>

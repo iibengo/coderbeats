@@ -10,6 +10,8 @@ const open = defineModel<boolean>('open', { required: true })
 const props = defineProps<{ renderer: string; layout: () => string }>()
 const emit = defineEmits<{ recalibrate: ['latency' | 'sounds']; pilot: []; preview: []; video: []; simple: [] }>()
 const engine = useAudioEngine()
+const prefsStudio = useStudioPrefs()
+const adv = prefsStudio.advanced
 const ui = useUi()
 // lo que reemplaza la canción la desvincula de la guardada de la que venía (spec 006, §10.4): así "Guardar" no machaca una guardada
 const library = useLibrary()
@@ -142,8 +144,8 @@ watch(open, (o) => {
         <div class="mx-auto mb-3 h-1 w-10 rounded-full bg-white/20" />
         <nav class="mb-4 flex gap-1 text-xs">
           <button class="rounded-full px-3 py-1" :class="chip(tab === 'ajustes')" @click="tab = 'ajustes'">ajustes</button>
-          <button class="rounded-full px-3 py-1" :class="chip(tab === 'codigo')" @click="tab = 'codigo'">código</button>
-          <button class="rounded-full px-3 py-1" :class="chip(tab === 'diagnostico')" @click="tab = 'diagnostico'">
+          <button v-if="adv" class="rounded-full px-3 py-1" :class="chip(tab === 'codigo')" @click="tab = 'codigo'">código</button>
+          <button v-if="adv" class="rounded-full px-3 py-1" :class="chip(tab === 'diagnostico')" @click="tab = 'diagnostico'">
             diagnóstico
           </button>
           <button class="rounded-full px-3 py-1" :class="chip(tab === 'acerca')" @click="tab = 'acerca'">acerca de</button>
@@ -151,14 +153,14 @@ watch(open, (o) => {
 
         <div v-if="tab === 'ajustes'" class="grid gap-3">
           <div class="flex items-center justify-between">
-            Kit
+            Sonido
             <span class="flex gap-1">
               <button v-for="k in KIT_ORDER" :key="k" class="rounded-full px-2 py-0.5 text-xs" :class="chip(kit === k)" @click="engine.setKit(k)">
                 {{ KITS[k].label }}
               </button>
             </span>
           </div>
-          <div class="flex items-center justify-between">
+          <div v-if="adv" class="flex items-center justify-between">
             Fondo
             <span class="flex gap-1">
               <button v-for="m in BG_MODES" :key="m.id" class="rounded-full px-2 py-0.5 text-xs" :class="chip(bgMode === m.id)" @click="engine.setBackgroundMode(m.id)">
@@ -166,7 +168,7 @@ watch(open, (o) => {
               </button>
             </span>
           </div>
-          <div class="flex items-center justify-between">
+          <div v-if="adv" class="flex items-center justify-between">
             Frase
             <span class="flex gap-1">
               <button v-for="m in PHRASE_MODES" :key="m.id" class="rounded-full px-2 py-0.5 text-xs" :class="chip(phraseMode === m.id)" @click="engine.setPhraseOptions({ mode: m.id })">
@@ -174,7 +176,7 @@ watch(open, (o) => {
               </button>
             </span>
           </div>
-          <template v-if="phraseMode === 'silence'">
+          <template v-if="adv && phraseMode === 'silence'">
             <div class="flex items-center justify-between">
               Cierre
               <span class="flex gap-1">
@@ -192,7 +194,7 @@ watch(open, (o) => {
               </span>
             </div>
           </template>
-          <div class="flex items-center justify-between">
+          <div v-if="adv" class="flex items-center justify-between">
             Repetir instrumento
             <span class="flex gap-1">
               <button v-for="m in REPEAT_MODES" :key="m.id" class="rounded-full px-2 py-0.5 text-xs" :class="chip(repeatMode === m.id)" @click="engine.setRepeatMode(m.id)">
@@ -201,22 +203,26 @@ watch(open, (o) => {
             </span>
           </div>
           <label class="flex items-center justify-between">
-            Ayuda
+            Ajustar a la escala
             <input type="checkbox" :checked="assist" @change="engine.setAssist(($event.target as HTMLInputElement).checked)" />
           </label>
-          <label class="flex items-center justify-between">
+          <label class="flex items-center justify-between" data-advanced-toggle>
+            <span>Controles avanzados <span class="text-xs text-neutral-500">modo Componer, efectos, voz, ajustes finos y más</span></span>
+            <input type="checkbox" :checked="adv" @change="prefsStudio.setAdvanced(($event.target as HTMLInputElement).checked)" />
+          </label>
+          <label v-if="adv" class="flex items-center justify-between">
             <span>Sugerencias <span class="text-xs text-neutral-500">melodía sugerida y variaciones</span></span>
             <input type="checkbox" :checked="engine.suggestions.value" @change="engine.setSuggestions(($event.target as HTMLInputElement).checked)" />
           </label>
-          <label class="flex items-center justify-between">
+          <label v-if="adv" class="flex items-center justify-between">
             <span>Producción <span class="text-xs text-neutral-500">swing y matices de volumen (beta)</span></span>
             <input type="checkbox" :checked="engine.production.value" @change="engine.setProduction(($event.target as HTMLInputElement).checked)" />
           </label>
-          <label class="flex items-center justify-between">
+          <label v-if="adv" class="flex items-center justify-between">
             <span>Agua viva <span class="text-xs text-neutral-500">estela del dedo y venas (se apaga sola si va lento)</span></span>
             <input type="checkbox" :checked="engine.flow.value" @change="engine.setFlow(($event.target as HTMLInputElement).checked)" />
           </label>
-          <div class="grid gap-0.5">
+          <div v-if="adv" class="grid gap-0.5">
             <label class="flex items-center justify-between">
               <span>Melodía con la voz <span class="text-xs text-neutral-500">beta</span></span>
               <input type="checkbox" :checked="melodyOn" @change="engine.setMelody(($event.target as HTMLInputElement).checked)" />
@@ -224,15 +230,15 @@ watch(open, (o) => {
             <p class="text-xs text-neutral-500">Canta «na» con el loop sonando y se afina a la escala del estilo. Mejor con cascos.</p>
             <p v-if="melodyOn && melodyBlocked" class="text-xs text-amber-300">Sin efecto: el micro oye los altavoces. Usa cascos y recarga la app.</p>
           </div>
-          <label v-if="showMotion" class="flex items-center justify-between">
+          <label v-if="adv && showMotion" class="flex items-center justify-between">
             Movimiento del móvil
             <input type="checkbox" :checked="motion.enabled.value" @change="motion.toggle()" />
           </label>
-          <label class="flex items-center justify-between">
+          <label v-if="adv" class="flex items-center justify-between">
             Metrónomo
             <input type="checkbox" :checked="metronome" @change="engine.setMetronome(($event.target as HTMLInputElement).checked)" />
           </label>
-          <div class="grid gap-1">
+          <div v-if="adv" class="grid gap-1">
             <div class="flex items-center justify-between">
               <span>Retraso de imagen <span class="text-xs text-neutral-500 tabular-nums">{{ imageDelayShown }} ms</span></span>
               <label class="flex items-center gap-2 text-xs text-neutral-400">
@@ -264,7 +270,7 @@ watch(open, (o) => {
               </span>
             </div>
           </div>
-          <label class="flex items-center justify-between gap-3">
+          <label v-if="adv" class="flex items-center justify-between gap-3">
             Calor
             <input class="flex-1" type="range" min="0" max="1" step="0.01" :value="fx.warmth" @input="engine.setFx({ warmth: val($event) })" />
           </label>
@@ -273,11 +279,11 @@ watch(open, (o) => {
               Drop
             </button>
             <button class="flex-1 rounded-full border border-white/15 py-2 disabled:opacity-40" :disabled="!loops.loops.length && !multi" @click="clearAll">
-              Borrar todo
+              Empezar de cero
             </button>
-            <button class="flex-1 rounded-full border border-white/15 py-2" @click="loadDemo">Cargar demo</button>
+            <button v-if="adv" class="flex-1 rounded-full border border-white/15 py-2" @click="loadDemo">Cargar demo</button>
           </div>
-          <div class="flex items-center gap-3">
+          <div v-if="adv" class="flex items-center gap-3">
             <button class="shrink-0 rounded-full border border-white/15 px-4 py-2 disabled:opacity-40" :disabled="!loops.loops.length && !multi" @click="emit('preview'); open = false">👁 Previsualizar</button>
             <span class="text-xs text-neutral-500">tu canción se construye sola, paso a paso (micro bloqueado); al acabar o parar, todo como estaba.</span>
           </div>
@@ -285,46 +291,46 @@ watch(open, (o) => {
             <button class="shrink-0 rounded-full border border-white/15 px-4 py-2" @click="emit('video'); open = false">🎬 Exportar vídeo</button>
             <span class="text-xs text-neutral-500">graba la pantalla sin botones, con el audio de la app (no el micro).</span>
           </div>
-          <div v-if="engine.style.value === 'dembow'" class="flex items-center gap-3">
+          <div v-if="adv && engine.style.value === 'dembow'" class="flex items-center gap-3">
             <button class="shrink-0 rounded-full border border-white/15 px-4 py-2" @click="emit('pilot'); open = false">▶ Ver cómo se construye</button>
             <span class="text-xs text-neutral-500">el piloto automático hace la demo del dembow con un dedo fantasma (sustituye lo que tengas).</span>
           </div>
-          <div class="flex items-center gap-3">
+          <div v-if="adv" class="flex items-center gap-3">
             <button class="shrink-0 rounded-full border border-white/15 px-4 py-2 disabled:opacity-40" :disabled="!engine.canConvert.value" @click="engine.convertSong(); open = false">Convertir en canción</button>
             <span class="text-xs text-neutral-500">de un loop a intro, subida, drop y final del estilo (con «deshacer»).</span>
           </div>
-          <div class="flex items-center gap-3">
+          <div v-if="adv" class="flex items-center gap-3">
             <button class="shrink-0 rounded-full border border-white/15 px-4 py-2" @click="engine.restartGuide(); restartTutorial(); open = false">Repetir la guía y el tutorial</button>
             <span class="text-xs text-neutral-500">el primer minuto: bum · pff · ts, y tus golpes aparecen (con la canción vacía).</span>
           </div>
-          <div class="flex items-center gap-3">
+          <div v-if="adv" class="flex items-center gap-3">
             <button class="shrink-0 rounded-full border border-white/15 px-4 py-2" @click="addFree">Añadir célula libre</button>
             <span class="text-xs text-neutral-500">
               Un grupo de una célula que suena en paralelo a la canción. En el mapa, un toque lo enciende o lo apaga.
             </span>
           </div>
-          <label class="flex items-center justify-between">
+          <label v-if="adv" class="flex items-center justify-between">
             <span>Melodía en el compás <span class="text-xs text-neutral-500">la espiral cae en el tiempo de la base</span></span>
             <input type="checkbox" :checked="ui.state.syncMelody" @change="ui.setSync(($event.target as HTMLInputElement).checked)" />
           </label>
-          <div class="flex items-center gap-3">
+          <div v-if="adv" class="flex items-center gap-3">
             <button class="shrink-0 rounded-full border border-white/15 px-4 py-2" @click="open = false; emit('simple')">Modo simple</button>
             <span class="text-xs text-neutral-500">la portada: elige un estilo, toca la melodía con el dedo y añade ritmo con tu voz.</span>
           </div>
-          <div class="flex items-center gap-3">
+          <div v-if="adv" class="flex items-center gap-3">
             <button class="shrink-0 rounded-full border border-white/15 px-4 py-2" @click="engine.addMelodyCell(); open = false">+ melodía</button>
             <span class="text-xs text-neutral-500">una célula para tocar la melodía con el dedo, como un sintetizador (arriba/abajo = nota, lados = filtro).</span>
           </div>
-          <p class="text-xs text-neutral-500">
+          <p v-if="adv" class="text-xs text-neutral-500">
             Arrastra en vertical sobre el agua para el filtro y en horizontal para el espacio. Dos dedos: fondo sí/no.
             Toca un loop para silenciarlo; mantenlo para borrarlo.
           </p>
-          <p class="text-xs text-neutral-500">Sonidos: {{ engine.personalModel.value ? 'calibrados con tu voz' : 'modelo por defecto (¿no acierta? afínalo a tu voz)' }}</p>
-          <div class="flex gap-4 text-xs text-neutral-500">
+          <p v-if="adv" class="text-xs text-neutral-500">Sonidos: {{ engine.personalModel.value ? 'calibrados con tu voz' : 'modelo por defecto (¿no acierta? afínalo a tu voz)' }}</p>
+          <div v-if="adv" class="flex gap-4 text-xs text-neutral-500">
             <button class="underline underline-offset-4" @click="recalibrate('latency')">{{ engine.personalModel.value ? 'Recalibrar latencia' : 'Medir latencia' }}</button>
             <button class="underline underline-offset-4" @click="recalibrate('sounds')">{{ engine.personalModel.value ? 'Recalibrar sonidos' : 'Calibrar mis sonidos' }}</button>
           </div>
-          <p v-if="echo?.bleed" class="text-xs text-amber-300">
+          <p v-if="adv && echo?.bleed" class="text-xs text-amber-300">
             El micro oye los altavoces ({{ (echo.roundTrip * 1000).toFixed(0) }} ms). Usa cascos.
           </p>
         </div>

@@ -13,5 +13,11 @@ await p.evaluate(() => document.querySelector('[aria-label="cerrar la batería"]
 await p.evaluate(() => document.querySelector('[data-edit=melodia]').click()); await sleep(1500)
 console.log('editar melodía abre el Órgano:', await p.evaluate(() => !!document.querySelector('[aria-label="órgano de la melodía"]')))
 await p.screenshot({ path: `${process.env.OUT || '/tmp'}/parte1.png` })
+// duplicar con variación: una parte más, detrás de la actual
+await p.evaluate(() => document.querySelector('[aria-label="cerrar el órgano"]')?.click()); await sleep(800)
+await clickLabel(p, 'editar parte'); await sleep(500)
+const before = await p.evaluate(() => window.__engine.song.value.order.length)
+await p.evaluate(() => document.querySelector('[data-duplicate]').click()); await sleep(1000)
+console.log('partes antes y después de duplicar:', before, await p.evaluate(() => window.__engine.song.value.order.length), '| propuestas de variación:', await p.evaluate(() => !!window.__engine.proposal?.value))
 console.log(errs)
 await b.close()
