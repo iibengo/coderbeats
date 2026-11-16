@@ -62,7 +62,10 @@ export function lissajousOf(hits: readonly MelodyHit[]): LissajousParams {
   if (!hits.length) return DEFAULT_LISSAJOUS
   const distinct = new Set(hits.map((h) => h.midi)).size
   const first = hits[0]!.midi
-  return { a: Math.min(5, Math.max(1, distinct)), b: 2 + (hits.length % 4), phase: ((first % 12) / 12) * Math.PI }
+  const a = Math.min(5, Math.max(1, distinct))
+  let b = 2 + (hits.length % 4)
+  if (b === a) b += 1 // a = b dibujaría una elipse sosa
+  return { a, b, phase: ((first % 12) / 12) * Math.PI }
 }
 
 /** `n` puntos de la curva en el cuadrado −1…1. */
@@ -73,4 +76,82 @@ export function lissajousPoints(p: LissajousParams, n = 96): { x: number; y: num
     out.push({ x: Math.sin(p.a * t + p.phase), y: Math.sin(p.b * t) })
   }
   return out
+}
+
+// ── La curva viva (spec 015 §13): geometría y deformaciones puras; el dibujo está en ThereminOverlay ───────────────────────────────────────────────────────────
+export interface P2 {
+  x: number
+  y: number
+}
+
+/** Los radios de la curva en pantalla: casi todo el ancho y el alto, para que cubra las notas de arriba y abajo. */
+export const curveRadii = (w: number, h: number) => ({ rx: w * 0.4, ry: h * 0.44 })
+
+/** El punto `t` (0…2π) de la curva en pantalla; `phase` la hace girar (solo mueve la x: la altura de cada punto no cambia). */
+export function curvePoint(p: LissajousParams, t: number, w: number, h: number, phase: number, scale = 1): P2 {
+  const { rx, ry } = curveRadii(w, h)
+  return { x: w / 2 + Math.sin(p.a * t + p.phase + phase) * rx * scale, y: h / 2 - Math.sin(p.b * t) * ry * scale }
+}
+
+export interface Deform {
+  /** 0…1: cuánto se deforma por la nota que acaba de sonar (cae a 0) */
+  wobble: number
+  /** de qué depende la forma de la deformación (el índice de la nota) */
+  k: number
+  time: number
+  /** el dedo, si está en la pantalla, y cuánto tira de la curva (0…1) */
+  finger: P2 | null
+  pull: number
+}
+
+/** Lo que se desplaza un punto por la deformación de la nota y por el dedo que tira de él. Sin deformación y sin dedo, (0, 0). */
+export function deformOffset(pt: P2, t: number, w: number, d: Deform): P2 {
+  let dx = 0
+  let dy = 0
+  if (d.wobble > 0.001) {
+    const { rx, ry } = curveRadii(w, 1000)
+    const k = 2 + (d.k % 5)
+    dx += d.wobble * 0.09 * rx * Math.sin(k * t + d.time * 7)
+    dy += d.wobble * 0.05 * ry * Math.cos((k + 1) * t - d.time * 5)
+  }
+  if (d.finger && d.pull > 0.001) {
+    const ex = d.finger.x - (pt.x + dx)
+    const ey = d.finger.y - (pt.y + dy)
+    const dist = Math.hypot(ex, ey)
+    const f = d.pull * 0.5 * Math.exp(-((dist / 170) ** 2))
+    dx += ex * f
+    dy += ey * f
+  }
+  return { x: dx, y: dy }
+}
+
+/** El punto (0…2π) de la curva más cercano a `pt`; donde nace la onda de color. */
+export function nearestParam(p: LissajousParams, pt: P2, w: number, h: number, phase: number, steps = 96): number {
+  let best = 0
+  let bd = Infinity
+  for (let i = 0; i < steps; i++) {
+    const t = (i / steps) * Math.PI * 2
+    const c = curvePoint(p, t, w, h, phase)
+    const d = (c.x - pt.x) ** 2 + (c.y - pt.y) ** 2
+    if (d < bd) {
+      bd = d
+      best = t
+    }
+  }
+  return best
+}
+
+/** Distancia angular más corta entre dos parámetros de la curva (0…π). */
+export const paramDist = (a: number, b: number): number => {
+  const d = Math.abs(a - b) % (Math.PI * 2)
+  return d > Math.PI ? Math.PI * 2 - d : d
+}
+
+/** Cuánto brilla el punto `t` de la curva por una onda nacida en `t0` hace `age` s: un pulso que se abre por los dos lados y se apaga (0…1). */
+export function waveGlow(t: number, t0: number, age: number, speed = 4.2, width = 0.55, life = 0.9): number {
+  if (age < 0 || age > life) return 0
+  const front = speed * age
+  const d = paramDist(t, t0)
+  const off = Math.abs(d - front)
+  return off >= width ? 0 : (1 - off / width) * (1 - age / life)
 }

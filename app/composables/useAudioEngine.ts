@@ -343,6 +343,8 @@ const thereminNote = ref<number | null>(null)
 const thereminShown = ref(false)
 /** el tutorial enseña algo: los botones avanzados se esconden (primer minuto, spec 011) */
 const hideActions = ref(false)
+/** cuánto adorno dibujar (lo fija el vigilante de frames): 0 = todo, 1 = sin brillos ni deformación, 2 = lo mínimo */
+const drawLevel = ref<0 | 1 | 2>(0)
 /** Escenario (spec 011 §13.1): la pantalla entera dispara golpes de efecto. */
 const stageOn = ref(false)
 const fxLimiter = new FxLimiter()
@@ -2328,6 +2330,24 @@ export function useAudioEngine() {
     updateBackground()
   }
 
+  /** Pasa `hits` a la célula que se ve como su loop de melodía de 4 compases (sustituye al que hubiera, que queda para deshacer). */
+  function commitMelody(hits: MelodyHit[]): boolean {
+    if (!hits.length) return false
+    const born = clock ? nextBarLine() : 0
+    const old = loops.value.loops.find((l) => l.instrument === 'mel')
+    const id = old?.id ?? loops.value.nextId
+    const loop: FreeLoop = { id, instrument: 'mel', bars: 4, phaseBar: 0, hits, muted: false, bornAt: born, fromTemplate: false, ...(old?.synth ? { synth: old.synth } : {}), ...(old ? { prev: { hits: old.hits, bars: old.bars, phaseBar: old.phaseBar } } : {}) }
+    if (!old && loops.value.loops.length >= MAX_LOOPS) {
+      say('No caben más loops (8): quita alguno para grabar la melodía')
+      return false
+    }
+    loops.value = { nextId: old ? loops.value.nextId : id + 1, loops: old ? loops.value.loops.map((l) => (l.id === id ? loop : l)) : [...loops.value.loops, loop] }
+    reevaluate()
+    updateBackground()
+    say(`Melodía grabada: ${hits.length} notas${old ? ' (sustituye a la anterior)' : ''}`)
+    return true
+  }
+
   /** Crea una célula libre (⋯ → "añadir célula libre"): un grupo nuevo de una célula, apagado y vacío; entra en ella para llenarla. */
   function addGroupCell(): number | null {
     const r = withNewGroup(liveSong())
@@ -2719,13 +2739,15 @@ export function useAudioEngine() {
     thereminNote,
     thereminShown,
     hideActions,
+    drawLevel,
     /** Empieza (o sigue) el sonido continuo del sintetizador: `fy` = altura (nota de la escala, con histéresis), `fx` = filtro. Devuelve la nota (MIDI) o null si no se puede. */
-    thereminMove: (fx: number, fy: number): number | null => {
+    thereminMove: (fx: number, fy: number, force?: number): number | null => {
       const c = ctx
       if (!c || c.state !== 'running' || !masterIn) return null
       const notes = scaleNotes(style.value)
       if (!notes.length) return null
-      const idx = noteIndexAt(fy, notes.length, thereminVoice?.idx ?? null)
+      const forced = force !== undefined ? notes.indexOf(force) : -1
+      const idx = forced >= 0 ? forced : noteIndexAt(fy, notes.length, thereminVoice?.idx ?? null)
       const midi = notes[idx]!
       const now = c.currentTime
       if (!thereminVoice) {
@@ -2829,21 +2851,10 @@ export function useAudioEngine() {
       keysRec.value = null
       keysHits.value = []
       if (!clock || !events.length) return false
-      const hits = keysToHits(events, barTime(0), stepSeconds(), 4)
-      const born = nextBarLine()
-      const old = loops.value.loops.find((l) => l.instrument === 'mel')
-      const id = old?.id ?? loops.value.nextId
-      const loop: FreeLoop = { id, instrument: 'mel', bars: 4, phaseBar: 0, hits, muted: false, bornAt: born, fromTemplate: false, ...(old?.synth ? { synth: old.synth } : {}), ...(old ? { prev: { hits: old.hits, bars: old.bars, phaseBar: old.phaseBar } } : {}) }
-      if (!old && loops.value.loops.length >= MAX_LOOPS) {
-        say('No caben más loops (8): quita alguno para grabar la melodía')
-        return false
-      }
-      loops.value = { nextId: old ? loops.value.nextId : id + 1, loops: old ? loops.value.loops.map((l) => (l.id === id ? loop : l)) : [...loops.value.loops, loop] }
-      reevaluate()
-      updateBackground()
-      say(`Melodía grabada: ${hits.length} notas${old ? ' (sustituye a la anterior)' : ''}`)
-      return true
+      return commitMelody(keysToHits(events, barTime(0), stepSeconds(), 4))
     },
+    /** Guarda una melodía ya hecha (el modo guiado del sintetizador) como el loop de melodía de la célula que se ve, sustituyendo al anterior (con «deshacer»). */
+    saveMelody: (hits: MelodyHit[]): boolean => commitMelody(hits),
     stageOn,
     fxRec,
     setStage: (on: boolean) => {

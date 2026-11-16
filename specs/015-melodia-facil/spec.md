@@ -131,3 +131,21 @@ Probado en el móvil: «Agua» sonaba pero no se entendía (todo negro). Ahora, 
 ### 12.5 Qué no hace (todavía)
 - Sin 3D ni giro con dos dedos; sin enlace vivo con la reproductora; **adjuntar a otra célula = fundir** (005 §21), ya existente. El glide y el sonido **no se han oído** (sin probar de oído).
 - El oscilador usa la onda del sinte del estilo (`lead`→cuadrada, `piano`→triangular, `pad`→sierra, `drone`→seno) con un filtro paso bajo; no es el sinte de Strudel, así que **al grabar y reproducir suena distinto** que mientras tocas (anotado para decidirlo de oído).
+
+## 13. Sintetizador vivo y modo guiado (2026-11-16)
+**Pedido tras probar §12:** el concepto gusta, pero la curva estaba quieta y casi no se veía.
+
+### 13.1 Curva viva (`lib/theremin.ts`, `ThereminOverlay.vue`)
+- **Más contraste:** la curva ocupa casi toda la pantalla (`curveRadii`: 40 % del ancho, 44 % del alto) y es **lila vivo** en reposo y **rosa con brillo** mientras suena una nota (no gris).
+- **Respira** (escala ±3 % con un periodo de dos tiempos del bpm, libre, **sin colgarse del reloj del motor**) y **gira despacio** (una vuelta cada 30 s; solo cambia la x de cada punto: la altura de cada punto de la curva no cambia, así lo que se ve y la nota siguen cuadrando).
+- **Se deforma con la nota que suena** (`deformOffset`: un temblor que depende del índice de la nota y cae en 0,8 s) y **se estira hacia el dedo** (el tirón es gaussiano: los puntos cercanos al dedo se acercan hasta la mitad; el dedo se suaviza para que no salte).
+- **Cada nota lanza una onda de color** (color por altura de la nota: rosa/lila/azul) que nace en el punto de la curva más cercano al dedo y **corre por los dos lados** (`waveGlow`, 0,9 s).
+- **Vigilante de frames:** `engine.drawLevel` (0 = todo; 1 = sin brillos, deformación ni ondas, menos puntos; 2 = además sin respiración ni tirón) lo fija `VisualStage` desde el estado del vigilante (`flow` y `aro`). Con movimiento reducido: curva estática, sin ondas ni estela.
+- Cuando `a = b` el Lissajous sería una elipse sosa: `lissajousOf` lo evita (test con todos los temas y estilos).
+
+### 13.2 Modo guiado (por defecto)
+- **Biblioteca** (`lib/tuneLibrary.ts`, dominio público): Himno de la alegría, Sinfonía n.º 40, Fray Santiago, Estrellita, Para Elisa y Dies irae (4 compases). **Adaptada al estilo** (`adaptTune`): se lleva su tónica a la del estilo, se coloca en el registro del sinte y cada nota va a la **nota más cercana de la escala del estilo** (las que el sintetizador toca de verdad); mismas posiciones, monofónico, determinista (tests con los 6 temas × 5 estilos).
+- **La curva es la del tema** (sale de sus notas). **La siguiente nota es un punto de luz fantasma sobre la curva**, a la altura de su franja (`placeGhost`; una repetida cae lejos de la anterior). Llevas el dedo hasta él y **suena esa nota** (aunque la franja de tu dedo fuese la de al lado): cuenta al entrar en su zona (46 px) y, para la siguiente, hay que salir de la zona o levantar el dedo.
+- **No hay prisa:** la nota espera. **Se encaja en el ritmo y la escala**: lo que se graba son las **posiciones del tema** (y sus notas adaptadas), no cuándo llegaste. Al tocar la última, `saveMelody` lo deja como loop de melodía de la célula (sustituye al anterior, «deshacer» lo recupera) y la melodía queda sonando con la canción. Tocar después repite el tema.
+- **Botones:** «↻ Otra» (siguiente tema), «✋ Libre» (el modo de §12, con «● Grabar») y «🎯 Guiado» para volver. Texto: `tema · tocadas/total` y, hasta el primer toque, «Lleva el dedo al punto de luz».
+- **Sin probar:** que se sienta bien tocar así con el dedo en un móvil (el radio de 46 px, la velocidad del giro) y cómo suenan las melodías adaptadas (algunas pueden perder su carácter al encajarlas en una escala menor: Himno, Elisa).

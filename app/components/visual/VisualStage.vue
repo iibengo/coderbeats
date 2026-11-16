@@ -1087,6 +1087,7 @@ function tick() {
     // el vigilante (lib/frameGovernor): baja el detalle si va lento y, desde ahora, también lo vuelve a subir si va sobrado
     const was = governor
     governor = governorStep(governor, p95, { inColony: inColonyMostly, canQuality: !!theme?.setQuality, canAro: !!aro, canFlow: engine.flow.value && !reduced })
+    engine.drawLevel.value = governor.flow === 1 && governor.aro === 1 ? 0 : governor.aro === 0.5 ? 2 : 1
     if (governor.crowd !== was.crowd) crowdLevel = governor.crowd
     if (governor.quality !== was.quality && theme?.setQuality) {
       quality = governor.quality

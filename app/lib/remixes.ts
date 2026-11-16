@@ -155,7 +155,7 @@ function buildSong(specs: readonly CellSpec[], groupSpecs: readonly GroupSpec[] 
 // La secuencia del juicio final: la nota repetida de cada frase es lo que le da el carácter de martillo. C3=48 D3=50
 // Eb3=51 F3=53 G3=55 Ab3=56 Bb3=58 (la escala del techno, do menor).
 /** Las cuatro frases, 2 compases cada una (32 pasos); la nota pedal de cada una se repite en negras. */
-const DIES_PHRASES: readonly (readonly Note[])[] = [
+export const DIES_PHRASES: readonly (readonly Note[])[] = [
   // F F F F | D F F F: la frase que da nombre a la secuencia
   [[0, 2, 53], [2, 2, 53], [4, 2, 53], [6, 2, 53], [8, 2, 50], [10, 2, 53], [12, 2, 53], [14, 2, 53], [16, 2, 53], [18, 2, 53], [20, 2, 53], [22, 2, 53], [24, 2, 50], [26, 2, 53], [28, 2, 53], [30, 2, 53]],
   // F F F F | D F F F (repite, más larga al final): el martillo sube
@@ -166,7 +166,7 @@ const DIES_PHRASES: readonly (readonly Note[])[] = [
   [[0, 2, 58], [2, 2, 58], [4, 2, 58], [6, 2, 58], [8, 2, 50], [10, 2, 50], [12, 2, 50], [14, 2, 50], [16, 2, 58], [18, 2, 58], [20, 2, 58], [22, 2, 58], [24, 2, 51], [26, 2, 51], [28, 2, 51], [30, 2, 51]],
 ]
 /** Un tema de 4 compases con las frases 1–2 y otro con las 3–4: dos células de 4 compases. */
-const DIES_A: readonly Note[] = [...DIES_PHRASES[0]!, ...DIES_PHRASES[1]!.map(([p, d, m]) => [p, d, m] as const)]
+export const DIES_A: readonly Note[] = [...DIES_PHRASES[0]!, ...DIES_PHRASES[1]!.map(([p, d, m]) => [p, d, m] as const)]
 const DIES_B: readonly Note[] = [...DIES_PHRASES[2]!, ...DIES_PHRASES[3]!.map(([p, d, m]) => [p, d, m] as const)]
 
 /**
@@ -235,7 +235,7 @@ const DIES_TECHNO: CellSpec[] = [
 // con la célula de tres notas «mi♭ re re» repetida y el salto de sexta. Aquí **bajado una quinta a do menor** (−7), la
 // tonalidad del techno de la app (bajo en do y acordes Cm–A♭–B♭–Gm; el bombo afinado a esas raíces, `kickTune`). Un compás
 // del tema = un compás de 16 pasos (negra = 4, corchea = 2). MIDI en sol menor: E♭5=75 D5=74 B♭5=82 A5=81 G5=79 F♯5=78.
-const MOZART_G: { a: readonly Note[]; b: readonly Note[] } = {
+export const MOZART_G: { a: readonly Note[]; b: readonly Note[] } = {
   // A: la célula tres veces, el salto B♭5 y la bajada sobre sol (4 compases)
   a: [
     [0, 2, 75], [2, 2, 74], [4, 4, 74], [8, 2, 75], [10, 2, 74], [12, 4, 74], // mi♭ re re · mi♭ re re

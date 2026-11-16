@@ -256,3 +256,23 @@ Todo en `main`, **sin push**; tests (1064), `nuxt typecheck` y `nuxt build` en v
 6. **Sin micro:** niega el permiso del micro: ¿«Entrar sin micro» y la demo se tocan bien con el dedo?
 7. **Tu registro etiquetado** (8 «ts», 8 «pff», 8 «bum», con segundos) para cerrar el reconocimiento en el iPhone.
 8. Lo de las tandas anteriores (ver cada una).
+
+---
+
+# Novena tanda (2026-11-16) — el sintetizador vivo y guiado (spec 015 §13)
+
+Tests (1074), typecheck y build en verde; comprobado en Chrome (`tests/browser/sintetizador.mjs`: el guiado de principio a fin, 15 aciertos con el dedo táctil → la melodía queda guardada en la célula). **Nada oído ni probado en un móvil.**
+
+- **Curva viva:** ocupa casi toda la pantalla, lila vivo en reposo y **rosa con brillo** al sonar; respira, gira despacio, se deforma con la nota, se estira hacia el dedo y cada nota lanza una onda de color que corre por la curva. Respeta el vigilante de frames (`drawLevel`: 0 todo, 1 sin brillos/deformación/ondas, 2 además sin respiración ni tirón) y el movimiento reducido. Arreglado: con a = b el Lissajous era una elipse sosa.
+- **Modo guiado (por defecto):** 6 temas de dominio público adaptados al estilo (Himno de la alegría, Sinfonía n.º 40, Fray Santiago, Estrellita, Para Elisa, Dies irae). La siguiente nota es **un punto de luz sobre la curva**; llevas el dedo y suena esa nota; la nota espera, y lo grabado son las posiciones del tema (encajado en ritmo y escala). Al acabar, queda como la melodía de la célula. «↻ Otra», «✋ Libre» (el de antes, con «● Grabar») y «🎯 Guiado».
+
+## Decisiones a revisar
+- La **respiración no va colgada del reloj del motor** (periodo de dos tiempos del bpm, libre): «al ritmo» aproximado, a propósito (no se toca el reloj).
+- Zona de acierto de **46 px** y giro de **una vuelta cada 30 s** (la nota fantasma se mueve despacio con el giro): propuestas a afinar con el dedo.
+- Las melodías **adaptadas a la escala menor** de cada estilo pueden perder carácter (Himno, Elisa); si alguna suena mal, se quita o se le da otra tonalidad.
+
+## Qué probar en el móvil, en orden
+1. ⋯ → «+ melodía». ¿Se ve la curva (contraste, rosa al sonar)? ¿Respira y gira sin marear? ¿Se estira hacia el dedo, y cada nota lanza una onda de color?
+2. **Guiado:** ¿se entiende «Lleva el dedo al punto de luz»? ¿Cuesta llegar (radio, giro)? ¿Suena bien la nota al llegar? Completa un tema: ¿queda sonando con la canción y cuadra con el ritmo? «↻ Otra» con los 6 temas: ¿cuáles suenan bien en tu estilo?
+3. «✋ Libre» y «● Grabar»: igual que antes.
+4. **Rendimiento:** ¿va fluido en tu móvil? Si no, ¿se simplifica sola?
