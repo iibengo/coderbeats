@@ -297,7 +297,8 @@
       "calibration": "Ajusta la app a tu voz y al retraso de tus cascos. Solo hace falta si usas el micro.",
       "drop": "Efecto de DJ: el ritmo y el bajo se cortan y vuelven de golpe.",
       "fresh": "Borra lo que tienes y empieza de cero."
-    }
+    },
+    "toLab": "← Ir al Laboratorio"
   },
   "studio": {
     "duration": "{n} partes · {time}",

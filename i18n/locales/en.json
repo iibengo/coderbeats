@@ -297,7 +297,8 @@
       "calibration": "Tunes the app to your voice and your headphones' delay. Only needed if you use the mic.",
       "drop": "DJ effect: the rhythm and bass cut out and come back with a bang.",
       "fresh": "Clears what you have and starts from scratch."
-    }
+    },
+    "toLab": "← Go to the Lab"
   },
   "studio": {
     "duration": "{n} parts · {time}",

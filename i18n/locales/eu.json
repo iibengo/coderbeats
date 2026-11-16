@@ -297,7 +297,8 @@
       "calibration": "Aplikazioa zure ahotsera eta aurikularren atzerapenera doitzen du. Mikrofonoa erabiltzen baduzu bakarrik behar da.",
       "drop": "DJ efektua: erritmoa eta baxua moztu eta kolpe batean itzultzen dira.",
       "fresh": "Dituzunak garbitu eta hutsetik hasten da."
-    }
+    },
+    "toLab": "← Joan Laborategira"
   },
   "studio": {
     "duration": "{n} zati · {time}",
