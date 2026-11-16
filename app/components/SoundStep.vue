@@ -70,7 +70,7 @@ const dotColor: Record<Instrument, string> = { bd: 'bg-bd', sd: 'bg-sd', hh: 'bg
       <p class="text-xs uppercase tracking-widest text-neutral-500">Paso 2 de 2</p>
       <h2 class="mt-1 text-2xl font-medium">Tus sonidos</h2>
       <p class="mt-2 text-neutral-400">
-        Graba {{ TAKES_PER_INSTRUMENT }} veces cada sonido. Pulsa el botón y haz el sonido una vez.
+        Pulsa y haz cada sonido, {{ TAKES_PER_INSTRUMENT }} veces.
       </p>
     </div>
 
@@ -110,7 +110,7 @@ const dotColor: Record<Instrument, string> = { bd: 'bg-bd', sd: 'bg-sd', hh: 'bg
     <div v-else-if="accuracy" class="space-y-4">
       <div class="rounded-lg border border-white/10 p-4 text-sm">
         <p>
-          Precisión (leave-one-out): <strong>{{ Math.round(accuracy.accuracy * 100) }} %</strong>
+          Acierto: <strong>{{ Math.round(accuracy.accuracy * 100) }} %</strong>
         </p>
         <p class="mt-1 text-neutral-500">
           <span v-for="i in INSTRUMENTS" :key="i" class="mr-3">

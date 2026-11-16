@@ -389,3 +389,6 @@ Es el contrario de Jugar (una gota pequeña y concentrada): aquí **no hay gota*
 
 **Pendiente de probar a mano (móvil):** el pellizco (que no cambie de modo sin querer y que cambie cuando se quiere), el selector, la tira, el doble toque de Componer a Jugar,
 la guía (con la canción vacía) y la recompensa (con los tres carriles llenos).
+
+## Pulido del primer minuto (2026-11-16, sin funciones nuevas)
+Revisado con alguien que nunca ha usado la app: (1) **la primera vez** (sin música, sin loops y sin haber acabado nunca la guía) Play **late** y pone «Dale a ▶»; (2) **durante la guía** ya no salen los botones avanzados (Escenario, Previsualizar, Agua, Voz, Convertir…), que tapaban la frase: solo la frase y el agua; vuelven al acabar la guía; (3) textos más cortos: pantalla de inicio (solo «Mejor con cascos con cable»), latencia (una frase, sin la nota en ámbar; el aviso de Bluetooth se mantiene si sale mucha) y sonidos («Pulsa y haz cada sonido, 3 veces», «Acierto» en vez de «Precisión (leave-one-out)»); (4) **la latencia se puede saltar** («Saltar») y solo se pide a quien aún no tiene sus sonidos, para que no vuelva a salir cada vez (repetirla sigue en ajustes). Los sonidos (paso 2) siguen siendo obligatorios: sin ellos el micro no distingue bombo, caja y platillo. **Sin probar con una persona nueva en un móvil.**

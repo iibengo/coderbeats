@@ -5,6 +5,7 @@ import { usableLatencyMs } from '~/lib/latency'
 import { TEMPO_RESET_MS, TEMPO_TAPS } from '~/lib/tempo'
 import type { Song } from '~/lib/cells'
 import type { KitId, StyleId } from '~/lib/types'
+import { readJson } from '~/lib/storage'
 import { decodeShare, payloadFromHash } from '~/lib/shareLink'
 import ModeSwitch from './ModeSwitch.vue'
 import VisualStage from './visual/VisualStage.vue'
@@ -43,6 +44,10 @@ async function startPilot() {
 // una calibración guardada que salió ≤ 0 (imposible) no se usa; no se borra, y repetirla la sustituye
 watchEffect(() => engine.setLatency(usableLatencyMs(calibration.data.value?.latency?.ms) / 1000, calibration.data.value?.latency?.ms))
 
+/** Primera vez: sin música, sin loops y sin haber terminado nunca la guía del primer minuto (la guía guarda `done` al acabar) */
+const firstPlay = computed(
+  () => !playing.value && !engine.multi.value && engine.loops.value.loops.length === 0 && !readJson('coderbeats:guide:v1', (x): x is { done: true } => !!x && (x as { done?: unknown }).done === true),
+)
 const settingsOpen = ref(false)
 const libraryOpen = ref(false)
 const remixOpen = ref(false)
@@ -217,6 +222,7 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
     <!-- play / stop -->
     <button
       class="flex items-center justify-center rounded-full border border-white/25 text-white transition-[background] active:bg-white/10"
+      :class="{ 'play-pulse': firstPlay }"
       :style="playStyle"
       :aria-label="playing ? 'parar' : 'tocar'"
       @pointerdown.stop
@@ -229,6 +235,8 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
         <rect width="16" height="16" rx="2" />
       </svg>
     </button>
+    <!-- la primera vez, nada más que esto: un latido en Play y dos palabras -->
+    <span v-if="firstPlay" class="first-play pointer-events-none absolute left-1/2 -translate-x-1/2 text-sm text-white/70" style="bottom: calc(max(1.5rem, env(safe-area-inset-bottom)) + 84px)" role="status">Dale a ▶</span>
   </VisualStage>
 
   <LibrarySheet v-model:open="libraryOpen" @preview="(t) => startPreview(t)" />
@@ -249,3 +257,24 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
   <ConfirmDialog />
   <PilotLayer :paused="pilotState.paused" @pause="pilot.togglePause()" @skip="pilot.skip()" @stop="pilot.stop('user')" />
 </template>
+
+<style scoped>
+.play-pulse {
+  animation: play-pulse 1.8s ease-in-out infinite;
+}
+@keyframes play-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(244 150 188 / 0);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgb(244 150 188 / 0.28);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .play-pulse {
+    animation: none;
+    box-shadow: 0 0 0 6px rgb(244 150 188 / 0.25);
+  }
+}
+</style>

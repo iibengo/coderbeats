@@ -44,7 +44,7 @@ async function onStart() {
     </p>
     <p v-if="error" class="max-w-sm text-sm text-red-300">{{ error }}</p>
     <p class="max-w-xs text-xs text-neutral-500">
-      Usa cascos con cable: el Bluetooth añade latencia y el metrónomo no debe entrar por el micro.
+      Mejor con cascos con cable.
     </p>
   </section>
 </template>

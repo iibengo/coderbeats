@@ -40,11 +40,7 @@ async function run() {
       <p class="text-xs uppercase tracking-widest text-neutral-500">Paso 1 de 2</p>
       <h2 class="mt-1 text-2xl font-medium">Latencia</h2>
       <p class="mt-2 text-neutral-400">
-        Con los cascos puestos: escucharás 4 clics de cuenta atrás. Después da
-        <strong class="text-white">4 palmadas</strong>, una con cada clic.
-      </p>
-      <p class="mt-2 text-sm text-amber-200/80">
-        Guíate solo por el oído: la pantalla no marca el ritmo (con cascos Bluetooth iría por delante del sonido).
+        Con cascos: suenan 4 clics. Da <strong class="text-white">una palmada con cada uno</strong>, guiándote por el oído.
       </p>
     </div>
 
@@ -86,12 +82,11 @@ async function run() {
         {{ running ? 'Escuchando…' : result ? 'Repetir' : 'Empezar' }}
       </button>
       <button
-        v-if="data?.latency"
         class="flex-1 rounded-full border border-white/20 py-3 disabled:opacity-50"
         :disabled="running"
         @click="emit('done')"
       >
-        Siguiente
+        {{ data?.latency ? 'Siguiente' : 'Saltar' }}
       </button>
     </div>
   </section>

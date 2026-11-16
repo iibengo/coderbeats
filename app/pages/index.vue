@@ -6,7 +6,8 @@ const { hasLatency, hasSamples, data } = useCalibration()
 const engine = useAudioEngine()
 
 function afterStart() {
-  screen.value = !hasLatency.value ? 'latency' : !hasSamples.value ? 'sounds' : 'studio'
+  // la latencia se pide solo a quien aún no tiene sus sonidos (se puede saltar y repetir en ajustes: no vuelve a salir cada vez)
+  screen.value = hasSamples.value ? 'studio' : hasLatency.value ? 'sounds' : 'latency'
 }
 function afterSounds() {
   if (data.value) engine.setCalibration(data.value)
