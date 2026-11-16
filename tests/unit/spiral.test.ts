@@ -48,3 +48,33 @@ describe('modo espiral (spec 015 §14)', () => {
     expect(spiralPoint(c, -1, 200)).toEqual({ x: 100, y: 100 })
   })
 })
+
+import { interpretedHits, octaveZone, shiftToList } from '../../app/lib/spiral'
+
+describe('la interpretación: octava por la altura del dedo (spec 016 §9.1)', () => {
+  it('arriba +1, medio 0, abajo −1, con histéresis en el borde', () => {
+    expect(octaveZone(0.1)).toBe(1)
+    expect(octaveZone(0.5)).toBe(0)
+    expect(octaveZone(0.9)).toBe(-1)
+    expect(octaveZone(NaN)).toBe(0)
+    // justo en el borde de arriba (1/3): quien venía de arriba se queda, quien venía del medio no sube
+    expect(octaveZone(0.35, 1)).toBe(1)
+    expect(octaveZone(0.35, 0)).toBe(0)
+    expect(octaveZone(0.65, -1)).toBe(-1)
+    expect(octaveZone(0.65, 0)).toBe(0)
+  })
+  it('la nota desplazada es siempre una nota del sinte; si no cabe, baja a la octava que sí', () => {
+    const list = [60, 62, 64, 72, 74] // sin 76 ni 48
+    expect(shiftToList(60, 1, list)).toBe(72)
+    expect(shiftToList(64, 1, list)).toBe(64) // 76 no existe: se queda
+    expect(shiftToList(72, -1, list)).toBe(60)
+    expect(shiftToList(62, -1, list)).toBe(62)
+    expect(shiftToList(62, 0, list)).toBe(62)
+    expect(shiftToList(61, 1, list)).toBe(61) // fuera de lista: se devuelve tal cual, sin colgarse
+  })
+  it('lo grabado son las notas que sonaron, en las posiciones del tema', () => {
+    const hits = [{ pos: 0, dur: 4, midi: 60, strength: 0.8 }, { pos: 4, dur: 4, midi: 62, strength: 0.8 }, { pos: 8, dur: 4, midi: 64, strength: 0.8 }]
+    const out = interpretedHits(hits, new Map([[0, 72], [2, 64]]))
+    expect(out.map((h) => [h.pos, h.midi])).toEqual([[0, 72], [8, 64]])
+  })
+})

@@ -3,6 +3,7 @@
 import { STYLES } from '~/lib/constants'
 import { needsPick } from '~/lib/ui'
 import type { StyleId } from '~/lib/types'
+import ThereminOverlay from './visual/ThereminOverlay.vue'
 import VisualStage from './visual/VisualStage.vue'
 
 const emit = defineEmits<{ recalibrate: ['latency' | 'sounds']; estudio: [] }>()
@@ -22,7 +23,9 @@ const prevMode = engine.mode.value
 engine.mode.value = 'jugar'
 onBeforeUnmount(() => (engine.mode.value = prevMode))
 
+const reduced = import.meta.client && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 const stage = ref<InstanceType<typeof VisualStage> | null>(null)
+const spiralEl = ref<InstanceType<typeof ThereminOverlay> | null>(null)
 const menuOpen = ref(false)
 const libraryOpen = ref(false)
 const aboutOpen = ref(false)
@@ -65,8 +68,14 @@ function toEstudio() {
       <svg width="20" height="4" viewBox="0 0 20 4" fill="currentColor" aria-hidden="true"><circle cx="2" cy="2" r="2" /><circle cx="10" cy="2" r="2" /><circle cx="18" cy="2" r="2" /></svg>
     </button>
 
-    <!-- abajo: parar / seguir -->
+    <!-- 2 · la espiral: pon el dedo en el agua; las notas del tema vienen a él -->
+    <div v-if="picked" class="absolute right-0 left-0" style="top: 56px; bottom: 96px">
+      <ThereminOverlay ref="spiralEl" bare :reduced="reduced" :bar="engine.currentBar.value" />
+    </div>
+
+    <!-- abajo: otro tema, parar / seguir -->
     <div v-if="picked" class="absolute left-1/2 flex -translate-x-1/2 items-center gap-4" style="bottom: max(1rem, env(safe-area-inset-bottom))" @pointerdown.stop>
+      <button class="flex h-12 items-center justify-center rounded-full border border-white/25 px-4 text-sm text-white" aria-label="otra melodía" @click="spiralEl?.otherTune()">↻ Otra</button>
       <button class="flex h-12 w-12 items-center justify-center rounded-full border border-white/25 text-white" :aria-label="playing ? 'parar' : 'tocar'" @click="playing ? engine.stop() : engine.play()">
         <span v-if="!playing">▶</span>
         <span v-else>■</span>

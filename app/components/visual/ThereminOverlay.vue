@@ -5,12 +5,13 @@
 import { curvePoint, deformOffset, lightAlpha, lightPush, lissajousOf, nearestParam, waveGlow, type LightPoint, type LissajousParams, type P2 } from '~/lib/theremin'
 import { GHOST_R, GUIDE_FRESH, guideStep, noteY, placeGhost, type Ghost, type GuideState } from '~/lib/tuneGuide'
 import { adaptTune, TUNES } from '~/lib/tuneLibrary'
-import { arrivals, endedWithGap, LEAD_IN, LOOKAHEAD, schedule, spiralPoint, visible } from '~/lib/spiral'
+import { arrivals, endedWithGap, interpretedHits, LEAD_IN, LOOKAHEAD, octaveZone, schedule, shiftToList, spiralPoint, visible } from '~/lib/spiral'
 import { midiName } from '~/lib/noteScore'
 import { pitchColor, scaleNotes } from '~/lib/waterKeys'
 import type { MelodyHit } from '~/lib/melody'
 
-const props = defineProps<{ reduced: boolean; bar: number }>()
+/** `bare`: dentro de la portada (spec 016): solo la espiral, sin fondo ni botones; los controles los pone quien la usa */
+const props = defineProps<{ reduced: boolean; bar: number; bare?: boolean }>()
 const emit = defineEmits<{ close: [] }>()
 const engine = useAudioEngine()
 const { style, playing, keysRec, loops, bpm } = engine
@@ -46,6 +47,9 @@ const params = computed<LissajousParams>(() => lissajousOf(guided.value ? tuneHi
 let tc = -LEAD_IN // segundos desde el principio del tema (negativo = cuenta atrás)
 let saved = false
 const arrived = ref(0)
+/** lo que de verdad sonó (tu interpretación): nota por índice del tema */
+const played = new Map<number, number>()
+let octave: -1 | 0 | 1 = 0
 
 // ── estado del dibujo ────────────────────────────────────────────────────────────
 const trail: LightPoint[] = []
@@ -92,6 +96,7 @@ function placeNext() {
 function restart() {
   tc = -LEAD_IN
   saved = false
+  played.clear()
   arrived.value = 0
   gstate = { ...GUIDE_FRESH }
   progress.value = 0
@@ -217,10 +222,14 @@ function draw() {
     const sc = sched.value
     const total = sc.length
     for (const nt of arrivals(sc, from, tc)) {
-      engine.thereminMove(fx(finger.x), fy(finger.y), nt.midi)
-      trigger(nt.midi, fingerS)
+      // el dedo pone la octava (arriba más aguda, abajo más grave); lo que se graba es lo que sonó
+      octave = octaveZone(fy(finger.y), octave)
+      const midi = shiftToList(nt.midi, octave, notes.value)
+      played.set(nt.i, midi)
+      engine.thereminMove(fx(finger.x), fy(finger.y), midi)
+      trigger(midi, fingerS)
       arrived.value = nt.i + 1
-      if (nt.i + 1 >= total && !saved) saved = finished.value = engine.saveMelody(tuneHits.value.map((h) => ({ ...h })))
+      if (nt.i + 1 >= total && !saved) saved = finished.value = engine.saveMelody(interpretedHits(tuneHits.value, played))
     }
     if (endedWithGap(sc, from, tc)) engine.thereminStop()
     // el tema da la vuelta y sigue (la melodía ya quedó guardada la primera vez)
@@ -234,7 +243,7 @@ function draw() {
   const n = notes.value.length
   // las notas de la escala, suaves (la que suena, encendida)
   x.font = '10px ui-monospace, monospace'
-  for (let i = 0; i < n; i++) {
+  for (let i = 0; i < (props.bare ? 0 : n); i++) {
     const y = noteY(i, n, h)
     const on = notes.value[i] === cur
     x.strokeStyle = on ? 'rgba(255,143,192,0.6)' : 'rgba(255,255,255,0.08)'
@@ -410,22 +419,23 @@ onMounted(() => {
   size = { w: r.width || size.w, h: r.height || size.h }
   placeNext()
   raf = requestAnimationFrame(draw)
-  engine.thereminShown.value = true
+  if (!props.bare) engine.thereminShown.value = true
   // solo en desarrollo: las pruebas con Chrome necesitan saber dónde está la nota fantasma
   if (import.meta.dev) (window as unknown as Record<string, unknown>).__thGhost = () => (ghost ? ghostAt(ghost.t) : null)
 })
 onBeforeUnmount(() => {
   cancelAnimationFrame(raf)
   engine.thereminStop()
-  engine.thereminShown.value = false
+  if (!props.bare) engine.thereminShown.value = false
 })
+defineExpose({ otherTune, tuneName: computed(() => tune.value.name) })
 </script>
 
 <template>
-  <div ref="root" class="th" @pointerdown.stop="onDown" @pointermove="onMove" @pointerup="onUp" @pointercancel="onUp">
+  <div ref="root" class="th" :class="{ bare }" @pointerdown.stop="onDown" @pointermove="onMove" @pointerup="onUp" @pointercancel="onUp">
     <canvas ref="canvas" class="cv" />
-    <button class="btn left" aria-label="cerrar el sintetizador" @pointerdown.stop @click="emit('close')">✕</button>
-    <div class="btns">
+    <button v-if="!bare" class="btn left" aria-label="cerrar el sintetizador" @pointerdown.stop @click="emit('close')">✕</button>
+    <div v-if="!bare" class="btns">
       <button v-if="guided" class="btn" aria-label="elegir otra melodía" @pointerdown.stop @click="otherTune">↻ Otra</button>
       <button class="btn" aria-label="cambiar de modo: espiral, puntos o libre" @pointerdown.stop @click="cycleMode">{{ MODE_LABEL[mode] }}</button>
       <template v-if="!guided">
@@ -437,7 +447,7 @@ onBeforeUnmount(() => {
     <p v-if="spiral" class="tag" role="status">
       {{ tune.name }} · {{ arrived }}/{{ tuneHits.length }}
       <span v-if="finished" class="sub">¡Melodía guardada en la célula!</span>
-      <span v-else-if="!touched" class="sub">Pon el dedo y muévelo sin levantar: las notas vienen a él</span>
+      <span v-else-if="!touched" class="sub">{{ bare ? 'Pon el dedo en el agua y muévelo' : 'Pon el dedo y muévelo sin levantar: las notas vienen a él' }}</span>
     </p>
     <p v-else-if="guided && finished" class="tag" role="status">¡Melodía guardada! Toca para repetirla</p>
     <p v-else-if="guided" class="tag" role="status">
@@ -485,6 +495,8 @@ onBeforeUnmount(() => {
   display: flex;
   gap: 0.4rem;
 }
+.th.bare { background: transparent; z-index: 15; }
+.th.bare .tag { top: 0.5rem; }
 .rec { border-color: #fb7185; color: #fecdd3; }
 .tag {
   position: absolute;
