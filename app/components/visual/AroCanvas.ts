@@ -1180,8 +1180,8 @@ export class AroCanvas {
     const { geo } = f
     this.reduced = f.reduced
     const t = f.reduced ? 0 : f.wall
-    const breath = f.reduced ? 0 : BREATH
-    this.wob = f.reduced ? INNER_WOBBLE * 0.6 : this.detail < 0.75 ? 0 : INNER_WOBBLE // quieta, pero imperfecta
+    const breath = f.reduced || f.minimal ? 0 : BREATH // la portada: un círculo limpio
+    this.wob = f.minimal ? 0 : f.reduced ? INNER_WOBBLE * 0.6 : this.detail < 0.75 ? 0 : INNER_WOBBLE // quieta, pero imperfecta
     const layout = bandLayout(f.weights)
     this.last = { geo, layout, t, dots: f.dots, suggestions: f.suggestions }
     this.weights = f.weights
@@ -1220,8 +1220,10 @@ export class AroCanvas {
       // un solo contorno suave (sin franjas ni anillos)
       const sil = new Path2D()
       this.loopPath(sil, 1, false)
-      x.strokeStyle = 'rgba(255,255,255,0.16)'
-      x.lineWidth = 1.2
+      x.fillStyle = 'rgba(255,255,255,0.025)'
+      x.fill(sil)
+      x.strokeStyle = 'rgba(255,255,255,0.32)'
+      x.lineWidth = 1.6
       x.stroke(sil)
     }
     for (const v of f.minimal ? [] : BAND_ORDER) {
@@ -1326,10 +1328,11 @@ export class AroCanvas {
       const disc = new Path2D()
       this.loopPath(disc, 1, false)
       this.loopPath(disc, 0, true)
-      const g = x.createConicGradient(head - TRAIL_SPAN, geo.cx, geo.cy)
-      const k = TRAIL_SPAN / TAU
+      const span = f.minimal ? TRAIL_SPAN * 1.7 : TRAIL_SPAN
+      const g = x.createConicGradient(head - span, geo.cx, geo.cy)
+      const k = span / TAU
       g.addColorStop(0, 'rgba(255,255,255,0)')
-      g.addColorStop(k * 0.999, `rgba(255,255,255,${TRAIL_ALPHA * (1 - 0.4 * (f.calm ?? 0))})`)
+      g.addColorStop(k * 0.999, `rgba(255,255,255,${f.minimal ? 0.13 : TRAIL_ALPHA * (1 - 0.4 * (f.calm ?? 0))})`)
       g.addColorStop(k, 'rgba(255,255,255,0)')
       g.addColorStop(1, 'rgba(255,255,255,0)')
       x.fillStyle = g
@@ -1440,7 +1443,8 @@ export class AroCanvas {
       const born = this.spawns.get(d.key)
       const spawnK = born === undefined ? 0 : Math.exp(-(now - born) / SPAWN_TAU)
       if (born !== undefined && spawnK < 0.01) this.spawns.delete(d.key)
-      const r = (DOT_R[d.voice] + grow) * (hl ? 1.45 : 1) * (isDrag ? 1.8 : 1) * (1 - spawnK * 0.8) * wt
+      const big = f.minimal ? 1.7 : 1
+      const r = (DOT_R[d.voice] * big + grow * big) * (hl ? 1.45 : 1) * (isDrag ? 1.8 : 1) * (1 - spawnK * 0.8) * wt
       if (isDrag) dragged = { d, px, py, r }
       const col = VOICE_RGB_CSS[d.voice]
       const alpha = (0.55 + Math.max(near, fl) * 0.45) * (faded ? 0.25 : 1)
@@ -1487,6 +1491,16 @@ export class AroCanvas {
           continue
         }
         // la melodía: además del arco, un punto en su inicio (abajo)
+      }
+      if (f.minimal) {
+        // luz de color alrededor del golpe, más fuerte cuando suena
+        const lg = x.createRadialGradient(px, py, 0, px, py, r * 3.2)
+        lg.addColorStop(0, `rgba(${col},${0.25 + Math.max(near, fl) * 0.55})`)
+        lg.addColorStop(1, `rgba(${col},0)`)
+        x.fillStyle = lg
+        x.beginPath()
+        x.arc(px, py, r * 3.2, 0, TAU)
+        x.fill()
       }
       x.beginPath()
       x.arc(px, py, r, 0, TAU)
@@ -1550,12 +1564,22 @@ export class AroCanvas {
     if (f.playing && !f.idle) {
       const [ix, iy] = this.at(head, 0, 0)
       const [hx, hy] = this.at(head, 1, 0)
-      x.strokeStyle = 'rgba(255,255,255,0.22)'
-      x.lineWidth = 1
+      x.save()
+      if (f.minimal) {
+        x.strokeStyle = 'rgba(255,255,255,0.95)'
+        x.lineWidth = 2.5
+        x.lineCap = 'round'
+        x.shadowColor = 'rgba(160,220,255,0.9)'
+        x.shadowBlur = 14
+      } else {
+        x.strokeStyle = 'rgba(255,255,255,0.22)'
+        x.lineWidth = 1
+      }
       x.beginPath()
       x.moveTo(ix, iy)
       x.lineTo(hx, hy)
       x.stroke()
+      x.restore()
     }
 
     // centro: hueco oscuro irregular con borde fino y el punto rosa; late con el bombo

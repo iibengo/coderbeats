@@ -177,7 +177,8 @@ function loadZoom() {
 }
 /** geometría de la gota que se dibuja: se acerca a la de destino en cada frame (sin saltos) */
 let geo: DropGeo | null = null
-const targetGeo = () => dropLayout(view.w, view.h, insets.value, zoomNow())
+// la portada: el círculo entero, centrado y sin que la pared lo deforme
+const targetGeo = () => dropLayout(view.w, view.h, insets.value, props.simple ? 0.86 : zoomNow())
 const bgBalls = computed(() => {
   if (compact.value) {
     const x = sideX.value.right
@@ -1052,7 +1053,7 @@ function tick() {
       minimal: props.simple,
       reward: updateReward(clock.bar + clock.barPhase),
       // la que se mira sin sonar (fijada, o de un grupo apagado) no lleva aguja ni estela, ni lejos ni cerca
-      idle: playing.value && !plan && !engine.groupHeads().some((h) => h.cellId === engine.viewCellId.value),
+      idle: !props.simple && playing.value && !plan && !engine.groupHeads().some((h) => h.cellId === engine.viewCellId.value),
       phase: clock.barPhase,
       dots: ringDots.value,
       live: liveDot(),
@@ -1069,7 +1070,7 @@ function tick() {
       holdRing: colonyHold(),
       proposalRing: proposalRing(),
       voices: voiceWaves(clock.bar),
-      view: (aroView = stepView(dt)),
+      view: (aroView = props.simple ? { sy: 1, ox: 0, oy: 0 } : stepView(dt)),
       crowdDetail: crowdLevel,
       guide: { assist: engine.assist.value, quantizeEvery: STYLES[style.value].quantizeEvery },
       suggestions: guideSuggestions.value,
