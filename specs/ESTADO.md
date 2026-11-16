@@ -321,3 +321,30 @@ Todo en `main`, **sin push**; tests (1107), `nuxt typecheck` y `nuxt build` en v
 5. **🎬 Mi reel:** ¿sale como un reel (círculo, figuras, estilo y BPM arriba)? ¿Se comparte bien en el iPhone? Y en el Estudio, «👁 Previsualizar» → grabar vídeo «La previsualización»: ¿aparecen los rótulos de capa («1 · Bombo: …»)?
 6. **Estudio ↔ portada:** ¿vuelves sin perder nada? Elige el Estudio, cierra y abre: ¿entra directo?
 7. Lo de las tandas anteriores (ver cada una).
+
+---
+
+# Undécima tanda (2026-11-16) — la portada, corregida tras tu vídeo del iPhone (spec 016 §16)
+
+Tests (1111), typecheck y build en verde; comprobado en Chrome (`tests/browser/portada-melodia.mjs`, `portada-guia.mjs`, `portada.mjs`). **Nada oído en un móvil.**
+
+| Lo que viste | Qué hice |
+|---|---|
+| La espiral no se entendía y el contador no avanzaba | **Fuera de la portada** (queda en el Estudio). Ahora la melodía es **«Magic Piano»**: **cada toque en el círculo toca la siguiente nota** y tú marcas el ritmo; el contador («Sinfonía n.º 40 · 8/20») **avanza con cada toque**. Cuantizado suave al compás; tras 1,2 s sin tocar, pasa al loop. |
+| Mozart no pega en hip hop | **Cada estilo con sus melodías**: hip hop → Himno, Fray Santiago, Estrellita, Para Elisa; techno → Sinfonía n.º 40 y Dies irae; dnb → Dies irae; dembow y house → las suaves. Si un estilo no tuviera ninguna, no se ofrece. «↻» cambia entre las de ese estilo. |
+| El ■ no paraba todo | **■ = parar todo al instante** (reloj, ritmo, melodía y colas) y **▶** lo vuelve a abrir. |
+| Falta un «borrar» | **«Borrar»** (con confirmación, recuperable con ↶): empieza de cero; el estilo se queda. |
+| Demasiadas cosas | La portada enseña **el círculo, tus golpes y la aguja**: sin franjas ni anillos, sin bolas, sin guías; **figuras suaves** (curvas) en vez de polígonos. Abajo: ↶, Borrar, ■, 🎬 Mi reel. |
+
+## Decisiones a revisar
+- El sonido de los toques es el sinte del estilo (onda `triangle`/`square`/`sawtooth`/`sine`), **no** el de Strudel; si no te gusta, se cambia por el mismo de la melodía.
+- La melodía por toques **tarda 1,2 s en pasar al loop** (para no reescribirlo a cada toque); mientras, solo suena lo que tocas.
+- «Mi reel» graba el aro mínimo: **sale muy limpio**; si quieres más cosas en el vídeo (bolas, ondas), se puede.
+
+## Qué probar en el iPhone, en orden
+1. Elige estilo → ritmo con la voz/pastillas → ¿se ve **solo el círculo, tus golpes y las figuras** (sin anillos)?
+2. **Toca el círculo**: ¿cada toque es una nota, y el contador avanza? ¿Marcas tú el ritmo? ¿Cae bien en el compás (cuantizado suave)? ¿Se oye tu melodía repetirse al dejar de tocar?
+3. «↻»: ¿las melodías del estilo pegan? Prueba los 5 estilos.
+4. **■** con todo sonando: ¿para **todo** de golpe, sin colas raras? **▶**: ¿vuelve bien?
+5. **Borrar** (y ↶ para recuperar).
+6. **🎬 Mi reel**: ¿limpio, con las figuras, estilo y BPM?

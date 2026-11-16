@@ -27,7 +27,7 @@ export function portadaStep(f: PortadaFacts): PortadaStep {
 export const PORTADA_LINE: Record<PortadaStep, string> = {
   estilo: 'Elige cómo suena',
   voz: 'Haz bum · pff · ts',
-  dedo: 'Ahora pon el dedo en el agua y muévelo',
+  dedo: 'Ahora toca el círculo: cada toque, una nota',
   guardar: 'Se guarda solo. Compártelo con 🎬 Mi reel',
   hecho: '',
 }

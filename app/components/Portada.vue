@@ -1,13 +1,13 @@
 <script setup lang="ts">
-// La portada simple (spec 016): elige un estilo → la base suena → la espiral te da la melodía → añades ritmo con la voz o con toques → guardas o compartes. Todo lo demás está en el Estudio.
+// La portada simple (spec 016): elige un estilo → la base suena → ritmo con la voz o con tres pastillas → melodía tocando el círculo (cada toque, la siguiente nota) → guardas o compartes. Todo lo demás está en el Estudio.
 import { STYLES } from '~/lib/constants'
 import { needsPick } from '~/lib/ui'
 import { LoopHistory, loopsSignature } from '~/lib/loopHistory'
 import { GUARDAR_MS, PORTADA_LINE, portadaStep } from '~/lib/portadaGuide'
 import { makeSaved, newId, replaceSong } from '~/lib/library'
 import { readText, writeText } from '~/lib/storage'
+import { adaptTune, tunesFor } from '~/lib/tuneLibrary'
 import type { StyleId } from '~/lib/types'
-import ThereminOverlay from './visual/ThereminOverlay.vue'
 import VisualStage from './visual/VisualStage.vue'
 
 const emit = defineEmits<{ recalibrate: ['latency' | 'sounds']; estudio: [] }>()
@@ -123,7 +123,48 @@ function endGuide() {
 }
 onBeforeUnmount(() => clearTimeout(guideTimer))
 
-const spiralEl = ref<InstanceType<typeof ThereminOverlay> | null>(null)
+// ── melodía por toques («Magic Piano», spec 016 §16): cada toque en el círculo suena la siguiente nota del tema; tú marcas el ritmo ──
+const tunes = computed(() => tunesFor(style.value))
+const tuneIdx = ref(0)
+const tune = computed(() => (tunes.value.length ? tunes.value[tuneIdx.value % tunes.value.length]! : null))
+const tuneHits = computed(() => (tune.value ? [...adaptTune(tune.value, style.value)].sort((a, b) => a.pos - b.pos) : []))
+/** cuántas notas se han tocado del tema (el contador) */
+const played = ref(0)
+const rings = ref<{ id: number; x: number; y: number }[]>([])
+let ringId = 0
+const counter = computed(() => (played.value === 0 ? 0 : ((played.value - 1) % Math.max(1, tuneHits.value.length)) + 1))
+function tapMelody(e: PointerEvent) {
+  const el = e.currentTarget as HTMLElement
+  const r = el.getBoundingClientRect()
+  const hit = tuneHits.value[played.value % Math.max(1, tuneHits.value.length)]
+  if (!hit || !playing.value) return
+  if (!engine.tapNote(hit.midi)) return
+  played.value++
+  fingered.value = true
+  const id = ++ringId
+  rings.value = [...rings.value.slice(-4), { id, x: e.clientX - r.left, y: e.clientY - r.top }]
+  setTimeout(() => (rings.value = rings.value.filter((q) => q.id !== id)), 450)
+}
+function otherTune() {
+  tuneIdx.value = (tuneIdx.value + 1) % Math.max(1, tunes.value.length)
+  played.value = 0
+  engine.tapReset()
+}
+watch(() => style.value, () => {
+  tuneIdx.value = 0
+  played.value = 0
+  engine.tapReset()
+})
+/** ¿se ofrece la melodía? Hace falta ritmo (la voz va primero) y que haya alguna que pegue con el estilo */
+const melodyOn = computed(() => picked.value && tunes.value.length > 0 && (hasRhythm.value || guideDone.value || fingered.value))
+
+// ── ■ para todo al instante; «Borrar» para empezar de cero ──
+async function wipe() {
+  if (!(await askConfirm('¿Borrar todo y empezar de cero? (Con ↶ lo recuperas.)', 'Borrar'))) return
+  await engine.clearAll()
+  played.value = 0
+  engine.tapReset()
+}
 const menuOpen = ref(false)
 const libraryOpen = ref(false)
 const aboutOpen = ref(false)
@@ -164,10 +205,20 @@ function toEstudio() {
       <svg width="20" height="4" viewBox="0 0 20 4" fill="currentColor" aria-hidden="true"><circle cx="2" cy="2" r="2" /><circle cx="10" cy="2" r="2" /><circle cx="18" cy="2" r="2" /></svg>
     </button>
 
-    <!-- 2 · la espiral: pon el dedo en el agua; las notas del tema vienen a él -->
-    <div v-if="picked && (hasRhythm || guideDone || fingered)" class="absolute right-0 left-0" style="top: 56px; bottom: 164px">
-      <ThereminOverlay ref="spiralEl" bare @touch="fingered = true" :reduced="reduced" :bar="engine.currentBar.value" />
+    <!-- 2 · la melodía: cada toque en el círculo suena la siguiente nota del tema -->
+    <div v-if="melodyOn" class="absolute right-0 left-0 overflow-hidden" style="top: 56px; bottom: 214px; touch-action: none" aria-label="toca el círculo: cada toque, una nota de la melodía" @pointerdown.stop.prevent="tapMelody">
+      <span v-for="r in rings" :key="r.id" class="tap-ring" :style="{ left: `${r.x}px`, top: `${r.y}px` }" />
     </div>
+    <button
+      v-if="melodyOn && tune"
+      class="absolute left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border border-white/15 bg-black/30 px-4 py-1.5 text-xs text-white/80"
+      style="bottom: calc(max(0.75rem, env(safe-area-inset-bottom)) + 168px)"
+      aria-label="otra melodía"
+      @pointerdown.stop
+      @click="otherTune"
+    >
+      {{ tune.name }} · {{ counter }}/{{ tuneHits.length }} <span class="ml-1 text-white/50">↻</span>
+    </button>
 
     <!-- 3 · ritmo: tu voz (siempre escuchando) o las tres pastillas -->
     <div v-if="picked" class="absolute right-0 left-0" style="bottom: calc(max(0.75rem, env(safe-area-inset-bottom)) + 64px)">
@@ -175,20 +226,18 @@ function toEstudio() {
       <PadsRow />
     </div>
 
-    <!-- 4 · abajo: deshacer, otra melodía, parar / seguir, compartir -->
+    <!-- 4 · abajo: deshacer, borrar, PARAR todo, mi reel -->
     <div v-if="picked" class="absolute right-0 left-0 flex items-center justify-between gap-2 px-3" style="bottom: max(0.75rem, env(safe-area-inset-bottom))" @pointerdown.stop>
-      <div class="flex w-20 gap-1">
+      <div class="flex gap-1">
         <button class="h-11 w-11 rounded-full border border-white/20 text-lg text-white disabled:opacity-30" :disabled="!canUndo" aria-label="deshacer lo último que hice" @click="undo">↶</button>
         <button v-if="canRedo" class="h-11 w-11 rounded-full border border-white/20 text-lg text-white" aria-label="volver a poner lo que quité" @click="redo">↷</button>
       </div>
-      <button class="flex h-11 items-center justify-center rounded-full border border-white/25 px-4 text-sm text-white" aria-label="otra melodía" @click="spiralEl?.otherTune()">↻ Otra</button>
-      <button class="flex h-12 w-12 items-center justify-center rounded-full border border-white/25 text-white" :aria-label="playing ? 'parar' : 'tocar'" @click="playing ? engine.stop() : engine.play()">
+      <button class="h-11 whitespace-nowrap rounded-full border border-white/20 px-3 text-sm text-white/80" aria-label="borrar todo y empezar de cero" @click="wipe">Borrar</button>
+      <button class="flex h-12 w-12 items-center justify-center rounded-full border border-white/25 text-white" :aria-label="playing ? 'parar todo' : 'tocar'" @click="playing ? engine.stopAll() : engine.play()">
         <span v-if="!playing">▶</span>
         <span v-else>■</span>
       </button>
-      <div class="flex justify-end">
-        <button class="h-11 whitespace-nowrap rounded-full bg-white px-4 text-sm font-medium text-black" aria-label="compartir en vídeo: mi reel" @click="videoOpen = true; endGuide()">🎬 Mi reel</button>
-      </div>
+      <button class="h-11 whitespace-nowrap rounded-full bg-white px-4 text-sm font-medium text-black" aria-label="compartir en vídeo: mi reel" @click="videoOpen = true; endGuide()">🎬 Mi reel</button>
     </div>
     <p v-if="savedFlash" class="pointer-events-none absolute left-1/2 -translate-x-1/2 text-xs text-white/50" style="bottom: calc(max(0.75rem, env(safe-area-inset-bottom)) + 52px)" role="status">● guardado</p>
   </VisualStage>
@@ -215,10 +264,6 @@ function toEstudio() {
         <div class="grid gap-3">
           <button class="rounded-full bg-white py-3 font-medium text-black" @click="toEstudio">Estudio</button>
           <p class="-mt-1 text-xs text-neutral-500">Todo: células, grupos, remixes, efectos… Se recuerda para la próxima vez.</p>
-          <label class="flex items-center justify-between rounded-full border border-white/15 px-4 py-3">
-            <span>Melodía en el compás <span class="text-xs text-neutral-500">(las notas caen en el tiempo de la base)</span></span>
-            <input type="checkbox" :checked="ui.state.syncMelody" @change="ui.setSync(($event.target as HTMLInputElement).checked)" />
-          </label>
           <button class="rounded-full border border-white/15 py-3" @click="menuOpen = false; libraryOpen = true">Mis canciones</button>
           <button class="rounded-full border border-white/15 py-3" @click="menuOpen = false; emit('recalibrate', 'sounds')">Afinar a mi voz</button>
           <button class="rounded-full border border-white/15 py-3" @click="aboutOpen = !aboutOpen">Acerca de</button>
@@ -232,3 +277,22 @@ function toEstudio() {
   <VideoSheet v-model:open="videoOpen" :exporter="exporter" simple />
   <ConfirmDialog />
 </template>
+
+<style scoped>
+.tap-ring {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  margin: -10px 0 0 -10px;
+  border-radius: 9999px;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  pointer-events: none;
+  animation: tap-ring 0.45s ease-out forwards;
+}
+@keyframes tap-ring {
+  to {
+    transform: scale(4.5);
+    opacity: 0;
+  }
+}
+</style>

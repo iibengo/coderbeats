@@ -1046,9 +1046,10 @@ function tick() {
       ...scene,
       weights,
       playing: playing.value,
-      calm: CALM_JUGAR * (mode.value === 'jugar' ? 1 : 0),
+      calm: props.simple ? 1 : CALM_JUGAR * (mode.value === 'jugar' ? 1 : 0),
       // la forma de tu ritmo (spec 016 §15): en la portada y en Previsualizar (y así en el vídeo)
       shapes: props.simple || pilotState.active,
+      minimal: props.simple,
       reward: updateReward(clock.bar + clock.barPhase),
       // la que se mira sin sonar (fijada, o de un grupo apagado) no lleva aguja ni estela, ni lejos ni cerca
       idle: playing.value && !plan && !engine.groupHeads().some((h) => h.cellId === engine.viewCellId.value),
@@ -2205,7 +2206,7 @@ defineExpose({ videoSource, colonyPoints, pointOf: (voice: Voice, step: number) 
     <button
       v-for="l in loops.loops"
       :key="l.id"
-      v-show="!colony"
+      v-show="!colony && !simple"
       :ref="setEl(l.id)"
       class="loop-ball absolute top-0 left-0 rounded-full will-change-transform"
       :style="{

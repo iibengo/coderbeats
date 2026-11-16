@@ -120,6 +120,8 @@ export interface AroLabel {
 }
 
 export interface AroFrame {
+  /** la portada (spec 016 §16): solo el contorno, tus golpes, las figuras y la aguja; sin franjas, anillos, guías ni sugerencias */
+  minimal?: boolean
   /** «la forma de tu ritmo» (spec 016 §15): líneas finas que unen los golpes de cada instrumento */
   shapes?: boolean
   /** segundos de reloj de pared (para la respiración) */
@@ -542,15 +544,26 @@ export class AroCanvas {
       const wt = f.weights[v]
       if (!list || wt < 0.05) continue
       const u = (layout[v].a + layout[v].b) / 2
-      x.strokeStyle = `rgba(${VOICE_RGB_CSS[v]},${0.5 * wt})`
-      x.lineWidth = 1.3
+      x.strokeStyle = `rgba(${VOICE_RGB_CSS[v]},${0.42 * wt})`
+      x.fillStyle = `rgba(${VOICE_RGB_CSS[v]},${0.035 * wt})`
+      x.lineWidth = 1.2
+      const pts = list.map((st) => this.at(stepAngle(st), u))
       x.beginPath()
-      list.forEach((st, i) => {
-        const [px, py] = this.at(stepAngle(st), u)
-        if (i) x.lineTo(px, py)
-        else x.moveTo(px, py)
-      })
-      if (list.length >= 3) x.closePath()
+      if (pts.length < 3) {
+        x.moveTo(pts[0]![0], pts[0]![1])
+        x.lineTo(pts[1]![0], pts[1]![1])
+      } else {
+        // curva suave cerrada: por los puntos medios de cada lado, con cada golpe de punto de control
+        const mid = (a: [number, number], b: [number, number]): [number, number] => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]
+        const first = mid(pts[pts.length - 1]!, pts[0]!)
+        x.moveTo(first[0], first[1])
+        for (let i = 0; i < pts.length; i++) {
+          const m = mid(pts[i]!, pts[(i + 1) % pts.length]!)
+          x.quadraticCurveTo(pts[i]![0], pts[i]![1], m[0], m[1])
+        }
+        x.closePath()
+        x.fill()
+      }
       x.stroke()
     }
     x.restore()
@@ -1192,7 +1205,7 @@ export class AroCanvas {
 
     // latido del bombo: un anillo rosa muy suave sale del centro (detrás de las franjas)
     const kp = (now - this.kick) / KICK_RING_S
-    if (kp >= 0 && kp < 1) {
+    if (!f.minimal && kp >= 0 && kp < 1) {
       const e = 1 - (1 - kp) ** 3
       const p = new Path2D()
       this.loopPath(p, Math.min(1.1, e * 1.15), false)
@@ -1203,7 +1216,15 @@ export class AroCanvas {
 
     // franjas: relleno muy tenue y borde fino exterior; su contorno sirve para recortar las ondas
     const ringPath = {} as Record<Voice, Path2D>
-    for (const v of BAND_ORDER) {
+    if (f.minimal) {
+      // un solo contorno suave (sin franjas ni anillos)
+      const sil = new Path2D()
+      this.loopPath(sil, 1, false)
+      x.strokeStyle = 'rgba(255,255,255,0.16)'
+      x.lineWidth = 1.2
+      x.stroke(sil)
+    }
+    for (const v of f.minimal ? [] : BAND_ORDER) {
       const wt = f.weights[v]
       if (wt < 0.03) continue
       const { a, b } = layout[v]
@@ -1224,7 +1245,7 @@ export class AroCanvas {
     }
 
     // guías de la melodía: una línea muy tenue en cada nota de la escala, dentro de su franja
-    if (f.melGuides?.length && f.weights.mel >= 0.3 && this.detail >= 0.75) {
+    if (!f.minimal && f.melGuides?.length && f.weights.mel >= 0.3 && this.detail >= 0.75) {
       const { a, b } = layout.mel
       x.lineWidth = 0.7
       x.strokeStyle = `rgba(${VOICE_RGB_CSS.mel},${0.07 * f.weights.mel})`
@@ -1316,7 +1337,7 @@ export class AroCanvas {
     }
 
     // sugerencias del estilo en las franjas vacías: huecas y muy tenues (E3.3)
-    for (const s of f.suggestions) {
+    for (const s of f.minimal ? [] : f.suggestions) {
       const wt = f.weights[s.voice]
       if (wt < 0.05) continue
       const [px, py] = this.at(stepAngle(s.step), bandMid(s.voice, layout))
@@ -1328,7 +1349,7 @@ export class AroCanvas {
     }
 
     // la melodía sugerida: círculos huecos y muy tenues en la franja de la melodía, con un arco fino de lo que dura (spec 012)
-    if (f.melSuggest?.length && f.weights.mel >= 0.3) {
+    if (!f.minimal && f.melSuggest?.length && f.weights.mel >= 0.3) {
       const { a: ma, b: mb } = layout.mel
       for (const n of f.melSuggest) {
         const u = ma + (mb - ma) * (MEL_MARGIN + (1 - 2 * MEL_MARGIN) * n.frac)

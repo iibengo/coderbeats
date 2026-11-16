@@ -41,3 +41,16 @@ describe('biblioteca de melodías (spec 015 §13)', () => {
     expect(hits[3]!.midi).toBeLessThan(hits[2]!.midi)
   })
 })
+
+import { tunesFor } from '../../app/lib/tuneLibrary'
+
+describe('cada estilo con sus melodías (spec 016 §16)', () => {
+  it('todos los estilos tienen al menos una; Mozart solo en techno; nada de lo que no pega', () => {
+    for (const s of styles) expect(tunesFor(s).length, s).toBeGreaterThanOrEqual(1)
+    expect(tunesFor('hiphop90').map((t) => t.id)).not.toContain('mozart')
+    expect(tunesFor('hiphop90').map((t) => t.id)).not.toContain('dies')
+    expect(tunesFor('techno').map((t) => t.id)).toContain('mozart')
+    expect(tunesFor('dnb').map((t) => t.id)).toEqual(['dies'])
+    for (const t of TUNES) expect(t.styles.length, t.id).toBeGreaterThan(0)
+  })
+})

@@ -1,6 +1,7 @@
 import { computed, reactive, ref, shallowRef } from 'vue'
 import { brightnessAtX, keysToHits, noteAtY, scaleNotes, type KeyEvent } from '~/lib/waterKeys'
 import { midiToHz, noteIndexAt } from '~/lib/theremin'
+import { COMMIT_IDLE, softQuantize, TapTake } from '~/lib/tapMelody'
 import { DEFAULT_PRODUCTION } from '~/lib/production'
 import { mergeCells as mergeCellsPure } from '~/lib/mergeCells'
 import { bluetoothWarning } from '~/lib/voiceWarn'
@@ -339,6 +340,11 @@ let lastKey = { midi: -1, at: 0 }
 /** el sintetizador de dedo (spec 015 §12): un oscilador continuo que se desliza entre notas de la escala */
 let thereminVoice: { osc: OscillatorNode; filter: BiquadFilterNode; gain: GainNode; idx: number | null } | null = null
 const thereminNote = ref<number | null>(null)
+/** la melodía por toques de la portada (spec 016 §16): la toma en curso y el temporizador que la pasa al loop */
+const tapTake = new TapTake()
+let tapCommit: ReturnType<typeof setTimeout> | null = null
+/** silencio total pendiente de levantar (el ■ de la portada: ver `stopAll`) */
+let unmuteTimer: ReturnType<typeof setTimeout> | null = null
 /** el sintetizador está abierto (los avisos de Studio se esconden) */
 const thereminShown = ref(false)
 /** el tutorial enseña algo: los botones avanzados se esconden (primer minuto, spec 011) */
@@ -1540,6 +1546,7 @@ export function useAudioEngine() {
 
   async function play() {
     if (playing.value || !S) return
+    unmute()
     await wake()
     stopSyncTest()
     // lo que informa el navegador puede cambiar al conectar o quitar unos cascos
@@ -2330,6 +2337,26 @@ export function useAudioEngine() {
     updateBackground()
   }
 
+  /** Abre otra vez la salida tras el silencio de `stopAll`. */
+  function unmute() {
+    if (unmuteTimer) clearTimeout(unmuteTimer)
+    unmuteTimer = null
+    if (ctx && masterIn) {
+      masterIn.gain.cancelScheduledValues(ctx.currentTime)
+      masterIn.gain.setValueAtTime(1, ctx.currentTime)
+    }
+  }
+  /** corta la voz del sintetizador sin cola */
+  function thereminStopNow() {
+    const v = thereminVoice
+    thereminVoice = null
+    thereminNote.value = null
+    if (!v || !ctx) return
+    v.gain.gain.cancelScheduledValues(ctx.currentTime)
+    v.gain.gain.setValueAtTime(0, ctx.currentTime)
+    try { v.osc.stop(ctx.currentTime + 0.02) } catch { /* ya parada */ }
+  }
+
   /** Pasa `hits` a la célula que se ve como su loop de melodía de 4 compases (sustituye al que hubiera, que queda para deshacer). */
   function commitMelody(hits: MelodyHit[], phaseBar = 0): boolean {
     if (!hits.length) return false
@@ -2776,6 +2803,55 @@ export function useAudioEngine() {
         }
       }
       return midi
+    },
+    /**
+     * Suena la nota `midi` de un toque de la melodía de la portada (spec 016 §16): con el sinte del estilo, **al instante** (si hay un paso del compás a ≤ 70 ms por delante, cae en él)
+     * y se apunta en la toma; 1,2 s después del último toque, la toma pasa a ser el loop de melodía (cuantizado al paso más cercano, una nota por paso, 4 compases).
+     */
+    tapNote: (midi: number): boolean => {
+      const c = ctx
+      if (!c || !S || c.state !== 'running') return false
+      const now = c.currentTime + 0.01
+      const t = clock ? softQuantize(now, barTime(0), stepSeconds()) : now
+      const synth = STYLE_MUSIC[style.value].synth
+      const wave = { piano: 'triangle', lead: 'square', pad: 'sawtooth', drone: 'sine' }[synth as 'piano'] ?? 'triangle'
+      void (S as unknown as { superdough: (v: object, t: number, d: number) => Promise<unknown> }).superdough({ s: wave, note: midi, lpf: 3200, attack: 0.005, decay: 0.35, sustain: 0.25, release: 0.3, gain: 0.55, room: 0.25 }, t, 0.55)
+      toWorker({ type: 'output', times: [t] })
+      keysLast.value = { n: keysLast.value.n + 1, midi }
+      if (clock) {
+        tapTake.add({ time: t, midi })
+        if (tapCommit) clearTimeout(tapCommit)
+        tapCommit = setTimeout(() => {
+          tapCommit = null
+          if (!clock) return
+          const hits = keysToHits([...tapTake.list], barTime(0), stepSeconds(), 4)
+          if (hits.length) commitMelody(hits)
+        }, COMMIT_IDLE * 1000)
+      }
+      return true
+    },
+    /** Empezar otra melodía por toques (borrar, cambiar de tema): la toma en curso se olvida y no pasa al loop. */
+    tapReset: () => {
+      tapTake.reset()
+      if (tapCommit) clearTimeout(tapCommit)
+      tapCommit = null
+    },
+    /**
+     * El ■ de la portada: **para todo al instante** (base, ritmo, melodía, voz del sintetizador y colas). Además de parar el reloj, la salida se silencia de golpe y se
+     * vuelve a abrir al cabo de 1,5 s (para que no queden colas de reverb) o en cuanto se da a ▶.
+     */
+    stopAll: () => {
+      if (tapCommit) clearTimeout(tapCommit)
+      tapCommit = null
+      tapTake.reset()
+      thereminStopNow()
+      stop()
+      if (ctx && masterIn) {
+        masterIn.gain.cancelScheduledValues(ctx.currentTime)
+        masterIn.gain.setTargetAtTime(0, ctx.currentTime, 0.006)
+        if (unmuteTimer) clearTimeout(unmuteTimer)
+        unmuteTimer = setTimeout(unmute, 1500)
+      }
     },
     /**
      * Programa una nota del sintetizador **a la hora de audio `when`** (modo espiral sincronizado, spec 016 §9.3): no depende del fotograma, así cae justo en su paso del compás.
