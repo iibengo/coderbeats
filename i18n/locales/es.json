@@ -169,7 +169,9 @@
     "timeAria": "tiempo del loop: en pausa, arrastra la aguja",
     "pause": "pausa",
     "playAria": "reproducir",
-    "help": "Toca un hueco para poner una nota (arrastra a la derecha para alargarla) · toca una nota para oírla · arrástrala para moverla, o fuera del cuadro para borrarla · tira de su extremo para cambiar su duración"
+    "help": "Toca un hueco para poner una nota (arrastra a la derecha para alargarla) · toca una nota para oírla · arrástrala para moverla, o fuera del cuadro para borrarla · tira de su extremo para cambiar su duración",
+    "more": "más opciones",
+    "bars": "compases"
   },
   "remixes": {
     "title": "Mis remixes",

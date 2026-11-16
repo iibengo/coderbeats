@@ -169,7 +169,9 @@
     "timeAria": "begiztaren denbora: geldituta, arrastatu orratza",
     "pause": "pausa",
     "playAria": "erreproduzitu",
-    "help": "Ukitu gelaxka huts bat nota bat jartzeko (arrastatu eskuinera luzatzeko) · ukitu nota bat entzuteko · arrastatu mugitzeko, edo koadrotik kanpora ezabatzeko · tiratu bere muturretik luzera aldatzeko"
+    "help": "Ukitu gelaxka huts bat nota bat jartzeko (arrastatu eskuinera luzatzeko) · ukitu nota bat entzuteko · arrastatu mugitzeko, edo koadrotik kanpora ezabatzeko · tiratu bere muturretik luzera aldatzeko",
+    "more": "aukera gehiago",
+    "bars": "konpasak"
   },
   "remixes": {
     "title": "Nire remixak",

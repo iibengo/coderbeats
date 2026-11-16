@@ -169,7 +169,9 @@
     "timeAria": "loop time: when paused, drag the playhead",
     "pause": "pause",
     "playAria": "play",
-    "help": "Tap an empty cell to place a note (drag right to lengthen it) · tap a note to hear it · drag it to move it, or outside the box to delete it · pull its end to change its length"
+    "help": "Tap an empty cell to place a note (drag right to lengthen it) · tap a note to hear it · drag it to move it, or outside the box to delete it · pull its end to change its length",
+    "more": "more options",
+    "bars": "bars"
   },
   "remixes": {
     "title": "My remixes",

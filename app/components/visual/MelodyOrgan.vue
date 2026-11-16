@@ -20,6 +20,7 @@ const emit = defineEmits<{ close: [] }>()
 const engine = useAudioEngine()
 const { loops, style, playing } = engine
 const { t } = useI18n()
+const more = ref(false)
 const partLock = usePartLock()
 onMounted(() => partLock.enter())
 onBeforeUnmount(() => partLock.leave())
@@ -475,29 +476,20 @@ const label = (m: number) => midiName(m).replace('#', '♯')
         <button v-if="partLock.available.value || partLock.locked.value" class="h-9 rounded-full border px-3 text-sm" :class="partLock.locked.value ? 'border-[#F496BC] text-[#F496BC]' : 'border-white/30 text-white/70'" :aria-pressed="partLock.locked.value" :aria-label="partLock.locked.value ? t('lock.on') : t('lock.off')" data-lock @click="partLock.toggle()">{{ partLock.locked.value ? '🔒' : '🔓' }}</button>
         <span class="text-xs text-white/40">{{ STYLE_MUSIC[style].key }}</span>
         <button v-if="undo" class="rounded-full border border-white/40 px-3 py-1 text-xs text-white" aria-label="deshacer la última edición" @click="doUndo">↶ deshacer</button>
-        <div class="ml-auto flex items-center gap-1" role="group" aria-label="compases del loop">
-          <button
-            v-for="n in ([1, 2, 4] as const)"
-            :key="n"
-            class="h-8 min-w-8 rounded-full border px-2 text-xs disabled:opacity-30"
-            :class="bars === n ? 'border-white bg-white text-black' : 'border-white/25 text-white/70'"
-            :disabled="!loop"
-            @click="setBars(n)"
-          >
-            {{ n }}
-          </button>
-          <span class="mr-1 text-xs text-white/40">comp.</span>
-          <button class="h-9 w-9 rounded-full border border-white/30" :aria-label="playing ? 'parar' : 'reproducir'" @click="playing ? engine.stop() : engine.play()">
-            {{ playing ? '■' : '▶' }}
-          </button>
-        </div>
+        <button class="ml-auto grid h-11 w-11 place-items-center rounded-full border text-lg" :class="more ? 'border-white text-white' : 'border-white/30 text-white/70'" :aria-expanded="more" :aria-label="t('organ.more')" data-organ-more @click="more = !more">⋯</button>
       </header>
 
+      <!-- lo menos usado, a un toque: largo del loop y casillas finas -->
+      <div v-if="more" class="flex flex-wrap items-center gap-2 px-4 pb-2" role="group" :aria-label="t('organ.bars')" data-organ-drawer>
+        <span class="text-xs text-white/50">{{ t('organ.bars') }}</span>
+        <button v-for="n in ([1, 2, 4] as const)" :key="n" class="h-11 min-w-11 rounded-full border px-3 text-sm disabled:opacity-30" :class="bars === n ? 'border-white bg-white text-black' : 'border-white/25 text-white/70'" :disabled="!loop" @click="setBars(n)">{{ n }}</button>
+        <button v-if="engine.assist.value" class="h-11 rounded-full border px-4 text-sm" :class="fine ? 'border-white text-white' : 'border-white/25 text-white/60'" :aria-label="t('organ.fineAria')" @click="fine = !fine">{{ t('organ.fine') }}</button>
+      </div>
+
       <div class="flex flex-wrap items-center gap-2 px-4 pb-2 text-xs">
-        <button class="rounded-full border px-3 py-1.5" :class="rec?.mode === 'media' ? 'border-[#ff4d6d] text-[#ff4d6d]' : 'border-white/30 text-white'" :disabled="rec?.mode === 'piano'" data-organ-rec @click="startRec('media')">{{ rec?.mode !== 'media' ? t('organ.record') : recState === 'cuenta' ? t('organ.count') : t('organ.playing') }}</button>
-        <button class="rounded-full border px-3 py-1.5" :class="rec?.mode === 'piano' ? 'border-[#ff4d6d] text-[#ff4d6d]' : 'border-white/30 text-white'" :disabled="rec?.mode === 'media'" data-organ-piano :aria-label="t('organ.pianoAria')" @click="startRec('piano')">{{ rec?.mode !== 'piano' ? t('organ.piano') : recState === 'cuenta' ? t('organ.count') : t('organ.pianoPlaying') }}</button>
-        <button class="rounded-full border border-[#F496BC]/60 px-3 py-1.5 text-white disabled:opacity-30" :disabled="!canRespond" data-organ-respond @click="respond">{{ t('organ.respond') }}</button>
-        <button v-if="engine.assist.value" class="rounded-full border px-3 py-1.5" :class="fine ? 'border-white text-white' : 'border-white/25 text-white/60'" :aria-label="t('organ.fineAria')" @click="fine = !fine">{{ t('organ.fine') }}</button>
+        <button class="h-11 rounded-full border px-4 text-sm" :class="rec?.mode === 'media' ? 'border-[#ff4d6d] text-[#ff4d6d]' : 'border-white/30 text-white'" :disabled="rec?.mode === 'piano'" data-organ-rec @click="startRec('media')">{{ rec?.mode !== 'media' ? t('organ.record') : recState === 'cuenta' ? t('organ.count') : t('organ.playing') }}</button>
+        <button class="h-11 rounded-full border px-4 text-sm" :class="rec?.mode === 'piano' ? 'border-[#ff4d6d] text-[#ff4d6d]' : 'border-white/30 text-white'" :disabled="rec?.mode === 'media'" data-organ-piano :aria-label="t('organ.pianoAria')" @click="startRec('piano')">{{ rec?.mode !== 'piano' ? t('organ.piano') : recState === 'cuenta' ? t('organ.count') : t('organ.pianoPlaying') }}</button>
+        <button class="h-11 rounded-full border border-[#F496BC]/60 px-4 text-sm text-white disabled:opacity-30" :disabled="!canRespond" data-organ-respond @click="respond">{{ t('organ.respond') }}</button>
         <button v-if="extras" class="rounded-full border border-amber-300/60 px-3 py-1.5 text-amber-200" data-organ-extras @click="dropExtras">{{ t('organ.stacked', { n: extras }) }}</button>
         <span v-if="rec?.mode === 'media'" class="text-[#ff4d6d]">{{ t('organ.helpHalf') }}</span>
         <span v-if="rec?.mode === 'piano'" class="text-[#ff4d6d]">{{ t('organ.helpPiano') }}</span>
