@@ -76,6 +76,18 @@ Un solo botón «Pegar» en el Estudio, con dos pestañas (Notas · Strudel). Al
 - **028**: el formato de canción y el conversor.
 - **029**: tresillos de negra y dinámica por nota (lo que hace falta para que un patrón de Strudel se lea sin perder nada).
 
+## 6.1 La vía recomendada para «escribo una frase y sale una canción»: un MCP propio en la nube
+
+En vez de meter la IA dentro de la app (que pediría clave y servidor, o un backend nuevo con clave en el repo), un **MCP que vive fuera**, en la nube, con su clave. La app **no cambia de naturaleza**: sigue local, sin red para tocar, y solo recibe **texto** al pegar o importar.
+
+- **Qué haría**: recibir «canción alegre de cumpleaños, estilo dembow», **buscar referencias** de las notas, proponer la canción y devolverla **como datos** (el formato de 021 §3.1 o el de esta spec).
+- **Lo que la app hace al recibirlo**: lo de siempre. Chequeo de forma (compases, huecos, final del loop), validador estricto, y **nunca** ejecutar nada de lo recibido.
+- **Lo que no arregla**: si la fuente es mala, las notas siguen siendo malas. La ventaja es que se corrige y se repite **fuera del repo**, sin tocar la app.
+- **Coste y clave**: del que aloja el MCP. Con tope de gasto. Nada de claves en el repositorio ni en el navegador.
+- **Derechos**: igual que hoy; el MCP debe decir de dónde salió cada nota, y lo que entre solo va a uso privado.
+
+Así, el `.txt`, el Strudel y el MCP no compiten: la app solo necesita **saber leer y comprobar** lo que le llegue.
+
 ## 7. Fases (cuando se decida)
 
 0. **El chequeo de forma** (`checkSongShape`, puro, con tests): compás que se pasa, compás vacío en medio, sección que no llega al final. Sirve para todo lo que entre, hoy y mañana.
