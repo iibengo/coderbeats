@@ -194,6 +194,15 @@ export const LAB_REMIXES: readonly LabRemix[] = [
     intro: shift(HABANERA_A, 9), sub: shift(HABANERA_B, 9), drop: shift(HABANERA_A, 9), drop2: shift(HABANERA_B, 9), final: shift(HABANERA_B, 9),
     dropFx: [{ notes: ODE_CRASH, synth: 'crash' }], unverified: true,
   }),
+  // Habanera de Carmen (Bizet, dominio público) en reggaetón a 95 bpm: la habanera y el dembow comparten el ritmo de tresillo; de Re menor a Sol menor (el del estilo); de memoria
+  // 32 compases ≈ 1 min 21 s: Intro 4 · Estrofa 4 · Subida 4 · Drop 8 · Break 4 · Drop 2 4 · Final 4
+  recipe({
+    id: 'habanera-reggaeton', title: 'Habanera (Carmen)', composer: 'Bizet', style: 'reggaeton', kit: '808', key: 'Sol menor',
+    kick: DEMOS.reggaeton.bd, clap: DEMOS.reggaeton.sd, hat: DEMOS.reggaeton.hh, hats16: P.hh8, roll: P.sdRoll, noise: RISER_NOISE, pad: RISER_PAD,
+    intro: shift(HABANERA_A, 5), sub: shift(HABANERA_B, 5), drop: shift(HABANERA_A, 5), drop2: shift(HABANERA_B, 5), final: shift(HABANERA_B, 5),
+    dropFx: [{ notes: MZ_CRASH, synth: 'crash' }], unverified: true,
+    shape: [{ name: 'Intro', bars: 4 }, { name: 'Estrofa', bars: 4 }, { name: 'Subida', bars: 4 }, { name: 'Drop', bars: 8 }, { name: 'Break', bars: 4 }, { name: 'Drop 2', bars: 4 }, { name: 'Final', bars: 4 }],
+  }),
 ]
 export const labRemixById = (id: string): LabRemix | undefined => LAB_REMIXES.find((r) => r.id === id)
 

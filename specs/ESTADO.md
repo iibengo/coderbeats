@@ -500,3 +500,15 @@ Escritos. En la spec 017 va cada uno. **Aviso de lo que no se cumple:** el princ
 - Los sonidos del Coro y del Piano son osciladores del motor (como el sinte de dedo), **no** Strudel/kits; si no gustan, se cambia por los sonidos de Strudel del estilo.
 - El Laboratorio no guarda ni comparte aún (ver principio 6).
 - Piano y Círculo usan el bajo del estilo como fondo; Coro solo el bombo y el bajo (pocas cosas a la vez).
+
+## Tanda 4 (2026-11-18): Órgano completo, tempo comprobado y remix de reggaetón
+- **Órgano completo** (spec 028 §10, commit `0f7325c`): en el Órgano, con «Controles avanzados», aparecen tresillos, acordes y ligaduras. Sin «avanzado» no cambia nada.
+- **Tempo** (commit «test(tempo)»): test unitario del `setcpm` de los 6 estilos y guion `tests/browser/tempo-real.mjs` que mide la duración real del compás tras «+ Nueva canción» y tras importar una canción con tempo propio: todo bien en los 6 estilos. (Las demos de dnb y dembow son canciones con su tempo; el guion mide un ritmo suelto.)
+- **Remix principal de reggaetón**: «Habanera (Carmen)» (Bizet, dominio público) a 95 bpm en sol menor, 32 compases ≈ 1 min 21 s; de memoria, **sin probar de oído, revisar con la partitura**.
+- Sin añadir más estilos, como pediste.
+
+### Qué probar en el móvil, en orden
+1. Laboratorio → Remixes → «Habanera (Carmen)» (reggaetón): ¿suena bien el 808 y los acordes? ¿se reconoce la habanera?
+2. Estudio → «Controles avanzados» → abrir el Órgano → ⋯: tresillos (casillas de tres por tiempo), acordes (tocar añade otra nota; tocar una nota la quita) y ligaduras (arrastrar una nota por encima de la línea de compás en un loop de 2).
+3. «+ Nueva canción» con tempo propio en cada estilo: ¿va al tempo elegido?
+4. Importar un archivo con tempo propio y comprobar lo mismo.
