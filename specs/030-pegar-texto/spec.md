@@ -10,7 +10,8 @@ Escribiendo canciones a mano (17/11/2026) quedó claro que:
 - El conversor `notas-a-json.mjs` vive **fuera** del repo (`~/Descargas/coderbeats-herramientas`) y funciona, pero obliga a salir de la app, abrir una terminal y volver a importar.
 - Las canciones de estos días salían a trozos por fallos de forma (compases que no suman, loops medio vacíos), no por falta de herramientas: hace falta que **algo lo compruebe al pegar**.
 
-## 1. Pegar notas (el formato del conversor)
+## 1. Pegar notas (el formato del conversor) — OPCIONAL
+> **Opcional.** El formato `.txt` del conversor es una comodidad para quien escribe a mano (Ion, yo). Un usuario normal **no** escribe `Bb4:4 F4:4`: escribe o pide «una canción alegre de cumpleaños». Esto no es la base de nada; se puede hacer o no. Lo que **sí** tiene que existir, venga la música de donde venga, es el **chequeo de forma** (§3).
 
 Un cuadro de texto en el Estudio («Pegar notas») que acepta el mismo formato que `notas-a-json.mjs` (ver `LEEME-escribir-canciones.md`):
 
@@ -65,6 +66,8 @@ Un solo botón «Pegar» en el Estudio, con dos pestañas (Notas · Strudel). Al
 - ¿Se acepta `.gain` como dinámica? (Propongo que sí, 029 §2.)
 - ¿Qué se hace con dos `note(...)` en el mismo `stack`: melodía y contramelodía? (Propongo: dos loops de melodía, hasta 3.)
 - **No resuelve el problema de las notas**: si el patrón pegado no es el tema, la app no lo sabe. Sigue haciendo falta escuchar y, antes de escribir, buscar referencias.
+- **El formato `.txt` es secundario.** No es lo que usará la gente. Si algún día se acepta texto libre o una frase («una canción alegre de cumpleaños»), el camino natural es 021 (§1, con IA): el texto libre lo convierte algo externo y lo que llega a la app son **datos** que pasan por el chequeo. La app no escribe música por sí sola.
+- **El chequeo de forma va primero** (y sirve para todo): compás que se pasa, compás vacío en medio, sección que no llega al final del loop. Es lo que hacía sonar las canciones a trozos.
 
 ## 6. Relación con otras specs
 
@@ -74,7 +77,9 @@ Un solo botón «Pegar» en el Estudio, con dos pestañas (Notas · Strudel). Al
 
 ## 7. Fases (cuando se decida)
 
-1. `pasteNotes.ts` (el conversor dentro de la app) + tests + avisos de forma. Es lo más barato y lo que más ahorra.
-2. Pestaña «Pegar notas» en «Avanzado».
-3. Lector de Strudel (subconjunto de §2) + tests de inyección.
-4. Pestaña «Pegar Strudel».
+0. **El chequeo de forma** (`checkSongShape`, puro, con tests): compás que se pasa, compás vacío en medio, sección que no llega al final. Sirve para todo lo que entre, hoy y mañana.
+1. Lector de Strudel (subconjunto de §2) + tests de inyección. **Es lo que de verdad usa un músico.**
+2. Pestaña «Pegar Strudel» en «Avanzado».
+3. *Opcional:* `pasteNotes.ts` (el formato `.txt` del conversor dentro de la app). Barato, pero no es la prioridad: casi nadie escribe notas a mano.
+
+Si un día se quiere «escribo una frase y sale una canción», eso es 021 §1 (con IA, y el resultado siempre pasa por el chequeo).
