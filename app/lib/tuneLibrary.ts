@@ -4,6 +4,7 @@
  * cercana **de la escala del estilo** (las que el sintetizador toca de verdad). Pura y determinista.
  */
 import { DIES_PHRASES, MOZART_G, ODE_A } from './remixes'
+import { GRIEG_A, HABANERA_A, KOROBEINIKI_A } from './publicTunes'
 import { fitRegister } from './melodyAssist'
 import { MIDI_MAX, MIDI_MIN, type MelodyHit, type MelodySynth } from './melody'
 import { STYLE_MUSIC } from './styles'
@@ -20,12 +21,18 @@ export interface Tune {
   /** clase de altura (0 = do) de la tónica del tema en la tonalidad en que está escrito */
   tonic: number
   notes: readonly Note[]
+  /** escrita de memoria: falta contrastarla con la partitura (IMSLP) */
+  unverified?: boolean
 }
 
 /** negra = 4 pasos; `q(i)` = la i-ésima negra */
 const seq = (items: readonly [number, number][], first: number, dur = 4): Note[] => items.map(([at, semi]) => [at, dur, first + semi] as const)
 
 export const TUNES: readonly Tune[] = [
+  // de dominio público, escritas de memoria (revisar con la partitura): `publicTunes.ts`
+  { id: 'korobeiniki', name: 'Korobeiniki', styles: ['techno', 'techno2', 'hiphop90'], tonic: 9, notes: KOROBEINIKI_A, unverified: true },
+  { id: 'grieg', name: 'En la gruta del rey de la montaña', styles: ['dnb', 'techno', 'techno2'], tonic: 11, notes: GRIEG_A, unverified: true },
+  { id: 'habanera', name: 'Habanera (Carmen)', styles: ['dembow', 'hiphop90'], tonic: 2, notes: HABANERA_A, unverified: true },
   { id: 'oda', name: 'Himno de la alegría', styles: ['dembow', 'house', 'house2', 'hiphop90'], tonic: 2, notes: ODE_A },
   { id: 'mozart', name: 'Sinfonía n.º 40', styles: ['techno', 'techno2'], tonic: 7, notes: MOZART_G.a },
   {

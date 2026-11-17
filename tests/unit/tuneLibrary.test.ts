@@ -50,7 +50,7 @@ describe('cada estilo con sus melodías (spec 016 §16)', () => {
     expect(tunesFor('hiphop90').map((t) => t.id)).not.toContain('mozart')
     expect(tunesFor('hiphop90').map((t) => t.id)).not.toContain('dies')
     expect(tunesFor('techno').map((t) => t.id)).toContain('mozart')
-    expect(tunesFor('dnb').map((t) => t.id)).toEqual(['dies'])
+    expect(tunesFor('dnb').map((t) => t.id).sort()).toEqual(['dies', 'grieg'])
     for (const t of TUNES) expect(t.styles.length, t.id).toBeGreaterThan(0)
   })
 })
