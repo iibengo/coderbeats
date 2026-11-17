@@ -102,3 +102,15 @@ describe('canciones propias con bajo y acordes hechos de notas', () => {
     expect(layersOfCell(cell(1, 'Break', [themePad])).map((x) => x.key)).toEqual(['tema'])
   })
 })
+
+describe('bajo y acordes propios de la canción con sus sintes (spec 028 §5)', () => {
+  const note = (pos: number, midi: number, dur: number) => ({ pos, dur, midi, strength: 0.8 })
+  const loopOf = (synth: FreeLoop['synth'], hits: ReturnType<typeof note>[]): FreeLoop => ({ id: id++, instrument: 'mel', bars: 4, phaseBar: 0, hits, muted: false, bornAt: 0, fromTemplate: false, synth })
+  it('el sinte «bass» es la capa bajo y «keys» la de acordes, aunque tengan pocas notas o sean agudas', () => {
+    const theme = loopOf('lead', Array.from({ length: 8 }, (_, i) => note(i * 4, 67 + (i % 3), 2)))
+    const bass = loopOf('bass', [note(0, 50, 4), note(8, 53, 4)]) // pocas notas y no tan graves
+    const keys = loopOf('keys', [note(0, 62, 2), note(0, 65, 2), note(0, 69, 2), note(8, 60, 2)]) // acordes cortos
+    const l = layersOfCell(cell(1, 'Drop', [drum('bd', K), theme, bass, keys]))
+    expect(l.map((x) => x.key)).toEqual(['bombo', 'bajo', 'acordes', 'tema'])
+  })
+})

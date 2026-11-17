@@ -74,8 +74,8 @@ export function layersOfCell(cell: Cell, groupTheme: FreeLoop | null = null): La
   const fx = mels.filter(isFx)
   // canciones propias con bajo y acordes hechos de notas (no del fondo del estilo): el bajo es la melodía grave y los acordes el pad de notas largas
   const notes = mels.filter((l) => !isFx(l))
-  const bassMel = cell.parts.bass ? undefined : notes.find(isLowMel)
-  const chordMel = cell.parts.chords ? undefined : notes.find((l) => l !== bassMel && isChordPad(l))
+  const bassMel = cell.parts.bass ? undefined : (notes.find((l) => l.synth === 'bass') ?? notes.find(isLowMel))
+  const chordMel = cell.parts.chords ? undefined : notes.find((l) => l !== bassMel && (l.synth === 'keys' || isChordPad(l)))
   const theme = notes.find((l) => l !== bassMel && l !== chordMel) ?? groupTheme ?? undefined
   const rising = fx.some((l) => l.synth === 'riser')
   const riseFx = fx.filter((l) => l.synth === 'riser' || (rising && l.synth === 'pad'))

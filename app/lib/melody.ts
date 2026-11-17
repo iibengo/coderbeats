@@ -5,8 +5,9 @@
  * entero validado; nunca un valor leído tal cual de lo guardado.
  */
 /** `drone`: un sine con mucha reverb, para fondos (la demo del dembow); no es de los que se eligen para cantar */
-export type MelodySynth = 'lead' | 'piano' | 'pad' | 'drone' | 'riser' | 'crash' | 'boom' | 'impacto' | 'downlifter'
-export const MELODY_SYNTHS: readonly MelodySynth[] = ['lead', 'piano', 'pad', 'drone', 'riser', 'crash', 'boom', 'impacto', 'downlifter']
+/** `bass` y `keys` (spec 028 §5): el bajo y los acordes **propios de la canción**, hechos de notas (en `keys`, varias a la vez), en vez del fondo del estilo */
+export type MelodySynth = 'lead' | 'piano' | 'pad' | 'drone' | 'riser' | 'crash' | 'boom' | 'impacto' | 'downlifter' | 'bass' | 'keys'
+export const MELODY_SYNTHS: readonly MelodySynth[] = ['lead', 'piano', 'pad', 'drone', 'riser', 'crash', 'boom', 'impacto', 'downlifter', 'bass', 'keys']
 
 /** Rango MIDI que se admite en un loop de melodía o bajo (C1–C7). */
 export const MIDI_MIN = 24
@@ -31,6 +32,7 @@ export const REGISTER: Record<MelodySynth | 'bass', readonly [number, number]> =
   boom: [24, 48], // golpes de efecto del Escenario (spec 011 §13.1): la nota es la raíz
   impacto: [24, 48],
   downlifter: [48, 72], // ruido: la altura no cuenta (spec 014 §9)
+  keys: [48, 72], // acordes propios de la canción (C3–C5)
   bass: [28, 52], // E1–E3
 }
 
@@ -48,6 +50,10 @@ export const SYNTH_SOUND: Record<MelodySynth, string> = {
   impacto: '.s("sbd").decay(0.9).pdecay(0.12).penv(24).shape(0.4).gain(0.9)',
   // el barrido que baja (spec 014 §9): ruido rosa con el filtro cayendo desde arriba; sin probar de oído
   downlifter: '.s("pink").attack(0.02).decay(1.6).sustain(0).release(0.2).lpf(8000).lpenv(-4).lpd(1.6).lps(0).gain(0.5).room(0.4)',
+  // el bajo propio de la canción (spec 028 §5): sierra grave con el filtro que se cierra en cada nota, corto y gordo; sin probar de oído
+  bass: '.s("sawtooth").lpf(420).lpenv(2).decay(0.2).sustain(0.35).gain(0.6)',
+  // los acordes propios de la canción: triangular con un poco de FM, suave y con cola; varias notas a la vez; sin probar de oído
+  keys: '.s("triangle").fm(0.8).decay(0.5).sustain(0.15).lpf(2600).room(0.3).gain(0.4)',
   riser: '.s("pink").attack(0.12).decay(0.2).sustain(0.7).release(0.05).gain(0.6).room(0.3)',
 }
 

@@ -42,3 +42,16 @@ describe('ligaduras en Strudel (spec 028 §2)', () => {
     expect(songCode(state([loop(2, [{ pos: 0, dur: 4, midi: 60 }])]), 'display')).not.toContain('.clip(')
   })
 })
+
+describe('bajo y acordes propios en Strudel (spec 028 §5)', () => {
+  it('«keys» toca un acorde de tres notas a la vez y «bass» una nota grave; cada uno con su sonido', async () => {
+    const mk = (id: number, synth: FreeLoop['synth'], hits: { pos: number; dur: number; midi: number }[]): FreeLoop => ({ ...loop(1, hits), id, synth })
+    const keys = mk(1, 'keys', [{ pos: 0, dur: 8, midi: 55 }, { pos: 0, dur: 8, midi: 58 }, { pos: 0, dur: 8, midi: 62 }])
+    const bass = mk(2, 'bass', [{ pos: 0, dur: 4, midi: 31 }])
+    const code = songCode(state([keys, bass]), 'display')
+    expect(code).toContain('note("[g3,bb3,d4]@8 ~@8")')
+    const ev = await events(code, 1)
+    expect(ev.filter((e) => e.value.s === 'triangle').map((e) => e.value.note).sort()).toEqual(['bb3', 'd4', 'g3'])
+    expect(ev.filter((e) => e.value.s === 'sawtooth').map((e) => e.value.note)).toEqual(['g1'])
+  })
+})
