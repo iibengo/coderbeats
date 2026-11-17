@@ -9,7 +9,7 @@ import type { FreeLoop } from './freeLoops'
 import type { KitId, StyleId } from './types'
 import { anyPart, type BackgroundMode, type Parts } from './background'
 import { bassCode } from './bass'
-import { melodyMini, SYNTH_SOUND, type MelodyHit, type MelodySynth } from './melody'
+import { melodyClip, melodyMini, SYNTH_SOUND, type MelodyHit, type MelodySynth } from './melody'
 import { SUGGEST_GAIN } from './suggestMelody'
 import type { Cell, Segment } from './cells'
 import { wowCode, wowControls } from './wow'
@@ -162,7 +162,9 @@ function loopLine(
     // melodía con la voz (spec 002): nombres de nota de una tabla, pesos numéricos; nada leído se escribe tal cual
     const synth = loop.synth ?? st.melodySynth ?? STYLE_MUSIC[st.style].synth
     const hits = src.hits.map((h) => ({ pos: h.pos, strength: h.strength, midi: h.midi as number, dur: h.dur as number }))
-    line = `note("${melodyMini(hits, safeNum(src.bars), safeNum(src.phaseBar))}")${SYNTH_SOUND[synth] ?? SYNTH_SOUND.piano}.orbit(${MELODY_ORBIT})`
+    // las notas que cruzan la línea de compás (ligaduras) llevan un `.clip("…")`; sin ellas, el código es el de siempre
+    const clip = melodyClip(hits, safeNum(src.bars), safeNum(src.phaseBar))
+    line = `note("${melodyMini(hits, safeNum(src.bars), safeNum(src.phaseBar))}")${clip ? `.clip("${clip}")` : ''}${SYNTH_SOUND[synth] ?? SYNTH_SOUND.piano}.orbit(${MELODY_ORBIT})`
     if (Math.abs(gain - 1) > 0.005) line += `.gain(${fmtGain(gain)})`
   } else {
     const kit = KITS[st.kit]

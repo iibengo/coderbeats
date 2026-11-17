@@ -51,3 +51,29 @@ describe('varias notas a la vez (spec 028 §4)', () => {
     expect(melodyMini([h(0, 16 / 3, 60), h(0, 16 / 3, 64), h(16 / 3, 16 / 3, 62)], 1, 0)).toBe('[c4,e4]@64 d4@64 ~@64')
   })
 })
+
+import { melodyClip } from '../../app/lib/melody'
+describe('ligaduras: notas que cruzan la línea de compás (spec 028 §2)', () => {
+  it('sin notas que crucen, no hay clip y el código es el de siempre', () => {
+    expect(melodyClip([h(0, 4, 60), h(16, 4, 62)], 2, 0)).toBeNull()
+  })
+  it('una nota de 6 pasos que empieza en el 14 suena recortada en su compás y lleva el factor 3', () => {
+    const hits = [h(14, 6, 60)]
+    expect(melodyMini(hits, 2, 0)).toBe('<[~@14 c4@2] [~@16]>')
+    expect(melodyClip(hits, 2, 0)).toBe('<[~@14 3@2] [~@16]>')
+  })
+  it('la estructura del clip coincide con la de las notas (mismos huecos y pesos)', () => {
+    const hits = [h(0, 4, 60), h(12, 8, 62), h(32, 4, 64), h(46, 4, 65)]
+    const struct = (m: string) => m.replace(/[a-g][b]?\d|[\d.]+(?=@|\b)/g, 'x').replace(/x@/g, 'x@')
+    const a = melodyMini(hits, 4, 0)
+    const c = melodyClip(hits, 4, 0)!
+    expect(c.replace(/[\d.]+(?=@|\s|\]|>|$)(?!@)/g, 'v').length).toBeGreaterThan(0)
+    expect([...a.matchAll(/@(\d+)/g)].map((m) => m[1])).toEqual([...c.matchAll(/@(\d+)/g)].map((m) => m[1]))
+    expect(struct(a).split(' ').length).toBe(struct(c).split(' ').length)
+  })
+  it('compases iguales con ligaduras distintas no se colapsan a medias', () => {
+    const hits = [h(14, 6, 60), h(16 + 14, 2, 60)] // el compás 0 cruza; el 1 no
+    expect(melodyMini(hits, 2, 0)).toContain('<')
+    expect(melodyClip(hits, 2, 0)).toContain('3')
+  })
+})

@@ -31,3 +31,14 @@ describe('loops de 8 y 16 compases (spec 028 §2)', () => {
     expect(code).toContain('note("<[c4@4 ~@12] [~@16] [~@16] [d4@4 ~@12]>")')
   })
 })
+
+describe('ligaduras en Strudel (spec 028 §2)', () => {
+  it('la nota que cruza el compás lleva el clip y suena en su ciclo; la de siempre no lleva clip', async () => {
+    const l = loop(2, [{ pos: 14, dur: 6, midi: 60 }])
+    const code = songCode(state([l]), 'display')
+    expect(code).toContain('.clip("<[~@14 3@2] [~@16]>")')
+    const ev = (await events(code, 4)).filter((e) => e.value.s === 'square')
+    expect(ev.map((e) => [Math.floor(e.begin), e.value.clip])).toEqual([[0, 3], [2, 3]])
+    expect(songCode(state([loop(2, [{ pos: 0, dur: 4, midi: 60 }])]), 'display')).not.toContain('.clip(')
+  })
+})

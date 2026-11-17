@@ -66,29 +66,32 @@ const mod = (a: number, n: number) => ((a % n) + n) % n
  * la rejilla más gruesa que respeta inicios y duraciones (pasos, cuartos de paso con rejilla fina, o **doceavos de paso** con tresillos).
  * Varias notas que empiezan en el mismo paso suenan juntas (`[c3,e3,g3]@n`, un acorde); la duración del acorde es la de su nota más larga.
  */
-function barMini(hits: readonly MelodyHit[], res: number): string {
+function barMini(hits: readonly (MelodyHit & { full?: number })[], res: number, clip = false): string {
   const sorted = [...hits].sort((a, b) => a.pos - b.pos)
   const tokens: string[] = []
   let at = 0
   const w = (n: number) => (n === 1 ? '' : `@${n}`)
   // las notas que empiezan a la vez, juntas
-  const groups: { start: number; names: string[]; dur: number }[] = []
+  const groups: { start: number; names: string[]; dur: number; ratio: number }[] = []
   for (const h of sorted) {
     const start = Math.round(h.pos * res)
     const dur = Math.max(1, Math.round(h.dur * res))
     const name = STRUDEL_NOTE[h.midi] ?? 'c4'
+    const ratio = h.full && h.full > h.dur ? h.full / h.dur : 1 // una nota que cruza la línea de compás (ligadura): cuánto más dura de lo que cabe
     const last = groups[groups.length - 1]
     if (last && last.start === start) {
       if (!last.names.includes(name)) last.names.push(name)
       last.dur = Math.max(last.dur, dur)
-    } else groups.push({ start, names: [name], dur })
+      last.ratio = Math.max(last.ratio, ratio)
+    } else groups.push({ start, names: [name], dur, ratio })
   }
   groups.forEach((g, i) => {
     // una nota o un acorde no pisa a lo que viene detrás
     const next = groups[i + 1]?.start
     const dur = next !== undefined ? Math.max(1, Math.min(g.dur, next - g.start)) : g.dur
     if (g.start > at) tokens.push(`~${w(g.start - at)}`)
-    tokens.push(`${g.names.length > 1 ? `[${g.names.join(',')}]` : g.names[0]!}${w(dur)}`)
+    const value = clip ? String(Math.round(g.ratio * 1000) / 1000) : g.names.length > 1 ? `[${g.names.join(',')}]` : g.names[0]!
+    tokens.push(`${value}${w(dur)}`)
     at = g.start + dur
   })
   const total = 16 * res
@@ -121,18 +124,41 @@ function period(bars: string[]): number {
  * lo que sobre se recorta.
  */
 export function melodyMini(hits: readonly MelodyHit[], bars: number, phaseBar: number): string {
+  return loopMinis(hits, bars, phaseBar).mini
+}
+
+/**
+ * Las ligaduras (spec 028 §2): una nota que dura más de lo que queda de compás suena en su compás recortada, y este patrón (`.clip("…")`) le **alarga la duración**
+ * (`clip` = veces lo que mide su hueco). Misma estructura que `melodyMini`, con el factor de cada nota. `null` si ninguna nota cruza la línea de compás.
+ */
+export function melodyClip(hits: readonly MelodyHit[], bars: number, phaseBar: number): string | null {
+  return loopMinis(hits, bars, phaseBar).clip
+}
+
+function loopMinis(hits: readonly MelodyHit[], bars: number, phaseBar: number): { mini: string; clip: string | null } {
   const valid = hits.filter((h) => isMidi(h.midi) && Number.isFinite(h.pos) && Number.isFinite(h.dur) && h.dur > 0)
   const res = gridOf(valid)
   const perBar: string[] = []
+  const perClip: string[] = []
+  let tied = false
   for (let b = 0; b < bars; b++) {
     const inBar = valid
       .filter((h) => Math.floor(h.pos / 16 + 1e-9) === b)
-      .map((h) => ({ ...h, pos: h.pos - b * 16, dur: Math.min(h.dur, (b + 1) * 16 - h.pos) }))
+      .map((h) => ({ ...h, full: h.dur, pos: h.pos - b * 16, dur: Math.min(h.dur, (b + 1) * 16 - h.pos) }))
+    if (inBar.some((h) => h.full > h.dur + 1e-9)) tied = true
     perBar.push(barMini(inBar, res))
+    perClip.push(barMini(inBar, res, true))
   }
-  const rot = Array.from({ length: bars }, (_, j) => perBar[mod(j - (Number.isFinite(phaseBar) ? phaseBar : 0), bars)]!)
-  const unique = rot.slice(0, period(rot))
-  return unique.length === 1 ? unique[0]! : `<${unique.map((b) => `[${b}]`).join(' ')}>`
+  const ph = Number.isFinite(phaseBar) ? phaseBar : 0
+  const idx = (j: number) => mod(j - ph, bars)
+  // los compases se repiten si lo hacen **las notas y sus factores a la vez** (así los dos patrones siguen alineados)
+  const rot = Array.from({ length: bars }, (_, j) => `${perBar[idx(j)]!}|${perClip[idx(j)]!}`)
+  const n = period(rot)
+  const wrap = (arr: string[]) => {
+    const u = Array.from({ length: n }, (_, j) => arr[idx(j)]!)
+    return u.length === 1 ? u[0]! : `<${u.map((x) => `[${x}]`).join(' ')}>`
+  }
+  return { mini: wrap(perBar), clip: tied ? wrap(perClip) : null }
 }
 
 /**
