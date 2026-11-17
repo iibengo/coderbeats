@@ -55,3 +55,21 @@ describe('bajo y acordes propios en Strudel (spec 028 §5)', () => {
     expect(ev.filter((e) => e.value.s === 'sawtooth').map((e) => e.value.note)).toEqual(['g1'])
   })
 })
+
+import { STYLES } from '../../app/lib/constants'
+describe('el tempo elegido es el que suena (todos los estilos)', () => {
+  const barSecOfCode = (code: string): number => {
+    const m = /^setcpm\(([\d.]+)\/4\)/m.exec(code)
+    expect(m).not.toBeNull()
+    return 240 / Number(m![1]) // un compás (un ciclo) = 4 tiempos a N bpm
+  }
+  for (const id of Object.keys(STYLES) as (keyof typeof STYLES)[]) {
+    it(`${id}: sin tempo propio, el del estilo (${STYLES[id].bpm} bpm); con tempo propio, el de la canción`, () => {
+      const base = { ...state([loop(1, [{ pos: 0, dur: 4, midi: 60 }])]), style: id }
+      expect(barSecOfCode(songCode(base, 'display'))).toBeCloseTo(240 / STYLES[id].bpm, 6)
+      expect(barSecOfCode(songCode({ ...base, bpm: 108 }, 'display'))).toBeCloseTo(240 / 108, 6)
+      expect(barSecOfCode(songCode({ ...base, bpm: 108 }, 'engine'))).toBeCloseTo(240 / 108, 6)
+      expect(barSecOfCode(songCode({ ...base, bpm: null }, 'display'))).toBeCloseTo(240 / STYLES[id].bpm, 6)
+    })
+  }
+})
