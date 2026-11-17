@@ -68,6 +68,7 @@ Un solo botón «Pegar» en el Estudio, con dos pestañas (Notas · Strudel). Al
 - **No resuelve el problema de las notas**: si el patrón pegado no es el tema, la app no lo sabe. Sigue haciendo falta escuchar y, antes de escribir, buscar referencias.
 - **El formato `.txt` es secundario.** No es lo que usará la gente. Si algún día se acepta texto libre o una frase («una canción alegre de cumpleaños»), el camino natural es 021 (§1, con IA): el texto libre lo convierte algo externo y lo que llega a la app son **datos** que pasan por el chequeo. La app no escribe música por sí sola.
 - **El chequeo de forma va primero** (y sirve para todo): compás que se pasa, compás vacío en medio, sección que no llega al final del loop. Es lo que hacía sonar las canciones a trozos.
+- **Corregir y que aprenda** (principio 4, «lo corriges y la app aprende»): el usuario arregla una melodía o un tema y la app **guarda la diferencia** para la próxima. Solo en su navegador; nunca se sube. Tres decisiones antes de empezar: (a) qué se aprende — mejor el **sesgo** («cuando propongo X, lo cambias a Y») que cada nota suelta; (b) **siempre se puede volver atrás** y una sugerencia aprendida nunca sustituye a la que hay sin avisar; (c) el aprendizaje **no se comparte** (ni en enlaces ni en vídeos). Aviso honesto: la app no sabe si una melodía es buena, solo se acerca a lo que corregiste; es una ayuda, no un oído.
 
 ## 6. Relación con otras specs
 
