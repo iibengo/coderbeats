@@ -66,3 +66,17 @@ De hacer Star Wars y Superman con el conversor, de oído y por prueba y error. S
    qué está verificado (compases, contenedores, acompañamiento) y qué no (la línea melódica, nota a nota).
 9. **No se puede comprobar de oído desde aquí.** Todo lo que se entrega se valida con reglas (compases que suman,
    notas dentro del loop, sin duplicados) y con el importador real; el "¿suena al tema?" solo lo puede juzgar quien escucha.
+
+## 11. El compás: la app cuenta siempre 16 pasos (17/11/2026)
+Con el Cumpleaños feliz se vio el fallo que costó más tiempo de toda la sesión: la app cuenta **siempre 4/4**
+(16 pasos por compás), y esa canción va en **3/4** (12 pasos). Metida en 16, las notas se apelotonan, la
+frase se corta y suena a "trozo y salto".
+
+- **No hace falta** un campo de compás ni tocar el motor: en un 3/4, se escriben **12 pasos de música y 4 de
+  silencio detrás** (`~ r:4`). Las notas caen en su tiempo y el silencio rellena la rejilla.
+- El tempo hay que subirlo (el Cumpleaños a 130, no a 100): el pulso del 3/4 es más rápido que el del 4/4.
+- **Aviso del conversor:** cuando un compás se queda en 8 o 12 pasos y el resto es silencio, avisa de
+  «compás corto: ¿es un compás de 3/4?» en vez de dejar pasar.
+- Si algún día se quiere un compás de verdad (el `setcpm` y la rejilla de 16), sería una spec aparte: toca el
+  motor y el editor, y rompe la compatibilidad de lo guardado.
+- Lo aprendido, también en `~/Descargas/coderbeats-herramientas/LEEME-escribir-canciones.md` (regla 0).
