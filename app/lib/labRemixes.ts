@@ -10,7 +10,9 @@ import {
   DIES_A, DIES_B, MZ, MZ_CLAP_FILL, MZ_CRASH, MZ_ROOTS, MZ_UP, ODE_A, ODE_A2, ODE_B, ODE_CRASH, ODE_ROOTS, P, RISER2_NOISE, RISER2_PAD, RISER2_ROLL, RISER_NOISE, RISER_PAD, RISER_ROLL, T, WOW_HOOK, WOW_IMPACT, up,
   type Note,
 } from './remixes'
+import { DEMOS } from './demos'
 import type { MelodySynth } from './melody'
+import { fast, shift, ELISA_A, ELISA_B, GRIEG_A, GRIEG_B, HABANERA_A, HABANERA_B, KOROBEINIKI_A, KOROBEINIKI_B } from './publicTunes'
 import type { KitId, StyleId } from './types'
 import { MAX_LAYERS, MAX_PARTS, partsFromSong, type LabLayer, type LabPart } from './remixParts'
 export { MAX_LAYERS, MAX_PARTS }
@@ -26,6 +28,8 @@ export interface LabRemix {
   key: string
   song: Song
   parts: LabPart[]
+  /** el tema está escrito de memoria o de oído: revisar con la partitura */
+  unverified?: boolean
 }
 
 const L = {
@@ -59,10 +63,15 @@ interface Recipe {
   final: readonly Note[]
   /** lo que remata el drop: platillo, impacto, pad en la raíz */
   dropFx: { notes: readonly Note[]; synth: MelodySynth }[]
+  /** otra estructura (por defecto, las 7 partes de arriba) */
+  shape?: { name: PartKind; bars: number }[]
+  /** el tema está escrito de memoria: falta contrastarlo con la partitura */
+  unverified?: boolean
 }
 
-/** Las partes de la canción principal, cada una con las capas que **suenan** (lo que lleva la canción): ≈ 1 min 10 s. */
-const SHAPE: { name: string; bars: number }[] = [
+type PartKind = 'Intro' | 'Estrofa' | 'Subida' | 'Drop' | 'Break' | 'Drop 2' | 'Final'
+/** Las partes de la canción principal (por defecto, 7: ≈ 1 min 10 s a 128 bpm), cada una con las capas que **suenan** (lo que lleva la canción). */
+const SHAPE: { name: PartKind; bars: number }[] = [
   { name: 'Intro', bars: 4 },
   { name: 'Estrofa', bars: 4 },
   { name: 'Subida', bars: 4 },
@@ -71,21 +80,29 @@ const SHAPE: { name: string; bars: number }[] = [
   { name: 'Drop 2', bars: 8 },
   { name: 'Final', bars: 4 },
 ]
-function recipeParts(r: Recipe): { name: string; bars: Turns; layers: LabLayer[] }[] {
+function layersOf(r: Recipe, name: PartKind): LabLayer[] {
   const fx = (extra: { notes: readonly Note[]; synth: MelodySynth }[]): LabLayer => ({ key: 'ritmo', label: 'ritmo', drums: { bd: r.kick, sd: r.clap, hh: r.hats16 }, mel: extra })
-  const layers: LabLayer[][] = [
-    [L.kick(r.kick), L.theme(r.intro, 'pad')],
-    [L.kick(r.kick), L.hat(r.hat), L.bass, L.theme(r.intro, 'lead')],
+  switch (name) {
+    case 'Intro':
+      return [L.kick(r.kick), L.theme(r.intro, 'pad')]
+    case 'Estrofa':
+      return [L.kick(r.kick), L.hat(r.hat), L.bass, L.theme(r.intro, 'lead')]
     // sin bombo: la caja que se acelera, el riser, el bajo y el tema
-    [{ key: 'caja', label: 'caja', drums: { sd: r.roll, hh: r.hats16 } }, riser(r.noise, r.pad), L.bass, L.theme(r.sub, 'lead')],
+    case 'Subida':
+      return [{ key: 'caja', label: 'caja', drums: { sd: r.roll, hh: r.hats16 } }, riser(r.noise, r.pad), L.bass, L.theme(r.sub, 'lead')]
     // con todo: el ritmo entero (con el platillo grande al entrar), el bajo, los acordes y el tema
-    [fx(r.dropFx.slice(0, 1)), L.bass, L.chords, L.theme(r.drop, 'lead')],
+    case 'Drop':
+      return [fx(r.dropFx.slice(0, 1)), L.bass, L.chords, L.theme(r.drop, 'lead')]
     // sin bombo: un respiro con los acordes y el tema suave
-    [L.chords, L.theme(r.final, 'pad')],
-    [fx(r.dropFx), L.bass, L.chords, L.theme(r.drop2, 'lead')],
-    [L.chords, L.theme(r.final, 'pad')],
-  ]
-  return SHAPE.map((p, i) => ({ name: p.name, bars: p.bars as Turns, layers: layers[i]! }))
+    case 'Break':
+    case 'Final':
+      return [L.chords, L.theme(r.final, 'pad')]
+    case 'Drop 2':
+      return [fx(r.dropFx), L.bass, L.chords, L.theme(r.drop2, 'lead')]
+  }
+}
+function recipeParts(r: Recipe): { name: string; bars: Turns; layers: LabLayer[] }[] {
+  return (r.shape ?? SHAPE).map((p) => ({ name: p.name, bars: p.bars as Turns, layers: layersOf(r, p.name) }))
 }
 
 /** La canción de una receta: una célula por parte, con sus capas encendidas (es **el** remix; las partes del Laboratorio salen de ella). */
@@ -104,7 +121,7 @@ function songOf(r: Recipe): Song {
 
 function recipe(r: Recipe): LabRemix {
   const song = songOf(r)
-  return { id: r.id, title: r.title, composer: r.composer, style: r.style, kit: r.kit, key: r.key, song, parts: partsFromSong(song) }
+  return { id: r.id, title: r.title, composer: r.composer, style: r.style, kit: r.kit, key: r.key, song, parts: partsFromSong(song), ...(r.unverified ? { unverified: true } : {}) }
 }
 
 const TECHNO = { kick: T.bd4, clap: T.clap, hat: T.hat, hats16: T.hats16, roll: T.roll, noise: RISER_NOISE, pad: RISER_PAD }
@@ -128,7 +145,7 @@ export const LAB_REMIXES: readonly LabRemix[] = [
   }),
   recipe({
     // OJO: las notas del tema de Mozart están «de oído» y falta contrastarlas con la partitura (ver spec 019, §6)
-    id: 'sinfonia-40-techno', title: 'Sinfonía n.º 40', composer: 'Mozart', style: 'techno', kit: 'electro', key: 'Do menor', ...TECHNO, clap: MZ_CLAP_FILL,
+    id: 'sinfonia-40-techno', title: 'Sinfonía n.º 40', composer: 'Mozart', style: 'techno', kit: 'electro', key: 'Do menor', ...TECHNO, clap: MZ_CLAP_FILL, unverified: true,
     intro: MZ.a, sub: MZ.b, drop: MZ_UP.a, drop2: MZ_UP.b, final: MZ.b,
     dropFx: [{ notes: MZ_CRASH, synth: 'crash' }, { notes: MZ_ROOTS, synth: 'pad' }],
   }),
@@ -144,6 +161,13 @@ export const LAB_REMIXES: readonly LabRemix[] = [
     kick: T.bd4, clap: '~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ sd ~ ~ ~', hat: '~ ~ hh ~ ~ hh hh ~ ~ ~ hh ~ ~ hh hh ~', hats16: T.hats16, roll: T.roll, noise: RISER_NOISE, pad: RISER_PAD,
     intro: WOW_HOOK, sub: WOW_HOOK, drop: WOW_HOOK, drop2: up(WOW_HOOK, 12), final: WOW_HOOK,
     dropFx: [{ notes: MZ_CRASH, synth: 'crash' }, { notes: WOW_IMPACT, synth: 'boom' }],
+  }),
+  // Korobeiniki (canción popular rusa, dominio público) en techno; el tema está escrito de memoria
+  recipe({
+    id: 'korobeiniki-techno', title: 'Korobeiniki', composer: 'popular rusa', style: 'techno2', kit: 'electro', key: 'Do menor',
+    kick: T.bd4, clap: '~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ sd ~ ~ ~', hat: DEMOS.techno2.hh, hats16: T.hats16, roll: T.roll, noise: RISER_NOISE, pad: RISER_PAD,
+    intro: shift(KOROBEINIKI_A, 3), sub: shift(KOROBEINIKI_B, 3), drop: shift(KOROBEINIKI_A, 3), drop2: shift(KOROBEINIKI_B, 3), final: shift(KOROBEINIKI_A, 3),
+    dropFx: [{ notes: MZ_CRASH, synth: 'crash' }], unverified: true,
   }),
 ]
 export const labRemixById = (id: string): LabRemix | undefined => LAB_REMIXES.find((r) => r.id === id)

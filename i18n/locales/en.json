@@ -99,7 +99,8 @@
       "zoomOff": "Zoom: off",
       "zoomOn": "Zoom: on",
       "zoomAria": "infinite zoom between parts (prototype)",
-      "next": "next: {name}"
+      "next": "next: {name}",
+      "unverified": "notes from memory: check against the score"
     }
   },
   "start": {

@@ -423,7 +423,7 @@ const phrase = computed(() => (remix.value ? t('lab.remix.phrase') : t('lab.remi
       <h2 class="text-xs uppercase tracking-wide text-white/40">{{ t('lab.remix.groupSerie') }}</h2>
       <button v-for="r in LAB_REMIXES" :key="r.id" class="rounded-2xl border border-white/15 bg-white/5 p-4 text-left" @click="pick(r)">
         <div class="text-lg">{{ r.title }}</div>
-        <div class="text-sm text-white/60">{{ r.composer }}{{ r.key ? ` · ${r.key}` : '' }} · {{ r.style }}</div>
+        <div class="text-sm text-white/60">{{ r.composer }}{{ r.key ? ` · ${r.key}` : '' }} · {{ r.style }}{{ r.unverified ? ` · ${t('lab.remix.unverified')}` : '' }}</div>
       </button>
       <h2 v-if="mios.length" class="mt-2 text-xs uppercase tracking-wide text-white/40">{{ t('lab.remix.groupMine') }}</h2>
       <button v-for="r in mios" :key="r.id" class="rounded-2xl border border-white/15 bg-white/5 p-4 text-left" @click="pick(r)">

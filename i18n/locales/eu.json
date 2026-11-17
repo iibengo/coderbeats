@@ -99,7 +99,8 @@
       "zoomOff": "Zoom: ez",
       "zoomOn": "Zoom: bai",
       "zoomAria": "zoom amaigabea zatien artean (prototipoa)",
-      "next": "hurrengoa: {name}"
+      "next": "hurrengoa: {name}",
+      "unverified": "notak buruz: partiturarekin egiaztatu"
     }
   },
   "start": {

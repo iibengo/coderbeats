@@ -99,7 +99,8 @@
       "zoomOff": "Zoom: no",
       "zoomOn": "Zoom: sí",
       "zoomAria": "zoom infinito entre partes (prototipo)",
-      "next": "siguiente: {name}"
+      "next": "siguiente: {name}",
+      "unverified": "notas de memoria: revisar con partitura"
     }
   },
   "start": {
