@@ -36,6 +36,7 @@ export const DENSITY: Record<StyleId, readonly [number, number]> = {
   house: [4, 7],
   dnb: [3, 5],
   dembow: [4, 6],
+  reggaeton: [3, 5],
   techno: [5, 8],
   house2: [4, 7],
   techno2: [5, 8],

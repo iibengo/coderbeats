@@ -18,6 +18,12 @@ export const DEMOS: Record<StyleId, Record<Instrument, string>> = {
     sd: '~ ~ ~ ~ sd ~ ~ ~ ~ ~ ~ ~ sd ~ ~ ~',
     hh: 'hh ~ hh ~ hh ~ hh ~ hh ~ hh ~ hh ~ hh ~',
   },
+  // reggaetón (spec 032): el ritmo de dembow a ~95 bpm: bombo a negras, caja en 3 6 11 14 y platillo a contratiempo (más aire que el dembow a 120)
+  reggaeton: {
+    bd: 'bd ~ ~ ~ bd ~ ~ ~ bd ~ ~ ~ bd ~ ~ ~',
+    sd: '~ ~ ~ sd ~ ~ sd ~ ~ ~ ~ sd ~ ~ sd ~',
+    hh: '~ ~ hh ~ ~ ~ hh ~ ~ ~ hh ~ ~ ~ hh ~',
+  },
   // dembow: bombo a negras, caja en 3 6 11 14, platillo en semicorcheas (el patrón de la demo, sin la intro)
   dembow: {
     bd: 'bd ~ ~ ~ bd ~ ~ ~ bd ~ ~ ~ bd ~ ~ ~',

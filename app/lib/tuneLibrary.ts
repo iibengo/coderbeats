@@ -32,13 +32,13 @@ export const TUNES: readonly Tune[] = [
   // de dominio público, escritas de memoria (revisar con la partitura): `publicTunes.ts`
   { id: 'korobeiniki', name: 'Korobeiniki', styles: ['techno', 'techno2', 'hiphop90'], tonic: 9, notes: KOROBEINIKI_A, unverified: true },
   { id: 'grieg', name: 'En la gruta del rey de la montaña', styles: ['dnb', 'techno', 'techno2'], tonic: 11, notes: GRIEG_A, unverified: true },
-  { id: 'habanera', name: 'Habanera (Carmen)', styles: ['dembow', 'hiphop90'], tonic: 2, notes: HABANERA_A, unverified: true },
-  { id: 'oda', name: 'Himno de la alegría', styles: ['dembow', 'house', 'house2', 'hiphop90'], tonic: 2, notes: ODE_A },
+  { id: 'habanera', name: 'Habanera (Carmen)', styles: ['dembow', 'reggaeton', 'hiphop90'], tonic: 2, notes: HABANERA_A, unverified: true },
+  { id: 'oda', name: 'Himno de la alegría', styles: ['dembow', 'reggaeton', 'house', 'house2', 'hiphop90'], tonic: 2, notes: ODE_A },
   { id: 'mozart', name: 'Sinfonía n.º 40', styles: ['techno', 'techno2'], tonic: 7, notes: MOZART_G.a },
   {
     id: 'jacques',
     name: 'Fray Santiago',
-    styles: ['hiphop90', 'dembow', 'house', 'house2'],
+    styles: ['hiphop90', 'dembow', 'reggaeton', 'house', 'house2'],
     tonic: 0,
     // do re mi do | do re mi do | mi fa sol | mi fa sol | sol la sol fa mi do | sol la sol fa mi do | do sol do | do sol do
     notes: [
@@ -49,7 +49,7 @@ export const TUNES: readonly Tune[] = [
   {
     id: 'estrellita',
     name: 'Estrellita, ¿dónde estás?',
-    styles: ['hiphop90', 'dembow', 'house', 'house2'],
+    styles: ['hiphop90', 'dembow', 'reggaeton', 'house', 'house2'],
     tonic: 0,
     // do do sol sol la la sol(2) | fa fa mi mi re re do(2)
     notes: [...seq([[0, 0], [4, 0], [8, 7], [12, 7], [16, 9], [20, 9]], 60), [24, 8, 67], ...seq([[32, 5], [36, 5], [40, 4], [44, 4], [48, 2], [52, 2]], 60), [56, 8, 60]],

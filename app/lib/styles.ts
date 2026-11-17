@@ -182,6 +182,44 @@ export const STYLE_MUSIC: Record<StyleId, StyleMusic> = {
     ],
     synth: 'lead',
   },
+  // reggaetón (2026-11-17, spec 032): ~95 bpm, sol menor, kit 808. El ritmo de dembow (bombo a negras, caja en 3 6 11 14) pero más lento y con aire: platillo a contratiempo,
+  // un 808 grave que sigue al bombo y stabs cortos de acordes entre los golpes (Gm – E♭ – B♭ – F). Sin probar de oído.
+  reggaeton: {
+    key: 'sol menor',
+    priors: {
+      bd: prior(0.03, { 0: 1, 4: 1, 8: 1, 12: 1 }),
+      sd: prior(0.04, { 3: 1, 6: 1, 11: 1, 14: 1 }),
+      hh: prior(0.2, { 2: 1, 6: 1, 10: 1, 14: 1 }),
+    },
+    templates: {
+      bd: 'bd ~ ~ ~ bd ~ ~ ~ bd ~ ~ ~ bd ~ ~ ~',
+      sd: '~ ~ ~ sd ~ ~ sd ~ ~ ~ ~ sd ~ ~ sd ~',
+      hh: '~ ~ hh ~ ~ ~ hh ~ ~ ~ hh ~ ~ ~ hh ~',
+    },
+    background: {
+      // el 808 grave: la raíz en el compás con un golpe largo, uno corto a contratiempo y otro que se alarga; un acorde por compás (Gm E♭ B♭ F)
+      bass: {
+        bars: 4,
+        notes: [
+          { pos: 0, dur: 3, note: 'g1' }, { pos: 6, dur: 2, note: 'g1' }, { pos: 8, dur: 3, note: 'g1' }, { pos: 14, dur: 2, note: 'g1' },
+          { pos: 16, dur: 3, note: 'eb1' }, { pos: 22, dur: 2, note: 'eb1' }, { pos: 24, dur: 3, note: 'eb1' }, { pos: 30, dur: 2, note: 'eb1' },
+          { pos: 32, dur: 3, note: 'bb1' }, { pos: 38, dur: 2, note: 'bb1' }, { pos: 40, dur: 3, note: 'bb1' }, { pos: 46, dur: 2, note: 'bb1' },
+          { pos: 48, dur: 3, note: 'f1' }, { pos: 54, dur: 2, note: 'f1' }, { pos: 56, dur: 3, note: 'f1' }, { pos: 62, dur: 2, note: 'f1' },
+        ],
+        sound: '.s("sine").lpf(300).decay(0.6).sustain(0.5).gain(0.9)',
+      },
+      chords: ['note("<[g3,bb3,d4] [eb3,g3,bb3] [bb3,d4,f4] [f3,a3,c4]>").struct("~ x ~ ~ x ~ x ~").s("triangle").decay(0.2).sustain(0).lpf(2200).room(0.3).gain(0.28)'],
+    },
+    // sol menor: G A B♭ C D E♭ F
+    scale: [7, 9, 10, 0, 2, 3, 5],
+    chordTones: [
+      [7, 10, 2],
+      [3, 7, 10],
+      [10, 2, 5],
+      [5, 9, 0],
+    ],
+    synth: 'lead',
+  },
   // techno (2026-11-14, spec 008 §9): 128 bpm, do menor, kit «Electrónico» (antes 909, spec 010). Bombo 4×4, caja (palmada) en 2 y 4, open hat a
   // contratiempo; el bajo, a corcheas, el pulso que no para. La melodía va a semicorcheas con las notas repetidas
   // apagadas (una nota = un golpe), para que el lead de una célula con wowo pase por el filtro golpe a golpe.

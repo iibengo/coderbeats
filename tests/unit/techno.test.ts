@@ -281,3 +281,37 @@ describe('house y techno nuevos (spec 023): distintos entre sí y los clásicos 
     expect(songCode(st('techno2'), 'display')).toContain('setcpm(132/4)')
   })
 })
+
+import { DEMOS as DEMOS_R } from '../../app/lib/demos'
+import { STYLE_MUSIC as MUSIC_R } from '../../app/lib/styles'
+import { STYLES as STYLES_R } from '../../app/lib/constants'
+import { songCode as songCodeR } from '../../app/lib/song'
+import { adaptTune as adaptR, tunesFor as tunesForR } from '../../app/lib/tuneLibrary'
+describe('reggaetón (spec 032)', () => {
+  it('~95 bpm, sol menor, y su ritmo es el dembow pero con aire (platillo a contratiempo)', () => {
+    expect(STYLES_R.reggaeton.bpm).toBe(95)
+    expect(STYLES_R.reggaeton.legacy).toBeFalsy()
+    expect(MUSIC_R.reggaeton.key).toBe('sol menor')
+    expect(MUSIC_R.reggaeton.scale[0]).toBe(7)
+    expect(DEMOS_R.reggaeton.sd).toBe(DEMOS_R.dembow.sd) // la caja del dembow
+    expect(DEMOS_R.reggaeton.hh).not.toBe(DEMOS_R.dembow.hh) // pero con aire
+    expect(MUSIC_R.reggaeton.background.bass.bars).toBe(4)
+  })
+  it('el dembow no ha cambiado (lo guardado suena igual)', () => {
+    expect(STYLES_R.dembow.bpm).toBe(120)
+    expect(MUSIC_R.dembow.key).toBe('si menor')
+    expect(MUSIC_R.dembow.kickTune).toBe('<e2 c2>')
+  })
+  it('el código de una canción de reggaetón lleva su tempo y su fondo', () => {
+    const st = { loops: [], style: 'reggaeton' as const, kit: '808' as const, background: { mode: 'manual' as const, parts: { bass: true, chords: true } }, metronome: false, fx: { filter: 1, space: 0, warmth: 0.5 } }
+    const c = songCodeR(st, 'display')
+    expect(c).toContain('setcpm(95/4)')
+    expect(c).toContain('g1')
+    expect(c).toContain('g3,bb3,d4')
+  })
+  it('tiene melodías de dominio público que le pegan, todas dentro de su escala', () => {
+    const list = tunesForR('reggaeton')
+    expect(list.length).toBeGreaterThanOrEqual(2)
+    for (const t of list) for (const h of adaptR(t, 'reggaeton')) expect(MUSIC_R.reggaeton.scale).toContain(h.midi % 12)
+  })
+})

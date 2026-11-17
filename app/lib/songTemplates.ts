@@ -16,6 +16,7 @@ export const PART_TURNS: Record<StyleId, Record<PartName, Turns>> = {
   house: { Intro: 4, Entra: 8, Subida: 4, Drop: 8, Final: 4 },
   dnb: { Intro: 4, Entra: 4, Subida: 4, Drop: 8, Final: 2 },
   dembow: { Intro: 4, Entra: 4, Subida: 4, Drop: 8, Final: 2 },
+  reggaeton: { Intro: 4, Entra: 4, Subida: 4, Drop: 8, Final: 4 },
   house2: { Intro: 4, Entra: 8, Subida: 4, Drop: 8, Final: 4 },
   techno2: { Intro: 8, Entra: 8, Subida: 4, Drop: 8, Final: 4 },
   techno: { Intro: 8, Entra: 8, Subida: 4, Drop: 8, Final: 4 },

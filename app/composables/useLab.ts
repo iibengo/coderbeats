@@ -11,6 +11,7 @@ export const LAB_STYLES: { id: StyleId; label: string }[] = [
   { id: 'house2', label: 'house' },
   { id: 'dnb', label: 'dnb' },
   { id: 'dembow', label: 'dembow' },
+  { id: 'reggaeton', label: 'reggaetón' },
   { id: 'techno2', label: 'techno' },
 ]
 
