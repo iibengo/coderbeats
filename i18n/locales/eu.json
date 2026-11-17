@@ -180,7 +180,16 @@
     "empty": "Oraindik ez duzu abestirik.",
     "serie": "coderbeats-en remixak · jabari publikoko melodiak",
     "archive": "Artxiboa · bertsio luzeak (4 min arte)",
-    "open": "Ireki"
+    "open": "Ireki",
+    "newSong": "+ Abesti berria",
+    "newTitle": "Abesti berria",
+    "newStyle": "Estiloa",
+    "newTempo": "Tempoa",
+    "newCreate": "Sortu",
+    "newCancel": "Utzi",
+    "newName": "Abesti berria · {style}",
+    "newConfirm": "Orain duzuna ez dago gordeta. Abesti berri bat hasi?",
+    "newStart": "Hasi"
   },
   "settings": {
     "tabSettings": "ezarpenak",

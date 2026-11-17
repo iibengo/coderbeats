@@ -285,7 +285,7 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
     <span v-if="firstPlay" class="first-play pointer-events-none absolute left-1/2 -translate-x-1/2 text-sm text-white/70" style="bottom: calc(max(1.5rem, env(safe-area-inset-bottom)) + 84px)" role="status">Dale a ▶</span>
   </VisualStage>
 
-  <LibrarySheet v-model:open="libraryOpen" @preview="(t) => startPreview(t)" />
+  <LibrarySheet v-model:open="libraryOpen" @preview="(t) => startPreview(t)" @created="partOpen = true" />
   <PartPanel v-model:open="partOpen" @drums="drumsOpen = true" @organ="openOrgan" />
   <DrumEditor v-model:open="drumsOpen" @mic="partOpen = false; stage?.switchMode('jugar')" />
   <SettingsSheet v-model:open="settingsOpen" :renderer="renderer" :layout="layoutInfo" @recalibrate="(w) => emit('recalibrate', w)" @simple="emit('simple')" @pilot="startPilot" @preview="startPreview()" @video="videoOpen = true" />

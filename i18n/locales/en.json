@@ -180,7 +180,16 @@
     "empty": "You have no songs yet.",
     "serie": "coderbeats remixes · public-domain melodies",
     "archive": "Archive · long versions (up to 4 min)",
-    "open": "Open"
+    "open": "Open",
+    "newSong": "+ New song",
+    "newTitle": "New song",
+    "newStyle": "Style",
+    "newTempo": "Tempo",
+    "newCreate": "Create",
+    "newCancel": "Cancel",
+    "newName": "New song · {style}",
+    "newConfirm": "What you have now isn't saved. Start a new song?",
+    "newStart": "Start"
   },
   "settings": {
     "tabSettings": "settings",

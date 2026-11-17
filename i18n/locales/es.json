@@ -180,7 +180,16 @@
     "empty": "Todavía no hay canciones tuyas.",
     "serie": "Remixes de coderbeats · melodías de dominio público",
     "archive": "Archivo · versiones largas (hasta 4 min)",
-    "open": "Abrir"
+    "open": "Abrir",
+    "newSong": "+ Nueva canción",
+    "newTitle": "Nueva canción",
+    "newStyle": "Estilo",
+    "newTempo": "Tempo",
+    "newCreate": "Crear",
+    "newCancel": "Cancelar",
+    "newName": "Nueva canción · {style}",
+    "newConfirm": "Lo que tienes ahora no está guardado. ¿Empezar una canción nueva?",
+    "newStart": "Empezar"
   },
   "settings": {
     "tabSettings": "ajustes",

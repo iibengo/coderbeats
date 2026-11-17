@@ -11,7 +11,7 @@ import { remixBars, REMIXES, type Remix } from '~/lib/remixes'
 import { addSong, autoName, dateText, isEmptySong, isUnsaved, makeSaved, newId, replaceSong, filterEntries, groupByStyle, sortedEntries, summaryText, type Entry } from '~/lib/library'
 
 const open = defineModel<boolean>('open', { required: true })
-const emit = defineEmits<{ preview: [{ song: Song; style: StyleId; kit: KitId; title: string }] }>()
+const emit = defineEmits<{ preview: [{ song: Song; style: StyleId; kit: KitId; title: string }]; created: [] }>()
 /** «👁 Previsualizar» una guardada: se construye sola sin abrirla (al acabar, lo que tenías sigue igual) */
 function previewEntry(e: Entry) {
   if (!e.saved) return
@@ -64,6 +64,28 @@ async function openMain(r: LabRemix) {
   open.value = false
 }
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`
+// ── + Nueva canción (spec 027): desde cero, eligiendo estilo y tempo; queda guardada en Mis canciones y se abre vacía ──
+const creating = ref(false)
+const newStyle = ref<StyleId>('hiphop90')
+const newBpm = ref(90)
+const newStyles = computed(() => Object.values(STYLES).filter((s) => !s.legacy))
+watch(newStyle, (id) => (newBpm.value = STYLES[id].bpm))
+async function createSong() {
+  if (isUnsaved(engine.snapshot(), reference.value) && !(await askConfirm(t('remixes.newConfirm'), t('remixes.newStart')))) return
+  const bpm = Math.min(200, Math.max(50, Math.round(Number(newBpm.value) || STYLES[newStyle.value].bpm)))
+  engine.stop()
+  await engine.clearAll()
+  await engine.setStyle(newStyle.value)
+  engine.setBpm(bpm === STYLES[newStyle.value].bpm ? null : bpm)
+  engine.setBackgroundMode('manual')
+  engine.setBackgroundManual({ bass: false, chords: false })
+  const saved = makeSaved(engine.snapshot(), newId(Date.now()), t('remixes.newName', { style: STYLES[newStyle.value].label }), new Date())
+  if (!library.persist(addSong(lib.value, saved))) return
+  library.setCurrent(saved.id)
+  creating.value = false
+  open.value = false
+  emit('created')
+}
 /** la guardada de la que viene lo de ahora (con lo que comparar si está sin guardar) */
 const reference = computed(() => lib.value.entries.find((e) => e.id === currentId.value)?.saved ?? null)
 const empty = computed(() => isEmptySong(engine.liveSong()))
@@ -160,6 +182,26 @@ async function openEntry(e: Entry) {
       >
         <div class="mx-auto mb-3 h-1 w-10 rounded-full bg-white/20" />
         <h2 class="mb-3 text-xs tracking-wide text-neutral-400 uppercase">{{ t('remixes.title') }}</h2>
+
+        <!-- + Nueva canción: estilo y tempo -->
+        <div class="mb-4">
+          <button v-if="!creating" class="w-full rounded-full border border-white/25 py-2.5 text-white" data-new-song @click="creating = true">{{ t('remixes.newSong') }}</button>
+          <form v-else class="grid gap-3 rounded-xl border border-white/15 p-3" data-new-form @submit.prevent="createSong">
+            <div class="text-xs text-neutral-400">{{ t('remixes.newTitle') }}</div>
+            <div class="flex flex-wrap items-center gap-1.5">
+              <span class="mr-1 text-xs text-neutral-500">{{ t('remixes.newStyle') }}</span>
+              <button v-for="s in newStyles" :key="s.id" type="button" class="rounded-full border px-3 py-1.5 text-xs" :class="newStyle === s.id ? 'border-[#F496BC] text-white' : 'border-white/20 text-white/60'" :data-new-style="s.id" @click="newStyle = s.id as StyleId">{{ s.label }}</button>
+            </div>
+            <label class="flex items-center gap-2 text-xs text-neutral-400">{{ t('remixes.newTempo') }}
+              <input v-model.number="newBpm" type="number" min="50" max="200" class="w-20 rounded-lg border border-white/15 bg-black/30 px-2 py-1.5 text-white" data-new-bpm />
+              <span class="text-neutral-500">bpm</span>
+            </label>
+            <div class="flex gap-2">
+              <button type="submit" class="flex-1 rounded-full bg-white py-2 font-medium text-black" data-new-create>{{ t('remixes.newCreate') }}</button>
+              <button type="button" class="rounded-full border border-white/20 px-4 py-2" @click="creating = false">{{ t('remixes.newCancel') }}</button>
+            </div>
+          </form>
+        </div>
 
         <!-- guardar la de ahora, con nombre automático editable -->
         <form class="mb-4 flex items-center gap-2" @submit.prevent="save">
