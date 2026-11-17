@@ -179,6 +179,14 @@ export const LAB_REMIXES: readonly LabRemix[] = [
     intro: inLead(shift(GRIEG_A, 3)), sub: inLead(fast(shift(GRIEG_A, 3), 2)), drop: inLead(fast(shift(GRIEG_B, 3), 2)), drop2: inLead(fast(shift(GRIEG_A, 3), 4)), final: inLead(shift(GRIEG_B, 3)),
     dropFx: [{ notes: MZ_CRASH, synth: 'crash' }], unverified: true,
   }),
+  // Para Elisa (Beethoven, dominio público) en hip hop: el tema en corcheas sobre un ritmo de 90 bpm; 24 compases ≈ 1 min; de memoria
+  recipe({
+    id: 'para-elisa-hiphop', title: 'Para Elisa', composer: 'Beethoven', style: 'hiphop90', kit: '808', key: 'La menor',
+    kick: DEMOS.hiphop90.bd, clap: DEMOS.hiphop90.sd, hat: P.hh8, hats16: P.hh8, roll: P.sdRoll, noise: RISER_NOISE, pad: RISER_PAD,
+    intro: ELISA_A, sub: ELISA_B, drop: ELISA_A, drop2: ELISA_B, final: ELISA_B,
+    dropFx: [{ notes: MZ_CRASH, synth: 'crash' }], unverified: true,
+    shape: [{ name: 'Intro', bars: 4 }, { name: 'Estrofa', bars: 4 }, { name: 'Subida', bars: 4 }, { name: 'Drop', bars: 8 }, { name: 'Final', bars: 4 }],
+  }),
 ]
 export const labRemixById = (id: string): LabRemix | undefined => LAB_REMIXES.find((r) => r.id === id)
 
