@@ -54,6 +54,15 @@ export function notesOf(l: FreeLoop): Note[] {
   return out
 }
 
+const median = (xs: number[]): number => {
+  const a = [...xs].sort((x, y) => x - y)
+  return a.length ? a[Math.floor(a.length / 2)]! : 0
+}
+const midiOf = (l: FreeLoop): number[] => l.hits.flatMap((h) => (typeof h.midi === 'number' ? [h.midi] : []))
+/** un bajo hecho de notas: una melodía grave (mediana ≤ MIDI 45); unos acordes hechos de notas: un pad de notas largas (media ≥ 8 pasos) */
+const isLowMel = (l: FreeLoop): boolean => median(midiOf(l)) <= 45
+const isChordPad = (l: FreeLoop): boolean => l.synth === 'pad' && l.hits.length > 0 && l.hits.reduce((n, h) => n + (h.dur ?? 0), 0) / l.hits.length >= 8
+
 /** Las capas de una célula (solo lo que suena). `groupTheme`: la melodía del grupo en paralelo que suena con ella, si ella no lleva ninguna. */
 export function layersOfCell(cell: Cell, groupTheme: FreeLoop | null = null): LabLayer[] {
   const loops = cell.loops.filter((l) => !l.muted && !l.voice && l.hits.length)
@@ -63,7 +72,11 @@ export function layersOfCell(cell: Cell, groupTheme: FreeLoop | null = null): La
   const hh = drum('hh')
   const mels = loops.filter((l) => l.instrument === 'mel')
   const fx = mels.filter(isFx)
-  const theme = mels.find((l) => !isFx(l)) ?? groupTheme ?? undefined
+  // canciones propias con bajo y acordes hechos de notas (no del fondo del estilo): el bajo es la melodía grave y los acordes el pad de notas largas
+  const notes = mels.filter((l) => !isFx(l))
+  const bassMel = cell.parts.bass ? undefined : notes.find(isLowMel)
+  const chordMel = cell.parts.chords ? undefined : notes.find((l) => l !== bassMel && isChordPad(l))
+  const theme = notes.find((l) => l !== bassMel && l !== chordMel) ?? groupTheme ?? undefined
   const rising = fx.some((l) => l.synth === 'riser')
   const riseFx = fx.filter((l) => l.synth === 'riser' || (rising && l.synth === 'pad'))
   const dropFx = fx.filter((l) => !riseFx.includes(l))
@@ -78,7 +91,9 @@ export function layersOfCell(cell: Cell, groupTheme: FreeLoop | null = null): La
   const leftover = out.some((l) => l.key === 'ritmo') ? riseFx : [...riseFx, ...dropFx]
   if (leftover.length) out.push({ key: 'subida', label: 'subida', mel: m(leftover) })
   if (cell.parts.bass) out.push({ key: 'bajo', label: 'bajo', bass: true })
+  else if (bassMel) out.push({ key: 'bajo', label: 'bajo', mel: m([bassMel]) })
   if (cell.parts.chords) out.push({ key: 'acordes', label: 'acordes', chords: true })
+  else if (chordMel) out.push({ key: 'acordes', label: 'acordes', mel: m([chordMel]) })
   if (theme) out.push({ key: 'tema', label: 'tema', mel: [{ notes: notesOf(theme), synth: theme.synth }] })
   return capLayers(out)
 }

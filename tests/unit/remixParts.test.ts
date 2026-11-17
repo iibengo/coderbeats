@@ -84,3 +84,21 @@ describe('un remix, una sola canción (dos caras)', () => {
     }
   })
 })
+
+describe('canciones propias con bajo y acordes hechos de notas', () => {
+  const note = (pos: number, midi: number, dur: number) => ({ pos, dur, midi, strength: 0.8 })
+  const loopOf = (synth: FreeLoop['synth'], hits: ReturnType<typeof note>[]): FreeLoop => ({ id: id++, instrument: 'mel', bars: 4, phaseBar: 0, hits, muted: false, bornAt: 0, fromTemplate: false, synth })
+  it('el bajo grave y el pad de notas largas son capas «bajo» y «acordes»; el tema sigue siendo la melodía aguda', () => {
+    const theme = loopOf('lead', Array.from({ length: 8 }, (_, i) => note(i * 4, 67 + (i % 3), 2)))
+    const bass = loopOf('lead', Array.from({ length: 8 }, (_, i) => note(i * 8, 31 + (i % 2) * 3, 3)))
+    const pad = loopOf('pad', Array.from({ length: 8 }, (_, i) => note(i * 8, 55, 8)))
+    const l = layersOfCell(cell(1, 'Drop', [drum('bd', K), drum('sd', [4, 12]), drum('hh', [0, 8]), theme, bass, pad]))
+    expect(l.map((x) => x.key)).toEqual(['ritmo', 'bajo', 'acordes', 'tema'])
+    expect(l.find((x) => x.key === 'tema')!.mel![0]!.notes[0]![2]).toBe(67)
+    expect(l.find((x) => x.key === 'bajo')!.mel![0]!.notes[0]![2]).toBe(31)
+  })
+  it('un tema en pad (corto) no se confunde con unos acordes', () => {
+    const themePad = loopOf('pad', Array.from({ length: 12 }, (_, i) => note(i * 2, 62 + (i % 4), 2)))
+    expect(layersOfCell(cell(1, 'Break', [themePad])).map((x) => x.key)).toEqual(['tema'])
+  })
+})
