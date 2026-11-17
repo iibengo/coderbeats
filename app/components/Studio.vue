@@ -39,7 +39,7 @@ function startPreview(t?: { song: Song; style: StyleId; kit: KitId; title?: stri
   return pilot.preview(t ?? { song: engine.snapshot().song, style: engine.style.value, kit: engine.kit.value, title: 'Tu canción' })
 }
 async function startPilot() {
-  if ((engine.loops.value.loops.length || engine.multi.value) && !(await askConfirm('El piloto sustituye lo que tienes ahora (guárdalo antes en «Mis remixes» si quieres conservarlo). ¿Seguir?'))) return
+  if ((engine.loops.value.loops.length || engine.multi.value) && !(await askConfirm('El piloto sustituye lo que tienes ahora (guárdalo antes en «Mis canciones» si quieres conservarlo). ¿Seguir?'))) return
   void pilot.start(Date.now() % 1000)
 }
 
@@ -166,7 +166,7 @@ async function openSharedLink() {
   history.replaceState(null, '', location.pathname + location.search)
   const saved = await decodeShare(payload)
   if (!saved) return void alert("El enlace de la canción no es válido.")
-  if (!(await askConfirm(`Abrir la canción compartida «${saved.name}»? Sustituye lo que tienes ahora (guárdalo antes en «Mis remixes» si quieres conservarlo).`))) return
+  if (!(await askConfirm(`Abrir la canción compartida «${saved.name}»? Sustituye lo que tienes ahora (guárdalo antes en «Mis canciones» si quieres conservarlo).`))) return
   await engine.openSaved(saved)
 }
 /** «Abrir en el Estudio» desde el Laboratorio (`?abrir=<id>`): abre la copia guardada en Mis canciones; si no está, no hace nada. */

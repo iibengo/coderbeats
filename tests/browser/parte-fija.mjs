@@ -1,7 +1,7 @@
 // Parte fija 🔒 (spec 024 §2): al abrir un editor la parte queda en bucle; al cerrarlo se suelta.
 import { open, clickLabel, sleep } from './lib.mjs'
 const { b, p, errs } = await open()
-await clickLabel(p, 'mis remixes'); await sleep(800)
+await clickLabel(p, 'mis canciones'); await sleep(800)
 await p.evaluate(() => document.querySelector('[data-remixes-serie] li button').click()); await sleep(1500)
 await p.evaluate(() => window.__engine.play()); await sleep(4000)
 const loop = () => p.evaluate(() => window.__engine.loopTarget.value)

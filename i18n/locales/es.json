@@ -66,7 +66,7 @@
     "remix": {
       "pick": "Elige una canción.",
       "phrase": "Toca una parte: entra en el siguiente compás y se queda hasta que elijas otra. Dentro, enciende y apaga capas.",
-      "mineKind": "mi versión · editada en el Estudio",
+      "mineKind": "mi canción",
       "entering": "entra…",
       "listening": "escuchando",
       "rec": "● Grabar mi versión",
@@ -90,7 +90,9 @@
         "acordes": "acordes",
         "tema": "tema",
         "subida": "subida"
-      }
+      },
+      "groupSerie": "Remixes de coderbeats",
+      "groupMine": "Mis canciones"
     }
   },
   "start": {
@@ -174,9 +176,9 @@
     "bars": "compases"
   },
   "remixes": {
-    "title": "Mis remixes",
-    "empty": "Todavía no hay remixes tuyos.",
-    "serie": "De serie · melodías de dominio público",
+    "title": "Mis canciones",
+    "empty": "Todavía no hay canciones tuyas.",
+    "serie": "Remixes de coderbeats · melodías de dominio público",
     "archive": "Archivo · versiones largas (hasta 4 min)",
     "open": "Abrir"
   },
@@ -306,7 +308,7 @@
     "styleChange": "Cambia el bajo, los acordes y el tempo; tu ritmo y tu melodía se quedan. ¿Cambiar de estilo?",
     "change": "Cambiar",
     "editPart": "editar parte",
-    "myRemixes": "mis remixes",
+    "myRemixes": "mis canciones",
     "toLab": "Lab",
     "toLabAria": "tocar este remix en el Laboratorio",
     "demo": "demo",

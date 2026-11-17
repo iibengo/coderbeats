@@ -66,7 +66,7 @@
     "remix": {
       "pick": "Pick a song.",
       "phrase": "Tap a part: it comes in on the next bar and stays until you pick another. Inside, switch layers on and off.",
-      "mineKind": "my version · edited in the Studio",
+      "mineKind": "my song",
       "entering": "coming in…",
       "listening": "listening",
       "rec": "● Record my version",
@@ -90,7 +90,9 @@
         "acordes": "chords",
         "tema": "theme",
         "subida": "riser"
-      }
+      },
+      "groupSerie": "coderbeats remixes",
+      "groupMine": "My songs"
     }
   },
   "start": {
@@ -174,9 +176,9 @@
     "bars": "bars"
   },
   "remixes": {
-    "title": "My remixes",
-    "empty": "You have no remixes yet.",
-    "serie": "Built-in · public-domain melodies",
+    "title": "My songs",
+    "empty": "You have no songs yet.",
+    "serie": "coderbeats remixes · public-domain melodies",
     "archive": "Archive · long versions (up to 4 min)",
     "open": "Open"
   },
@@ -306,7 +308,7 @@
     "styleChange": "This changes the bass, the chords and the tempo; your rhythm and melody stay. Change style?",
     "change": "Change",
     "editPart": "edit part",
-    "myRemixes": "my remixes",
+    "myRemixes": "my songs",
     "toLab": "Lab",
     "toLabAria": "play this remix in the Lab",
     "demo": "demo",

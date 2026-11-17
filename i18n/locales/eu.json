@@ -66,7 +66,7 @@
     "remix": {
       "pick": "Aukeratu abesti bat.",
       "phrase": "Ukitu zati bat: hurrengo konpasean sartzen da eta beste bat aukeratu arte geratzen da. Barruan, piztu eta itzali geruzak.",
-      "mineKind": "nire bertsioa · Estudioan editatua",
+      "mineKind": "nire abestia",
       "entering": "sartzen…",
       "listening": "entzuten",
       "rec": "● Grabatu nire bertsioa",
@@ -90,7 +90,9 @@
         "acordes": "akordeak",
         "tema": "gaia",
         "subida": "igoera"
-      }
+      },
+      "groupSerie": "coderbeats-en remixak",
+      "groupMine": "Nire abestiak"
     }
   },
   "start": {
@@ -174,9 +176,9 @@
     "bars": "konpasak"
   },
   "remixes": {
-    "title": "Nire remixak",
-    "empty": "Oraindik ez duzu remixik.",
-    "serie": "Fabrikakoak · jabari publikoko melodiak",
+    "title": "Nire abestiak",
+    "empty": "Oraindik ez duzu abestirik.",
+    "serie": "coderbeats-en remixak · jabari publikoko melodiak",
     "archive": "Artxiboa · bertsio luzeak (4 min arte)",
     "open": "Ireki"
   },
@@ -306,7 +308,7 @@
     "styleChange": "Baxua, akordeak eta tempoa aldatzen dira; zure erritmoa eta melodia geratzen dira. Estiloa aldatu?",
     "change": "Aldatu",
     "editPart": "editatu zatia",
-    "myRemixes": "nire remixak",
+    "myRemixes": "nire abestiak",
     "toLab": "Lab",
     "toLabAria": "jo remix hau Laborategian",
     "demo": "demoa",
