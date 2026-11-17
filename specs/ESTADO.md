@@ -1,5 +1,39 @@
 # Estado (2026-11-15) — lo hecho mientras no estabas
 
+# Tanda 2 (2026-11-17): Mis canciones privadas, zoom (prototipo), remixes nuevos y la canción G-funk
+
+Todo en `main`, **sin push**; en cada commit, 1261 tests, `nuxt typecheck` y `nuxt build` en verde. Guiones de Chrome nuevos: `lab-remix-igual` (con el zoom apagado, Remixes es idéntico), `zoom`, `nueva-cancion`, `importar-exportar`, `demo-y-lab`, `ajustes-avanzados`, `remix-nuevo`. **Nada se ha oído ni visto en un móvil.**
+
+## Hecho
+| Qué | Commits / dónde |
+|---|---|
+| **Mis canciones** (spec 027): «Remixes» = los de coderbeats; «Mis canciones» = lo privado de cada persona (textos es/en/eu). **+ Nueva canción** (estilo y tempo). **Exportar** una canción a `.json`, **importar** desde archivo, texto pegado o enlace (validador de siempre; solo añade; tests de inyección), **Exportar todo / Importar copia**, **enlace desde el Laboratorio**. Nada se sube. | `f61f747`, `030a907`, `352929f`, `999a134` |
+| **Zoom infinito** (spec 026): geometría pura con tests; **prototipo solo en Remixes**, interruptor «Zoom: no/sí» (apagado por defecto); apagado, Remixes **idéntico** (test con referencia en `tests/browser/golden/`). Sin vídeo ni Estudio. | `fd41529`, `6a45ed2`, `fbb04a2` |
+| **Melodías de dominio público** (`publicTunes.ts`): Korobeiniki, En la gruta del rey de la montaña, Habanera (Para Elisa ya estaba), **de memoria: revisar con partitura**. | `53f45ff` |
+| **4 remixes de ≈ 1 min** (en «Remixes de coderbeats»): Korobeiniki (techno), En la gruta… (dnb, **acelerando**: el tema se dobla), Para Elisa (hip hop), Habanera (dembow). Aviso «notas de memoria» en la lista. | `cef722f`, `88917d0`, `2758bd7`, `c04f816` |
+| **Canción G-funk** (privada, **fuera del repo**): `~/Descargas/g-funk-costa-oeste.json` (hip hop 94 bpm, Sol menor, Gm–B♭–E♭–D, bajo funk, batería con swing, riff de tu tablatura con sinte agudo, 5 partes ≈ 1 min 11 s). Las canciones propias con bajo y acordes hechos de notas se ven como capas al actuarlas en el Laboratorio. | `e9fbfc7` |
+
+## Cómo escuchar la G-funk
+1. Estudio → **Empezar** → **mis canciones** (icono de lista) → «⋯ Copia y archivos» → **⬆ Importar** → «o elige un archivo .json» → `g-funk-costa-oeste.json`. Sale «1 canciones añadidas».
+2. Tócala en la lista: se abre con sus 5 partes; ▶.
+3. En el Laboratorio: **Remixes → Mis canciones → G-funk · Costa Oeste**; cada parte con sus capas (Intro: platillo, acordes, tema · Estrofa: ritmo, bajo, acordes · Subida: caja, subida, bajo, tema · Drop: ritmo, bajo, acordes, tema · Final: acordes, tema).
+- **Portamento:** el motor no tiene deslizamiento por loop; la melodía usa el sinte agudo (`lead`, onda cuadrada) con las notas **ligadas** (cada nota dura hasta la siguiente). El riff es **tu tablatura** (G3–C4 una octava arriba); el compás 3 llega más ancho en la tablatura y **apreté los dos últimos golpes** (re♭ y do en los pasos 13 y 15). Bajo y acordes son del sinte (no del fondo del hip hop, que es La menor).
+
+## No hecho / saltado
+- Vídeo y Estudio con zoom (esperan a que pruebes en el iPhone); variante B (capas en el borde) sin hacer.
+- «Formato para IAs» (spec 021): sigue solo spec.
+- Bajo y acordes por patrones: saltado (toca el fondo del motor).
+- Melodías de los 4 remixes: **de memoria**, sin contrastar; Habanera y Para Elisa en su tonalidad adaptada al estilo.
+- Multilenguaje: ≈ 55 % de los textos.
+
+## Qué probar en el móvil (en orden)
+1. Estudio → mis canciones: **+ Nueva canción** (elige hip hop y 94 bpm): ¿se abre vacía con el panel de la parte? Importa la G-funk y escúchala (¿suena a G-funk? ¿el bajo y el riff encajan? ¿se oye el swing?).
+2. **⋯ Copia y archivos:** ⬇ de una canción, **Exportar todo**, **Importar** (archivo y texto pegado): ¿todo bien y sin tocar lo que ya había?
+3. Laboratorio → Remixes: los 4 remixes nuevos (¿se reconoce el tema? ¿Grieg acelera de verdad?) y «Mis canciones». **🔗 enlace**: pégalo en el navegador (debe pedirte abrirla en el Estudio).
+4. **Zoom: sí** en Remixes (fila de enlaces): toca la gota pequeña o una parte. ¿Se entiende? ¿Va a 60 fps? ¿Se ve confuso el doble anillo? Con «Zoom: no» todo igual que antes. Con «reducir movimiento» del sistema: fundido, sin zoom.
+
+---
+
 # Última tanda (2026-11-16, autónoma): el Estudio como editor de remixes
 
 Todo en `main`, **sin push**; en cada commit, 1199 tests, `nuxt typecheck` y `nuxt build` en verde. Guiones de Chrome en `tests/browser/` (`organo`, `bateria`, `editar-parte`, `parte-fija`, `tocar-en-lab`, `lab-abrir-estudio`, `lab-remix`, `lab-remix-tope`, `remixes-unificados`, `estilos`, `idiomas`, `sin-micro`…). **Nada se ha oído** (sin altavoces) **ni visto en un móvil.**
