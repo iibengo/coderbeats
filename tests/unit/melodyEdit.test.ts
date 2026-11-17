@@ -203,3 +203,13 @@ describe('una sola melodía por parte', () => {
     expect(dropExtraMelodies(s)).toBe(s)
   })
 })
+
+describe('el bajo y los acordes propios no son «la melodía» (spec 028 §5)', () => {
+  const mel = (id: number, synth: FreeLoop['synth'], bornAt = 0): FreeLoop => ({ id, instrument: 'mel', bars: 4, phaseBar: 0, hits: [{ pos: 0, dur: 2, midi: 60, strength: 0.8 }], muted: false, bornAt, fromTemplate: false, synth })
+  it('el Órgano edita la melodía aunque el bajo o los acordes sean más recientes, y no se avisa de «apiladas»', () => {
+    const s = { loops: [mel(1, 'lead', 0), mel(2, 'bass', 5), mel(3, 'keys', 6)], nextId: 4 }
+    expect(melLoopOf(s)!.id).toBe(1)
+    expect(extraMelodies(s)).toEqual([])
+    expect(dropExtraMelodies(s)).toBe(s)
+  })
+})

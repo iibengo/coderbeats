@@ -30,8 +30,10 @@ const grid = (o: MelEditOptions) => (o.assist ? (o.unit ?? 1) : FINE_GRID)
 export const gForBar = (loop: Pick<FreeLoop, 'phaseBar'> | undefined, bar: number): number => (loop?.phaseBar ?? 0) + bar
 
 /** El loop de melodía de la célula (el más reciente). */
+/** El bajo y los acordes propios de la canción (sintes `bass` y `keys`) no son «la melodía»: el Órgano y el aviso de melodías apiladas no los tocan. */
+const isOwnAccompaniment = (l: FreeLoop): boolean => l.synth === 'bass' || l.synth === 'keys'
 export const melLoopOf = (s: LoopsState): FreeLoop | undefined =>
-  s.loops.filter((l) => l.instrument === 'mel').sort((a, b) => b.bornAt - a.bornAt || b.id - a.id)[0]
+  s.loops.filter((l) => l.instrument === 'mel' && !isOwnAccompaniment(l)).sort((a, b) => b.bornAt - a.bornAt || b.id - a.id)[0]
 
 const hitsOf = (l: FreeLoop): MelodyHit[] => l.hits as MelodyHit[]
 const replace = (s: LoopsState, loop: FreeLoop): LoopsState => ({ ...s, loops: s.loops.map((l) => (l.id === loop.id ? loop : l)) })
@@ -148,7 +150,7 @@ export const isFxLoop = (l: FreeLoop): boolean => FX_SYNTHS.includes(l.synth ?? 
 /** Las melodías que sobran: todas las de la célula menos la última (la que edita el Órgano); los efectos no cuentan. */
 export function extraMelodies(s: LoopsState): FreeLoop[] {
   const main = melLoopOf(s)
-  return s.loops.filter((l) => l.instrument === 'mel' && !isFxLoop(l) && l.id !== main?.id)
+  return s.loops.filter((l) => l.instrument === 'mel' && !isFxLoop(l) && !isOwnAccompaniment(l) && l.id !== main?.id)
 }
 /** Deja solo la melodía principal (quita las extra). */
 export function dropExtraMelodies(s: LoopsState): LoopsState {
