@@ -20,6 +20,7 @@ Revisadas todas las specs, `PLAN-AUTONOMO.md`, `PLAN-AUTONOMO-2.md` y `ESTADO.md
 - Publicar el repositorio (`specs/PUBLICAR.md`): correo de los commits, repositorio de GitHub, `iibengo/coderbeats-kits` v1, captura para el README, qué specs quedan públicas.
 - ¿Quitar «🎹 Agua» si el sintetizador gusta más? ¿Producción encendida por defecto?
 - 001 §14.1 ideas de la hoja de ruta sin decidir: swing/más estilos (spec 004 sin escribir), loop crudo tipo RC-505, 4.º sonido de boca, aprender de mis correcciones.
+- **031 «Compases de verdad»** (3/4, 6/8): hoy el 3/4 se apaña con 12 pasos de música + 4 de silencio. Con una o dos canciones así, basta; con varias, merece la pena el campo de compás (toca el motor: hace falta oído).
 - **030 «Pegar texto»**: ¿meter el conversor de notas dentro del Estudio (sin IA) y, más adelante, pegar Strudel? Es lo que ahorra salir a la terminal. Lo barato es la pestaña «Pegar notas».
 - **021 «Remixes con una IA»**: la idea del chat está diseñada pero parada; sin servidor no hay clave segura, y una IA inventando notas se equivoca (17/11). Si se retoma, primero «Importar remix» en JSON (§3), sin red.
 
