@@ -17,5 +17,28 @@
   ],
   "Drums_hh": [
     "drums/hh.wav"
-  ]
+  ],
+  "hofner": {
+    "e3": [
+      "guitar/e3.wav"
+    ],
+    "a3": [
+      "guitar/a3.wav"
+    ],
+    "d4": [
+      "guitar/d4.wav"
+    ],
+    "g4": [
+      "guitar/g4.wav"
+    ],
+    "c5": [
+      "guitar/c5.wav"
+    ],
+    "f5": [
+      "guitar/f5.wav"
+    ],
+    "a5": [
+      "guitar/a5.wav"
+    ]
+  }
 }

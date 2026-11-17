@@ -50,3 +50,47 @@ describe('la guitarra (spec 035): sinte opcional, sin samples', () => {
     expect(Number(clean[0]!.value.lpenv)).toBeGreaterThan(0) // el filtro que se cierra tras el pulso
   })
 })
+
+import { readFileSync, statSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { GUITAR_NOTES, GUITAR_SAMPLE, GUITAR_SAMPLES_URL, guitarMap } from '../../app/lib/guitarSamples'
+
+describe('la guitarra grabada, guitarSample (spec 036)', () => {
+  it('es otro sinte: guitar, guitarDirty y lead no cambian', () => {
+    expect(MELODY_SYNTHS).toContain('guitarSample')
+    expect(isFreeLoop(loop('guitarSample'))).toBe(true)
+    expect(SYNTH_SOUND.lead).toBe('.s("square").lpf(1800).decay(0.2).sustain(0.5).delay(0.25)')
+    expect(SYNTH_SOUND.guitar).toContain('.s("sawtooth")')
+    expect(SYNTH_SOUND.guitarDirty).toContain('distort(3)')
+    expect(SYNTH_SOUND.guitarSample).toContain(`.s("${GUITAR_SAMPLE}")`)
+  })
+  it('7 notas, a no más de 5 semitonos una de otra (e3 a3 d4 g4 c5 f5 a5; el último salto es de 4)', () => {
+    const midi = (n: string) => ({ c: 0, d: 2, e: 4, f: 5, g: 7, a: 9, b: 11 })[n[0] as 'c'] + (Number(n[1]) + 1) * 12
+    const m = GUITAR_NOTES.map(midi)
+    expect(m.length).toBe(7)
+    expect(m.slice(1).map((x, i) => x - m[i]!)).toEqual([5, 5, 5, 5, 5, 4])
+  })
+  it('los 7 WAV existen, son ligeros, coinciden con el repositorio de kits y su SHA está en CREDITS.md', () => {
+    const credits = readFileSync('public/samples/CREDITS.md', 'utf8')
+    let total = 0
+    const json = JSON.parse(readFileSync('kits/coderbeats-kits/strudel.json', 'utf8')) as Record<string, unknown>
+    expect(json[GUITAR_SAMPLE]).toEqual(guitarMap('guitar/'))
+    for (const n of GUITAR_NOTES) {
+      const buf = readFileSync(`public/samples/guitar/${n}.wav`)
+      total += statSync(`public/samples/guitar/${n}.wav`).size
+      expect(buf.subarray(0, 4).toString()).toBe('RIFF')
+      expect(readFileSync(`kits/coderbeats-kits/guitar/${n}.wav`).equals(buf), n).toBe(true)
+      expect(credits, n).toContain(createHash('sha256').update(buf).digest('hex').slice(0, 16))
+    }
+    expect(total).toBeLessThan(350_000)
+  })
+  it('el código mostrado pide su samples() solo si la canción usa la guitarra (y una vez si el kit ya trae la misma etiqueta)', () => {
+    const con = songCode(state(loop('guitarSample')), 'display')
+    expect(con).toContain(`samples('${GUITAR_SAMPLES_URL}')`)
+    expect(con).toContain('.s("hofner")')
+    expect(songCode(state(loop()), 'display')).not.toContain('samples(')
+    expect(songCode(state(loop('guitar')), 'display')).not.toContain('samples(')
+    expect(songCode({ ...state(loop('guitarSample')), kit: 'drums' }, 'display').match(/samples\(/g)).toHaveLength(1)
+    expect(songCode(state(loop('guitarSample')), 'engine')).not.toContain('samples(')
+  })
+})

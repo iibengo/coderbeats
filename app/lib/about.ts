@@ -21,6 +21,7 @@ export const CREDITS: Credit[] = [
   { name: 'uzu-drumkit', what: 'kit «Electrónico» (Switch Angel y Mot4i).', license: 'Unlicense', url: 'https://github.com/tidalcycles/uzu-drumkit' },
   { name: 'Michael Fischer (TECHNOPOLIS)', what: 'kit «808», grabado de una TR-808 real.', license: 'CC0 1.0', url: 'https://github.com/tidalcycles/sounds-tr808-fischer' },
   { name: 'Boochi44', what: 'kit «Vinilo» (free-drum-samples).', license: 'CC0 1.0', url: 'https://github.com/Boochi44/free-drum-samples' },
+  { name: 'Karoryfer Samples (Black And Green Guitars)', what: 'guitarra (Hofner Club, notas sueltas).', license: 'CC0 1.0', url: 'https://github.com/sfzinstruments/karoryfer.black-and-green-guitars' },
   { name: 'Karoryfer Samples (Big Rusty Drums)', what: 'kit «Batería» (batería acústica: bombo, caja y charles).', license: 'CC0 1.0', url: 'https://github.com/sfzinstruments/karoryfer.big-rusty-drums' },
   { name: 'Nuxt, Vue y Tailwind CSS', what: 'la base de la app.', license: 'MIT', url: 'https://nuxt.com' },
 ]

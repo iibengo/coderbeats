@@ -46,6 +46,27 @@ hasta el pico de los otros kits, convertido a WAV de 16 bits. Es la única modif
 | `drums/sd.wav` | `snare_14/center/top/sn_center_vl5_rr1.flac` (caja 14", **golpe al centro**, micro de arriba) | 0,4 s | −2,5 dB | `959c3c18d2fe9ffd` |
 | `drums/hh.wav` | `hihat_14/cl/cl/ht_cl_vl4_rr1.flac` (charles 14" cerrado, micro cercano) | 0,25 s | −5,0 dB | `8167214f70190028` |
 
+## Guitarra · Karoryfer Samples, Black And Green Guitars, la **Hofner Club negra** (CC0)
+
+Del repositorio **karoryfer.black-and-green-guitars** de Karoryfer Samples (guitarras de Brian Wood), publicado como **CC0 1.0**:
+https://github.com/sfzinstruments/karoryfer.black-and-green-guitars. El `LICENSE` se comprobó a mano el 2026-11-18 y es **idéntico, palabra por
+palabra, al texto oficial de CC0 1.0**; el `readme.txt` solo dice «Royalty-free for all commercial and non-commercial use» y no lo contradice.
+Se usa en el sinte `guitarSample` (spec 036), nombre de muestra `hofner`: una guitarra eléctrica de caja hueca **limpia**.
+
+Cada archivo es **una nota** (articulación `twang`, intensidad `mf`, primera toma) del original (WAV mono, 24 bits, 44,1 kHz): sin el silencio inicial,
+**recortada a 0,5 s** con fundido de salida, a WAV de 16 bits y subida de volumen hasta un pico de −4 dB. El motor sube o baja la nota más cercana
+(una cada 5 semitonos). Es la única modificación (obra derivada permitida por CC0).
+
+| Archivo | Origen (`Samples/black/ord/…` del repositorio) | SHA-256 (16 primeros) |
+|---|---|---|
+| `guitar/e3.wav` | `Samples/black/ord/twang_e3_mf_rr1.wav` | 040eb5d0ef673c16 |
+| `guitar/a3.wav` | `Samples/black/ord/twang_a3_mf_rr1.wav` | 748e117eea0de096 |
+| `guitar/d4.wav` | `Samples/black/ord/twang_d4_mf_rr1.wav` | 4c86a92c21dc78f3 |
+| `guitar/g4.wav` | `Samples/black/ord/twang_g4_mf_rr1.wav` | e2e506dbed661ef9 |
+| `guitar/c5.wav` | `Samples/black/ord/twang_c5_mf_rr1.wav` | 2892f0ac3b974678 |
+| `guitar/f5.wav` | `Samples/black/ord/twang_f5_mf_rr1.wav` | 915661a4b514241b |
+| `guitar/a5.wav` | `Samples/black/ord/twang_a5_mf_rr1.wav` | 46279d66d5c8f14e |
+
 ## Kit «Vinilo» · Boochi44 (CC0)
 
 Del repositorio **Boochi44/free-drum-samples**, kit «03 Soulful Vintage» (**CC0 1.0**; 808 bajados de calidad y *bitcrushed*):

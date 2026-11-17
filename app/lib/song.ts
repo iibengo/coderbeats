@@ -1,3 +1,4 @@
+import { GUITAR_SAMPLES_URL } from './guitarSamples'
 import { isVoiceId } from './voiceLoop'
 import { STYLES, KITS, INSTRUMENTS } from './constants'
 import { loopGains, fmtGain } from './mix'
@@ -485,9 +486,15 @@ export function songCode(st: SongState, mode: SongMode = 'display'): string {
  * célula, en orden, cada una con su fondo y sus loops. Suena igual en strudel.cc (sin el barrido).
  */
 /** La línea `samples('github:…')` del kit, si el código mostrado la necesita para sonar igual en strudel.cc (spec 010). */
-function samplesLine(st: Pick<SongState, 'kit'>, mode: SongMode): string[] {
-  const smp = mode === 'display' ? KITS[st.kit]?.samples : undefined
-  return smp ? [`samples('${smp}')`] : []
+function samplesLine(st: Pick<SongState, 'kit'> & Partial<Pick<SongState, 'loops' | 'cells'>>, mode: SongMode): string[] {
+  if (mode !== 'display') return []
+  const urls = new Set<string>()
+  const kit = KITS[st.kit]?.samples
+  if (kit) urls.add(kit)
+  // la guitarra grabada (spec 036) también pide su `samples()` en strudel.cc
+  const loops = [...(st.loops ?? []), ...(st.cells?.list.flatMap((c) => c.loops) ?? [])]
+  if (loops.some((l) => l.synth === 'guitarSample')) urls.add(GUITAR_SAMPLES_URL)
+  return [...urls].map((u) => `samples('${u}')`)
 }
 
 function songArrangeCode(st: SongState): string {

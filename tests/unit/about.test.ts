@@ -21,6 +21,7 @@ describe('Acerca de: licencia y créditos', () => {
     expect(samples).toContain('sounds-tr808-fischer')
     expect(samples).toContain('Boochi44')
     expect(samples).toContain('karoryfer.big-rusty-drums')
+    expect(samples).toContain('karoryfer.black-and-green-guitars')
     for (const c of CREDITS) {
       expect(c.url.startsWith('https://')).toBe(true)
       expect(c.license.length).toBeGreaterThan(0)

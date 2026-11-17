@@ -528,3 +528,10 @@ Escritos. En la spec 017 va cada uno. **Aviso de lo que no se cumple:** el princ
 ### Qué probar en el móvil
 1. Importar el JSON de `ejemplo-melodia.txt` convertido: Tema con `guitarra` y Final con `guitarra-sucia`: ¿la sucia satura más y no es un pitido? Efectos: riser en el compás 8 (≈0:15), crash e impacto en el compás 9 (≈0:17).
 2. Comparar una canción guardada con `lead`: debe sonar igual que antes.
+
+## Tanda 7 (2026-11-18): guitarra grabada (spec 036)
+- **`guitarSample`**: 7 notas de la Hofner Club (CC0), 309 246 B; `gain(0.5)` (se oyó al doble que la batería). Elegible con `sinte: guitarra-grabada` en el conversor. Carga perezosa verificada en Chrome (`tests/browser/guitarra-grabada.mjs`); no en Safari.
+- Publicar la etiqueta `v2` de `coderbeats-kits` (lleva Vinyl, Drums y hofner) es cosa de Ion.
+### Qué probar en el móvil
+1. Importar una canción con `sinte: guitarra-grabada`: ¿suena a guitarra limpia?, ¿el volumen cuadra con la batería?, ¿se nota el pitch-shift «estirable» entre e3 y a3 (si sí, subir a 8 notas)?, ¿la nota de 0,5 s se corta seca?
+2. En Safari/iPhone: ¿carga la primera nota sin retraso notable?

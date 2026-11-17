@@ -6,8 +6,8 @@
  */
 /** `drone`: un sine con mucha reverb, para fondos (la demo del dembow); no es de los que se eligen para cantar */
 /** `bass` y `keys` (spec 028 §5): el bajo y los acordes **propios de la canción**, hechos de notas (en `keys`, varias a la vez), en vez del fondo del estilo */
-export type MelodySynth = 'lead' | 'piano' | 'pad' | 'drone' | 'riser' | 'crash' | 'boom' | 'impacto' | 'downlifter' | 'bass' | 'keys' | 'guitar' | 'guitarDirty'
-export const MELODY_SYNTHS: readonly MelodySynth[] = ['lead', 'piano', 'pad', 'drone', 'riser', 'crash', 'boom', 'impacto', 'downlifter', 'bass', 'keys', 'guitar', 'guitarDirty']
+export type MelodySynth = 'lead' | 'piano' | 'pad' | 'drone' | 'riser' | 'crash' | 'boom' | 'impacto' | 'downlifter' | 'bass' | 'keys' | 'guitar' | 'guitarDirty' | 'guitarSample'
+export const MELODY_SYNTHS: readonly MelodySynth[] = ['lead', 'piano', 'pad', 'drone', 'riser', 'crash', 'boom', 'impacto', 'downlifter', 'bass', 'keys', 'guitar', 'guitarDirty', 'guitarSample']
 
 /** Rango MIDI que se admite en un loop de melodía o bajo (C1–C7). */
 export const MIDI_MIN = 24
@@ -35,6 +35,7 @@ export const REGISTER: Record<MelodySynth | 'bass', readonly [number, number]> =
   keys: [48, 72], // acordes propios de la canción (C3–C5)
   guitar: [48, 84], // guitarra (spec 035): C3–C6
   guitarDirty: [48, 84],
+  guitarSample: [52, 84], // la Hofner grabada (e3 hacia arriba)
   bass: [28, 52], // E1–E3
 }
 
@@ -61,6 +62,8 @@ export const SYNTH_SOUND: Record<MelodySynth, string> = {
   guitar: '.s("sawtooth").lpf(1100).lpenv(3).lpa(0.002).lpd(0.2).lps(0.1).distort(0.5).decay(0.35).sustain(0.25).release(0.12).room(0.15).gain(0.5)',
   // la guitarra sucia (para el estribillo): más saturación (distort), más filtro abierto y más cuerpo
   guitarDirty: '.s("sawtooth").lpf(1800).lpenv(2).lpa(0.002).lpd(0.25).lps(0.25).distort(3).decay(0.5).sustain(0.45).release(0.15).room(0.1).gain(0.3)',
+  // la guitarra grabada (spec 036): 7 notas de una Hofner Club (CC0) repetidas a la altura pedida; corta (las muestras duran 0,5 s). Para el sucio, `.distort(…)` por encima. Sin oír.
+  guitarSample: '.s("hofner").release(0.1).gain(0.5)',
   riser: '.s("pink").attack(0.12).decay(0.2).sustain(0.7).release(0.05).gain(0.6).room(0.3)',
 }
 

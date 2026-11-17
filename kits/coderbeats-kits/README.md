@@ -17,7 +17,16 @@ samples('github:iibengo/coderbeats-kits/v2')
 s("bd ~ sd ~").bank("Drums")
 ```
 
-La etiqueta `v2` lleva `Vinyl` y `Drums`; la `v1` (solo `Vinyl`) no se mueve.
+## Guitarra `hofner` (etiqueta `v2`)
+
+7 notas sueltas (e3 a3 d4 g4 c5 f5 a5) de la Hofner Club de [Black And Green Guitars](https://github.com/sfzinstruments/karoryfer.black-and-green-guitars) (Karoryfer, **CC0 1.0**), recortadas a 0,5 s. Detalle y SHA en `public/samples/CREDITS.md` de coderbeats.
+
+```js
+samples('github:iibengo/coderbeats-kits/v2')
+note("e3 a3 d4").s("hofner")
+```
+
+La etiqueta `v2` lleva `Vinyl`, `Drums` y `hofner`; la `v1` (solo `Vinyl`) no se mueve.
 
 ## Kit `Vinyl` (hip hop con sabor a vinilo)
 
