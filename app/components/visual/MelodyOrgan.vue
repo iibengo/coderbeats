@@ -21,6 +21,9 @@ const engine = useAudioEngine()
 const { loops, style, playing } = engine
 const { t } = useI18n()
 const more = ref(false)
+// loops de 8 y 16 compases: solo en «Avanzado» (o si la melodía ya es así de larga)
+const adv = useStudioPrefs().advanced
+const lengths = computed(() => ([1, 2, 4, 8, 16] as const).filter((n) => n <= 4 || adv.value || bars.value >= n))
 const partLock = usePartLock()
 onMounted(() => partLock.enter())
 onBeforeUnmount(() => partLock.leave())
@@ -178,7 +181,7 @@ function onUp(e: PointerEvent, cancelled = false) {
   }
 }
 
-function setBars(n: 1 | 2 | 4) {
+function setBars(n: 1 | 2 | 4 | 8 | 16) {
   const l = loop.value
   if (l) commit(setMelBars(loops.value, l.id, n))
 }
@@ -482,7 +485,7 @@ const label = (m: number) => midiName(m).replace('#', '♯')
       <!-- lo menos usado, a un toque: largo del loop y casillas finas -->
       <div v-if="more" class="flex flex-wrap items-center gap-2 px-4 pb-2" role="group" :aria-label="t('organ.bars')" data-organ-drawer>
         <span class="text-xs text-white/50">{{ t('organ.bars') }}</span>
-        <button v-for="n in ([1, 2, 4] as const)" :key="n" class="h-11 min-w-11 rounded-full border px-3 text-sm disabled:opacity-30" :class="bars === n ? 'border-white bg-white text-black' : 'border-white/25 text-white/70'" :disabled="!loop" @click="setBars(n)">{{ n }}</button>
+        <button v-for="n in lengths" :key="n" class="h-11 min-w-11 rounded-full border px-3 text-sm disabled:opacity-30" :class="bars === n ? 'border-white bg-white text-black' : 'border-white/25 text-white/70'" :disabled="!loop" @click="setBars(n)">{{ n }}</button>
         <button v-if="engine.assist.value" class="h-11 rounded-full border px-4 text-sm" :class="fine ? 'border-white text-white' : 'border-white/25 text-white/60'" :aria-label="t('organ.fineAria')" @click="fine = !fine">{{ t('organ.fine') }}</button>
       </div>
 

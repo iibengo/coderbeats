@@ -234,7 +234,7 @@ const isHitOf = (instrument: unknown) => (h: unknown): boolean => {
   return h.midi === undefined && h.dur === undefined
 }
 const isHits = (instrument: unknown, a: unknown): boolean => Array.isArray(a) && a.every(isHitOf(instrument))
-const isBars = (v: unknown): boolean => v === 1 || v === 2 || v === 4
+const isBars = (v: unknown): boolean => v === 1 || v === 2 || v === 4 || v === 8 || v === 16
 
 /**
  * ¿Es un loop con la forma exacta? Estos campos acaban escritos en el código Strudel que se evalúa, así que

@@ -1,6 +1,9 @@
 import { assistQuantize, laneGrid } from './assist'
 import { mergeMelody, type MelodyHit, type MelodySynth } from './melody'
 import type { ClosedPhrase, LoopLength } from './phrases'
+
+/** Compases de un loop guardado: 1, 2 o 4 (lo que graba la app) y, en canciones hechas a mano o importadas, también 8 y 16 (spec 028 §2). */
+export type LoopBars = LoopLength | 8 | 16
 import type { Instrument, StyleId } from './types'
 
 /** Lo que suena en un loop: batería o (spec 002) la melodía con la voz. */
@@ -38,7 +41,7 @@ export interface VoiceRef {
 export interface FreeLoop {
   id: number
   instrument: LoopInstrument
-  bars: LoopLength
+  bars: LoopBars
   /** compás global en el que empieza; suena el compás (g - phaseBar) mod bars */
   phaseBar: number
   hits: LoopHit[]
@@ -53,7 +56,7 @@ export interface FreeLoop {
    * Versión anterior a la que sustituye (modo "sustituye", §16.15): sigue sonando hasta
    * el compás de nacimiento de la nueva (`bornAt`), sin hueco ni solape.
    */
-  prev?: { hits: LoopHit[]; bars: LoopLength; phaseBar: number }
+  prev?: { hits: LoopHit[]; bars: LoopBars; phaseBar: number }
 }
 
 export interface LoopsState {

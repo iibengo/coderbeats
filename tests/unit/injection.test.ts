@@ -56,7 +56,7 @@ describe('isSong estricta (lo que se lee de localStorage)', () => {
 
   it('rechaza golpes con posición no numérica y versiones previas mal formadas', () => {
     bad(isSong(song({}, { hits: [{ pos: '0' as never, strength: 1 }] })))
-    bad(isSong(song({}, { prev: { hits: [{ pos: 0, strength: 1 }], bars: 8 as never, phaseBar: 0 } })))
+    bad(isSong(song({}, { prev: { hits: [{ pos: 0, strength: 1 }], bars: 5 as never, phaseBar: 0 } })))
   })
 
   it('rechaza nombres que no son texto, turns, parts y at mal formados', () => {

@@ -141,10 +141,10 @@ export function melodyMini(hits: readonly MelodyHit[], bars: number, phaseBar: n
  * recorta contra la siguiente (y contra la línea de compás). Si `add` es más largo, el patrón base se repite.
  */
 export function mergeMelody(
-  base: { bars: 1 | 2 | 4; phaseBar: number; hits: readonly MelodyHit[] },
-  add: { bars: 1 | 2 | 4; phaseBar: number; hits: readonly MelodyHit[] },
-): { bars: 1 | 2 | 4; phaseBar: number; hits: MelodyHit[]; added: number } {
-  const bars = Math.max(base.bars, add.bars) as 1 | 2 | 4
+  base: { bars: 1 | 2 | 4 | 8 | 16; phaseBar: number; hits: readonly MelodyHit[] },
+  add: { bars: 1 | 2 | 4 | 8 | 16; phaseBar: number; hits: readonly MelodyHit[] },
+): { bars: 1 | 2 | 4 | 8 | 16; phaseBar: number; hits: MelodyHit[]; added: number } {
+  const bars = Math.max(base.bars, add.bars) as 1 | 2 | 4 | 8 | 16
   const total = bars * 16
   const hits: MelodyHit[] = []
   for (let k = 0; k < bars / base.bars; k++) for (const h of base.hits) hits.push({ ...h, pos: h.pos + k * base.bars * 16 })
