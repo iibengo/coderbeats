@@ -1,0 +1,24 @@
+{
+  "canvasSha": "cdf3c451aee36b2d1dd0a45b1b5d9a4a55a97a2ac0ec458e863d6b37fbed4933",
+  "buttons": [
+    "volver al menú|← Menú",
+    "tocar|▶",
+    "|Intro",
+    "|Estrofa",
+    "|Subida",
+    "|Drop",
+    "|Break",
+    "|Drop 2",
+    "|Final",
+    "|platillo",
+    "|subida",
+    "|● Grabar mi versión",
+    "|escuchar el remix original",
+    "|Abrir en el Estudio",
+    "|otra canción"
+  ],
+  "afterDrop": {
+    "part": "Drop",
+    "on": "ritmo,bajo,acordes,tema"
+  }
+}
