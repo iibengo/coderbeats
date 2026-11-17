@@ -124,6 +124,9 @@ function recipe(r: Recipe): LabRemix {
   return { id: r.id, title: r.title, composer: r.composer, style: r.style, kit: r.kit, key: r.key, song, parts: partsFromSong(song), ...(r.unverified ? { unverified: true } : {}) }
 }
 
+/** deja las notas dentro del registro del sinte agudo (hasta MIDI 84) bajando una octava las que se pasan */
+const inLead = (notes: readonly Note[]): Note[] => notes.map(([p, d, m]) => [p, d, m > 84 ? m - 12 : m] as const)
+
 const TECHNO = { kick: T.bd4, clap: T.clap, hat: T.hat, hats16: T.hats16, roll: T.roll, noise: RISER_NOISE, pad: RISER_PAD }
 
 export const LAB_REMIXES: readonly LabRemix[] = [
@@ -167,6 +170,13 @@ export const LAB_REMIXES: readonly LabRemix[] = [
     id: 'korobeiniki-techno', title: 'Korobeiniki', composer: 'popular rusa', style: 'techno2', kit: 'electro', key: 'Do menor',
     kick: T.bd4, clap: '~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ sd ~ ~ ~', hat: DEMOS.techno2.hh, hats16: T.hats16, roll: T.roll, noise: RISER_NOISE, pad: RISER_PAD,
     intro: shift(KOROBEINIKI_A, 3), sub: shift(KOROBEINIKI_B, 3), drop: shift(KOROBEINIKI_A, 3), drop2: shift(KOROBEINIKI_B, 3), final: shift(KOROBEINIKI_A, 3),
+    dropFx: [{ notes: MZ_CRASH, synth: 'crash' }], unverified: true,
+  }),
+  // En la gruta del rey de la montaña (Grieg, dominio público) en dnb, **acelerando**: el tema se dobla (corcheas → semicorcheas) a medida que sube la energía; de memoria
+  recipe({
+    id: 'gruta-dnb', title: 'En la gruta del rey de la montaña', composer: 'Grieg', style: 'dnb', kit: 'electro', key: 'Re menor',
+    kick: DEMOS.dnb.bd, clap: DEMOS.dnb.sd, hat: P.hh8, hats16: DEMOS.dnb.hh, roll: T.roll, noise: RISER_NOISE, pad: RISER_PAD,
+    intro: inLead(shift(GRIEG_A, 3)), sub: inLead(fast(shift(GRIEG_A, 3), 2)), drop: inLead(fast(shift(GRIEG_B, 3), 2)), drop2: inLead(fast(shift(GRIEG_A, 3), 4)), final: inLead(shift(GRIEG_B, 3)),
     dropFx: [{ notes: MZ_CRASH, synth: 'crash' }], unverified: true,
   }),
 ]
