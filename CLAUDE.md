@@ -56,6 +56,7 @@ coderbeats es un **instrumento para jugar**, no una herramienta de producción. 
 
 - **No perder nunca lo guardado**: Mis canciones, calibración y preferencias (localStorage `coderbeats:*` e IndexedDB). Cualquier cambio de formato, compatible y con test.
 - Todo lo que se carga (guardado, enlaces, importar) son **datos, nunca código**, con validación estricta y tests de inyección.
+- El repositorio y la web publicada solo contienen los remixes de coderbeats (dominio público u originales), mantenidos por Ion. Las canciones de los usuarios nunca se suben a ningún servidor ni al repo: viven en su navegador y se comparten por enlace (#c=, que no llega al servidor) o por archivo. No añadir nunca subida de canciones ni backend sin decisión expresa de Ion.
 - Nada de claves, rutas del equipo ni datos personales en el repositorio. Las tomas de voz (`tests/fixtures/voice`) y `tem/` no se versionan. Las claves de datos propias del Laboratorio son `coderbeats:lab:v1` y `coderbeats:lab:take:v1`; `coderbeats:ui:v1` y la biblioteca se leen igual que siempre.
 
 ## Música y derechos
