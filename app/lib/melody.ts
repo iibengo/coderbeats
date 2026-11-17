@@ -63,23 +63,47 @@ const mod = (a: number, n: number) => ((a % n) + n) % n
 
 /**
  * Mini-notación de un compás de 16 pasos: cada nota `nombre@peso`, los huecos `~@peso`. Los pesos son enteros en
- * la rejilla más gruesa que respeta inicios y duraciones (pasos, o cuartos de paso si hay rejilla fina).
+ * la rejilla más gruesa que respeta inicios y duraciones (pasos, cuartos de paso con rejilla fina, o **doceavos de paso** con tresillos).
+ * Varias notas que empiezan en el mismo paso suenan juntas (`[c3,e3,g3]@n`, un acorde); la duración del acorde es la de su nota más larga.
  */
 function barMini(hits: readonly MelodyHit[], res: number): string {
   const sorted = [...hits].sort((a, b) => a.pos - b.pos)
   const tokens: string[] = []
   let at = 0
   const w = (n: number) => (n === 1 ? '' : `@${n}`)
+  // las notas que empiezan a la vez, juntas
+  const groups: { start: number; names: string[]; dur: number }[] = []
   for (const h of sorted) {
     const start = Math.round(h.pos * res)
     const dur = Math.max(1, Math.round(h.dur * res))
-    if (start > at) tokens.push(`~${w(start - at)}`)
-    tokens.push(`${STRUDEL_NOTE[h.midi] ?? 'c4'}${w(dur)}`)
-    at = start + dur
+    const name = STRUDEL_NOTE[h.midi] ?? 'c4'
+    const last = groups[groups.length - 1]
+    if (last && last.start === start) {
+      if (!last.names.includes(name)) last.names.push(name)
+      last.dur = Math.max(last.dur, dur)
+    } else groups.push({ start, names: [name], dur })
   }
+  groups.forEach((g, i) => {
+    // una nota o un acorde no pisa a lo que viene detrás
+    const next = groups[i + 1]?.start
+    const dur = next !== undefined ? Math.max(1, Math.min(g.dur, next - g.start)) : g.dur
+    if (g.start > at) tokens.push(`~${w(g.start - at)}`)
+    tokens.push(`${g.names.length > 1 ? `[${g.names.join(',')}]` : g.names[0]!}${w(dur)}`)
+    at = g.start + dur
+  })
   const total = 16 * res
   if (at < total) tokens.push(`~${w(total - at)}`)
   return tokens.join(' ')
+}
+
+/** La rejilla de una melodía: pasos enteros (1), cuartos de paso (4) o, si hay tresillos, doceavos de paso (12); lo demás, como siempre, a cuartos. */
+export function gridOf(hits: readonly Pick<MelodyHit, 'pos' | 'dur'>[]): 1 | 4 | 12 {
+  const vals = hits.flatMap((h) => [h.pos, h.dur])
+  const on = (res: number) => vals.every((v) => Math.abs(v * res - Math.round(v * res)) < 1e-6)
+  if (on(1)) return 1
+  if (on(4)) return 4
+  if (on(12)) return 12
+  return 4
 }
 
 /** Menor periodo (divisor del nº de compases) con el que se repiten los compases. */
@@ -98,8 +122,7 @@ function period(bars: string[]): number {
  */
 export function melodyMini(hits: readonly MelodyHit[], bars: number, phaseBar: number): string {
   const valid = hits.filter((h) => isMidi(h.midi) && Number.isFinite(h.pos) && Number.isFinite(h.dur) && h.dur > 0)
-  const fine = valid.some((h) => !Number.isInteger(h.pos) || !Number.isInteger(h.dur))
-  const res = fine ? 4 : 1
+  const res = gridOf(valid)
   const perBar: string[] = []
   for (let b = 0; b < bars; b++) {
     const inBar = valid
