@@ -92,7 +92,10 @@
         "subida": "riser"
       },
       "groupSerie": "coderbeats remixes",
-      "groupMine": "My songs"
+      "groupMine": "My songs",
+      "link": "🔗 link",
+      "linkCopied": "Link copied",
+      "linkFail": "Couldn't share the link"
     }
   },
   "start": {

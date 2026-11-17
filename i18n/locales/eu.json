@@ -92,7 +92,10 @@
         "subida": "igoera"
       },
       "groupSerie": "coderbeats-en remixak",
-      "groupMine": "Nire abestiak"
+      "groupMine": "Nire abestiak",
+      "link": "🔗 esteka",
+      "linkCopied": "Esteka kopiatu da",
+      "linkFail": "Ezin izan da esteka partekatu"
     }
   },
   "start": {

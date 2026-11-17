@@ -92,7 +92,10 @@
         "subida": "subida"
       },
       "groupSerie": "Remixes de coderbeats",
-      "groupMine": "Mis canciones"
+      "groupMine": "Mis canciones",
+      "link": "🔗 enlace",
+      "linkCopied": "Enlace copiado",
+      "linkFail": "No se pudo compartir el enlace"
     }
   },
   "start": {

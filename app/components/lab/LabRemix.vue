@@ -7,6 +7,7 @@ import { VOICE_HEX } from '~/lib/palette'
 import { addSong, makeSaved } from '~/lib/library'
 import { barSeconds, finalPartOf, labRemixFromSaved, LAB_REMIXES, partLoops, partsOn, remixTake, songFromTake, takePlan, type LabLayer, type LabRemix, type TakeBar } from '~/lib/labRemixes'
 import { readJson, writeText } from '~/lib/storage'
+import { encodeShare, shareUrl } from '~/lib/shareLink'
 import type { StageFrame } from './LabStage.vue'
 
 const { t } = useI18n()
@@ -203,6 +204,28 @@ async function openInStudio() {
   await navigateTo(`/estudio?abrir=${encodeURIComponent(id)}`)
 }
 
+// ── enlace (spec 027): el remix de ahora (o mi versión) por enlace, que se abre en el Estudio; solo datos, el `#c=` no llega al servidor ──
+const linkNote = ref('')
+async function shareLink() {
+  const r = remix.value
+  if (!r) return
+  const entry = r.id.startsWith('mio:') ? library.lib.value.entries.find((e) => `mio:${e.id}` === r.id)?.saved : undefined
+  const song = entry ? entry.song : songFromTake(r, mine.value ?? remixTake(r))
+  if (!song) return
+  const snap = { style: r.style, kit: r.kit, bgMode: 'manual' as const, fx: entry?.fx ?? { filter: 1, space: 0, warmth: engine.snapshot().fx.warmth }, song }
+  const url = shareUrl(`${location.origin}/estudio`, await encodeShare(snap, r.title))
+  try {
+    if (navigator.share) await navigator.share({ title: r.title, url })
+    else {
+      await navigator.clipboard.writeText(url)
+      linkNote.value = t('lab.remix.linkCopied')
+    }
+  } catch {
+    linkNote.value = t('lab.remix.linkFail')
+  }
+  setTimeout(() => (linkNote.value = ''), 3500)
+}
+
 // ── escuchar y compartir ──
 async function listen(take: TakeBar[]) {
   const r = remix.value
@@ -337,6 +360,7 @@ const phrase = computed(() => (remix.value ? t('lab.remix.phrase') : t('lab.remi
           <button v-if="mine && !rec" class="rounded-lg border border-white/25 px-4 py-2 text-sm" :disabled="video.phase === 'recording' || video.phase === 'waiting'" @click="makeVideo">{{ t('lab.remix.video') }}</button>
         </div>
         <p v-if="openError" class="mt-2 text-sm text-red-300" role="alert">{{ openError }}</p>
+        <p v-if="linkNote" class="mt-2 text-sm text-white/70" role="status" data-link-note>{{ linkNote }}</p>
         <p v-if="video.phase === 'waiting' || video.phase === 'recording'" class="mt-2 text-sm text-white/60" role="status">{{ t('lab.remix.videoRec', { a: video.elapsed.toFixed(0), b: video.total.toFixed(0) }) }} <button class="ml-2 underline" @click="exporter.stop()">{{ t('lab.remix.stop') }}</button></p>
         <p v-else-if="video.phase === 'error'" class="mt-2 text-sm text-red-300" role="alert">{{ video.message }}</p>
         <div v-else-if="video.phase === 'done'" class="mt-2 flex gap-2 text-sm">
@@ -345,6 +369,7 @@ const phrase = computed(() => (remix.value ? t('lab.remix.phrase') : t('lab.remi
         </div>
         <div class="mt-3 flex items-center gap-4 text-xs text-white/40">
           <button class="underline decoration-white/20" @click="listenOriginal">{{ t('lab.remix.original') }}</button>
+          <button class="underline decoration-white/20" data-share-link @click="shareLink">{{ t('lab.remix.link') }}</button>
           <button class="underline decoration-white/20" @click="openInStudio">{{ t('lab.remix.openStudio') }}</button>
           <button class="underline decoration-white/20" @click="remix = null; lab.stopAll()">{{ t('lab.remix.other') }}</button>
         </div>
