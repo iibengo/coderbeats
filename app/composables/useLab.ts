@@ -26,6 +26,8 @@ export function tuneFor(style: StyleId, idx = 0): Tune {
 
 export function useLab() {
   const engine = useAudioEngine()
+  // solo en desarrollo: lo que miran los guiones de prueba
+  if (import.meta.dev && import.meta.client) (window as unknown as Record<string, unknown>).__engine = engine
   const ready = computed(() => engine.ready.value)
   const playing = engine.playing
   const style = engine.style

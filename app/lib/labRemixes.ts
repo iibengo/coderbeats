@@ -198,16 +198,19 @@ export const LAB_REMIXES: readonly LabRemix[] = [
 export const labRemixById = (id: string): LabRemix | undefined => LAB_REMIXES.find((r) => r.id === id)
 
 // ── duraciones ─────────────────────────────────────────────────────────────────────────────────────
-export const barSeconds = (style: StyleId): number => (60 / STYLES[style].bpm) * 4
+/** El tempo del remix: **el de la canción si lo tiene** (un remix o una canción guardada con tempo propio) y, si no, el del estilo. */
+export const remixBpm = (r: Pick<LabRemix, 'style' | 'song'>): number => r.song.bpm ?? STYLES[r.style].bpm
+/** Lo que dura un compás (s): con `bpm` el de la canción; sin él, el del estilo. */
+export const barSeconds = (style: StyleId, bpm?: number | null): number => (60 / (bpm ?? STYLES[style].bpm)) * 4
 /** Lo que dura el remix principal: la suma de sus partes (≈ 1 min 10 s con las 7 de las recetas; entre 45 y 90 s). */
 export const remixBars = (r: LabRemix): number => r.parts.reduce((n, p) => n + p.bars, 0)
-export const remixSeconds = (r: LabRemix): number => remixBars(r) * barSeconds(r.style)
+export const remixSeconds = (r: LabRemix): number => remixBars(r) * barSeconds(r.style, r.song.bpm)
 
 /** Lo que dura como mucho lo grabado (2 min) y cuánto antes entra el final (≈ 8 s), en compases enteros. */
 export const MAX_TAKE_SECONDS = 120
 export const FINAL_SECONDS = 8
-export function takePlan(style: StyleId): { maxBars: number; finalBars: number; finalStart: number } {
-  const bs = barSeconds(style)
+export function takePlan(style: StyleId, bpm?: number | null): { maxBars: number; finalBars: number; finalStart: number } {
+  const bs = barSeconds(style, bpm)
   const maxBars = Math.floor(MAX_TAKE_SECONDS / bs)
   const finalBars = Math.max(2, Math.round(FINAL_SECONDS / bs))
   return { maxBars, finalBars, finalStart: maxBars - finalBars }
@@ -317,7 +320,7 @@ export function songFromTake(remix: LabRemix, take: readonly TakeBar[]): Song | 
       cells.push({ id: cellId++, name: run.part, loops: pl.loops, parts: partsOn(part, on), turns, at: { x: i * 3, y: Math.sin(i * 1.3) * 1.2, depth: [0, 0.4, 0.1, 0.6][i % 4]! } })
     }
   }
-  return { version: 1, cells, order: cells.map((c) => c.id), groups: [], nextGroupId: 1, bpm: null, nextCellId: cellId, nextLoopId: loopId }
+  return { version: 1, cells, order: cells.map((c) => c.id), groups: [], nextGroupId: 1, bpm: remix.song.bpm ?? null, nextCellId: cellId, nextLoopId: loopId }
 }
 
 /** El remix «original» del Laboratorio: las partes, cada una con sus capas de salida y su duración. */

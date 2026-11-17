@@ -57,11 +57,12 @@ const mine = computed(() => (remix.value ? takes.value[remix.value.id] ?? null :
 interface Rec { startBar: number; changes: { from: number; part: string; on: string[] }[]; endBar: number | null }
 const rec = ref<Rec | null>(null)
 const recBars = ref(0)
-const plan = computed(() => takePlan(remix.value?.style ?? 'techno'))
+const plan = computed(() => takePlan(remix.value?.style ?? 'techno', remix.value?.song.bpm))
 
 async function pick(r: LabRemix) {
   await lab.begin()
   await lab.changeStyle(r.style)
+  engine.setBpm(r.song.bpm ?? null) // el tempo de la canción manda (si no, el del estilo)
   engine.setKit(r.kit)
   remix.value = r
   part.value = shown.value = r.parts[0]!.name
@@ -129,7 +130,7 @@ function startDive(name: string) {
     visIndex.value = to
     return
   }
-  const barSec = barSeconds(remix.value.style)
+  const barSec = barSeconds(remix.value.style, remix.value.song.bpm)
   const w = engine.playing.value ? diveWindow(lastT, barSec, engine.clockNow().barPhase) : { startS: lastT, landS: lastT + 0.6 }
   dive = { from, to, d, startS: w.startS, landS: w.landS }
 }
@@ -264,6 +265,7 @@ onMounted(() => {
   if (import.meta.dev) (window as unknown as Record<string, unknown>).__remix = { zoom: () => ({ on: zoomOn.value, vis: visIndex.value, diving: !!dive, levels: zoomLevels }), part: () => part.value, shown: () => shown.value, on: () => [...on.value].join(','), mode: () => mode.value, rec: () => (rec.value ? { bars: recBars.value, end: rec.value.endBar, start: rec.value.startBar } : null), take: () => (remix.value ? takes.value[remix.value.id]?.length ?? 0 : 0), plan: () => plan.value }
 })
 onBeforeUnmount(() => {
+  engine.setBpm(null) // el tempo propio de una canción no se queda para las demás pantallas
   if (timer) clearInterval(timer)
   engine.setFx({ filter: 1, space: 0 })
   lab.stopAll()
@@ -452,7 +454,7 @@ const phrase = computed(() => (remix.value ? t('lab.remix.phrase') : t('lab.remi
         <div class="mt-4 flex flex-wrap items-center gap-2">
           <button v-if="!rec" class="rounded-lg border border-white/25 px-4 py-2 text-sm" :disabled="mode !== 'actuar'" @click="startRec">{{ t('lab.remix.rec') }}</button>
           <button v-else class="rounded-lg border border-[#ff4d6d] px-4 py-2 text-sm" :disabled="rec.endBar !== null" @click="endRec">{{ rec.endBar !== null ? t('lab.remix.finishing') : t('lab.remix.finish') }}</button>
-          <button v-if="mine && !rec" class="rounded-lg border border-white/25 px-4 py-2 text-sm" @click="listenMine">{{ t('lab.remix.mine', { time: fmt(mine.length * barSeconds(remix.style)) }) }}</button>
+          <button v-if="mine && !rec" class="rounded-lg border border-white/25 px-4 py-2 text-sm" @click="listenMine">{{ t('lab.remix.mine', { time: fmt(mine.length * barSeconds(remix.style, remix.song.bpm)) }) }}</button>
           <button v-if="mine && !rec" class="rounded-lg border border-white/25 px-4 py-2 text-sm" :disabled="video.phase === 'recording' || video.phase === 'waiting'" @click="makeVideo">{{ t('lab.remix.video') }}</button>
         </div>
         <p v-if="openError" class="mt-2 text-sm text-red-300" role="alert">{{ openError }}</p>

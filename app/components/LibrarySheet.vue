@@ -341,7 +341,7 @@ async function openEntry(e: Entry) {
           <li v-for="r in LAB_REMIXES" :key="r.id" class="flex items-center gap-2 rounded-lg px-3 py-2">
             <div class="min-w-0 flex-1">
               <p class="truncate text-white">{{ r.title }}</p>
-              <p class="truncate text-xs text-neutral-500">{{ r.composer }} · {{ STYLES[r.style].label }} · {{ r.key }} · {{ r.parts.length }} partes · {{ mmss(labBars(r) * barSeconds(r.style)) }}</p>
+              <p class="truncate text-xs text-neutral-500">{{ r.composer }} · {{ STYLES[r.style].label }} · {{ r.key }} · {{ r.parts.length }} partes · {{ mmss(labBars(r) * barSeconds(r.style, r.song.bpm)) }}</p>
             </div>
             <button class="shrink-0 rounded-full border border-white/20 px-3 py-1 text-xs" @click="openMain(r)">{{ t('remixes.open') }}</button>
           </li>

@@ -129,3 +129,28 @@ describe('remixes míos (guardados desde el Estudio)', () => {
     expect(isLabMark({ remixId: '__proto__', constructor: 1 })).toBe(true) // un id de texto vale; solo se usa para buscar en una lista, nunca como clave
   })
 })
+
+import { remixBpm } from '~/lib/labRemixes'
+describe('el tempo de la canción manda (spec 028 §1)', () => {
+  const base = LAB_REMIXES[0]!
+  const con = (bpm: number | null) => ({ ...base, song: { ...base.song, bpm } })
+  it('sin tempo propio, el del estilo; con él, el de la canción', () => {
+    expect(remixBpm(con(null))).toBe(120) // dembow
+    expect(remixBpm(con(108))).toBe(108)
+  })
+  it('un compás a 108 bpm dura 2,22 s (no 2 s, que es el del estilo) y la duración del remix usa ese tempo', () => {
+    expect(barSeconds('dembow', 108)).toBeCloseTo(2.2222, 3)
+    expect(barSeconds('dembow')).toBeCloseTo(2, 3)
+    expect(remixSeconds(con(108))).toBeCloseTo(remixBars(con(108)) * (240 / 108), 3)
+  })
+  it('lo que se actúa o se escucha conserva el tempo de la canción', () => {
+    expect(songFromTake(con(108), remixTake(con(108)))!.bpm).toBe(108)
+    expect(songFromTake(con(null), remixTake(con(null)))!.bpm).toBeNull()
+  })
+  it('el plan de la toma (2 min, final de 8 s) sale con el tempo de la canción', () => {
+    const lento = takePlan('dembow', 60)
+    const rapido = takePlan('dembow', 120)
+    expect(lento.maxBars).toBeLessThan(rapido.maxBars)
+    expect(lento.maxBars * 4).toBeLessThanOrEqual(120)
+  })
+})
