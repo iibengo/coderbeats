@@ -18,12 +18,15 @@ import type { StyleId } from './types'
 export interface MelEditOptions {
   assist: boolean
   style: StyleId
-  /** tamaño de la casilla en semicorcheas con ayuda (2 = corcheas, casillas grandes; 1 = semicorcheas); por defecto 1 */
-  unit?: 1 | 2
+  /** tamaño de la casilla en pasos con ayuda: 2 = corcheas (casillas grandes), 1 = semicorcheas, 4/3 = **tresillos de corchea** (spec 028 §3); por defecto 1 */
+  unit?: number
+  /** una nota puede cruzar la línea de compás (ligadura, spec 028 §2); sin esto se recorta al compás, como siempre */
+  ties?: boolean
 }
 
 const mod = (a: number, n: number) => ((a % n) + n) % n
-const round2 = (x: number) => Math.round(x * 100) / 100
+/** a doceavos de paso (exacto para enteros, cuartos y tercios: los tresillos) */
+const round12 = (x: number) => Math.round(x * 12) / 12
 const grid = (o: MelEditOptions) => (o.assist ? (o.unit ?? 1) : FINE_GRID)
 
 /** El compás global `g` que hace sonar el compás `bar` del loop (0..bars−1): lo que piden las funciones de edición. */
@@ -42,7 +45,7 @@ const replace = (s: LoopsState, loop: FreeLoop): LoopsState => ({ ...s, loops: s
 export function snapMelStep(step: number, o: MelEditOptions): number {
   const q = grid(o)
   const v = Math.round(mod(step, 16) / q) * q
-  return v >= 16 ? 0 : round2(v)
+  return v >= 16 - 1e-9 ? 0 : round12(v)
 }
 
 /** La altura entera a la que va una altura decimal: la nota de la escala más cercana (con ayuda) o el semitono. */
@@ -56,9 +59,9 @@ const insideAnother = (hits: readonly MelodyHit[], pos: number, except?: MelodyH
   hits.some((h) => h !== except && h.pos <= pos + 1e-9 && pos < h.pos + h.dur - 1e-9)
 
 /** La duración máxima de una nota que empieza en `pos`: hasta la siguiente, la línea de compás y el final del loop. */
-function room(hits: readonly MelodyHit[], pos: number, total: number, except?: MelodyHit): number {
+function room(hits: readonly MelodyHit[], pos: number, total: number, except?: MelodyHit, ties = false): number {
   const next = hits.filter((h) => h !== except && h.pos > pos + 1e-9).sort((a, b) => a.pos - b.pos)[0]
-  const barEnd = (Math.floor(pos / 16 + 1e-9) + 1) * 16
+  const barEnd = ties ? total : (Math.floor(pos / 16 + 1e-9) + 1) * 16
   return Math.min(next?.pos ?? Infinity, barEnd, total) - pos
 }
 
@@ -72,10 +75,10 @@ export function addMelNote(s: LoopsState, step: number, midi: number, g: number,
   const note = snapMelMidi(midi, o)
   if (!isMidi(note)) return null
   if (own) {
-    const pos = round2(loopBarAt(own, g) * 16 + at)
+    const pos = round12(loopBarAt(own, g) * 16 + at)
     const hits = hitsOf(own)
     if (insideAnother(hits, pos)) return null
-    const d = Math.min(dur, room(hits, pos, own.bars * 16))
+    const d = Math.min(dur, room(hits, pos, own.bars * 16, undefined, o.ties))
     if (d < grid(o) - 1e-9) return null
     const next = [...hits, { pos, strength, midi: note, dur: d }].sort((a, b) => a.pos - b.pos)
     return { state: replace(s, { ...own, hits: next, fromTemplate: false }), hit: { loopId: own.id, pos } }
@@ -95,10 +98,10 @@ export function moveMelNote(s: LoopsState, loopId: number, fromPos: number, step
   const loop = s.loops.find((l) => l.id === loopId && l.instrument === 'mel')
   const hit = loop && hitsOf(loop).find((h) => Math.abs(h.pos - fromPos) < 1e-6)
   if (!loop || !hit) return null
-  const pos = round2(loopBarAt(loop, g) * 16 + snapMelStep(step, o))
+  const pos = round12(loopBarAt(loop, g) * 16 + snapMelStep(step, o))
   const hits = hitsOf(loop)
   if (insideAnother(hits, pos, hit)) return null
-  const d = Math.min(hit.dur, room(hits, pos, loop.bars * 16, hit))
+  const d = Math.min(hit.dur, room(hits, pos, loop.bars * 16, hit, o.ties))
   if (d < grid(o) - 1e-9) return null
   const moved: MelodyHit = { ...hit, pos, midi: snapMelMidi(midi, o), dur: d }
   const next = [...hits.filter((h) => h !== hit), moved].sort((a, b) => a.pos - b.pos)
@@ -112,9 +115,9 @@ export function resizeMelNote(s: LoopsState, loopId: number, pos: number, durSte
   if (!loop || !hit) return null
   const q = grid(o)
   const wanted = Math.max(q, Math.round(durSteps / q) * q)
-  const d = Math.min(wanted, room(hitsOf(loop), hit.pos, loop.bars * 16, hit))
+  const d = Math.min(wanted, room(hitsOf(loop), hit.pos, loop.bars * 16, hit, o.ties))
   if (d < q - 1e-9) return null
-  const next = hitsOf(loop).map((h) => (h === hit ? { ...h, dur: round2(d) } : h))
+  const next = hitsOf(loop).map((h) => (h === hit ? { ...h, dur: round12(d) } : h))
   return { state: replace(s, { ...loop, hits: next, fromTemplate: false }), hit: { loopId, pos: hit.pos } }
 }
 
@@ -156,4 +159,32 @@ export function extraMelodies(s: LoopsState): FreeLoop[] {
 export function dropExtraMelodies(s: LoopsState): LoopsState {
   const extra = new Set(extraMelodies(s).map((l) => l.id))
   return extra.size ? { ...s, loops: s.loops.filter((l) => !extra.has(l.id)) } : s
+}
+
+// ── acordes: varias notas que empiezan a la vez (spec 028 §4); solo en «Avanzado» ──
+/** Pone una nota **a la vez que las que ya empiezan en ese paso** (un acorde): si ya hay una igual no hace nada, y si cae dentro de una nota que empezó antes no entra. */
+export function addChordNote(s: LoopsState, step: number, midi: number, g: number, o: MelEditOptions, dur = 2, strength = 0.8): EditResult {
+  const own = melLoopOf(s)
+  const note = snapMelMidi(midi, o)
+  if (!own || !isMidi(note)) return addMelNote(s, step, midi, g, o, dur, strength)
+  const pos = round12(loopBarAt(own, g) * 16 + snapMelStep(step, o))
+  const hits = hitsOf(own)
+  if (hits.some((h) => Math.abs(h.pos - pos) < 1e-6 && h.midi === note)) return null
+  // dentro de una nota que empezó antes (no a la vez): no entra
+  if (hits.some((h) => h.pos < pos - 1e-9 && pos < h.pos + h.dur - 1e-9)) return null
+  const same = hits.filter((h) => Math.abs(h.pos - pos) < 1e-6)
+  const wanted = same.length ? same[0]!.dur : dur // el acorde dura lo que las notas que ya empiezan ahí
+  const d = Math.min(wanted, room(hits, pos, own.bars * 16, undefined, o.ties))
+  if (d < grid(o) - 1e-9) return null
+  const next = [...hits, { pos, strength, midi: note, dur: d }].sort((a, b) => a.pos - b.pos || a.midi - b.midi)
+  return { state: replace(s, { ...own, hits: next, fromTemplate: false }), hit: { loopId: own.id, pos } }
+}
+
+/** Quita **una** nota (la de esa altura que empieza en `pos`); las demás de su acorde se quedan. Un loop que se queda sin notas se borra, como siempre. */
+export function removeChordNote(s: LoopsState, loopId: number, pos: number, midi: number): LoopsState {
+  const loop = s.loops.find((l) => l.id === loopId && l.instrument === 'mel')
+  if (!loop) return s
+  const hits = hitsOf(loop).filter((h) => !(Math.abs(h.pos - pos) < 1e-6 && h.midi === midi))
+  if (hits.length === loop.hits.length) return s
+  return hits.length ? replace(s, { ...loop, hits, fromTemplate: false }) : { ...s, loops: s.loops.filter((l) => l.id !== loopId) }
 }

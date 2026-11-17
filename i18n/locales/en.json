@@ -181,7 +181,13 @@
     "playAria": "play",
     "help": "Tap an empty cell to place a note (drag right to lengthen it) · tap a note to hear it · drag it to move it, or outside the box to delete it · pull its end to change its length",
     "more": "more options",
-    "bars": "bars"
+    "bars": "bars",
+    "triplets": "triplets",
+    "tripletsHint": "three cells per beat",
+    "chords": "chords",
+    "chordsHint": "several notes at once: tapping adds another note on that step and tapping a note removes it",
+    "ties": "ties",
+    "tiesHint": "a note can cross the bar line"
   },
   "remixes": {
     "title": "My songs",

@@ -181,7 +181,13 @@
     "playAria": "erreproduzitu",
     "help": "Ukitu gelaxka huts bat nota bat jartzeko (arrastatu eskuinera luzatzeko) · ukitu nota bat entzuteko · arrastatu mugitzeko, edo koadrotik kanpora ezabatzeko · tiratu bere muturretik luzera aldatzeko",
     "more": "aukera gehiago",
-    "bars": "konpasak"
+    "bars": "konpasak",
+    "triplets": "hirukoteak",
+    "tripletsHint": "hiru gelaxka denbora bakoitzeko",
+    "chords": "akordeak",
+    "chordsHint": "nota batzuk aldi berean: ukitzeak beste nota bat jartzen du urrats horretan eta nota bat ukitzeak kentzen du",
+    "ties": "lotura",
+    "tiesHint": "nota batek konpas-lerroa zeharka dezake"
   },
   "remixes": {
     "title": "Nire abestiak",

@@ -8,7 +8,7 @@
 import { removeHit } from '~/lib/loopEdit'
 import { answerPhrase } from '~/lib/melodyGrid'
 import { adaptTune, TUNES, tunesFor } from '~/lib/tuneLibrary'
-import { addMelNote, dropExtraMelodies, extraMelodies, gForBar, melLoopOf, moveMelNote, resizeMelNote, restoreMel, setMelBars, snapMelStep, type MelEditOptions } from '~/lib/melodyEdit'
+import { addChordNote, addMelNote, dropExtraMelodies, extraMelodies, gForBar, melLoopOf, moveMelNote, removeChordNote, resizeMelNote, restoreMel, setMelBars, snapMelStep, type MelEditOptions } from '~/lib/melodyEdit'
 import type { FreeLoop, LoopsState } from '~/lib/freeLoops'
 import { isTonic, rangeOf, rowOf, scaleNotes } from '~/lib/melodyView'
 import type { MelodyHit } from '~/lib/melody'
@@ -45,9 +45,18 @@ const steps = computed(() => bars.value * 16)
 const notes = computed<MelodyHit[]>(() => (loop.value?.hits ?? []) as MelodyHit[])
 // casillas grandes (spec 020): con ayuda, la casilla es una corchea (40 px en un móvil); «fino» las vuelve semicorcheas
 const fine = ref(false)
-const unit = computed<1 | 2>(() => (fine.value ? 1 : 2))
+// lo avanzado (spec 028): tresillos, acordes y ligaduras, solo con «Controles avanzados»; sin ellos, el Órgano es el de siempre
+const triplets = ref(false)
+const chordMode = ref(false)
+const tieMode = ref(false)
+const tripletOn = computed(() => adv.value && triplets.value)
+const chordOn = computed(() => adv.value && chordMode.value)
+const tiesOn = computed(() => adv.value && tieMode.value)
+const unit = computed<number>(() => (tripletOn.value ? 4 / 3 : fine.value ? 1 : 2))
+const newDur = () => (tripletOn.value ? 4 / 3 : 2)
+const r12 = (x: number) => Math.round(x * 12) / 12
 const q = () => (engine.assist.value ? unit.value : 0.25)
-const opts = (): MelEditOptions => ({ assist: engine.assist.value, style: style.value, unit: unit.value })
+const opts = (): MelEditOptions => ({ assist: engine.assist.value, style: style.value, unit: unit.value, ties: tiesOn.value })
 
 // ── geometría ────────────────────────────────────────────────────────────────────
 const CELL_MIN = 18
@@ -128,7 +137,7 @@ function onDown(e: PointerEvent) {
     return
   }
   const row = Math.min(rows.value.length - 1, Math.max(0, Math.floor(y / rowH.value)))
-  g = { kind: 'new', id: e.pointerId, x0: x, y0: y, pos: snapPos(x / cellW.value), row, dur: 2, moved: false }
+  g = { kind: 'new', id: e.pointerId, x0: x, y0: y, pos: snapPos(x / cellW.value), row, dur: newDur(), moved: false }
   engine.previewNote(midiOfRow(row), synth.value)
 }
 
@@ -164,10 +173,13 @@ function onUp(e: PointerEvent, cancelled = false) {
   const l = loop.value
   if (gs.kind === 'new') {
     const { b, step } = split(gs.pos)
-    const r = addMelNote(loops.value, step, midiOfRow(gs.row), gForBar(l, b), opts(), gs.moved ? gs.dur : 2)
+    const add = chordOn.value ? addChordNote : addMelNote
+    const r = add(loops.value, step, midiOfRow(gs.row), gForBar(l, b), opts(), gs.moved ? gs.dur : newDur())
     if (r) commit(r.state)
   } else if (gs.kind === 'move') {
     if (!l) return
+    // con acordes: tocar una nota la quita (las demás de su acorde se quedan) y arrastrar no la mueve
+    if (chordOn.value) return gs.moved ? undefined : commit(removeChordNote(loops.value, l.id, gs.hit.pos, gs.hit.midi))
     // tocar una nota solo la hace sonar (ya sonó al apoyar el dedo)
     if (!gs.moved) return
     // soltarla fuera del cuadro la borra
@@ -246,7 +258,7 @@ function recNote(e: PointerEvent) {
   engine.previewNote(midi, synth.value)
   const raw = recSteps()
   if (raw === null) return // en la cuenta, suena pero no se apunta
-  const pos = Math.round(raw / unit.value) * unit.value
+  const pos = r12(Math.round(raw / unit.value) * unit.value)
   if (pos >= r.bars * 16) return
   const sorted = [...recHits.filter((h) => h.pos !== pos), { pos, dur: unit.value, midi, strength: 0.8 }].sort((a, b) => a.pos - b.pos)
   recHits = sorted.map((h, i) => ({ ...h, dur: Math.max(unit.value, Math.min(2, (sorted[i + 1]?.pos ?? r.bars * 16) - h.pos)) }))
@@ -305,6 +317,17 @@ function draw() {
     x.moveTo(s * cw + 0.5, 0)
     x.lineTo(s * cw + 0.5, H)
     x.stroke()
+  }
+  // tresillos: una línea cada 4/3 de paso
+  if (tripletOn.value) {
+    x.strokeStyle = 'rgba(244,150,188,0.16)'
+    x.lineWidth = 1
+    for (let k = 0; k * (4 / 3) <= steps.value + 1e-9; k++) {
+      x.beginPath()
+      x.moveTo(k * (4 / 3) * cw + 0.5, 0)
+      x.lineTo(k * (4 / 3) * cw + 0.5, H)
+      x.stroke()
+    }
   }
   // notas
   const gs = g
@@ -487,6 +510,12 @@ const label = (m: number) => midiName(m).replace('#', '♯')
         <span class="text-xs text-white/50">{{ t('organ.bars') }}</span>
         <button v-for="n in lengths" :key="n" class="h-11 min-w-11 rounded-full border px-3 text-sm disabled:opacity-30" :class="bars === n ? 'border-white bg-white text-black' : 'border-white/25 text-white/70'" :disabled="!loop" @click="setBars(n)">{{ n }}</button>
         <button v-if="engine.assist.value" class="h-11 rounded-full border px-4 text-sm" :class="fine ? 'border-white text-white' : 'border-white/25 text-white/60'" :aria-label="t('organ.fineAria')" @click="fine = !fine">{{ t('organ.fine') }}</button>
+        <!-- avanzado (spec 028): tresillos, acordes y ligaduras -->
+        <template v-if="adv">
+          <button class="h-11 rounded-full border px-4 text-sm" :class="triplets ? 'border-[#F496BC] text-white' : 'border-white/25 text-white/60'" :aria-pressed="triplets" :title="t('organ.tripletsHint')" data-organ-triplets @click="triplets = !triplets">{{ t('organ.triplets') }}</button>
+          <button class="h-11 rounded-full border px-4 text-sm" :class="chordMode ? 'border-[#F496BC] text-white' : 'border-white/25 text-white/60'" :aria-pressed="chordMode" :title="t('organ.chordsHint')" data-organ-chords @click="chordMode = !chordMode">{{ t('organ.chords') }}</button>
+          <button class="h-11 rounded-full border px-4 text-sm" :class="tieMode ? 'border-[#F496BC] text-white' : 'border-white/25 text-white/60'" :aria-pressed="tieMode" :title="t('organ.tiesHint')" data-organ-ties @click="tieMode = !tieMode">{{ t('organ.ties') }}</button>
+        </template>
       </div>
 
       <div class="flex flex-wrap items-center gap-2 px-4 pb-2 text-xs">

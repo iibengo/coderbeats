@@ -80,3 +80,6 @@ frase se corta y suena a "trozo y salto".
 - Si algún día se quiere un compás de verdad (el `setcpm` y la rejilla de 16), sería una spec aparte: toca el
   motor y el editor, y rompe la compatibilidad de lo guardado.
 - Lo aprendido, también en `~/Descargas/coderbeats-herramientas/LEEME-escribir-canciones.md` (regla 0).
+
+## 10. Órgano completo (2026-11-18)
+En el Órgano (cajón ⋯ → solo con «Controles avanzados»): **tresillos** (casillas de 4/3 de paso, con líneas rosas), **acordes** (tocar un hueco añade otra nota en el mismo paso; tocar una nota la quita; arrastrar no la mueve) y **ligaduras** (una nota puede cruzar la línea de compás, hasta la siguiente nota o el final del loop). Sin «avanzado» el Órgano es el de siempre. Lógica pura en `melodyEdit.ts` (`addChordNote`, `removeChordNote`, `unit` 4/3, `ties`) con tests; `tests/browser/organo-avanzado.mjs`. **Sin hacer:** mover o alargar una nota concreta de un acorde con el asa (se quita y se vuelve a poner), y dibujar las ligaduras con un símbolo distinto.

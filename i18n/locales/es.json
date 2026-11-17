@@ -181,7 +181,13 @@
     "playAria": "reproducir",
     "help": "Toca un hueco para poner una nota (arrastra a la derecha para alargarla) · toca una nota para oírla · arrástrala para moverla, o fuera del cuadro para borrarla · tira de su extremo para cambiar su duración",
     "more": "más opciones",
-    "bars": "compases"
+    "bars": "compases",
+    "triplets": "tresillos",
+    "tripletsHint": "casillas de tres por tiempo",
+    "chords": "acordes",
+    "chordsHint": "varias notas a la vez: tocar pone otra nota en ese paso y tocar una nota la quita",
+    "ties": "ligaduras",
+    "tiesHint": "una nota puede cruzar la línea de compás"
   },
   "remixes": {
     "title": "Mis canciones",

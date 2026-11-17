@@ -213,3 +213,65 @@ describe('el bajo y los acordes propios no son «la melodía» (spec 028 §5)', 
     expect(dropExtraMelodies(s)).toBe(s)
   })
 })
+
+import { addChordNote, removeChordNote, snapMelStep as snap } from '../../app/lib/melodyEdit'
+import { melodyMini as mini } from '../../app/lib/melody'
+describe('Órgano completo (spec 028): tresillos, ligaduras y acordes', () => {
+  const o = { assist: true, style: 'techno' as const }
+  const mk = (hits: { pos: number; dur: number; midi: number }[], bars: 1 | 2 | 4 = 2): LoopsState => ({ loops: [{ id: 1, instrument: 'mel', bars, phaseBar: 0, hits: hits.map((h) => ({ ...h, strength: 0.8 })), muted: false, bornAt: 0, fromTemplate: false }], nextId: 2 })
+  it('tresillos: la casilla es de 4/3 de paso y las posiciones quedan exactas (doceavos)', () => {
+    const t = { ...o, unit: 4 / 3 }
+    expect(snap(5, t)).toBeCloseTo(16 / 3, 9)
+    expect(snap(0.5, t)).toBe(0)
+    expect(snap(15.9, t)).toBe(0) // pasa al compás siguiente
+    for (const x of [1, 3, 6, 9, 12, 14]) expect((snap(x, t) * 12) % 1).toBeCloseTo(0, 9)
+  })
+  it('tresillos de corchea en un loop: tres notas de 4/3 caben en una negra y suenan como tresillo', () => {
+    const t = { ...o, unit: 4 / 3 }
+    let s = mk([], 1)
+    s = addMelNote(s, 0, 60, 0, t, 4 / 3)!.state
+    s = addMelNote(s, 4 / 3, 62, 0, t, 4 / 3)!.state
+    s = addMelNote(s, 8 / 3, 63, 0, t, 4 / 3)!.state
+    const hits = s.loops[0]!.hits as { pos: number; dur: number; midi: number }[]
+    expect(hits.map((h) => h.midi)).toEqual([60, 62, 63])
+    expect(mini(hits.map((h) => ({ ...h, strength: 0.8 })), 1, 0)).toBe('c4@16 d4@16 eb4@16 ~@144')
+  })
+  it('lo de siempre no cambia: sin tresillos las posiciones son enteras', () => {
+    expect(snap(5.4, { ...o, unit: 1 })).toBe(5)
+    expect(snap(5.4, { ...o, unit: 2 })).toBe(6)
+  })
+  it('ligaduras: con «ties» una nota puede cruzar la línea de compás; sin él se recorta', () => {
+    const s = mk([{ pos: 14, dur: 2, midi: 60 }])
+    const sin = resizeMelNote(s, 1, 14, 6, o)!.state.loops[0]!.hits[0]! as { dur: number }
+    const con = resizeMelNote(s, 1, 14, 6, { ...o, ties: true })!.state.loops[0]!.hits[0]! as { dur: number }
+    expect(sin.dur).toBe(2)
+    expect(con.dur).toBe(6)
+    // pero no pasa de la nota siguiente ni del final del loop
+    const s2 = mk([{ pos: 14, dur: 2, midi: 60 }, { pos: 18, dur: 2, midi: 62 }])
+    expect((resizeMelNote(s2, 1, 14, 10, { ...o, ties: true })!.state.loops[0]!.hits[0]! as { dur: number }).dur).toBe(4)
+    const s3 = mk([{ pos: 30, dur: 2, midi: 60 }])
+    expect((resizeMelNote(s3, 1, 30, 8, { ...o, ties: true })!.state.loops[0]!.hits[0]! as { dur: number }).dur).toBe(2)
+  })
+  it('una nota nueva con ties arrastrada hasta el compás siguiente no se recorta, y suena con su .clip', () => {
+    const s = addMelNote(mk([]), 14, 60, 0, { ...o, ties: true }, 6)!.state
+    const h = s.loops[0]!.hits[0]! as { dur: number }
+    expect(h.dur).toBe(6)
+  })
+  it('acordes: varias notas a la vez en el mismo paso, sin duplicar y sin pisar notas que empezaron antes', () => {
+    let s = mk([{ pos: 0, dur: 4, midi: 60 }, { pos: 8, dur: 8, midi: 67 }])
+    const c1 = addChordNote(s, 0, 63, 0, o, 2)!
+    s = c1.state
+    s = addChordNote(s, 0, 67, 0, o, 2)!.state
+    expect((s.loops[0]!.hits as { pos: number; midi: number; dur: number }[]).filter((h) => h.pos === 0).map((h) => h.midi).sort()).toEqual([60, 63, 67])
+    expect((s.loops[0]!.hits as { pos: number; dur: number }[]).filter((h) => h.pos === 0).every((h) => h.dur === 4)).toBe(true) // dura lo que las que ya empiezan ahí
+    expect(addChordNote(s, 0, 63, 0, o, 2)).toBeNull() // ya está
+    expect(addChordNote(s, 10, 72, 0, o, 2)).toBeNull() // cae dentro de una nota que empezó antes (8)
+  })
+  it('quitar una nota de un acorde deja las demás; la última borra el loop', () => {
+    const s = mk([{ pos: 0, dur: 4, midi: 60 }, { pos: 0, dur: 4, midi: 64 }])
+    const s1 = removeChordNote(s, 1, 0, 64)
+    expect((s1.loops[0]!.hits as { midi: number }[]).map((h) => h.midi)).toEqual([60])
+    expect(removeChordNote(s1, 1, 0, 60).loops.length).toBe(0)
+    expect(removeChordNote(s, 1, 0, 99)).toBe(s)
+  })
+})
