@@ -187,6 +187,13 @@ export const LAB_REMIXES: readonly LabRemix[] = [
     dropFx: [{ notes: MZ_CRASH, synth: 'crash' }], unverified: true,
     shape: [{ name: 'Intro', bars: 4 }, { name: 'Estrofa', bars: 4 }, { name: 'Subida', bars: 4 }, { name: 'Drop', bars: 8 }, { name: 'Final', bars: 4 }],
   }),
+  // Habanera de Carmen (Bizet, dominio público) en dembow: el descenso cromático, de Re menor a Si menor (el del estilo); de memoria
+  recipe({
+    id: 'habanera-dembow', title: 'Habanera (Carmen)', composer: 'Bizet', style: 'dembow', kit: '808', key: 'Si menor',
+    kick: P.bd, clap: P.sdFill, hat: P.hh8, hats16: P.hh16, roll: P.sdRoll, noise: RISER2_NOISE, pad: RISER2_PAD,
+    intro: shift(HABANERA_A, 9), sub: shift(HABANERA_B, 9), drop: shift(HABANERA_A, 9), drop2: shift(HABANERA_B, 9), final: shift(HABANERA_B, 9),
+    dropFx: [{ notes: ODE_CRASH, synth: 'crash' }], unverified: true,
+  }),
 ]
 export const labRemixById = (id: string): LabRemix | undefined => LAB_REMIXES.find((r) => r.id === id)
 
