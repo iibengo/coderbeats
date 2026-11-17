@@ -6,6 +6,7 @@ import type { Song } from '~/lib/cells'
 import { kitFromSaved } from '~/lib/constants'
 import type { KitId, StyleId } from '~/lib/types'
 import { STYLES } from '~/lib/constants'
+import { backupJson, fileNameOf, mergeImported, parseImport, songJson } from '~/lib/songFile'
 import { barSeconds, LAB_REMIXES, remixBars as labBars, type LabRemix } from '~/lib/labRemixes'
 import { remixBars, REMIXES, type Remix } from '~/lib/remixes'
 import { addSong, autoName, dateText, isEmptySong, isUnsaved, makeSaved, newId, replaceSong, filterEntries, groupByStyle, sortedEntries, summaryText, type Entry } from '~/lib/library'
@@ -64,6 +65,45 @@ async function openMain(r: LabRemix) {
   open.value = false
 }
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`
+// ── archivo, texto y copia de seguridad (spec 027): solo datos; importar solo añade ──
+const tools = ref(false)
+const importing = ref(false)
+const importText = ref('')
+const toolNote = ref('')
+const note = (m: string) => {
+  toolNote.value = m
+  setTimeout(() => (toolNote.value = ''), 5000)
+}
+function download(text: string, fileName: string) {
+  const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }))
+  const a = document.createElement('a')
+  a.href = url
+  a.download = fileName
+  a.click()
+  setTimeout(() => URL.revokeObjectURL(url), 2000)
+}
+const exportEntry = (e: Entry) => e.saved && download(songJson(e.saved, e.saved.name), fileNameOf(e.saved.name))
+function exportAll() {
+  const n = lib.value.entries.filter((e) => e.saved).length
+  download(backupJson(lib.value.entries), fileNameOf('coderbeats-copia'))
+  note(t('remixes.exportedAll', { n }))
+}
+async function runImport(text: string) {
+  const r = await parseImport(text, new Date(), () => newId(Date.now()))
+  if (!r.ok) return note(t(`remixes.err${r.error[0]!.toUpperCase()}${r.error.slice(1)}`))
+  const m = mergeImported(lib.value, r.songs)
+  if (m.added && !library.persist(m.lib)) return
+  importText.value = ''
+  note([t('remixes.imported', { n: m.added }), m.skipped ? t('remixes.importedSkipped', { n: m.skipped }) : '', r.rejected ? t('remixes.importedRejected', { n: r.rejected }) : ''].filter(Boolean).join(' · '))
+}
+async function onFile(e: Event) {
+  const input = e.target as HTMLInputElement
+  const f = input.files?.[0]
+  input.value = ''
+  if (!f) return
+  if (f.size > 25_000_000) return note(t('remixes.errBig'))
+  await runImport(await f.text())
+}
 // ── + Nueva canción (spec 027): desde cero, eligiendo estilo y tempo; queda guardada en Mis canciones y se abre vacía ──
 const creating = ref(false)
 const newStyle = ref<StyleId>('hiphop90')
@@ -258,6 +298,7 @@ async function openEntry(e: Entry) {
               <span class="block truncate text-xs text-neutral-500">{{ summaryText(e.saved) }} · {{ dateText(e.savedAt) }}</span>
             </button>
             <button v-if="e.saved" class="shrink-0 rounded-full border border-white/15 px-3 py-1 text-xs" aria-label="previsualizar: la canción se construye sola" @click="previewEntry(e)">👁</button>
+            <button v-if="e.saved" class="shrink-0 rounded-full border border-white/15 px-3 py-1 text-xs" :aria-label="t('remixes.export')" :title="t('remixes.export')" data-export-song @click="exportEntry(e)">⬇</button>
             <button v-if="e.saved" class="shrink-0 rounded-full border border-white/15 px-3 py-1 text-xs" aria-label="compartir por enlace (solo datos)" @click="shareEntry(e)">🔗</button>
             <div v-else class="min-w-0 flex-1 rounded-lg px-3 py-2 text-left opacity-60">
               <span class="block truncate text-white">{{ e.name }}</span>
@@ -273,6 +314,26 @@ async function openEntry(e: Entry) {
         </ul>
         </div>
         </template>
+
+        <!-- copia de seguridad y archivos: a un toque, sin ocupar la lista -->
+        <div class="mt-3">
+          <button class="text-xs text-neutral-400 underline decoration-white/20" :aria-expanded="tools" data-tools @click="tools = !tools">{{ t('remixes.tools') }}</button>
+          <div v-if="tools" class="mt-2 grid gap-2 rounded-xl border border-white/10 p-3" data-tools-panel>
+            <div class="flex flex-wrap gap-2">
+              <button class="rounded-full border border-white/20 px-3 py-1.5 text-xs" :disabled="!allEntries.some((e) => e.saved)" data-export-all @click="exportAll">{{ t('remixes.exportAll') }}</button>
+              <button class="rounded-full border border-white/20 px-3 py-1.5 text-xs" data-import-open @click="importing = !importing">{{ t('remixes.importBtn') }}</button>
+            </div>
+            <div v-if="importing" class="grid gap-2">
+              <textarea v-model="importText" rows="3" class="w-full rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-xs text-white" :placeholder="t('remixes.pasteHere')" data-import-text />
+              <div class="flex flex-wrap items-center gap-2 text-xs text-neutral-400">
+                <button class="rounded-full bg-white px-4 py-1.5 font-medium text-black disabled:opacity-40" :disabled="!importText.trim()" data-import-add @click="runImport(importText)">{{ t('remixes.add') }}</button>
+                <label class="cursor-pointer underline decoration-white/20">{{ t('remixes.pickFile') }}<input type="file" accept=".json,application/json,text/plain" class="sr-only" data-import-file @change="onFile" /></label>
+              </div>
+            </div>
+            <p v-if="toolNote" class="text-xs text-neutral-300" role="status" data-tool-note>{{ toolNote }}</p>
+            <p class="text-[11px] text-neutral-500">{{ t('remixes.privacy') }}</p>
+          </div>
+        </div>
 
         <!-- los remixes de serie (antes en su propia hoja): el principal de ≈ 1 min y, aparte, la versión larga como archivo -->
         <h3 class="mt-5 mb-1 text-[11px] tracking-wide text-neutral-500 uppercase">{{ t('remixes.serie') }}</h3>

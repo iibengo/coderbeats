@@ -81,10 +81,17 @@ export async function decodeShare(text: string, now = new Date(), newId = () => 
   } catch {
     return null
   }
+  return savedFromShareObject(o, now, newId)
+}
+
+/**
+ * Una canción a partir del objeto de un enlace o de un archivo (`{v:1, n, s, k, b, f, g}`): se arma el sobre de una guardada y pasa por el mismo guard que lo leído del
+ * almacenamiento (`isSavedSong`). Nunca se evalúa nada; el nombre pasa por `cleanName`. `null` si no vale.
+ */
+export function savedFromShareObject(o: unknown, now = new Date(), newId = () => `c-${Math.random().toString(36).slice(2, 10)}`): SavedSong | null {
   if (!o || typeof o !== 'object' || Array.isArray(o)) return null
   const d = o as Record<string, unknown>
   if (d.v !== 1) return null
-  // se arma el sobre de una guardada y pasa por el mismo guard que lo leído del almacenamiento
   const style = d.s
   const saved = {
     id: newId(),
@@ -93,6 +100,12 @@ export async function decodeShare(text: string, now = new Date(), newId = () => 
     style, kit: d.k, bgMode: d.b, fx: d.f, song: d.g,
   }
   return isSavedSong(saved) ? saved : null
+}
+
+/** El objeto que lleva un enlace o un archivo para una canción. */
+export function shareObject(snap: SongSnapshot, name: string): Record<string, unknown> {
+  const s = storableSnapshot(snap)
+  return { v: 1, n: name, s: s.style, k: s.kit, b: s.bgMode, f: s.fx, g: s.song }
 }
 
 /** El texto del enlace si la dirección lleva `#c=…`, o `null`. */
