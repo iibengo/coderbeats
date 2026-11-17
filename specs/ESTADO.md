@@ -1,5 +1,16 @@
 # Estado (2026-11-15) — lo hecho mientras no estabas
 
+# Tanda 3 (2026-11-17): formato de canción (spec 028)
+
+Todo en `main`, **sin push**; 1287 tests, typecheck y build en verde en cada commit. Detalle y límites en `specs/028-formato-cancion/spec.md` §9.
+- **Tempo (arreglado en el Laboratorio):** una canción a 108 bpm sonaba a 120 en Remixes; ahora manda su tempo. En el Estudio ya sonaba bien (2,22 s por compás).
+- **Formato:** loops de 8 y 16 compases (en el Órgano, solo con «Controles avanzados»), ligaduras entre compases, tresillos, varias notas a la vez y bajo/acordes propios (sintes `bass` y `keys`). Compatible con lo guardado.
+- **Conversor `notas-a-json`** (fuera del repo): ahora con `parte:`, `bajo:`, `acordes:`, tresillos y ligaduras.
+- **Falta** el editor del Órgano para tresillos, acordes y ligaduras (los lee y los toca, pero al editar siguen siendo notas sueltas), y oír el sonido de `bass` y `keys`.
+- **Qué probar:** importa `/tmp`-style de ejemplo con el conversor (`ejemplo-melodia.txt`): Tema 4 compases con bajo y acordes + Final con una nota larga; una sección de 16 compases como una sola parte; en el Laboratorio, una canción con tempo propio (p. ej. 108): ¿dura lo que debe?
+
+---
+
 # Tanda 2 (2026-11-17): Mis canciones privadas, zoom (prototipo), remixes nuevos y la canción G-funk
 
 Todo en `main`, **sin push**; en cada commit, 1261 tests, `nuxt typecheck` y `nuxt build` en verde. Guiones de Chrome nuevos: `lab-remix-igual` (con el zoom apagado, Remixes es idéntico), `zoom`, `nueva-cancion`, `importar-exportar`, `demo-y-lab`, `ajustes-avanzados`, `remix-nuevo`. **Nada se ha oído ni visto en un móvil.**

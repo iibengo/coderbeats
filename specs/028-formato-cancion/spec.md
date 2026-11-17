@@ -30,3 +30,15 @@ Valen para los remixes de dominio público y para Mis canciones. **Todo compatib
 
 ## 8. Orden y riesgo
 1. Tempo (hecho en esta tanda) · 2. Tresillos y varias notas a la vez (solo generación de código y datos; bajo riesgo) · 3. Loops de 8/16 y ligaduras (toca rejilla y `LoopLength`) · 4. Bajo y acordes propios · 5. Conversor. Lo que toque el reloj del motor o no se pueda comprobar sin oír **se salta y se apunta**.
+
+## 9. Hecho (2026-11-17) y decisiones a revisar
+| Punto | Estado | Commit |
+|---|---|---|
+| 1 Tempo | **Arreglado** en el Laboratorio (el tempo de la canción manda al elegir, actuar, grabar, escuchar, vídeo y en duraciones). En el Estudio ya iba bien (108 bpm = 2,22 s/compás medido). **Los ~4 s/compás no los reproduje**: si siguen, dime archivo y pantalla. | `249802f` |
+| 3 Tresillos | Hecho en el código que suena (rejilla de doceavos cuando hay tercios; si no, lo de siempre). **Falta el interruptor «Tresillos» del Órgano** (el editor sigue a pasos/cuartos). | `37d8411` |
+| 4 Varias notas a la vez | Hecho en el código que suena (`[c4,e4,g4]`). **Falta editarlas en el Órgano** (sigue monofónico). | `37d8411` |
+| 2 Loops de 8/16 y ligaduras | Hecho (se leen, suenan, comprobado en Strudel; en el Órgano 8 y 16 solo en «Avanzado»; las ligaduras llevan un `.clip` alineado). **Falta dibujar/editar ligaduras en el Órgano** (al editar siguen recortándose al compás). | `c2cef87`, `1e2e563` |
+| 5 Bajo y acordes propios | Hecho como **sintes `bass` y `keys`** (loops normales; el Laboratorio los muestra como capas «bajo» y «acordes»); no se toca el fondo del estilo. **Sin probar de oído** el sonido. Sin editor propio de bajo/acordes en el Estudio todavía. | `f8ae184`, `eb11690` |
+| 6 Conversor | **Hecho** (fuera del repo, `~/Descargas/coderbeats-herramientas/notas-a-json.mjs`): `parte:` = una sección (1–16 compases en un solo loop), `bajo:`, `acordes:` (`[G3,Bb3,D4]:16`), tresillos (`4/3`), notas que cruzan compás. | — |
+- **Compatibilidad:** lo guardado no cambia (tests: mismo código Strudel para lo de 1/2/4 compases, para melodías con enteros y cuartos de paso, y sin ligaduras ni acordes).
+- **Decisión mía:** «bajo y acordes propios» como sintes en vez de un `role` nuevo en el loop (menos cambios en datos y validación).
