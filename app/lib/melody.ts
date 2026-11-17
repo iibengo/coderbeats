@@ -6,8 +6,8 @@
  */
 /** `drone`: un sine con mucha reverb, para fondos (la demo del dembow); no es de los que se eligen para cantar */
 /** `bass` y `keys` (spec 028 §5): el bajo y los acordes **propios de la canción**, hechos de notas (en `keys`, varias a la vez), en vez del fondo del estilo */
-export type MelodySynth = 'lead' | 'piano' | 'pad' | 'drone' | 'riser' | 'crash' | 'boom' | 'impacto' | 'downlifter' | 'bass' | 'keys'
-export const MELODY_SYNTHS: readonly MelodySynth[] = ['lead', 'piano', 'pad', 'drone', 'riser', 'crash', 'boom', 'impacto', 'downlifter', 'bass', 'keys']
+export type MelodySynth = 'lead' | 'piano' | 'pad' | 'drone' | 'riser' | 'crash' | 'boom' | 'impacto' | 'downlifter' | 'bass' | 'keys' | 'guitar' | 'guitarDirty'
+export const MELODY_SYNTHS: readonly MelodySynth[] = ['lead', 'piano', 'pad', 'drone', 'riser', 'crash', 'boom', 'impacto', 'downlifter', 'bass', 'keys', 'guitar', 'guitarDirty']
 
 /** Rango MIDI que se admite en un loop de melodía o bajo (C1–C7). */
 export const MIDI_MIN = 24
@@ -33,6 +33,8 @@ export const REGISTER: Record<MelodySynth | 'bass', readonly [number, number]> =
   impacto: [24, 48],
   downlifter: [48, 72], // ruido: la altura no cuenta (spec 014 §9)
   keys: [48, 72], // acordes propios de la canción (C3–C5)
+  guitar: [48, 84], // guitarra (spec 035): C3–C6
+  guitarDirty: [48, 84],
   bass: [28, 52], // E1–E3
 }
 
@@ -54,6 +56,11 @@ export const SYNTH_SOUND: Record<MelodySynth, string> = {
   bass: '.s("sawtooth").lpf(420).lpenv(2).decay(0.2).sustain(0.35).gain(0.6)',
   // los acordes propios de la canción: triangular con un poco de FM, suave y con cola; varias notas a la vez; sin probar de oído
   keys: '.s("triangle").fm(0.8).decay(0.5).sustain(0.15).lpf(2600).room(0.3).gain(0.4)',
+  // la guitarra (spec 035), sin samples: sierra con un filtro que se cierra tras el «pulso» (el ataque brillante y luego el cuerpo), un poco de saturación (`distort`: `shape` lo pisa la «calidez» global, que va al final del código) y
+  // un decay corto para que no sea un pitido largo. Opcional: el `lead` de lo guardado no cambia. Sin probar de oído.
+  guitar: '.s("sawtooth").lpf(1100).lpenv(3).lpa(0.002).lpd(0.2).lps(0.1).distort(0.5).decay(0.35).sustain(0.25).release(0.12).room(0.15).gain(0.5)',
+  // la guitarra sucia (para el estribillo): más saturación (distort), más filtro abierto y más cuerpo
+  guitarDirty: '.s("sawtooth").lpf(1800).lpenv(2).lpa(0.002).lpd(0.25).lps(0.25).distort(3).decay(0.5).sustain(0.45).release(0.15).room(0.1).gain(0.3)',
   riser: '.s("pink").attack(0.12).decay(0.2).sustain(0.7).release(0.05).gain(0.6).room(0.3)',
 }
 

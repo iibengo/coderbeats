@@ -521,3 +521,10 @@ Escritos. En la spec 017 va cada uno. **Aviso de lo que no se cumple:** el princ
 ### Qué probar en el móvil
 1. Ajustes → kit «Batería» y tocar un ritmo: ¿el bombo y la caja tienen cuerpo? ¿el charles sisea demasiado? ¿el volumen descompensa respecto a Electrónico, Vinilo y 808? (todo ajustado por pico, no de oído).
 2. ¿Carga rápido la primera vez en el móvil?
+
+## Tanda 6 (2026-11-18): guitarra (spec 035) y efectos en el conversor
+- **Sintes `guitar` y `guitarDirty`** (sierra + filtro con envolvente + `distort`, sin samples), opcionales: sin elegirlos suena el `lead` de siempre. Diferencias en el código con el lead: otra onda, filtro que se cierra tras el pulso (`lpenv`), saturación `distort` (0,5 y 3) y decay más corto. Sin oír.
+- **Conversor `notas-a-json.mjs`** (fuera del repo): `sinte:` (toda la canción o una parte) y sección `efectos:` (`riser`, `crash`, `impacto`, `boom`, `downlifter`) con reglas de sentido y chequeo; al final dice en qué compás y segundo oír cada efecto. Ejemplo en `ejemplo-melodia.txt`.
+### Qué probar en el móvil
+1. Importar el JSON de `ejemplo-melodia.txt` convertido: Tema con `guitarra` y Final con `guitarra-sucia`: ¿la sucia satura más y no es un pitido? Efectos: riser en el compás 8 (≈0:15), crash e impacto en el compás 9 (≈0:17).
+2. Comparar una canción guardada con `lead`: debe sonar igual que antes.

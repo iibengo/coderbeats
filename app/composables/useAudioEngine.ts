@@ -1946,14 +1946,14 @@ export function useAudioEngine() {
     const c = ctx
     if (!c || c.state !== 'running') return
     const t = c.currentTime
-    const wave = { piano: 'triangle', lead: 'square', pad: 'sawtooth', drone: 'sine', riser: 'sawtooth', crash: 'sawtooth', boom: 'sine', impacto: 'sine', downlifter: 'sawtooth', bass: 'sawtooth', keys: 'triangle' }[synth] as OscillatorType
+    const wave = { piano: 'triangle', lead: 'square', pad: 'sawtooth', drone: 'sine', riser: 'sawtooth', crash: 'sawtooth', boom: 'sine', impacto: 'sine', downlifter: 'sawtooth', bass: 'sawtooth', keys: 'triangle', guitar: 'sawtooth', guitarDirty: 'sawtooth' }[synth] as OscillatorType
     const osc = c.createOscillator()
     const lp = c.createBiquadFilter()
     const g = c.createGain()
     osc.type = wave
     osc.frequency.value = 440 * 2 ** ((midi - 69) / 12)
     lp.type = 'lowpass'
-    lp.frequency.value = synth === 'lead' ? 1800 : 2600
+    lp.frequency.value = synth === 'lead' ? 1800 : synth === 'guitar' ? 1500 : 2600
     const peak = 0.16
     g.gain.setValueAtTime(0, t)
     g.gain.linearRampToValueAtTime(peak, t + (synth === 'pad' ? 0.06 : 0.008))
