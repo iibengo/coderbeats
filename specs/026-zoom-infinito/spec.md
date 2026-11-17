@@ -48,3 +48,10 @@ Cada **parte** del remix es una **gota** (círculo). Dentro de la gota que suena
 - Que el zoom **marée** o **tape** los círculos de capas (sobre todo con 8 partes): se prueba la variante B.
 - Rendimiento en iPhone antiguo con el vídeo grabando a la vez (copia de lienzo por frame): sin probar hasta tenerlo en un móvil.
 - El «bucle infinito» exige que la última parte «contenga» a la primera: con remixes de 1 parte se ve una sola gota (sin zoom).
+
+## 9. Prototipo hecho (2026-11-17): solo Remixes del Laboratorio, con interruptor
+- **«Zoom: no / sí»** en la fila de enlaces de Remixes (clave `coderbeats:lab:zoom:v1`, **apagado por defecto**). **Apagado, la pantalla se ve y funciona exactamente igual:** lo comprueba `tests/browser/lab-remix-igual.mjs` (hash del lienzo, botones y partes contra `tests/browser/golden/`).
+- Encendido: el aro exterior y la gota pequeña de la **siguiente** parte (con su nombre «siguiente: …» fuera de la gota); **tocar la gota pequeña o un botón de parte = zambullirse** (empieza al tocar y aterriza en la línea de compás; si la parte está lejos atraviesa las intermedias de una vez; de la última se pasa a la primera).
+- **Dos niveles** a la vez (el tercero taparía el nombre de la parte del centro); el vigilante baja a uno si el p95 pasa de 14 ms (en el Chrome sin pantalla baja solo: es software). Movimiento reducido: sin zoom, fundido de 160 ms.
+- **No hay vídeo ni Estudio** con zoom hasta que lo pruebes en el iPhone (como pediste). Las capas no quedan tapadas en el prototipo; la variante B (capas en el borde) queda sin hacer.
+- **A mirar en el iPhone:** ¿se entiende el zoom? ¿va a 60 fps? ¿las dos gotas se confunden con el aro del centro (ahora se ven casi como un doble anillo)?

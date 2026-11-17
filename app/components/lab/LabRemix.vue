@@ -8,6 +8,7 @@ import { addSong, makeSaved } from '~/lib/library'
 import { barSeconds, finalPartOf, labRemixFromSaved, LAB_REMIXES, partLoops, partsOn, remixTake, songFromTake, takePlan, type LabLayer, type LabRemix, type TakeBar } from '~/lib/labRemixes'
 import { readJson, writeText } from '~/lib/storage'
 import { encodeShare, shareUrl } from '~/lib/shareLink'
+import { diveProgress, diveWindow, dives, hitsNext, levelsFor, NESTED_SCALE, reducedFade, stackAt, type Ring } from '~/lib/zoomStack'
 import type { StageFrame } from './LabStage.vue'
 
 const { t } = useI18n()
@@ -64,6 +65,8 @@ async function pick(r: LabRemix) {
   engine.setKit(r.kit)
   remix.value = r
   part.value = shown.value = r.parts[0]!.name
+  visIndex.value = 0
+  dive = null
   await enter(part.value)
 }
 /** pone una parte: todos sus loops (los apagados, silenciados) y su fondo; sonando, entra en el siguiente compás */
@@ -91,10 +94,98 @@ function note() {
 async function goPart(name: string) {
   if (!remix.value || (rec.value?.endBar ?? null) !== null) return
   if (!engine.playing.value) await lab.start()
+  startDive(name)
   part.value = name
   shownFrom = engine.playing.value ? nextBar() : 0
   await enter(name)
   note()
+}
+// ── zoom infinito (spec 026, prototipo): apagado por defecto; con él apagado esta pantalla se ve y funciona exactamente igual ──
+const ZOOM_KEY = 'coderbeats:lab:zoom:v1'
+const zoomOn = ref(readJson(ZOOM_KEY, (x): x is { on: boolean } => !!x && typeof (x as { on?: unknown }).on === 'boolean')?.on ?? false)
+function toggleZoom() {
+  zoomOn.value = !zoomOn.value
+  writeText(ZOOM_KEY, JSON.stringify({ on: zoomOn.value }))
+}
+const reducedMotion = import.meta.client && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+const R0 = 300
+const visIndex = ref(0) // la parte que se ve grande en reposo
+let dive: { from: number; to: number; d: number; startS: number; landS: number } | null = null
+let fadeFrom: { from: number; startS: number } | null = null
+let lastT = 0
+let lastScale = 0.53
+let zoomLevels = 2 // el vigilante: 2 (el tercero taparía el nombre de la parte) → 1
+let dts: number[] = []
+const indexOfPart = (name: string) => Math.max(0, remix.value?.parts.findIndex((p) => p.name === name) ?? 0)
+function startDive(name: string) {
+  if (!zoomOn.value || !remix.value) return
+  const n = remix.value.parts.length
+  const from = dive?.to ?? visIndex.value
+  const to = indexOfPart(name)
+  const d = dives(from, to, n)
+  if (n < 2 || d === 0) return
+  if (reducedMotion) {
+    fadeFrom = { from, startS: lastT }
+    visIndex.value = to
+    return
+  }
+  const barSec = barSeconds(remix.value.style)
+  const w = engine.playing.value ? diveWindow(lastT, barSec, engine.clockNow().barPhase) : { startS: lastT, landS: lastT + 0.6 }
+  dive = { from, to, d, startS: w.startS, landS: w.landS }
+}
+function drawRings(g: CanvasRenderingContext2D, rings: Ring[], k = 1) {
+  for (const r of rings) {
+    if (r.r < 2 || r.r > 900 || r.level >= zoomLevels) continue
+    g.globalAlpha = Math.min(1, r.alpha * k) * 0.5
+    g.beginPath()
+    g.arc(C, C, r.r, 0, 7)
+    g.stroke()
+  }
+}
+/** las gotas anidadas, detrás de las capas (solo con el zoom encendido) */
+function drawZoomBack(g: CanvasRenderingContext2D, f: StageFrame) {
+  const r = remix.value
+  if (!r || r.parts.length < 2) return
+  // vigilante: p95 de cada 120 frames
+  if (lastT > 0) dts.push((f.t - lastT) * 1000)
+  if (dts.length >= 120) {
+    const sorted = [...dts].sort((a, b) => a - b)
+    zoomLevels = Math.max(1, Math.min(2, levelsFor(sorted[Math.floor(sorted.length * 0.95)]!, zoomLevels)))
+    dts = []
+  }
+  lastT = f.t
+  lastScale = f.scale
+  const n = r.parts.length
+  g.save()
+  g.strokeStyle = '#fff'
+  g.lineWidth = 2
+  if (dive && f.t >= dive.landS) {
+    visIndex.value = dive.to
+    dive = null
+  }
+  if (dive) drawRings(g, stackAt(diveProgress(f.t, dive.startS, dive.landS, dive.d), dive.from, n, R0))
+  else if (fadeFrom && f.t - fadeFrom.startS < 0.16) {
+    const k = reducedFade(f.t - fadeFrom.startS)
+    drawRings(g, stackAt(0, fadeFrom.from, n, R0), k.out)
+    drawRings(g, stackAt(0, visIndex.value, n, R0), k.in)
+  } else {
+    fadeFrom = null
+    drawRings(g, stackAt(0, visIndex.value, n, R0))
+    // el nombre de la siguiente, a tamaño normal, fuera de la gota pequeña
+    if (mode.value === 'actuar') {
+      g.globalAlpha = 0.6
+      g.fillStyle = '#fff'
+      g.font = `400 ${fontPx(20, f.scale)}px system-ui, sans-serif`
+      g.textAlign = 'center'
+      g.textBaseline = 'middle'
+      g.fillText(t('lab.remix.next', { name: r.parts[(visIndex.value + 1) % n]!.name }), C, C + R0 * NESTED_SCALE + 22)
+    }
+  }
+  g.restore()
+}
+const drawStage = (g: CanvasRenderingContext2D, f: StageFrame) => {
+  if (zoomOn.value) drawZoomBack(g, f)
+  draw(g, f)
 }
 function toggleLayer(l: LabLayer) {
   if (mode.value !== 'actuar' || (rec.value?.endBar ?? null) !== null) return
@@ -170,7 +261,7 @@ onMounted(() => {
     if (r.endBar === null && bar + 1 >= r.startBar + plan.value.finalStart) void endRec()
     if (r.endBar !== null && bar >= r.endBar) void finishRec()
   }, 20)
-  if (import.meta.dev) (window as unknown as Record<string, unknown>).__remix = { part: () => part.value, shown: () => shown.value, on: () => [...on.value].join(','), mode: () => mode.value, rec: () => (rec.value ? { bars: recBars.value, end: rec.value.endBar, start: rec.value.startBar } : null), take: () => (remix.value ? takes.value[remix.value.id]?.length ?? 0 : 0), plan: () => plan.value }
+  if (import.meta.dev) (window as unknown as Record<string, unknown>).__remix = { zoom: () => ({ on: zoomOn.value, vis: visIndex.value, diving: !!dive, levels: zoomLevels }), part: () => part.value, shown: () => shown.value, on: () => [...on.value].join(','), mode: () => mode.value, rec: () => (rec.value ? { bars: recBars.value, end: rec.value.endBar, start: rec.value.startBar } : null), take: () => (remix.value ? takes.value[remix.value.id]?.length ?? 0 : 0), plan: () => plan.value }
 })
 onBeforeUnmount(() => {
   if (timer) clearInterval(timer)
@@ -259,6 +350,11 @@ const POS = computed(() => (cur.value?.layers ?? []).map((_, i, a) => {
 }))
 function down(x: number, y: number) {
   if (!cur.value || mode.value !== 'actuar') return
+  // con el zoom, tocar la gota pequeña = zambullirse en la siguiente parte
+  if (zoomOn.value && remix.value && remix.value.parts.length > 1 && hitsNext(x, y, C, C, R0, lastScale)) {
+    void goPart(remix.value.parts[(visIndex.value + 1) % remix.value.parts.length]!.name)
+    return
+  }
   cur.value.layers.forEach((l, i) => {
     if (Math.hypot(x - POS.value[i]![0], y - POS.value[i]![1]) < 62) {
       if (!engine.playing.value) void lab.start()
@@ -336,7 +432,7 @@ const phrase = computed(() => (remix.value ? t('lab.remix.phrase') : t('lab.remi
       </button>
     </div>
     <template v-else>
-      <LabStage ref="stage" :draw="draw" @down="down" />
+      <LabStage ref="stage" :draw="drawStage" @down="down" />
     </template>
     <template #extra>
       <template v-if="remix">
@@ -369,6 +465,7 @@ const phrase = computed(() => (remix.value ? t('lab.remix.phrase') : t('lab.remi
         </div>
         <div class="mt-3 flex items-center gap-4 text-xs text-white/40">
           <button class="underline decoration-white/20" @click="listenOriginal">{{ t('lab.remix.original') }}</button>
+          <button class="underline decoration-white/20" :aria-label="t('lab.remix.zoomAria')" :aria-pressed="zoomOn" data-zoom-toggle @click="toggleZoom">{{ zoomOn ? t('lab.remix.zoomOn') : t('lab.remix.zoomOff') }}</button>
           <button class="underline decoration-white/20" data-share-link @click="shareLink">{{ t('lab.remix.link') }}</button>
           <button class="underline decoration-white/20" @click="openInStudio">{{ t('lab.remix.openStudio') }}</button>
           <button class="underline decoration-white/20" @click="remix = null; lab.stopAll()">{{ t('lab.remix.other') }}</button>

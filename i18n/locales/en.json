@@ -95,7 +95,11 @@
       "groupMine": "My songs",
       "link": "🔗 link",
       "linkCopied": "Link copied",
-      "linkFail": "Couldn't share the link"
+      "linkFail": "Couldn't share the link",
+      "zoomOff": "Zoom: off",
+      "zoomOn": "Zoom: on",
+      "zoomAria": "infinite zoom between parts (prototype)",
+      "next": "next: {name}"
     }
   },
   "start": {

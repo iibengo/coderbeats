@@ -95,7 +95,11 @@
       "groupMine": "Nire abestiak",
       "link": "🔗 esteka",
       "linkCopied": "Esteka kopiatu da",
-      "linkFail": "Ezin izan da esteka partekatu"
+      "linkFail": "Ezin izan da esteka partekatu",
+      "zoomOff": "Zoom: ez",
+      "zoomOn": "Zoom: bai",
+      "zoomAria": "zoom amaigabea zatien artean (prototipoa)",
+      "next": "hurrengoa: {name}"
     }
   },
   "start": {
