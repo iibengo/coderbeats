@@ -42,3 +42,27 @@ Valen para los remixes de dominio público y para Mis canciones. **Todo compatib
 | 6 Conversor | **Hecho** (fuera del repo, `~/Descargas/coderbeats-herramientas/notas-a-json.mjs`): `parte:` = una sección (1–16 compases en un solo loop), `bajo:`, `acordes:` (`[G3,Bb3,D4]:16`), tresillos (`4/3`), notas que cruzan compás. | — |
 - **Compatibilidad:** lo guardado no cambia (tests: mismo código Strudel para lo de 1/2/4 compases, para melodías con enteros y cuartos de paso, y sin ligaduras ni acordes).
 - **Decisión mía:** «bajo y acordes propios» como sintes en vez de un `role` nuevo en el loop (menos cambios en datos y validación).
+
+## 10. Lecciones escribiendo canciones a mano (17/11/2026)
+De hacer Star Wars y Superman con el conversor, de oído y por prueba y error. Sirven para la próxima vez
+(están también, más largas y para quien escribe el `.txt`, en `~/Descargas/coderbeats-herramientas/LEEME-escribir-canciones.md`).
+
+1. **Los huecos que se oyen son silencios escritos.** Un `r:n` de relleno al final de cada compás hace que la
+   melodía toque, calle y vuelva a tocar. Si el tema no calla, se alarga la última nota; no se rellena con silencio.
+2. **Lo que no se escribe es silencio, también en el bajo y los acordes.** Un loop de 16 compases con la melodía
+   escrita entera y el bajo a 8 suena la segunda mitad sin acompañamiento. El loop **no** se rellena solo con lo que haya.
+3. **Todo lo escrito se encadena.** Nada reinicia la cuenta por compás ni por frase. Y cada compás debe sumar
+   exactamente su longitud (16 pasos): una línea que suma 18 desplaza todo lo que viene detrás.
+4. **Las notas agrupadas por compás con posición local** (todas empezando en 0) es la trampa clásica: caen todas en el
+   primer compás y el resto suena vacío. En el `.json`, las posiciones van de 0 a `compases × 16`.
+5. **Lo que se ve en el Círculo de ritmo del Laboratorio es solo batería** (`bd`, `sd`, `hh`): la melodía no se dibuja
+   ahí. Para revisar una melodía hay que mirarla en el Órgano del Estudio.
+6. **Importar añade, no reemplaza.** Con varias importaciones de la misma canción es fácil escuchar la vieja y creer
+   que el arreglo nuevo no funciona. Antes de opinar, comprobar cuál está abierta (nombre, número de células, compases).
+7. **El ritmo manda más que las notas.** Corcheas seguidas hacen que un tema no se reconozca aunque las notas sean
+   correctas; negras, notas largas al final de la frase y el tresillo son lo que lo hace reconocible.
+8. **Un tema se puede "clavar" en estructura y acompañamiento, pero la melodía de un Williams no** sin transcripción
+   verificada: las fuentes de internet dan la forma (dominante → agudo → caída), no las notas. Lo honesto es decir
+   qué está verificado (compases, contenedores, acompañamiento) y qué no (la línea melódica, nota a nota).
+9. **No se puede comprobar de oído desde aquí.** Todo lo que se entrega se valida con reglas (compases que suman,
+   notas dentro del loop, sin duplicados) y con el importador real; el "¿suena al tema?" solo lo puede juzgar quien escucha.
