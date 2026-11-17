@@ -34,3 +34,13 @@ tem/
 /f_*.png
 docs/anecdotas.md
 *.mkv
+
+# Canciones privadas y conversor de notas (spec 029): viven FUERA del repositorio
+# (por ejemplo ~/Descargas/coderbeats-herramientas). Si alguna vez se copian aquí, que no se commiteen.
+# En el repo solo va música de dominio público u original.
+canciones-privadas/
+mis-canciones/
+notas-a-json.mjs
+*-privada.json
+*.cancion.json
+LEEME-escribir-canciones.md
