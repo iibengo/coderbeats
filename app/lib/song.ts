@@ -9,7 +9,7 @@ import type { FreeLoop } from './freeLoops'
 import type { KitId, StyleId } from './types'
 import { anyPart, type BackgroundMode, type Parts } from './background'
 import { bassCode } from './bass'
-import { melodyClip, melodyMini, SYNTH_SOUND, type MelodyHit, type MelodySynth } from './melody'
+import { melodyClip, melodyGains, melodyMini, SYNTH_SOUND, type MelodyHit, type MelodySynth } from './melody'
 import { SUGGEST_GAIN } from './suggestMelody'
 import type { Cell, Segment } from './cells'
 import { wowCode, wowControls } from './wow'
@@ -165,7 +165,15 @@ function loopLine(
     // las notas que cruzan la línea de compás (ligaduras) llevan un `.clip("…")`; sin ellas, el código es el de siempre
     const clip = melodyClip(hits, safeNum(src.bars), safeNum(src.phaseBar))
     line = `note("${melodyMini(hits, safeNum(src.bars), safeNum(src.phaseBar))}")${clip ? `.clip("${clip}")` : ''}${SYNTH_SOUND[synth] ?? SYNTH_SOUND.piano}.orbit(${MELODY_ORBIT})`
-    if (Math.abs(gain - 1) > 0.005) line += `.gain(${fmtGain(gain)})`
+    // dinámica por nota (spec 029 §2): solo si alguna nota lleva su fuerza; si no, el gain del loop de siempre.
+    // Con dinámica, el volumen del loop se multiplica en cada nota.
+    const dyn = melodyGains(hits, safeNum(src.bars), safeNum(src.phaseBar))
+    if (dyn) {
+      // solo se multiplican las notas (los silencios `~@n` se quedan como están)
+      const mult = (t: string) =>
+        Math.abs(gain - 1) > 0.005 ? t.replace(/(^|\s)(\d+(?:\.\d+)?)(?=@|$)/g, (_, sp, n) => `${sp}${fmtGain(Number(n) * gain)}`) : t
+      line += `.gain("${mult(dyn)}")`
+    } else if (Math.abs(gain - 1) > 0.005) line += `.gain(${fmtGain(gain)})`
   } else {
     const kit = KITS[st.kit]
     const { s, nudge, gains } = loopTokens({ ...src, id: loop.id }, stepSeconds, st.production)

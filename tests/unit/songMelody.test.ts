@@ -50,7 +50,8 @@ describe('línea de la melodía en el código', () => {
     const a = mel([[0, 4, 57]])
     const g = loopGains([drum('bd', [0]), a]).get(a.id)!
     expect(g).toBeLessThan(0.7)
-    expect(songCode(state([drum('bd', [0]), a]))).toMatch(/\.orbit\(5\)\.gain\(0\.5\)/)
+    // spec 029 §2: con fuerza por nota, la ganancia de la mezcla se multiplica en cada nota
+    expect(songCode(state([drum('bd', [0]), a]))).toMatch(/\.orbit\(5\)\.gain\("0\.39@4 ~@12"\)/)
   })
 
   it('con loops de varias células (arrange) y fase', () => {

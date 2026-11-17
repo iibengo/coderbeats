@@ -72,13 +72,13 @@ const mod = (a: number, n: number) => ((a % n) + n) % n
  * la rejilla más gruesa que respeta inicios y duraciones (pasos, cuartos de paso con rejilla fina, o **doceavos de paso** con tresillos).
  * Varias notas que empiezan en el mismo paso suenan juntas (`[c3,e3,g3]@n`, un acorde); la duración del acorde es la de su nota más larga.
  */
-function barMini(hits: readonly (MelodyHit & { full?: number })[], res: number, clip = false): string {
+function barMini(hits: readonly (MelodyHit & { full?: number })[], res: number, clip = false, value?: (h: MelodyHit) => string): string {
   const sorted = [...hits].sort((a, b) => a.pos - b.pos)
   const tokens: string[] = []
   let at = 0
   const w = (n: number) => (n === 1 ? '' : `@${n}`)
   // las notas que empiezan a la vez, juntas
-  const groups: { start: number; names: string[]; dur: number; ratio: number }[] = []
+  const groups: { start: number; names: string[]; dur: number; ratio: number; vals: string[] }[] = []
   for (const h of sorted) {
     const start = Math.round(h.pos * res)
     const dur = Math.max(1, Math.round(h.dur * res))
@@ -89,15 +89,17 @@ function barMini(hits: readonly (MelodyHit & { full?: number })[], res: number, 
       if (!last.names.includes(name)) last.names.push(name)
       last.dur = Math.max(last.dur, dur)
       last.ratio = Math.max(last.ratio, ratio)
-    } else groups.push({ start, names: [name], dur, ratio })
+      if (value && !last.vals.includes(value(h))) last.vals.push(value(h))
+    } else groups.push({ start, names: [name], dur, ratio, vals: value ? [value(h)] : [] })
   }
   groups.forEach((g, i) => {
     // una nota o un acorde no pisa a lo que viene detrás
     const next = groups[i + 1]?.start
     const dur = next !== undefined ? Math.max(1, Math.min(g.dur, next - g.start)) : g.dur
     if (g.start > at) tokens.push(`~${w(g.start - at)}`)
-    const value = clip ? String(Math.round(g.ratio * 1000) / 1000) : g.names.length > 1 ? `[${g.names.join(',')}]` : g.names[0]!
-    tokens.push(`${value}${w(dur)}`)
+    // con `value` (dinámica) cada nota vale su peso; un acorde se reparte el mismo peso
+    const v = value ? (g.vals.length === 1 ? g.vals[0]! : `[${g.vals.join(',')}]`) : clip ? String(Math.round(g.ratio * 1000) / 1000) : g.names.length > 1 ? `[${g.names.join(',')}]` : g.names[0]!
+    tokens.push(`${v}${w(dur)}`)
     at = g.start + dur
   })
   const total = 16 * res
@@ -141,7 +143,36 @@ export function melodyClip(hits: readonly MelodyHit[], bars: number, phaseBar: n
   return loopMinis(hits, bars, phaseBar).clip
 }
 
-function loopMinis(hits: readonly MelodyHit[], bars: number, phaseBar: number): { mini: string; clip: string | null } {
+/**
+ * Ganancia por nota (spec 029 §2): un patrón con la misma estructura que `melodyMini` pero con el volumen de cada nota.
+ * `strength` 0..1 se lleva a 0.55–1 (nunca 0: una nota no se calla sola). Devuelve `null` si **todas** las notas están a
+ * `1` (lo de siempre): así lo guardado y lo que no usa dinámica genera exactamente el mismo código.
+ */
+export function melodyGains(hits: readonly MelodyHit[], bars: number, phaseBar: number): string | null {
+  const valid = hits.filter((h) => isMidi(h.midi) && Number.isFinite(h.pos) && Number.isFinite(h.dur) && h.dur > 0)
+  const same = (s: unknown) => Math.abs(safeStrength(s) - 1) < 1e-6
+  if (valid.every((h) => same(h.strength))) return null
+  const weight = (s: unknown) => {
+    const v = Math.min(1, Math.max(0, safeStrength(s)))
+    return Math.round((0.55 + 0.45 * v) * 1000) / 1000
+  }
+  // cada nota con su peso; los acordes vuelven a repartirse el mismo peso (Strudel aplica el gain a todo el hap)
+  return loopMinis(
+    valid.map((h) => ({ ...h })),
+    bars,
+    phaseBar,
+    (h) => String(weight(h.strength)),
+  ).mini
+}
+
+const safeStrength = (s: unknown): number => (typeof s === 'number' && Number.isFinite(s) ? s : 1)
+
+function loopMinis(
+  hits: readonly MelodyHit[],
+  bars: number,
+  phaseBar: number,
+  value?: (h: MelodyHit) => string,
+): { mini: string; clip: string | null } {
   const valid = hits.filter((h) => isMidi(h.midi) && Number.isFinite(h.pos) && Number.isFinite(h.dur) && h.dur > 0)
   const res = gridOf(valid)
   const perBar: string[] = []
@@ -152,7 +183,7 @@ function loopMinis(hits: readonly MelodyHit[], bars: number, phaseBar: number): 
       .filter((h) => Math.floor(h.pos / 16 + 1e-9) === b)
       .map((h) => ({ ...h, full: h.dur, pos: h.pos - b * 16, dur: Math.min(h.dur, (b + 1) * 16 - h.pos) }))
     if (inBar.some((h) => h.full > h.dur + 1e-9)) tied = true
-    perBar.push(barMini(inBar, res))
+    perBar.push(barMini(inBar, res, false, value))
     perClip.push(barMini(inBar, res, true))
   }
   const ph = Number.isFinite(phaseBar) ? phaseBar : 0
