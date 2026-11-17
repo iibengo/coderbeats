@@ -1,5 +1,5 @@
 export type Instrument = 'bd' | 'sd' | 'hh'
-export type KitId = 'electro' | '808' | 'vinyl'
+export type KitId = 'electro' | '808' | 'vinyl' | 'drums'
 /** `house` y `techno` son los de siempre (**clásicos**: las canciones guardadas siguen sonando igual); `house2` y `techno2` son los nuevos, diferenciados por patrones (spec 023) */
 export type StyleId = 'hiphop90' | 'house' | 'dnb' | 'dembow' | 'techno' | 'house2' | 'techno2' | 'reggaeton'
 

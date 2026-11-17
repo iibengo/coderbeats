@@ -138,9 +138,9 @@ describe('demo del dembow: "Cargar demo"', () => {
 })
 
 describe('los kits (spec 010)', () => {
-  it('Electrónico (uzu-drumkit) va sin .bank(); el 808 con su banco; tres kits en la UI', async () => {
+  it('Electrónico (uzu-drumkit) va sin .bank(); el 808 con su banco; cuatro kits en la UI', async () => {
     const { KIT_ORDER, KITS: K, kitFromSaved } = await import('../../app/lib/constants')
-    expect(KIT_ORDER).toEqual(['electro', 'vinyl', '808'])
+    expect(KIT_ORDER).toEqual(['electro', 'vinyl', '808', 'drums'])
     expect(K.electro.strudelBank).toBeNull()
     expect(K['808'].strudelBank).toBe('RolandTR808')
     // los índices son los del uzu-drumkit de strudel.cc (el orden de su strudel.json)
@@ -180,11 +180,14 @@ describe('el kit Vinilo y el repositorio de kits (spec 010, fase 2)', () => {
   it('el strudel.json del repositorio de kits coincide con el kit y con los samples de la app', async () => {
     const { readFileSync } = await import('node:fs')
     const json = JSON.parse(readFileSync('kits/coderbeats-kits/strudel.json', 'utf8')) as Record<string, string | string[]>
-    expect(json._base).toBe('https://raw.githubusercontent.com/iibengo/coderbeats-kits/v1/')
+    // v1 (solo Vinilo) ya está publicada y no se mueve; v2 lleva Vinilo y Batería (spec 034)
+    expect(json._base).toBe('https://raw.githubusercontent.com/iibengo/coderbeats-kits/v2/')
     expect(KITS.vinyl.samples).toBe('github:iibengo/coderbeats-kits/v1')
+    expect(KITS.drums.samples).toBe('github:iibengo/coderbeats-kits/v2')
+    for (const [kit, dir] of [['vinyl', 'vinyl'], ['drums', 'drums']] as const)
     for (const inst of ['bd', 'sd', 'hh'] as const) {
-      const files = json[`${KITS.vinyl.strudelBank}_${inst}`] as string[]
-      expect(files, inst).toEqual([`vinyl/${inst}.wav`])
+      const files = json[`${KITS[kit].strudelBank}_${inst}`] as string[]
+      expect(files, inst).toEqual([`${dir}/${inst}.wav`])
       // la misma muestra en el repositorio de kits y en la app (que no se desincronicen)
       expect(readFileSync(`kits/coderbeats-kits/${files[0]}`).equals(readFileSync(`public/samples/${files[0]}`)), inst).toBe(true)
     }
@@ -193,5 +196,36 @@ describe('el kit Vinilo y el repositorio de kits (spec 010, fase 2)', () => {
     const { DEMO_KIT } = await import('../../app/lib/cells')
     expect(DEMO_KIT.hiphop90).toBe('vinyl')
     expect(DEMO_KIT.dembow).toBe('808')
+  })
+})
+
+describe('el kit Batería (spec 034)', () => {
+  it('existe, se elige en el orden de la UI y lo guardado con «acoustic» sigue pasando a Electrónico', async () => {
+    const { KIT_ORDER, kitFromSaved } = await import('../../app/lib/constants')
+    expect(KIT_ORDER).toContain('drums')
+    expect(kitFromSaved('drums')).toBe('drums')
+    expect(kitFromSaved('acoustic')).toBe('electro')
+    expect(kitFromSaved('909')).toBe('electro')
+    expect(KITS.drums.strudelBank).toBe('Drums')
+  })
+  it('los tres WAV existen, son ligeros (< 120 KB en total), coinciden con los del repositorio de kits y su SHA está en CREDITS.md', async () => {
+    const { readFileSync, statSync } = await import('node:fs')
+    const { createHash } = await import('node:crypto')
+    const credits = readFileSync('public/samples/CREDITS.md', 'utf8')
+    let total = 0
+    for (const f of ['bd', 'sd', 'hh']) {
+      const buf = readFileSync(`public/samples/drums/${f}.wav`)
+      total += statSync(`public/samples/drums/${f}.wav`).size
+      expect(buf.subarray(0, 4).toString()).toBe('RIFF')
+      expect(readFileSync(`kits/coderbeats-kits/drums/${f}.wav`).equals(buf), f).toBe(true)
+      expect(credits, f).toContain(createHash('sha256').update(buf).digest('hex').slice(0, 16))
+    }
+    expect(total).toBeLessThan(120_000)
+  })
+  it('CREDITS.md nombra el origen exacto y que la caja es el golpe al centro', async () => {
+    const { readFileSync } = await import('node:fs')
+    const credits = readFileSync('public/samples/CREDITS.md', 'utf8')
+    expect(credits).toContain('snare_14/center/top/sn_center_vl5_rr1.flac')
+    expect(credits).toContain('CC0')
   })
 })

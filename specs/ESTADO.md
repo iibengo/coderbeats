@@ -512,3 +512,12 @@ Escritos. En la spec 017 va cada uno. **Aviso de lo que no se cumple:** el princ
 2. Estudio → «Controles avanzados» → abrir el Órgano → ⋯: tresillos (casillas de tres por tiempo), acordes (tocar añade otra nota; tocar una nota la quita) y ligaduras (arrastrar una nota por encima de la línea de compás en un loop de 2).
 3. «+ Nueva canción» con tempo propio en cada estilo: ¿va al tempo elegido?
 4. Importar un archivo con tempo propio y comprobar lo mismo.
+
+## Tanda 5 (2026-11-18): kit «Batería» (spec 034, sin estilos)
+- **Kit `drums` («Batería»)**: batería acústica real de **Big Rusty Drums, Karoryfer Samples (CC0)**; el `LICENSE` del repo se comprobó a mano y es idéntico al texto oficial de CC0 1.0. 3 WAV mono recortados y subidos de volumen: `bd` 44 178 B, `sd` 35 358 B (**golpe al centro**, micro de arriba), `hh` 22 128 B (charles cerrado) = **101 664 B** en total (`public/samples` pasa de 652 K a 760 K). SHA-256 en `public/samples/CREDITS.md`.
+- Sale en Ajustes junto a Electrónico, Vinilo y 808. **No es `acoustic`** (nombre antiguo que sigue pasando a `electro`): lo guardado suena igual.
+- Para strudel.cc, el código mostrado lleva `samples('github:iibengo/coderbeats-kits/v2')` + `.bank("Drums")`. **Esa etiqueta `v2` la tienes que publicar tú** (`kits/coderbeats-kits/` ya la lleva); hasta entonces, el código pegado en strudel.cc no encontrará `Drums`.
+- Sin charles abierto ni estilos nuevos. La guitarra (melodía con sonido de guitarra) espera a que pruebes la batería.
+### Qué probar en el móvil
+1. Ajustes → kit «Batería» y tocar un ritmo: ¿el bombo y la caja tienen cuerpo? ¿el charles sisea demasiado? ¿el volumen descompensa respecto a Electrónico, Vinilo y 808? (todo ajustado por pico, no de oído).
+2. ¿Carga rápido la primera vez en el móvil?

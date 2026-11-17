@@ -1,6 +1,21 @@
 {
-  "_base": "https://raw.githubusercontent.com/iibengo/coderbeats-kits/v1/",
-  "Vinyl_bd": ["vinyl/bd.wav"],
-  "Vinyl_sd": ["vinyl/sd.wav"],
-  "Vinyl_hh": ["vinyl/hh.wav"]
+  "_base": "https://raw.githubusercontent.com/iibengo/coderbeats-kits/v2/",
+  "Vinyl_bd": [
+    "vinyl/bd.wav"
+  ],
+  "Vinyl_sd": [
+    "vinyl/sd.wav"
+  ],
+  "Vinyl_hh": [
+    "vinyl/hh.wav"
+  ],
+  "Drums_bd": [
+    "drums/bd.wav"
+  ],
+  "Drums_sd": [
+    "drums/sd.wav"
+  ],
+  "Drums_hh": [
+    "drums/hh.wav"
+  ]
 }

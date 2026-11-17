@@ -15,11 +15,12 @@ describe('Acerca de: licencia y créditos', () => {
   })
   it('acredita todo lo que declara el README y los kits de samples', () => {
     const names = CREDITS.map((c) => c.name).join(' ')
-    for (const n of ['Strudel', 'Meyda', 'uzu-drumkit', 'Fischer', 'Boochi44']) expect(names).toContain(n)
+    for (const n of ['Strudel', 'Meyda', 'uzu-drumkit', 'Fischer', 'Boochi44', 'Karoryfer']) expect(names).toContain(n)
     const samples = read('public/samples/CREDITS.md')
     expect(samples).toContain('uzu-drumkit')
     expect(samples).toContain('sounds-tr808-fischer')
     expect(samples).toContain('Boochi44')
+    expect(samples).toContain('karoryfer.big-rusty-drums')
     for (const c of CREDITS) {
       expect(c.url.startsWith('https://')).toBe(true)
       expect(c.license.length).toBeGreaterThan(0)

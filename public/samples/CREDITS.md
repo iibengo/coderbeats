@@ -31,6 +31,21 @@ https://github.com/tidalcycles/sounds-tr808-fischer
 
 No hace falta atribución (CC0); se menciona por cortesía. «808» y «Roland» son marcas de sus dueños y solo se usan para describir el sonido.
 
+## Kit «Batería» · Karoryfer Samples, Big Rusty Drums (CC0)
+
+Batería acústica grabada, del repositorio **karoryfer.big-rusty-drums** de Karoryfer Samples, publicada como **CC0 1.0** (dominio
+público): https://github.com/sfzinstruments/karoryfer.big-rusty-drums. El `LICENSE` del repositorio se comprobó a mano el 2026-11-18 y es
+**idéntico, palabra por palabra, al texto legal oficial de CC0 1.0** (creativecommons.org); no hace falta atribución, se menciona por cortesía.
+
+Cada archivo es **un solo golpe** del original (FLAC, mono, 44,1 kHz) **recortado** (cola con fundido de salida) y **subido de volumen**
+hasta el pico de los otros kits, convertido a WAV de 16 bits. Es la única modificación (obra derivada permitida por CC0).
+
+| Archivo | Origen (`Samples/…`) | Recorte | Pico | SHA-256 (16 primeros) |
+|---|---|---|---|---|
+| `drums/bd.wav` | `kick_24/kick/kick/k_vl10_rr1.flac` (bombo 24", micro cercano) | 0,5 s | −3,0 dB | `8707c705fe93e9a8` |
+| `drums/sd.wav` | `snare_14/center/top/sn_center_vl5_rr1.flac` (caja 14", **golpe al centro**, micro de arriba) | 0,4 s | −2,5 dB | `959c3c18d2fe9ffd` |
+| `drums/hh.wav` | `hihat_14/cl/cl/ht_cl_vl4_rr1.flac` (charles 14" cerrado, micro cercano) | 0,25 s | −5,0 dB | `8167214f70190028` |
+
 ## Kit «Vinilo» · Boochi44 (CC0)
 
 Del repositorio **Boochi44/free-drum-samples**, kit «03 Soulful Vintage» (**CC0 1.0**; 808 bajados de calidad y *bitcrushed*):

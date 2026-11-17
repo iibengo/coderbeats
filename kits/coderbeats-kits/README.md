@@ -8,6 +8,17 @@ samples('github:iibengo/coderbeats-kits/v1')
 s("bd ~ ~ ~ bd ~ ~ ~").bank("Vinyl")
 ```
 
+## Kit `Drums` (batería acústica, etiqueta `v2`)
+
+De [Karoryfer Samples · Big Rusty Drums](https://github.com/sfzinstruments/karoryfer.big-rusty-drums) (**CC0 1.0**): un golpe recortado de bombo, caja (al centro) y charles cerrado. Detalle en `public/samples/CREDITS.md` de coderbeats.
+
+```js
+samples('github:iibengo/coderbeats-kits/v2')
+s("bd ~ sd ~").bank("Drums")
+```
+
+La etiqueta `v2` lleva `Vinyl` y `Drums`; la `v1` (solo `Vinyl`) no se mueve.
+
 ## Kit `Vinyl` (hip hop con sabor a vinilo)
 
 Del kit «03 Soulful Vintage» de [Boochi44/free-drum-samples](https://github.com/Boochi44/free-drum-samples) (**CC0 1.0**): 808
