@@ -180,11 +180,10 @@ describe('el kit Vinilo y el repositorio de kits (spec 010, fase 2)', () => {
   it('el strudel.json del repositorio de kits coincide con el kit y con los samples de la app', async () => {
     const { readFileSync } = await import('node:fs')
     const json = JSON.parse(readFileSync('kits/coderbeats-kits/strudel.json', 'utf8')) as Record<string, string | string[]>
-    // v1 (solo Vinilo) ya está publicada y no se mueve; v2 lleva Vinilo y Batería (spec 034)
-    expect(json._base).toBe('https://raw.githubusercontent.com/iibengo/coderbeats-kits/v2/')
+    expect(json._base).toBe('https://raw.githubusercontent.com/iibengo/coderbeats-kits/v1/')
     expect(KITS.vinyl.samples).toBe('github:iibengo/coderbeats-kits/v1')
-    expect(KITS.drums.samples).toBe('github:iibengo/coderbeats-kits/v2')
-    for (const [kit, dir] of [['vinyl', 'vinyl'], ['drums', 'drums']] as const)
+    expect(KITS.drums.samples).toBeUndefined() // la batería acústica solo suena en la app (no hay repositorio de kits para ella)
+    for (const [kit, dir] of [['vinyl', 'vinyl']] as const)
     for (const inst of ['bd', 'sd', 'hh'] as const) {
       const files = json[`${KITS[kit].strudelBank}_${inst}`] as string[]
       expect(files, inst).toEqual([`${dir}/${inst}.wav`])
@@ -208,7 +207,7 @@ describe('el kit Batería (spec 034)', () => {
     expect(kitFromSaved('909')).toBe('electro')
     expect(KITS.drums.strudelBank).toBe('Drums')
   })
-  it('los tres WAV existen, son ligeros (< 120 KB en total), coinciden con los del repositorio de kits y su SHA está en CREDITS.md', async () => {
+  it('los tres WAV existen, son ligeros (< 120 KB en total), su SHA está en CREDITS.md', async () => {
     const { readFileSync, statSync } = await import('node:fs')
     const { createHash } = await import('node:crypto')
     const credits = readFileSync('public/samples/CREDITS.md', 'utf8')
@@ -217,7 +216,6 @@ describe('el kit Batería (spec 034)', () => {
       const buf = readFileSync(`public/samples/drums/${f}.wav`)
       total += statSync(`public/samples/drums/${f}.wav`).size
       expect(buf.subarray(0, 4).toString()).toBe('RIFF')
-      expect(readFileSync(`kits/coderbeats-kits/drums/${f}.wav`).equals(buf), f).toBe(true)
       expect(credits, f).toContain(createHash('sha256').update(buf).digest('hex').slice(0, 16))
     }
     expect(total).toBeLessThan(120_000)
@@ -227,5 +225,18 @@ describe('el kit Batería (spec 034)', () => {
     const credits = readFileSync('public/samples/CREDITS.md', 'utf8')
     expect(credits).toContain('snare_14/center/top/sn_center_vl5_rr1.flac')
     expect(credits).toContain('CC0')
+  })
+})
+
+describe('el código mostrado con la batería acústica (spec 034)', () => {
+  it('sin .bank() ni samples(): usa los sonidos de strudel y lleva el aviso; en la app sigue siendo Drums', async () => {
+    const { songCode } = await import('../../app/lib/song')
+    const { APP_ONLY_NOTE } = await import('../../app/lib/guitarSamples')
+    const st = { loops: [{ id: 1, instrument: 'bd' as const, bars: 1 as const, phaseBar: 0, hits: [{ pos: 0, strength: 0.8 }], muted: false, bornAt: 0, fromTemplate: false }], style: 'techno2' as const, kit: 'drums' as const, background: { mode: 'off' as const, parts: { bass: false, chords: false } }, metronome: false, fx: { filter: 1, space: 0, warmth: 0 } }
+    const code = songCode(st, 'display')
+    expect(code).not.toContain('samples(')
+    expect(code).not.toContain('.bank(')
+    expect(code).toContain(`// ${APP_ONLY_NOTE}`)
+    expect(songCode(st, 'engine')).toContain('.bank("Drums")')
   })
 })

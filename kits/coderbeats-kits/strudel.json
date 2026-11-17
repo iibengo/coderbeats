@@ -1,44 +1,6 @@
 {
-  "_base": "https://raw.githubusercontent.com/iibengo/coderbeats-kits/v2/",
-  "Vinyl_bd": [
-    "vinyl/bd.wav"
-  ],
-  "Vinyl_sd": [
-    "vinyl/sd.wav"
-  ],
-  "Vinyl_hh": [
-    "vinyl/hh.wav"
-  ],
-  "Drums_bd": [
-    "drums/bd.wav"
-  ],
-  "Drums_sd": [
-    "drums/sd.wav"
-  ],
-  "Drums_hh": [
-    "drums/hh.wav"
-  ],
-  "hofner": {
-    "e3": [
-      "guitar/e3.wav"
-    ],
-    "a3": [
-      "guitar/a3.wav"
-    ],
-    "d4": [
-      "guitar/d4.wav"
-    ],
-    "g4": [
-      "guitar/g4.wav"
-    ],
-    "c5": [
-      "guitar/c5.wav"
-    ],
-    "f5": [
-      "guitar/f5.wav"
-    ],
-    "a5": [
-      "guitar/a5.wav"
-    ]
-  }
+  "_base": "https://raw.githubusercontent.com/iibengo/coderbeats-kits/v1/",
+  "Vinyl_bd": ["vinyl/bd.wav"],
+  "Vinyl_sd": ["vinyl/sd.wav"],
+  "Vinyl_hh": ["vinyl/hh.wav"]
 }

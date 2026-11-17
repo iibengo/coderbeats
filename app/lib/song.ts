@@ -1,4 +1,4 @@
-import { GUITAR_SAMPLES_URL } from './guitarSamples'
+import { APP_ONLY_NOTE } from './guitarSamples'
 import { isVoiceId } from './voiceLoop'
 import { STYLES, KITS, INSTRUMENTS } from './constants'
 import { loopGains, fmtGain } from './mix'
@@ -10,7 +10,7 @@ import type { FreeLoop } from './freeLoops'
 import type { KitId, StyleId } from './types'
 import { anyPart, type BackgroundMode, type Parts } from './background'
 import { bassCode } from './bass'
-import { melodyClip, melodyGains, melodyMini, SYNTH_SOUND, type MelodyHit, type MelodySynth } from './melody'
+import { melodyClip, melodyGains, melodyMini, SYNTH_SOUND, SYNTH_SOUND_DISPLAY, type MelodyHit, type MelodySynth } from './melody'
 import { SUGGEST_GAIN } from './suggestMelody'
 import type { Cell, Segment } from './cells'
 import { wowCode, wowControls } from './wow'
@@ -165,7 +165,7 @@ function loopLine(
     const hits = src.hits.map((h) => ({ pos: h.pos, strength: h.strength, midi: h.midi as number, dur: h.dur as number }))
     // las notas que cruzan la línea de compás (ligaduras) llevan un `.clip("…")`; sin ellas, el código es el de siempre
     const clip = melodyClip(hits, safeNum(src.bars), safeNum(src.phaseBar))
-    line = `note("${melodyMini(hits, safeNum(src.bars), safeNum(src.phaseBar))}")${clip ? `.clip("${clip}")` : ''}${SYNTH_SOUND[synth] ?? SYNTH_SOUND.piano}.orbit(${MELODY_ORBIT})`
+    line = `note("${melodyMini(hits, safeNum(src.bars), safeNum(src.phaseBar))}")${clip ? `.clip("${clip}")` : ''}${mode === 'display' && synth === 'guitarSample' ? SYNTH_SOUND_DISPLAY.guitarSample : (SYNTH_SOUND[synth] ?? SYNTH_SOUND.piano)}.orbit(${MELODY_ORBIT})`
     // dinámica por nota (spec 029 §2): solo si alguna nota lleva su fuerza; si no, el gain del loop de siempre.
     // Con dinámica, el volumen del loop se multiplica en cada nota.
     const dyn = melodyGains(hits, safeNum(src.bars), safeNum(src.phaseBar))
@@ -178,8 +178,8 @@ function loopLine(
   } else {
     const kit = KITS[st.kit]
     const { s, nudge, gains } = loopTokens({ ...src, id: loop.id }, stepSeconds, st.production)
-    line = `s("${tokensToMini(s)}")${kit.strudelBank ? `.bank("${kit.strudelBank}")` : ''}`
-    const n = kit.sampleIndex[loop.instrument]
+    line = `s("${tokensToMini(s)}")${kit.strudelBank && !(kit.appOnly && mode === 'display') ? `.bank("${kit.strudelBank}")` : ''}`
+    const n = kit.appOnly && mode === 'display' ? 0 : kit.sampleIndex[loop.instrument]
     if (n !== 0) line += `.n(${n})`
     if (nudge) line += `.nudge("${tokensToMini(nudge)}")`
     // con producción, el volumen por paso (el de la mezcla × el matiz); sin ella, el volumen del loop de siempre
@@ -488,13 +488,13 @@ export function songCode(st: SongState, mode: SongMode = 'display'): string {
 /** La línea `samples('github:…')` del kit, si el código mostrado la necesita para sonar igual en strudel.cc (spec 010). */
 function samplesLine(st: Pick<SongState, 'kit'> & Partial<Pick<SongState, 'loops' | 'cells'>>, mode: SongMode): string[] {
   if (mode !== 'display') return []
-  const urls = new Set<string>()
-  const kit = KITS[st.kit]?.samples
-  if (kit) urls.add(kit)
-  // la guitarra grabada (spec 036) también pide su `samples()` en strudel.cc
+  const out: string[] = []
+  const kit = KITS[st.kit]
+  if (kit?.samples) out.push(`samples('${kit.samples}')`)
+  // la batería acústica y la guitarra grabada no están en strudel.cc: el código usa los sonidos de strudel y lo avisa
   const loops = [...(st.loops ?? []), ...(st.cells?.list.flatMap((c) => c.loops) ?? [])]
-  if (loops.some((l) => l.synth === 'guitarSample')) urls.add(GUITAR_SAMPLES_URL)
-  return [...urls].map((u) => `samples('${u}')`)
+  if (kit?.appOnly || loops.some((l) => l.synth === 'guitarSample')) out.push(`// ${APP_ONLY_NOTE}`)
+  return out
 }
 
 function songArrangeCode(st: SongState): string {

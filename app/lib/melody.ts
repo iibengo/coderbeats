@@ -40,6 +40,9 @@ export const REGISTER: Record<MelodySynth | 'bass', readonly [number, number]> =
 }
 
 /** Líneas Strudel de cada sinte (sin orbit; spec 002, §6). Se afinan de oído. */
+/** Lo que se muestra en strudel.cc donde el sonido es solo de la app: la guitarra eléctrica limpia de la colección General MIDI de strudel (sin oír; puede no cargar sin los soundfonts) */
+export const SYNTH_SOUND_DISPLAY = { guitarSample: '.s("gm_electric_guitar_clean").release(0.1).gain(0.5)' } as const
+
 export const SYNTH_SOUND: Record<MelodySynth, string> = {
   piano: '.s("triangle").fm(1.5).fmh(2).decay(0.6).sustain(0.2).room(0.4)',
   lead: '.s("square").lpf(1800).decay(0.2).sustain(0.5).delay(0.25)',

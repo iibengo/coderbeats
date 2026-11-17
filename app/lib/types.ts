@@ -18,6 +18,8 @@ export interface Kit {
   label: string
   /** banco de strudel.cc; `null` = sin `.bank()` (el kit por defecto de strudel.cc, uzu-drumkit; spec 010) */
   strudelBank: string | null
+  /** solo suena en la app (sus muestras no están en strudel.cc): el código mostrado no lleva `.bank()` y usa el sonido de batería de strudel (spec 034) */
+  appOnly?: boolean
   /** línea `samples('github:…')` que el código mostrado necesita en strudel.cc si el kit no es de los suyos (spec 010) */
   samples?: string
   /** índice del sample en el mapa de strudel.cc (para que suene igual al copiar el código) */

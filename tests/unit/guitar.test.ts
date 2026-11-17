@@ -53,7 +53,7 @@ describe('la guitarra (spec 035): sinte opcional, sin samples', () => {
 
 import { readFileSync, statSync } from 'node:fs'
 import { createHash } from 'node:crypto'
-import { GUITAR_NOTES, GUITAR_SAMPLE, GUITAR_SAMPLES_URL, guitarMap } from '../../app/lib/guitarSamples'
+import { APP_ONLY_NOTE, GUITAR_NOTES, GUITAR_SAMPLE, guitarMap } from '../../app/lib/guitarSamples'
 
 describe('la guitarra grabada, guitarSample (spec 036)', () => {
   it('es otro sinte: guitar, guitarDirty y lead no cambian', () => {
@@ -70,27 +70,28 @@ describe('la guitarra grabada, guitarSample (spec 036)', () => {
     expect(m.length).toBe(7)
     expect(m.slice(1).map((x, i) => x - m[i]!)).toEqual([5, 5, 5, 5, 5, 4])
   })
-  it('los 7 WAV existen, son ligeros, coinciden con el repositorio de kits y su SHA está en CREDITS.md', () => {
+  it('los 7 WAV existen, son ligeros y su SHA está en CREDITS.md', () => {
     const credits = readFileSync('public/samples/CREDITS.md', 'utf8')
     let total = 0
-    const json = JSON.parse(readFileSync('kits/coderbeats-kits/strudel.json', 'utf8')) as Record<string, unknown>
-    expect(json[GUITAR_SAMPLE]).toEqual(guitarMap('guitar/'))
+    expect(Object.keys(guitarMap())).toEqual([...GUITAR_NOTES])
     for (const n of GUITAR_NOTES) {
       const buf = readFileSync(`public/samples/guitar/${n}.wav`)
       total += statSync(`public/samples/guitar/${n}.wav`).size
       expect(buf.subarray(0, 4).toString()).toBe('RIFF')
-      expect(readFileSync(`kits/coderbeats-kits/guitar/${n}.wav`).equals(buf), n).toBe(true)
-      expect(credits, n).toContain(createHash('sha256').update(buf).digest('hex').slice(0, 16))
+            expect(credits, n).toContain(createHash('sha256').update(buf).digest('hex').slice(0, 16))
     }
     expect(total).toBeLessThan(350_000)
   })
-  it('el código mostrado pide su samples() solo si la canción usa la guitarra (y una vez si el kit ya trae la misma etiqueta)', () => {
+  it('el código mostrado NO pide samples() de ningún repositorio: lleva un aviso y usa el sonido de strudel', () => {
     const con = songCode(state(loop('guitarSample')), 'display')
-    expect(con).toContain(`samples('${GUITAR_SAMPLES_URL}')`)
-    expect(con).toContain('.s("hofner")')
-    expect(songCode(state(loop()), 'display')).not.toContain('samples(')
-    expect(songCode(state(loop('guitar')), 'display')).not.toContain('samples(')
-    expect(songCode({ ...state(loop('guitarSample')), kit: 'drums' }, 'display').match(/samples\(/g)).toHaveLength(1)
-    expect(songCode(state(loop('guitarSample')), 'engine')).not.toContain('samples(')
+    expect(con).not.toContain('samples(')
+    expect(con).not.toContain('coderbeats-kits')
+    expect(con).not.toContain('hofner')
+    expect(con).toContain(`// ${APP_ONLY_NOTE}`)
+    expect(con).toContain('gm_electric_guitar_clean')
+    // en la app (engine) sigue siendo la guitarra de public/samples/
+    expect(songCode(state(loop('guitarSample')), 'engine')).toContain('.s("hofner")')
+    expect(songCode(state(loop()), 'display')).not.toContain(APP_ONLY_NOTE)
+    expect(songCode(state(loop('guitar')), 'display')).not.toContain(APP_ONLY_NOTE)
   })
 })

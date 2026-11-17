@@ -28,8 +28,8 @@ export const KITS: Record<KitId, Kit> = {
   vinyl: { id: 'vinyl', label: 'Vinilo', strudelBank: 'Vinyl', samples: 'github:iibengo/coderbeats-kits/v1', sampleIndex: { bd: 0, sd: 0, hh: 0 } },
   '808': { id: '808', label: '808', strudelBank: 'RolandTR808', sampleIndex: { bd: 1, sd: 1, hh: 0 } },
   // «Batería» (spec 034): batería acústica real, Big Rusty Drums de Karoryfer (CC0): bombo 24", caja 14" (golpe al centro), charles cerrado.
-  // Su id no es `acoustic` (nombre antiguo que pasa a `electro`). Para strudel.cc lleva su `samples('github:…')` (etiqueta v2 de coderbeats-kits: la publica Ion).
-  drums: { id: 'drums', label: 'Batería', strudelBank: 'Drums', samples: 'github:iibengo/coderbeats-kits/v2', sampleIndex: { bd: 0, sd: 0, hh: 0 } },
+  // Su id no es `acoustic` (nombre antiguo que pasa a `electro`). Solo suena en la app (`appOnly`): en strudel.cc el código mostrado usa los sonidos de strudel.
+  drums: { id: 'drums', label: 'Batería', strudelBank: 'Drums', appOnly: true, sampleIndex: { bd: 0, sd: 0, hh: 0 } },
 }
 
 /** Orden de la UI (las claves numéricas de un objeto se reordenan solas). */

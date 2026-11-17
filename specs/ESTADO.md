@@ -516,7 +516,7 @@ Escritos. En la spec 017 va cada uno. **Aviso de lo que no se cumple:** el princ
 ## Tanda 5 (2026-11-18): kit «Batería» (spec 034, sin estilos)
 - **Kit `drums` («Batería»)**: batería acústica real de **Big Rusty Drums, Karoryfer Samples (CC0)**; el `LICENSE` del repo se comprobó a mano y es idéntico al texto oficial de CC0 1.0. 3 WAV mono recortados y subidos de volumen: `bd` 44 178 B, `sd` 35 358 B (**golpe al centro**, micro de arriba), `hh` 22 128 B (charles cerrado) = **101 664 B** en total (`public/samples` pasa de 652 K a 760 K). SHA-256 en `public/samples/CREDITS.md`.
 - Sale en Ajustes junto a Electrónico, Vinilo y 808. **No es `acoustic`** (nombre antiguo que sigue pasando a `electro`): lo guardado suena igual.
-- Para strudel.cc, el código mostrado lleva `samples('github:iibengo/coderbeats-kits/v2')` + `.bank("Drums")`. **Esa etiqueta `v2` la tienes que publicar tú** (`kits/coderbeats-kits/` ya la lleva); hasta entonces, el código pegado en strudel.cc no encontrará `Drums`.
+- Para strudel.cc, el código mostrado no lleva `.bank()` ni `samples()` con este kit (corregido después: ver Tanda 7): suena con la batería de strudel y un comentario avisa.
 - Sin charles abierto ni estilos nuevos. La guitarra (melodía con sonido de guitarra) espera a que pruebes la batería.
 ### Qué probar en el móvil
 1. Ajustes → kit «Batería» y tocar un ritmo: ¿el bombo y la caja tienen cuerpo? ¿el charles sisea demasiado? ¿el volumen descompensa respecto a Electrónico, Vinilo y 808? (todo ajustado por pico, no de oído).
@@ -531,7 +531,7 @@ Escritos. En la spec 017 va cada uno. **Aviso de lo que no se cumple:** el princ
 
 ## Tanda 7 (2026-11-18): guitarra grabada (spec 036)
 - **`guitarSample`**: 7 notas de la Hofner Club (CC0), 309 246 B; `gain(0.5)` (se oyó al doble que la batería). Elegible con `sinte: guitarra-grabada` en el conversor. Carga perezosa verificada en Chrome (`tests/browser/guitarra-grabada.mjs`); no en Safari.
-- Publicar la etiqueta `v2` de `coderbeats-kits` (lleva Vinyl, Drums y hofner) es cosa de Ion.
+- **No hay etiqueta `v2` ni se usa `coderbeats-kits` para la batería y la guitarra**: el código mostrado no lleva `samples()`, lleva un comentario y usa sonidos de strudel (sin probar en strudel.cc que `gm_electric_guitar_clean` suene).
 ### Qué probar en el móvil
 1. Importar una canción con `sinte: guitarra-grabada`: ¿suena a guitarra limpia?, ¿el volumen cuadra con la batería?, ¿se nota el pitch-shift «estirable» entre e3 y a3 (si sí, subir a 8 notas)?, ¿la nota de 0,5 s se corta seca?
 2. En Safari/iPhone: ¿carga la primera nota sin retraso notable?
