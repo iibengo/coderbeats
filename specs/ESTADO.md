@@ -558,3 +558,9 @@ Escritos. En la spec 017 va cada uno. **Aviso de lo que no se cumple:** el princ
 1. Importa el Hobbit (o cualquier canción con riser/crash/redoble): el bombo y la caja deben sonar con el cuerpo de antes de añadir el redoble y los efectos.
 2. ¿Los adornos se pasan de fuertes? (ahora suenan a ganancia 1; si tapan, se les baja en `loopGains`).
 3. Una canción sin adornos (cualquier demo): debe sonar igual que antes.
+
+## Tanda 11 (2026-11-18): sidechain (spec 041)
+- `Song.sidechain` opcional (`si`/`no`): el bombo empuja el bajo y los acordes (también los propios de la canción, en el orbit 6) y no la melodía; vale en el código mostrado. El conversor lo activa solo en techno y house (`sidechain: auto`). Sin el campo, código idéntico (test).
+### Qué probar en el móvil
+1. Convierte un techno (p. ej. el Hobbit) e impórtalo: ¿el bajo y los acordes «respiran» con el bombo?, ¿la melodía se oye entera, sin agacharse?
+2. Compáralo con el mismo con `sidechain: no`. ¿Es demasiado o poco bombeo? (profundidad 0,6, ataque 0,15: se afina en `duckWith`).

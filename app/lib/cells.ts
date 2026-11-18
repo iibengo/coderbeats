@@ -77,6 +77,8 @@ export interface Song {
   bpm: number | null
   /** escala de la canción (spec 038); opcional: sin ella todo funciona como siempre */
   scale?: SongScale
+  /** sidechain del bombo sobre el bajo y los acordes (spec 041); opcional: sin él, como siempre */
+  sidechain?: 'si' | 'no'
   nextCellId: number
   /** ids de loop únicos en toda la canción (el motor los usa en `color("l<id>")`) */
   nextLoopId: number
@@ -304,7 +306,8 @@ export function isSong(x: unknown): x is Song {
     (s.groups === undefined || (Array.isArray(s.groups) && s.groups.every((g) => isObj(g) && isIdList(g.order)))) &&
     isNum(s.nextCellId) &&
     isNum(s.nextLoopId) &&
-    (s.scale === undefined || isSongScale(s.scale))
+    (s.scale === undefined || isSongScale(s.scale)) &&
+    (s.sidechain === undefined || s.sidechain === 'si' || s.sidechain === 'no')
   )
 }
 
@@ -430,7 +433,7 @@ export function stressSong(base: Song, count: number): Song {
       at: { x: i * 3, y: Math.sin(i * 1.3) * 1.2, depth: [0, 0.4, 0.1, 0.6][i % 4]! },
     }
   })
-  return { version: 1, cells, order: cells.map((c) => c.id), groups: [], nextGroupId: 1, bpm: base.bpm, ...(base.scale ? { scale: base.scale } : {}), nextCellId: n + 1, nextLoopId: loopId }
+  return { version: 1, cells, order: cells.map((c) => c.id), groups: [], nextGroupId: 1, bpm: base.bpm, ...(base.scale ? { scale: base.scale } : {}), ...(base.sidechain ? { sidechain: base.sidechain } : {}), nextCellId: n + 1, nextLoopId: loopId }
 }
 
 // ── grupos de células (spec 005, enmienda 2, §16) ─────────────────────────────────

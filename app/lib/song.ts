@@ -29,6 +29,11 @@ export interface SongState {
   style: StyleId
   /** tempo de la canción (spec 005, §6); sin él, el del estilo */
   bpm?: number | null
+  /**
+   * Sidechain de la canción (spec 041). Sin él, como siempre. `si`: el bombo hace «bombear» solo el bajo y los acordes (los del fondo y los propios de la canción), también en el código mostrado, y
+   * la melodía no se toca. `no`: sin sidechain.
+   */
+  sidechain?: 'si' | 'no'
   kit: KitId
   /** sinte de la melodía (spec 002, §6); sin él, el del estilo */
   melodySynth?: MelodySynth
@@ -80,6 +85,8 @@ const IND = '  '
 
 /** Orbit (bus) de la melodía con la voz (spec 002, §6). */
 export const MELODY_ORBIT = 5
+/** orbit del bajo y los acordes propios de la canción con `sidechain: 'si'` (spec 041): así el bombo los empuja sin empujar la melodía */
+export const SIDECHAIN_ORBIT = 6
 /** orbit de la voz grabada (spec 007 §6.4) */
 export const VOICE_ORBIT = 7
 const duckWith = (orbits: string) => `.duckorbit("${orbits}").duckdepth(0.6).duckattack(0.15)`
@@ -165,7 +172,7 @@ function loopLine(
     const hits = src.hits.map((h) => ({ pos: h.pos, strength: h.strength, midi: h.midi as number, dur: h.dur as number }))
     // las notas que cruzan la línea de compás (ligaduras) llevan un `.clip("…")`; sin ellas, el código es el de siempre
     const clip = melodyClip(hits, safeNum(src.bars), safeNum(src.phaseBar))
-    line = `note("${melodyMini(hits, safeNum(src.bars), safeNum(src.phaseBar))}")${clip ? `.clip("${clip}")` : ''}${mode === 'display' && synth === 'guitarSample' ? SYNTH_SOUND_DISPLAY.guitarSample : (SYNTH_SOUND[synth] ?? SYNTH_SOUND.piano)}.orbit(${MELODY_ORBIT})`
+    line = `note("${melodyMini(hits, safeNum(src.bars), safeNum(src.phaseBar))}")${clip ? `.clip("${clip}")` : ''}${mode === 'display' && synth === 'guitarSample' ? SYNTH_SOUND_DISPLAY.guitarSample : (SYNTH_SOUND[synth] ?? SYNTH_SOUND.piano)}.orbit(${st.sidechain === 'si' && (synth === 'bass' || synth === 'keys') ? SIDECHAIN_ORBIT : MELODY_ORBIT})`
     // dinámica por nota (spec 029 §2): solo si alguna nota lleva su fuerza; si no, el gain del loop de siempre.
     // Con dinámica, el volumen del loop se multiplica en cada nota.
     const dyn = melodyGains(hits, safeNum(src.bars), safeNum(src.phaseBar))
@@ -214,7 +221,8 @@ function drumFxOf(st: SongState, mode: SongMode): string {
 function loopsLines(loops: FreeLoop[], st: SongState, mode: SongMode, duck: boolean, ind: string, phaseOffset = 0, withMel = false): string[] {
   if (!loops.length) return []
   // el sidechain del bombo también empuja la melodía si hay una en este bloque (orbit 5), o en la célula (`withMel`)
-  const duckStr = duck ? (withMel || loops.some((l) => l.instrument === 'mel') ? duckWith(`2:3:${MELODY_ORBIT}`) : DUCK) : ''
+  const duckStr =
+    st.sidechain === 'no' ? '' : st.sidechain === 'si' ? duckWith(`2:3:${SIDECHAIN_ORBIT}`) : duck ? (withMel || loops.some((l) => l.instrument === 'mel') ? duckWith(`2:3:${MELODY_ORBIT}`) : DUCK) : ''
   const stepSeconds = 60 / (st.bpm ?? STYLES[st.style].bpm) / 4
   const engine = mode === 'engine'
   const gains = loopGains(loops)

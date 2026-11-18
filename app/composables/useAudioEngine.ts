@@ -915,6 +915,7 @@ function songState(display = false): SongState {
     loops: songCellNow().loops,
     style: style.value,
     bpm: song.value.bpm,
+    ...(song.value.sidechain ? { sidechain: song.value.sidechain } : {}),
     kit: kit.value,
     background: { mode: bgMode.value, parts: bgParts.value },
     metronome: metronome.value,
