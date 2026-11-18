@@ -604,3 +604,9 @@ Escritos. En la spec 017 va cada uno. **Aviso de lo que no se cumple:** el princ
 - Cinco muestras del uzu-drumkit (rim, click, cowbell, tom, shaker; ~44 KB) como sintes de muestra con patrón propio en cualquier paso (también fuera de tiempo y en compases siguientes); nombres de strudel (suena igual en strudel.cc); no cuentan como melodía. Conversor: `percu:`.
 ### Qué probar en el móvil
 1. Importa `minimal-ejemplo` (tiene `percu:`): ¿cada golpe cae donde debe (rim en 4.5, clics en medios pasos, cowbell cada dos compases)?, ¿suenan bien de volumen y de timbre (¿el «clic» es un clic?), ¿el tom/cowbell no tapan el bombo?
+
+## Tanda 18 (2026-11-18): sinte `dub` (spec 046)
+- Sinte `dub` con acordes, filtro resonante, saturación, reverb larga y un **eco de 3/16 con tres repeticiones cada vez más oscuras** (`SYNTH_ECHO`, tras el gain). Strudel no tiene filtro en el bucle del `delay`; se emula con `.off`. Conversor: `sinte: dub`; ejemplo `dub-ejemplo.txt`. **Sin oír.**
+- **Decisión a revisar:** en el motor, `room` y `shape` del sinte los pisan Espacio y Calidez (como en todos los sintes).
+### Qué probar en el móvil
+1. Importa `dub-ejemplo` y ponle el Espacio alto: ¿suena a stab de dub techno?, ¿se oyen los tres ecos cada vez más oscuros y a ritmo de corchea con puntillo?, ¿la reverb es larga?, ¿el iPhone aguanta las voces (20 por stab)?

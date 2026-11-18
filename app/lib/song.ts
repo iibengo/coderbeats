@@ -10,7 +10,7 @@ import type { FreeLoop } from './freeLoops'
 import type { KitId, StyleId } from './types'
 import { anyPart, type BackgroundMode, type Parts } from './background'
 import { bassCode } from './bass'
-import { melodyClip, melodyGains, melodyMini, SYNTH_SOUND, SYNTH_SOUND_DISPLAY, type MelodyHit, type MelodySynth } from './melody'
+import { melodyClip, melodyGains, melodyMini, SYNTH_ECHO, SYNTH_SOUND, SYNTH_SOUND_DISPLAY, type MelodyHit, type MelodySynth } from './melody'
 import { SUGGEST_GAIN } from './suggestMelody'
 import type { Cell, Segment } from './cells'
 import { wowCode, wowControls } from './wow'
@@ -182,6 +182,8 @@ function loopLine(
         Math.abs(gain - 1) > 0.005 ? t.replace(/(^|\s)(\d+(?:\.\d+)?)(?=@|$)/g, (_, sp, n) => `${sp}${fmtGain(Number(n) * gain)}`) : t
       line += `.gain("${mult(dyn)}")`
     } else if (Math.abs(gain - 1) > 0.005) line += `.gain(${fmtGain(gain)})`
+    // el eco de ciertos sintes (el dub), después del gain por nota: si no, el patrón de ganancia recortaría las repeticiones
+    line += SYNTH_ECHO[synth] ?? ''
   } else {
     const kit = KITS[st.kit]
     const { s, nudge, gains } = loopTokens({ ...src, id: loop.id }, stepSeconds, st.production)

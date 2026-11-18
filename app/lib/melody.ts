@@ -6,8 +6,8 @@
  */
 /** `drone`: un sine con mucha reverb, para fondos (la demo del dembow); no es de los que se eligen para cantar */
 /** `bass` y `keys` (spec 028 §5): el bajo y los acordes **propios de la canción**, hechos de notas (en `keys`, varias a la vez), en vez del fondo del estilo */
-export type MelodySynth = 'lead' | 'piano' | 'pad' | 'drone' | 'riser' | 'crash' | 'boom' | 'impacto' | 'downlifter' | 'bass' | 'keys' | 'guitar' | 'guitarDirty' | 'guitarSample' | 'acid' | 'rim' | 'click' | 'cowbell' | 'tom' | 'shaker'
-export const MELODY_SYNTHS: readonly MelodySynth[] = ['lead', 'piano', 'pad', 'drone', 'riser', 'crash', 'boom', 'impacto', 'downlifter', 'bass', 'keys', 'guitar', 'guitarDirty', 'guitarSample', 'acid', 'rim', 'click', 'cowbell', 'tom', 'shaker']
+export type MelodySynth = 'lead' | 'piano' | 'pad' | 'drone' | 'riser' | 'crash' | 'boom' | 'impacto' | 'downlifter' | 'bass' | 'keys' | 'guitar' | 'guitarDirty' | 'guitarSample' | 'acid' | 'rim' | 'click' | 'cowbell' | 'tom' | 'shaker' | 'dub'
+export const MELODY_SYNTHS: readonly MelodySynth[] = ['lead', 'piano', 'pad', 'drone', 'riser', 'crash', 'boom', 'impacto', 'downlifter', 'bass', 'keys', 'guitar', 'guitarDirty', 'guitarSample', 'acid', 'rim', 'click', 'cowbell', 'tom', 'shaker', 'dub']
 
 /** Rango MIDI que se admite en un loop de melodía o bajo (C1–C7). */
 export const MIDI_MIN = 24
@@ -42,12 +42,18 @@ export const REGISTER: Record<MelodySynth | 'bass', readonly [number, number]> =
   cowbell: [24, 60],
   tom: [24, 60],
   shaker: [24, 60],
+  dub: [36, 79], // acordes de dub techno: C2–G5
   bass: [28, 52], // E1–E3
 }
 
 /** Líneas Strudel de cada sinte (sin orbit; spec 002, §6). Se afinan de oído. */
 /** Lo que se muestra en strudel.cc donde el sonido es solo de la app: la guitarra eléctrica limpia de la colección General MIDI de strudel (sin oír; puede no cargar sin los soundfonts) */
 export const SYNTH_SOUND_DISPLAY = { guitarSample: '.s("gm_electric_guitar_clean").release(0.1).gain(0.5)' } as const
+
+/** Lo que va al **final** de la línea de un loop de ese sinte, después del `.gain(...)` (spec 046): el eco del dub, de corchea con puntillo (3/16 de ciclo), con tres repeticiones cada vez más oscuras y bajas. */
+export const SYNTH_ECHO: Partial<Record<MelodySynth, string>> = {
+  dub: '.off(3/16, x => x.lpf(650).postgain(0.6).off(3/16, y => y.lpf(480).postgain(0.6).off(3/16, z => z.lpf(340).postgain(0.6))))',
+}
 
 export const SYNTH_SOUND: Record<MelodySynth, string> = {
   piano: '.s("triangle").fm(1.5).fmh(2).decay(0.6).sustain(0.2).room(0.4)',
@@ -81,6 +87,11 @@ export const SYNTH_SOUND: Record<MelodySynth, string> = {
   cowbell: '.s("cb").gain(0.7)',
   tom: '.s("mt").gain(0.8)',
   shaker: '.s("sh").gain(0.7)',
+  // el stab del dub techno (spec 046): dos sierras desafinadas (`supersaw` con `unison(2)`) por un filtro resonante de envolvente rápida y sustain 0, un poco de saturación y reverb larga (`room`, `roomsize`),
+  // y un eco de corchea con puntillo (3/16) **con el filtro dentro**: Strudel no tiene filtro en el bucle del `delay`, así que las tres repeticiones se escriben con `.off(3/16, …)`, cada una con menos
+  // `postgain` y un `lpf` más cerrado (más oscura): ese eco es `SYNTH_ECHO.dub`, que va **al final de la línea** (después del `.gain("…")` por nota, que si no recortaría las repeticiones). Recibe acordes
+  // (varias notas a la vez). En el motor, `room` y `shape` los gobiernan los controles de Espacio y Calidez. Sin oír.
+  dub: '.s("supersaw").unison(2).detune(0.3).spread(0.4).lpf(800).lpq(3).lpenv(3).lpa(0.003).lpd(0.18).lps(0).decay(0.3).sustain(0).release(0.15).shape(0.25).room(0.9).roomsize(8).gain(0.35)',
   riser: '.s("pink").attack(0.12).decay(0.2).sustain(0.7).release(0.05).gain(0.6).room(0.3)',
 }
 
