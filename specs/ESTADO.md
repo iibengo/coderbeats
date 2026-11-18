@@ -551,3 +551,10 @@ Escritos. En la spec 017 va cada uno. **Aviso de lo que no se cumple:** el princ
 2. Canta una frase de 2 compases sobre la parte. ¿Aparece una melodía nueva que se parece a lo cantado y no desafina de la escala? ¿Llega a tiempo (sin desfase de un compás ni de un pulso)?
 3. «Ver en el Órgano»: ¿se ve y se corrige? «Borrar toma» y vuelve a cantar. A la cuarta melodía debe avisar del tope.
 4. **No lo he oído ni probado con una voz real**: el ajuste de la voz al cantar lo juzgas tú.
+
+## Tanda 10 (2026-11-18): los adornos no cuentan en el reparto del volumen (spec 040)
+- `loopGains`: riser/crash/boom/impacto/downlifter y los loops con `adorno: true` (el redoble del conversor) no cuentan en el 1/√n y suenan a su fuerza (1). Campo opcional validado; sin adornos, igual que antes (test).
+### Qué probar en el móvil
+1. Importa el Hobbit (o cualquier canción con riser/crash/redoble): el bombo y la caja deben sonar con el cuerpo de antes de añadir el redoble y los efectos.
+2. ¿Los adornos se pasan de fuertes? (ahora suenan a ganancia 1; si tapan, se les baja en `loopGains`).
+3. Una canción sin adornos (cualquier demo): debe sonar igual que antes.

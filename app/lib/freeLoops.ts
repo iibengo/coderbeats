@@ -53,6 +53,11 @@ export interface FreeLoop {
   /** solo melodía: sinte propio de este loop (la demo del dembow); sin él, el de la canción o el del estilo */
   synth?: MelodySynth
   /**
+   * Es un adorno (spec 040): un golpe puntual (redoble, riser, crash…) y no una capa permanente. No cuenta en el reparto del volumen (`loopGains`) y suena a su fuerza. Opcional: sin él, todo como siempre
+   * (los sintes riser, crash, boom, impacto y downlifter lo son sin marcarlo).
+   */
+  adorno?: boolean
+  /**
    * Versión anterior a la que sustituye (modo "sustituye", §16.15): sigue sonando hasta
    * el compás de nacimiento de la nueva (`bornAt`), sin hueco ni solape.
    */

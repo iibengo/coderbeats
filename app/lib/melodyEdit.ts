@@ -147,7 +147,7 @@ export function setMelBars(s: LoopsState, loopId: number, bars: LoopBars): Loops
 }
 
 // ── una sola melodía por parte (spec 020 §1.2) ──
-const FX_SYNTHS = ['riser', 'crash', 'boom', 'impacto', 'downlifter']
+export const FX_SYNTHS: readonly string[] = ['riser', 'crash', 'boom', 'impacto', 'downlifter']
 /** ¿Es un efecto (subida, platillo, impacto…) y no una melodía? Esos loops de melodía no cuentan como «otra melodía». */
 export const isFxLoop = (l: FreeLoop): boolean => FX_SYNTHS.includes(l.synth ?? '') || (l.synth === 'pad' && l.hits.length <= 4)
 /** Las melodías que sobran: todas las de la célula menos la última (la que edita el Órgano); los efectos no cuentan. */
