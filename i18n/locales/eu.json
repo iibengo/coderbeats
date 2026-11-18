@@ -364,6 +364,16 @@
       "info": "Nahasketa gehiago itsasten du (ratioa 3, atalase altua), technoak «batuta» ager dadin. Itzalita: beti bezala. Jotzen duen guztian eragiten du, zure abestietan ere.",
       "on": "piztuta",
       "off": "itzalita"
+    },
+    "eq": {
+      "label": "Techno EQ-a",
+      "info": "30 Hz azpitik mozten du eta 2–5 kHz igotzen du (+2,5 dB): distira gehiago, azpibaxu inutil gutxiago. Itzalita: beti bezala. Jotzen duen guztian eragiten du."
+    },
+    "meter": {
+      "label": "Irteerako maila",
+      "peak": "gailurra",
+      "rms": "batez bestekoa",
+      "hot": "Mugatik gertu (−1 dB): jaitsi bolumena ez pasatzeko."
     }
   },
   "studio": {

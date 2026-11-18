@@ -18,7 +18,7 @@ import { GUITAR_SAMPLE, guitarMap } from '~/lib/guitarSamples'
 import { PERC_SAMPLES } from '~/lib/percSamples'
 import { MELODY_DECISION_SEC } from '~/lib/liveMelody'
 import { scaleLabel, type SongScale } from '~/lib/songScale'
-import { glueOptions } from '~/lib/masterChain'
+import { EQ_TECHNO, glueOptions, LIMITER_TRUE } from '~/lib/masterChain'
 import type { MelodyHit, MelodySynth } from '~/lib/melody'
 import { melodyOfPhrase } from '~/lib/melodyAssist'
 import { midiName } from '~/lib/noteScore'
@@ -180,6 +180,11 @@ let ctx: AudioContext | null = null
 let masterEnd: AudioNode | null = null
 /** el compresor de pegamento de la salida (worklet); `null` si no cargó */
 let glueNode: AudioWorkletNode | null = null
+/** el EQ de la salida (spec 047): seco y mojado en paralelo; apagado = solo el seco, exacto */
+let eqNodes: { dry: GainNode; wet: GainNode } | null = null
+/** el medidor de la salida (spec 047): se conecta solo mientras se mira */
+let meterNode: AnalyserNode | null = null
+let meterBuf: Float32Array<ArrayBuffer> | null = null
 let videoTap: MediaStreamAudioDestinationNode | null = null
 let S: StrudelModule | null = null
 let stream: MediaStream | null = null
@@ -1377,14 +1382,42 @@ export function useAudioEngine() {
     const saturator = new WaveShaperNode(ctx, { curve: saturationCurve() as Float32Array<ArrayBuffer>, oversample: '2x' })
     const limiter = new DynamicsCompressorNode(ctx, { threshold: -6, knee: 0, ratio: 20, attack: 0.001, release: 0.1 })
     const ceiling = new GainNode(ctx, { gain: 10 ** (-1 / 20) })
-    masterIn.connect(saturator).connect(limiter).connect(ceiling).connect(ctx.destination)
+    // EQ de la salida (spec 047), apagado por defecto: paso alto a 30 Hz + realce de 2 a 5 kHz. Seco y mojado en paralelo: apagado, solo pasa el seco (la señal exacta de siempre)
+    const eqIn = new GainNode(ctx)
+    const eqOut = new GainNode(ctx)
+    const eqDry = new GainNode(ctx, { gain: 1 })
+    const eqWet = new GainNode(ctx, { gain: 0 })
+    const eqHp = new BiquadFilterNode(ctx, { type: 'highpass', frequency: EQ_TECHNO.highpassHz, Q: EQ_TECHNO.highpassQ })
+    const eqPk = new BiquadFilterNode(ctx, { type: 'peaking', frequency: EQ_TECHNO.peakHz, Q: EQ_TECHNO.peakQ, gain: EQ_TECHNO.peakDb })
+    eqIn.connect(eqDry).connect(eqOut)
+    eqIn.connect(eqHp).connect(eqPk).connect(eqWet).connect(eqOut)
+    eqNodes = { dry: eqDry, wet: eqWet }
+    if (useStudioPrefs().eq.value) {
+      eqDry.gain.value = 0
+      eqWet.gain.value = 1
+    }
+    masterIn.connect(saturator).connect(eqIn)
+    eqOut.connect(limiter).connect(ceiling).connect(ctx.destination)
     masterEnd = ceiling
+    // limitador de pico del final (spec 047): techo −1 dBFS con mirada hacia delante; solo actúa si algo se pasa. Si el worklet no carga, sigue el techo de ganancia de siempre.
+    const masterLimiter = async () => {
+      try {
+        await ctx!.audioWorklet.addModule(`${useRuntimeConfig().app.baseURL}worklets/master-limiter.js`)
+        const brick = new AudioWorkletNode(ctx!, 'master-limiter', { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2], processorOptions: LIMITER_TRUE })
+        ceiling.disconnect()
+        ceiling.connect(brick).connect(ctx!.destination)
+        masterEnd = brick
+        if (videoTap) brick.connect(videoTap)
+      } catch (e) {
+        log('error', `master-limiter: ${e instanceof Error ? e.message : String(e)} (sin limitador de pico)`)
+      }
+    }
     const masterGlue = async () => {
       try {
         await ctx!.audioWorklet.addModule(`${useRuntimeConfig().app.baseURL}worklets/master-glue.js`)
         const glue = new AudioWorkletNode(ctx!, 'master-glue', { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2], processorOptions: GLUE_WARM })
         saturator.disconnect()
-        saturator.connect(glue).connect(limiter)
+        saturator.connect(glue).connect(eqIn)
         glueNode = glue
         // spec 042: el compresor «techno» (apagado por defecto); si lo guardó la persona, entra con él
         if (useStudioPrefs().glue.value) glue.port.postMessage({ type: 'options', options: glueOptions(true) })
@@ -1436,6 +1469,7 @@ export function useAudioEngine() {
     }
     await ctx.audioWorklet.addModule(`${base}worklets/capture-processor.js`)
     await masterGlue() // antes de la prueba de eco: que mida la cadena entera
+    await masterLimiter()
     const source = ctx.createMediaStreamSource(stream)
     micSource = source
     micOpen.value = !opts.noMic
@@ -1695,6 +1729,48 @@ export function useAudioEngine() {
    * línea de compás y el motor rearranca desde la célula que se ve, como al cambiar de estilo.
    */
   /** El compresor «techno» de la salida (spec 042): `true` lo enciende (ratio ~3), `false` vuelve a los ajustes de siempre. No cambia la latencia (mismo worklet). Sin el worklet, no hace nada. */
+  /** El EQ de la salida (spec 047): `true` lo enciende (paso alto 30 Hz y +2,5 dB hacia 3,2 kHz), `false` deja pasar la señal exacta de siempre. Cambia con un fundido de 15 ms. */
+  function setEq(on: boolean) {
+    // solo en desarrollo y para el guion del navegador: la entrada de la cadena master, para mandarle una señal de prueba estable
+    if (import.meta.dev && import.meta.client) (window as unknown as Record<string, unknown>).__masterIn = masterIn
+    if (!ctx || !eqNodes) return
+    const t = ctx.currentTime
+    eqNodes.dry.gain.setTargetAtTime(on ? 0 : 1, t, 0.005)
+    eqNodes.wet.gain.setTargetAtTime(on ? 1 : 0, t, 0.005)
+    log('cell', on ? 'EQ de salida: encendido' : 'EQ de salida: apagado')
+  }
+
+  /** El medidor de la salida (spec 047): se conecta mientras se mira (`meterOn`) y se suelta al dejar de mirar (`meterOff`). `readMeter` da el pico y el RMS del último momento, en dBFS. */
+  function meterOn(): boolean {
+    if (!ctx || !masterEnd) return false
+    if (!meterNode) {
+      meterNode = ctx.createAnalyser()
+      meterNode.fftSize = 2048
+      meterBuf = new Float32Array(2048) as Float32Array<ArrayBuffer>
+    }
+    masterEnd.connect(meterNode)
+    return true
+  }
+  function meterOff() {
+    try {
+      if (masterEnd && meterNode) masterEnd.disconnect(meterNode)
+    } catch {
+      /* ya soltado */
+    }
+  }
+  function readMeter(): { peakDb: number; rmsDb: number } | null {
+    if (!meterNode || !meterBuf) return null
+    meterNode.getFloatTimeDomainData(meterBuf)
+    let peak = 0
+    let sum = 0
+    for (const x of meterBuf) {
+      const a = Math.abs(x)
+      if (a > peak) peak = a
+      sum += x * x
+    }
+    return { peakDb: 20 * Math.log10(peak + 1e-9), rmsDb: 10 * Math.log10(sum / meterBuf.length + 1e-12) }
+  }
+
   function setGlue(on: boolean) {
     glueNode?.port.postMessage({ type: 'options', options: glueOptions(on) })
     // solo en desarrollo y para el guion del navegador: mandar unos ajustes cualquiera al compresor (comprobar que el mensaje llega)
@@ -3415,6 +3491,10 @@ export function useAudioEngine() {
     clockNow,
     setSongScale,
     setGlue,
+    setEq,
+    meterOn,
+    meterOff,
+    readMeter,
     cellPlan,
     looping,
     loopTarget,

@@ -610,3 +610,10 @@ Escritos. En la spec 017 va cada uno. **Aviso de lo que no se cumple:** el princ
 - **Decisión a revisar:** en el motor, `room` y `shape` del sinte los pisan Espacio y Calidez (como en todos los sintes).
 ### Qué probar en el móvil
 1. Importa `dub-ejemplo` y ponle el Espacio alto: ¿suena a stab de dub techno?, ¿se oyen los tres ecos cada vez más oscuros y a ritmo de corchea con puntillo?, ¿la reverb es larga?, ¿el iPhone aguanta las voces (20 por stab)?
+
+## Tanda 19 (2026-11-18): master con EQ, limitador de pico y medidor (spec 047)
+- **Limitador de pico** (worklet, siempre activo): techo −1 dBFS con mirada de 1,5 ms; no cambia lo que suena salvo picos y +1,5 ms de retraso. **EQ techno** (apagado por defecto, Ajustes → Avanzado): paso alto 30 Hz y +2,5 dB hacia 3,2 kHz; apagado es la señal exacta de siempre. **Medidor** en Ajustes → Avanzado.
+### Qué probar en el móvil
+1. Ajustes → Avanzado: ¿se mueve el medidor con la música y se pone ámbar/rojo cerca del techo?
+2. Un techno con el EQ apagado y encendido: ¿más brillo sin chillar?, ¿el bombo pierde algo? Con el compresor techno encendido también.
+3. ¿Se nota algún cambio de sincronía o de CPU (el limitador añade 1,5 ms y un barrido por muestra)?

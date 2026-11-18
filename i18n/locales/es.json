@@ -364,6 +364,16 @@
       "info": "Junta más la mezcla (ratio 3, umbral alto) para que el techno suene «junto». Apagado: suena como siempre. Se nota en cualquier cosa que suene, también en tus canciones.",
       "on": "encendido",
       "off": "apagado"
+    },
+    "eq": {
+      "label": "EQ techno",
+      "info": "Corta por debajo de 30 Hz y realza de 2 a 5 kHz (+2,5 dB): más brillo y menos subgrave inútil. Apagado: suena como siempre. Se nota en todo lo que suena."
+    },
+    "meter": {
+      "label": "Nivel de salida",
+      "peak": "pico",
+      "rms": "medio",
+      "hot": "Cerca del techo (−1 dB): baja el volumen para no pasarte."
     }
   },
   "studio": {

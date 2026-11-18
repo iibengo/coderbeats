@@ -3,16 +3,18 @@
 import { readJson, writeText } from '~/lib/storage'
 
 export const STUDIO_KEY = 'coderbeats:studio:v2'
-const isPrefs = (x: unknown): x is { advanced: boolean; noteNames?: boolean; glue?: boolean } => {
+const isPrefs = (x: unknown): x is { advanced: boolean; noteNames?: boolean; glue?: boolean; eq?: boolean } => {
   if (!x || typeof x !== 'object') return false
-  const p = x as { advanced?: unknown; noteNames?: unknown; glue?: unknown }
-  return typeof p.advanced === 'boolean' && (p.noteNames === undefined || typeof p.noteNames === 'boolean') && (p.glue === undefined || typeof p.glue === 'boolean')
+  const p = x as { advanced?: unknown; noteNames?: unknown; glue?: unknown; eq?: unknown }
+  return typeof p.advanced === 'boolean' && (p.noteNames === undefined || typeof p.noteNames === 'boolean') && (p.glue === undefined || typeof p.glue === 'boolean') && (p.eq === undefined || typeof p.eq === 'boolean')
 }
 const advanced = ref(false)
 const noteNames = ref(false)
 /** el compresor «techno» de la salida (spec 042): apagado por defecto */
 const glue = ref(false)
-const persist = () => writeText(STUDIO_KEY, JSON.stringify({ advanced: advanced.value, noteNames: noteNames.value, ...(glue.value ? { glue: true } : {}) }))
+/** el EQ de la salida (spec 047): apagado por defecto */
+const eq = ref(false)
+const persist = () => writeText(STUDIO_KEY, JSON.stringify({ advanced: advanced.value, noteNames: noteNames.value, ...(glue.value ? { glue: true } : {}), ...(eq.value ? { eq: true } : {}) }))
 let loaded = false
 
 export function useStudioPrefs() {
@@ -22,11 +24,13 @@ export function useStudioPrefs() {
     advanced.value = saved?.advanced ?? false
     noteNames.value = saved?.noteNames ?? false
     glue.value = saved?.glue ?? false
+    eq.value = saved?.eq ?? false
   }
   return {
     advanced,
     noteNames,
     glue,
+    eq,
     setAdvanced(v: boolean) {
       advanced.value = v
       persist()
@@ -37,6 +41,10 @@ export function useStudioPrefs() {
     },
     setGlue(v: boolean) {
       glue.value = v
+      persist()
+    },
+    setEq(v: boolean) {
+      eq.value = v
       persist()
     },
   }

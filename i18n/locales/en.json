@@ -364,6 +364,16 @@
       "info": "Glues the mix together more (ratio 3, high threshold) so techno sounds tight. Off: it sounds as always. It affects everything that plays, including your songs.",
       "on": "on",
       "off": "off"
+    },
+    "eq": {
+      "label": "Techno EQ",
+      "info": "Cuts below 30 Hz and lifts 2–5 kHz (+2.5 dB): more sparkle, less useless sub. Off: it sounds as always. It affects everything that plays."
+    },
+    "meter": {
+      "label": "Output level",
+      "peak": "peak",
+      "rms": "avg",
+      "hot": "Near the ceiling (−1 dB): turn it down so you don't clip."
     }
   },
   "studio": {

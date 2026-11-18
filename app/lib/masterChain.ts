@@ -49,3 +49,15 @@ export const GLUE_WARM: GlueOptions = { thresholdDb: -16, ratio: 1.8, kneeDb: 12
 export const GLUE_TECHNO: GlueOptions = { thresholdDb: -20, ratio: 4, kneeDb: 8, attack: 0.03, release: 0.12, rmsMs: 40, makeupDb: 8 }
 /** Los ajustes que toca: apagado, los de siempre (`GLUE_WARM`, el mismo objeto). */
 export const glueOptions = (techno: boolean): GlueOptions => (techno ? GLUE_TECHNO : GLUE_WARM)
+
+/**
+ * El limitador de pico del final de la cadena (spec 047, `public/worklets/master-limiter.js`): techo **−1 dBFS**, mirada hacia delante de 1,5 ms (es lo que retrasa la salida) y suelta de 80 ms.
+ * Va después del limitador de siempre y del techo de −1 dB; solo actúa si algo se pasa: lo demás sale igual, retrasado 1,5 ms.
+ */
+export const LIMITER_TRUE = { ceilingDb: -1, lookaheadMs: 1.5, releaseMs: 80 } as const
+
+/**
+ * El EQ de la salida (spec 047), **apagado por defecto**: un paso alto a 30 Hz (quita el subgrave que no se oye y come margen) y un realce ancho de +2,5 dB centrado en 3,2 kHz (cubre de 2 a 5 kHz:
+ * el brillo del techno). Biquads de Web Audio: sin latencia.
+ */
+export const EQ_TECHNO = { highpassHz: 30, highpassQ: 0.707, peakHz: 3200, peakQ: 0.6, peakDb: 2.5 } as const
