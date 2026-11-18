@@ -179,7 +179,7 @@ function loopLine(
     if (dyn) {
       // solo se multiplican las notas (los silencios `~@n` se quedan como están)
       const mult = (t: string) =>
-        Math.abs(gain - 1) > 0.005 ? t.replace(/(^|\s)(\d+(?:\.\d+)?)(?=@|$)/g, (_, sp, n) => `${sp}${fmtGain(Number(n) * gain)}`) : t
+        Math.abs(gain - 1) > 0.005 ? t.replace(/(^|[\s[<(])(\d+(?:\.\d+)?)(?=@|\s|\]|>|\)|$)/g, (_, sp, n) => `${sp}${fmtGain(Number(n) * gain)}`) : t
       line += `.gain("${mult(dyn)}")`
     } else if (Math.abs(gain - 1) > 0.005) line += `.gain(${fmtGain(gain)})`
     // el eco de ciertos sintes (el dub), después del gain por nota: si no, el patrón de ganancia recortaría las repeticiones
