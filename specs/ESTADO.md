@@ -581,3 +581,9 @@ Escritos. En la spec 017 va cada uno. **Aviso de lo que no se cumple:** el princ
 - Charle abierto, ride y bombo corto en el kit Techno: necesitan un campo por paso o por loop.
 - Filtro por compás para el arranque del techno.
 - Voz cortada.
+
+## Tanda 14 (2026-11-18): minimal techno en el conversor (solo conversor, fuera del repo)
+- `~/dev/coderbeats-herramientas/notas-a-json.mjs`: por parte, `compases:` (el loop se repite hasta 32), `filtro:` (Hz por compás → `cell.lpf`, el `.lpf("<…>")` de la spec 008 §5), `entra:` / `sale:` (un tono nuevo que entra y sale; por dentro parte la parte en varias partes seguidas) y `charle: no`. Ejemplo `minimal-ejemplo.txt`; LEEME al día; `probar-conversor.mjs` comprueba que las 25 canciones de antes dan **el mismo .json byte a byte**.
+- **Hallazgo (decisión a revisar, la app no se toca):** el `lpf` de una parte, sin «wowo», se aplica a **todo el `stack` de la parte, también al bombo, la caja y el charle** (código mostrado y motor); la spec 008 §10 decía que solo afectaba a la melodía y los acordes, pero eso solo ocurre con wowo (la batería queda «limpia»; el wowo mínimo abre el filtro en cada golpe, así que no sirve de truco). Para que el charle no se apague, el conversor avisa y ofrece `charle: no`.
+### Qué probar en el móvil
+1. Importa `minimal-ejemplo` (32 compases): ¿el filtro se abre y se cierra despacio sin saltos?, ¿el tono entra en el compás 17 (≈ 0:30 a 128 bpm) y sale en el 25 sin cortar el loop?, ¿el paso de una parte a otra (c16→c17, c24→c25) suena continuo?
