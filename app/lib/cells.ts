@@ -4,6 +4,7 @@ import type { FreeLoop, LoopsState } from './freeLoops'
 import type { LoopLength } from './phrases'
 import type { Instrument, KitId, StyleId } from './types'
 import { isValidBpm } from './tempo'
+import { isSongScale, type SongScale } from './songScale'
 import { INSTRUMENTS } from './constants'
 import { isVoiceId } from './voiceLoop'
 import { isMidi, MELODY_SYNTHS, type MelodySynth } from './melody'
@@ -74,6 +75,8 @@ export interface Song {
   nextGroupId: number
   /** tempo propio; null = el del estilo */
   bpm: number | null
+  /** escala de la canción (spec 038); opcional: sin ella todo funciona como siempre */
+  scale?: SongScale
   nextCellId: number
   /** ids de loop únicos en toda la canción (el motor los usa en `color("l<id>")`) */
   nextLoopId: number
@@ -299,7 +302,8 @@ export function isSong(x: unknown): x is Song {
     s.order.every((id) => s.cells.some((c) => c.id === id)) &&
     (s.groups === undefined || (Array.isArray(s.groups) && s.groups.every((g) => isObj(g) && isIdList(g.order)))) &&
     isNum(s.nextCellId) &&
-    isNum(s.nextLoopId)
+    isNum(s.nextLoopId) &&
+    (s.scale === undefined || isSongScale(s.scale))
   )
 }
 
@@ -425,7 +429,7 @@ export function stressSong(base: Song, count: number): Song {
       at: { x: i * 3, y: Math.sin(i * 1.3) * 1.2, depth: [0, 0.4, 0.1, 0.6][i % 4]! },
     }
   })
-  return { version: 1, cells, order: cells.map((c) => c.id), groups: [], nextGroupId: 1, bpm: base.bpm, nextCellId: n + 1, nextLoopId: loopId }
+  return { version: 1, cells, order: cells.map((c) => c.id), groups: [], nextGroupId: 1, bpm: base.bpm, ...(base.scale ? { scale: base.scale } : {}), nextCellId: n + 1, nextLoopId: loopId }
 }
 
 // ── grupos de células (spec 005, enmienda 2, §16) ─────────────────────────────────

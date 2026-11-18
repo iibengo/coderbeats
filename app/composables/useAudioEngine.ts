@@ -15,6 +15,7 @@ import { NO_PARTS, PART_ORBIT, planTransitions, targetParts, type BackgroundMode
 import { KIT_ORDER, KITS, kitFromSaved, STYLES } from '~/lib/constants'
 import { GUITAR_SAMPLE, guitarMap } from '~/lib/guitarSamples'
 import { MELODY_DECISION_SEC } from '~/lib/liveMelody'
+import { scaleLabel, type SongScale } from '~/lib/songScale'
 import type { MelodyHit, MelodySynth } from '~/lib/melody'
 import { melodyOfPhrase } from '~/lib/melodyAssist'
 import { midiName } from '~/lib/noteScore'
@@ -1681,6 +1682,15 @@ export function useAudioEngine() {
    * Fija el tempo de la canción (o, con `null`, vuelve al del estilo). Sonando, se aplica en la siguiente
    * línea de compás y el motor rearranca desde la célula que se ve, como al cambiar de estilo.
    */
+  /** La escala de la canción (spec 038): se guarda con ella; `null` la quita. No toca el sonido. */
+  function setSongScale(scale: SongScale | null) {
+    const cur = song.value.scale ?? null
+    if (cur === scale || (cur && scale && cur.tonic === scale.tonic && cur.mode === scale.mode)) return
+    const { scale: _old, ...rest } = liveSong()
+    song.value = scale ? { ...rest, scale } : rest
+    log('cell', scale ? `escala de la canción: ${scaleLabel(scale)}` : 'sin escala de la canción')
+  }
+
   function setBpm(value: number | null) {
     const v = value === null ? null : Math.round(value)
     const cur = song.value.bpm ?? null
@@ -3324,6 +3334,7 @@ export function useAudioEngine() {
     editLoops,
     onVisual,
     clockNow,
+    setSongScale,
     cellPlan,
     looping,
     loopTarget,
