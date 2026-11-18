@@ -31,6 +31,20 @@ https://github.com/tidalcycles/sounds-tr808-fischer
 
 No hace falta atribución (CC0); se menciona por cortesía. «808» y «Roland» son marcas de sus dueños y solo se usan para describir el sonido.
 
+## Kit «Techno» · uzu-drumkit (Unlicense)
+
+Del repositorio **uzu-drumkit** de tidalcycles (licencia **Unlicense**, dominio público; el `LICENSE` es el texto oficial, comprobado el 2026-11-18): https://github.com/tidalcycles/uzu-drumkit.
+Autoría de los samples (la nombra el README del repositorio): **Switch Angel** (sonidos sintetizados y procesados con un compresor analógico estilo LA-76) y **Mot4i** (https://github.com/mot4i/garden).
+Es la misma fuente del kit «Electrónico», con otras muestras. Solo suena en la app (el código mostrado usa los sonidos de strudel).
+
+Cada archivo es **un solo golpe** del original, pasado a mono y **recortado** (cola con fundido de salida) y a 44,1 kHz y 16 bits, con el volumen subido hasta un pico de −1,5 dB; el charle es el mismo archivo del kit «Electrónico».
+
+| Archivo | Origen (`uzu-drumkit`) | Recorte | SHA-256 (16 primeros) |
+|---|---|---|---|
+| `techno/bd.wav` | `bd/17_bd_switchangel.wav` (bombo gordo con cola) | 0,5 s | `6fc47ecaca2e1e01` |
+| `techno/sd.wav` | `cp/10_cp_switchangel.wav` (la palmada hace de caja) | 0,4 s | `5578580a592b6981` |
+| `techno/hh.wav` | `hh/13_hh_switchangel.wav` (idéntico a `electro/hh.wav`) | entero | `cb4eccc9840f14ff` |
+
 ## Kit «Batería» · Karoryfer Samples, Big Rusty Drums (CC0)
 
 Batería acústica grabada, del repositorio **karoryfer.big-rusty-drums** de Karoryfer Samples, publicada como **CC0 1.0** (dominio

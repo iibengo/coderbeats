@@ -138,9 +138,9 @@ describe('demo del dembow: "Cargar demo"', () => {
 })
 
 describe('los kits (spec 010)', () => {
-  it('Electrónico (uzu-drumkit) va sin .bank(); el 808 con su banco; cuatro kits en la UI', async () => {
+  it('Electrónico (uzu-drumkit) va sin .bank(); el 808 con su banco; cinco kits en la UI', async () => {
     const { KIT_ORDER, KITS: K, kitFromSaved } = await import('../../app/lib/constants')
-    expect(KIT_ORDER).toEqual(['electro', 'vinyl', '808', 'drums'])
+    expect(KIT_ORDER).toEqual(['electro', 'vinyl', '808', 'drums', 'techno'])
     expect(K.electro.strudelBank).toBeNull()
     expect(K['808'].strudelBank).toBe('RolandTR808')
     // los índices son los del uzu-drumkit de strudel.cc (el orden de su strudel.json)
@@ -238,5 +238,42 @@ describe('el código mostrado con la batería acústica (spec 034)', () => {
     expect(code).not.toContain('.bank(')
     expect(code).toContain(`// ${APP_ONLY_NOTE}`)
     expect(songCode(st, 'engine')).toContain('.bank("Drums")')
+  })
+})
+
+describe('el kit Techno (spec 043)', () => {
+  it('existe como kit nuevo y los otros no cambian (drums, 808, electro, vinyl)', async () => {
+    const { KIT_ORDER, kitFromSaved } = await import('../../app/lib/constants')
+    expect(kitFromSaved('techno')).toBe('techno')
+    expect(KIT_ORDER).toEqual(['electro', 'vinyl', '808', 'drums', 'techno'])
+    expect(KITS.techno).toMatchObject({ strudelBank: 'Techno', appOnly: true, sampleIndex: { bd: 0, sd: 0, hh: 0 } })
+    expect(KITS.drums).toMatchObject({ strudelBank: 'Drums', appOnly: true })
+    expect(KITS['808']).toMatchObject({ strudelBank: 'RolandTR808', sampleIndex: { bd: 1, sd: 1, hh: 0 } })
+    expect(KITS.electro).toMatchObject({ strudelBank: null, sampleIndex: { bd: 0, sd: 1, hh: 3 } })
+    expect(KITS.vinyl.samples).toBe('github:iibengo/coderbeats-kits/v1')
+  })
+  it('los tres WAV existen, pesan poco (< 100 KB en total) y su SHA, su origen y su autoría están en CREDITS.md', async () => {
+    const { readFileSync, statSync } = await import('node:fs')
+    const { createHash } = await import('node:crypto')
+    const credits = readFileSync('public/samples/CREDITS.md', 'utf8')
+    let total = 0
+    for (const f of ['bd', 'sd', 'hh']) {
+      const buf = readFileSync(`public/samples/techno/${f}.wav`)
+      total += statSync(`public/samples/techno/${f}.wav`).size
+      expect(buf.subarray(0, 4).toString()).toBe('RIFF')
+      expect(credits, f).toContain(createHash('sha256').update(buf).digest('hex').slice(0, 16))
+    }
+    expect(total).toBeLessThan(100_000)
+    for (const t of ['bd/17_bd_switchangel.wav', 'cp/10_cp_switchangel.wav', 'Switch Angel', 'Mot4i', 'Unlicense']) expect(credits).toContain(t)
+  })
+  it('el código mostrado: sin .bank() ni samples() y con su aviso; en la app, el banco Techno', async () => {
+    const { songCode } = await import('../../app/lib/song')
+    const st = { loops: [{ id: 1, instrument: 'bd' as const, bars: 1 as const, phaseBar: 0, hits: [{ pos: 0, strength: 0.8 }], muted: false, bornAt: 0, fromTemplate: false }], style: 'techno2' as const, kit: 'techno' as const, background: { mode: 'off' as const, parts: { bass: false, chords: false } }, metronome: false, fx: { filter: 1, space: 0, warmth: 0 } }
+    const code = songCode(st, 'display')
+    expect(code).not.toContain('samples(')
+    expect(code).not.toContain('.bank(')
+    expect(code).toContain('// el kit de techno solo suena en la app')
+    expect(code).not.toContain('batería acústica')
+    expect(songCode(st, 'engine')).toContain('.bank("Techno")')
   })
 })

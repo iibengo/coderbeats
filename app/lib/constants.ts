@@ -30,10 +30,12 @@ export const KITS: Record<KitId, Kit> = {
   // «Batería» (spec 034): batería acústica real, Big Rusty Drums de Karoryfer (CC0): bombo 24", caja 14" (golpe al centro), charles cerrado.
   // Su id no es `acoustic` (nombre antiguo que pasa a `electro`). Solo suena en la app (`appOnly`): en strudel.cc el código mostrado usa los sonidos de strudel.
   drums: { id: 'drums', label: 'Batería', strudelBank: 'Drums', appOnly: true, sampleIndex: { bd: 0, sd: 0, hh: 0 } },
+  // «Techno» (spec 043): del uzu-drumkit (Unlicense): un bombo gordo con cola, la palmada como caja y el charle cerrado del kit Electrónico. Solo suena en la app.
+  techno: { id: 'techno', label: 'Techno', strudelBank: 'Techno', appOnly: true, appOnlyNote: 'el kit de techno solo suena en la app', sampleIndex: { bd: 0, sd: 0, hh: 0 } },
 }
 
 /** Orden de la UI (las claves numéricas de un objeto se reordenan solas). */
-export const KIT_ORDER: readonly KitId[] = ['electro', 'vinyl', '808', 'drums']
+export const KIT_ORDER: readonly KitId[] = ['electro', 'vinyl', '808', 'drums', 'techno']
 
 /**
  * Kits que ya no existen y a cuál pasan al leerlos de lo guardado (spec 010): el `909` y el `acoustic` (samples sin licencia

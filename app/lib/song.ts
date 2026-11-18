@@ -501,7 +501,8 @@ function samplesLine(st: Pick<SongState, 'kit'> & Partial<Pick<SongState, 'loops
   if (kit?.samples) out.push(`samples('${kit.samples}')`)
   // la batería acústica y la guitarra grabada no están en strudel.cc: el código usa los sonidos de strudel y lo avisa
   const loops = [...(st.loops ?? []), ...(st.cells?.list.flatMap((c) => c.loops) ?? [])]
-  if (kit?.appOnly || loops.some((l) => l.synth === 'guitarSample')) out.push(`// ${APP_ONLY_NOTE}`)
+  if (kit?.appOnly) out.push(`// ${kit.appOnlyNote ?? APP_ONLY_NOTE}`)
+  else if (loops.some((l) => l.synth === 'guitarSample')) out.push(`// ${APP_ONLY_NOTE}`)
   return out
 }
 

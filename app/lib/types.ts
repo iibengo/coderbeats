@@ -1,5 +1,5 @@
 export type Instrument = 'bd' | 'sd' | 'hh'
-export type KitId = 'electro' | '808' | 'vinyl' | 'drums'
+export type KitId = 'electro' | '808' | 'vinyl' | 'drums' | 'techno'
 /** `house` y `techno` son los de siempre (**clásicos**: las canciones guardadas siguen sonando igual); `house2` y `techno2` son los nuevos, diferenciados por patrones (spec 023) */
 export type StyleId = 'hiphop90' | 'house' | 'dnb' | 'dembow' | 'techno' | 'house2' | 'techno2' | 'reggaeton'
 
@@ -20,6 +20,8 @@ export interface Kit {
   strudelBank: string | null
   /** solo suena en la app (sus muestras no están en strudel.cc): el código mostrado no lleva `.bank()` y usa el sonido de batería de strudel (spec 034) */
   appOnly?: boolean
+  /** el aviso del código mostrado si es solo de la app (por defecto, el de la batería acústica y la guitarra grabada) */
+  appOnlyNote?: string
   /** línea `samples('github:…')` que el código mostrado necesita en strudel.cc si el kit no es de los suyos (spec 010) */
   samples?: string
   /** índice del sample en el mapa de strudel.cc (para que suene igual al copiar el código) */

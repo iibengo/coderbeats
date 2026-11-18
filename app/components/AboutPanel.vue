@@ -24,7 +24,7 @@ import { CREDITS, LICENSE_ID, LICENSE_NAME, LICENSE_URL, SOURCE_URL } from '~/li
         {{ c.what }}
       </li>
     </ul>
-    <p class="text-neutral-400" data-about-share>Al compartir: las canciones con la batería acústica o la guitarra grabada suenan completas en la app; el código en strudel.cc usa los sonidos de strudel.</p>
+    <p class="text-neutral-400" data-about-share>Al compartir: las canciones con la batería acústica, el kit de techno o la guitarra grabada suenan completas en la app; el código en strudel.cc usa los sonidos de strudel.</p>
     <p class="text-neutral-500">«808» y «Roland» son marcas de sus dueños y solo describen el sonido. Detalle de cada sample en <code>public/samples/CREDITS.md</code>.</p>
   </div>
 </template>

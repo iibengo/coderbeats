@@ -566,3 +566,8 @@ Escritos. En la spec 017 va cada uno. **Aviso de lo que no se cumple:** el princ
 2. Compáralo con el mismo con `sidechain: no`. ¿Es demasiado o poco bombeo? (profundidad 0,6, ataque 0,15: se afina en `duckWith`).
 - **Compresión y pegada (paso 3): no hecho, a propósito.** `.shape()` ya se aplica (calidez) y `.compressor()` va por golpe, no por conjunto; un compresor de bus tocaría todo lo que suena y no se puede afinar sin oír (ver spec 041).
 - **Kit de techno (paso 1): esperando visto bueno de la lista de muestras** (no hay CC0 clara de techno; la mejor opción es del `uzu-drumkit`, Unlicense).
+
+## Tanda 12 (2026-11-18): kit «Techno» (spec 043)
+- Kit `techno` (uzu-drumkit, Unlicense): bombo gordo, palmada como caja y el charle de Electrónico; 87 386 B; solo suena en la app (código mostrado sin `.bank()`, con aviso). Bombo corto, charle abierto y ride, para después (necesitan un campo por paso).
+### Qué probar en el móvil
+1. Ajustes → kit «Techno» y un ritmo de techno: ¿el bombo tiene cuerpo?, ¿la palmada como caja suena a techno?, ¿el volumen cuadra con Electrónico y 808?
