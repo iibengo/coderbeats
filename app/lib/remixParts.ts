@@ -3,6 +3,7 @@
  * Tantas partes como tenga (como mucho 8): las células seguidas muy parecidas se juntan en una sola parte con nombre claro (Intro, Estrofa, Subida, Drop, Break, Final);
  * los grupos en paralelo suenan juntos dentro de la parte que los enciende; como mucho 4 capas por parte. Puro y sin DOM.
  */
+import { isPercSynth } from './percSamples'
 import type { Cell, Song } from './cells'
 import type { FreeLoop } from './freeLoops'
 import type { MelodySynth } from './melody'
@@ -73,13 +74,15 @@ export function layersOfCell(cell: Cell, groupTheme: FreeLoop | null = null): La
   const mels = loops.filter((l) => l.instrument === 'mel')
   const fx = mels.filter(isFx)
   // canciones propias con bajo y acordes hechos de notas (no del fondo del estilo): el bajo es la melodía grave y los acordes el pad de notas largas
-  const notes = mels.filter((l) => !isFx(l))
+  // la percusión del minimal (spec 045) no es melodía: va con el ritmo
+  const percs = mels.filter((l) => isPercSynth(l.synth))
+  const notes = mels.filter((l) => !isFx(l) && !isPercSynth(l.synth))
   const bassMel = cell.parts.bass ? undefined : (notes.find((l) => l.synth === 'bass') ?? notes.find(isLowMel))
   const chordMel = cell.parts.chords ? undefined : notes.find((l) => l !== bassMel && (l.synth === 'keys' || isChordPad(l)))
   const theme = notes.find((l) => l !== bassMel && l !== chordMel) ?? groupTheme ?? undefined
   const rising = fx.some((l) => l.synth === 'riser')
   const riseFx = fx.filter((l) => l.synth === 'riser' || (rising && l.synth === 'pad'))
-  const dropFx = fx.filter((l) => !riseFx.includes(l))
+  const dropFx = [...fx.filter((l) => !riseFx.includes(l)), ...percs]
   const m = (ls: FreeLoop[]) => ls.map((l) => ({ notes: notesOf(l), synth: l.synth }))
   const out: LabLayer[] = []
   if (bd && sd) out.push({ key: 'ritmo', label: 'ritmo', drums: { bd: patternOf(bd), sd: patternOf(sd), ...(hh ? { hh: patternOf(hh) } : {}) }, ...(dropFx.length ? { mel: m(dropFx) } : {}) })

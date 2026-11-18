@@ -599,3 +599,8 @@ Escritos. En la spec 017 va cada uno. **Aviso de lo que no se cumple:** el princ
 - Sinte `acid` (sierra con `lpq` 13, envolvente rápida y `distort` 0,8); el conversor lo acepta con `sinte: acid`. Sin tocar nada más. Sin oír.
 ### Qué probar en el móvil
 1. Una línea corta y grave con `sinte: acid`: ¿suena a 303 («tiu-tiu»)?, ¿la resonancia chilla o el volumen se pasa/queda flojo? (`SYNTH_SOUND.acid` en `app/lib/melody.ts`: `lpq`, `gain`).
+
+## Tanda 17 (2026-11-18): percusión del minimal (spec 045)
+- Cinco muestras del uzu-drumkit (rim, click, cowbell, tom, shaker; ~44 KB) como sintes de muestra con patrón propio en cualquier paso (también fuera de tiempo y en compases siguientes); nombres de strudel (suena igual en strudel.cc); no cuentan como melodía. Conversor: `percu:`.
+### Qué probar en el móvil
+1. Importa `minimal-ejemplo` (tiene `percu:`): ¿cada golpe cae donde debe (rim en 4.5, clics en medios pasos, cowbell cada dos compases)?, ¿suenan bien de volumen y de timbre (¿el «clic» es un clic?), ¿el tom/cowbell no tapan el bombo?

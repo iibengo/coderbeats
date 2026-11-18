@@ -8,6 +8,7 @@
  *   su sitio); si empieza en un hueco, se recorta contra la siguiente y contra la línea de compás.
  * - Un loop que se queda sin notas se borra. Nada de esto es un nacimiento: no cambia `bornAt` ni `prev`.
  */
+import { isPercSynth } from './percSamples'
 import { loopBarAt, MAX_LOOPS, type FreeLoop, type LoopBars, type LoopsState } from './freeLoops'
 import type { EditResult } from './loopEdit'
 import { isMidi, type MelodyHit } from './melody'
@@ -34,7 +35,7 @@ export const gForBar = (loop: Pick<FreeLoop, 'phaseBar'> | undefined, bar: numbe
 
 /** El loop de melodía de la célula (el más reciente). */
 /** El bajo y los acordes propios de la canción (sintes `bass` y `keys`) no son «la melodía»: el Órgano y el aviso de melodías apiladas no los tocan. */
-const isOwnAccompaniment = (l: FreeLoop): boolean => l.synth === 'bass' || l.synth === 'keys'
+const isOwnAccompaniment = (l: FreeLoop): boolean => l.synth === 'bass' || l.synth === 'keys' || isPercSynth(l.synth)
 export const melLoopOf = (s: LoopsState): FreeLoop | undefined =>
   s.loops.filter((l) => l.instrument === 'mel' && !isOwnAccompaniment(l)).sort((a, b) => b.bornAt - a.bornAt || b.id - a.id)[0]
 

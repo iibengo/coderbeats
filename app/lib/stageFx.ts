@@ -78,7 +78,7 @@ export function fxValue(kind: FxKind, style: StyleId): Record<string, number | s
     crash: { s: 'white', attack: 0.001, decay: 1.1, sustain: 0, release: 0.3, hpf: 3500, gain: 0.45, room: 0.45 },
     riser: { s: 'pink', attack: 0.12, decay: 0.2, sustain: 0.7, release: 0.05, gain: 0.6, room: 0.3 },
     downlifter: { s: 'pink', attack: 0.02, decay: 1.6, sustain: 0, release: 0.2, lpf: 8000, lpenv: -4, lpd: 1.6, lps: 0, gain: 0.5, room: 0.4 },
-    lead: {}, piano: {}, pad: {}, drone: {}, bass: {}, keys: {}, guitar: {}, guitarDirty: {}, guitarSample: {}, acid: {},
+    lead: {}, piano: {}, pad: {}, drone: {}, bass: {}, keys: {}, guitar: {}, guitarDirty: {}, guitarSample: {}, acid: {}, rim: {}, click: {}, cowbell: {}, tom: {}, shaker: {},
   }
   return { ...base[synth], note: midi }
 }

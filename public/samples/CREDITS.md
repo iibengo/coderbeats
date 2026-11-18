@@ -45,6 +45,18 @@ Cada archivo es **un solo golpe** del original, pasado a mono y **recortado** (c
 | `techno/sd.wav` | `cp/10_cp_switchangel.wav` (la palmada hace de caja) | 0,4 s | `5578580a592b6981` |
 | `techno/hh.wav` | `hh/13_hh_switchangel.wav` (idéntico a `electro/hh.wav`) | entero | `cb4eccc9840f14ff` |
 
+### Percusión del minimal (spec 045) · mismo origen, uzu-drumkit (Unlicense; Switch Angel, Mot4i y Ludens)
+
+Cinco golpes más para los patrones de percusión (`percu:` del conversor): son sintes de melodía de muestra (`rim`, `click`, `cowbell`, `tom`, `shaker`), registrados **con los nombres de strudel** (`rim`, `misc`, `cb`, `mt`, `sh`), así que el código mostrado suena igual pegado en strudel.cc. Mono, 44,1 kHz, 16 bits, recortados y con el volumen subido hasta el pico que se indica.
+
+| Archivo | Origen (`uzu-drumkit`) | Recorte | Pico | SHA-256 (16 primeros) |
+|---|---|---|---|---|
+| `techno/rim.wav` | `rim/10_rim_switchangel.wav` (aro) | entero (0,12 s) | −3 dB | `d809aa725fa8fff2` |
+| `techno/click.wav` | `misc/11_misc_switchangel_ludens.wav` (clic; `s("misc").n(1)`) | entero (0,03 s) | −3 dB | `3e2249f1ff1ac497` |
+| `techno/cb.wav` | `cb/10_perc_switchangel.wav` (cowbell / clave) | entero (0,23 s) | −4 dB | `c86c46c7660e1264` |
+| `techno/tom.wav` | `mt/10_mt_mot4i.wav` (tom medio) | 0,46 s | −2 dB | `abac5d89280aa0f5` |
+| `techno/sh.wav` | `sh/10_sh_switchangel.wav` (shaker) | entero (0,03 s) | −8 dB | `82581e85fc6a053a` |
+
 ## Kit «Batería» · Karoryfer Samples, Big Rusty Drums (CC0)
 
 Batería acústica grabada, del repositorio **karoryfer.big-rusty-drums** de Karoryfer Samples, publicada como **CC0 1.0** (dominio

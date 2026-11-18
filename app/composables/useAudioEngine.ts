@@ -15,6 +15,7 @@ import { timelineToSong, type BarLayers } from '~/lib/liveCompose'
 import { NO_PARTS, PART_ORBIT, planTransitions, targetParts, type BackgroundMode, type Part, type Parts } from '~/lib/background'
 import { KIT_ORDER, KITS, kitFromSaved, STYLES } from '~/lib/constants'
 import { GUITAR_SAMPLE, guitarMap } from '~/lib/guitarSamples'
+import { PERC_SAMPLES } from '~/lib/percSamples'
 import { MELODY_DECISION_SEC } from '~/lib/liveMelody'
 import { scaleLabel, type SongScale } from '~/lib/songScale'
 import { glueOptions } from '~/lib/masterChain'
@@ -1404,6 +1405,7 @@ export function useAudioEngine() {
           // mismo índice que en strudel.cc (§16.12): se replica el archivo hasta su posición
           const map: Record<string, string[] | Record<string, string[]>> = {}
           map[GUITAR_SAMPLE] = guitarMap()
+          Object.assign(map, PERC_SAMPLES) // la percusión del minimal (spec 045), con los nombres de strudel
           for (const k of KIT_ORDER)
             for (const inst of ['bd', 'sd', 'hh'] as const) {
               const idx = KITS[k].sampleIndex[inst]
@@ -1976,7 +1978,7 @@ export function useAudioEngine() {
     const c = ctx
     if (!c || c.state !== 'running') return
     const t = c.currentTime
-    const wave = { piano: 'triangle', lead: 'square', pad: 'sawtooth', drone: 'sine', riser: 'sawtooth', crash: 'sawtooth', boom: 'sine', impacto: 'sine', downlifter: 'sawtooth', bass: 'sawtooth', keys: 'triangle', guitar: 'sawtooth', guitarDirty: 'sawtooth', guitarSample: 'sawtooth', acid: 'sawtooth' }[synth] as OscillatorType
+    const wave = { piano: 'triangle', lead: 'square', pad: 'sawtooth', drone: 'sine', riser: 'sawtooth', crash: 'sawtooth', boom: 'sine', impacto: 'sine', downlifter: 'sawtooth', bass: 'sawtooth', keys: 'triangle', guitar: 'sawtooth', guitarDirty: 'sawtooth', guitarSample: 'sawtooth', acid: 'sawtooth', rim: 'triangle', click: 'triangle', cowbell: 'triangle', tom: 'sine', shaker: 'triangle' }[synth] as OscillatorType
     const osc = c.createOscillator()
     const lp = c.createBiquadFilter()
     const g = c.createGain()

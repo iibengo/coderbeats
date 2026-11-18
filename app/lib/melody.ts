@@ -6,8 +6,8 @@
  */
 /** `drone`: un sine con mucha reverb, para fondos (la demo del dembow); no es de los que se eligen para cantar */
 /** `bass` y `keys` (spec 028 §5): el bajo y los acordes **propios de la canción**, hechos de notas (en `keys`, varias a la vez), en vez del fondo del estilo */
-export type MelodySynth = 'lead' | 'piano' | 'pad' | 'drone' | 'riser' | 'crash' | 'boom' | 'impacto' | 'downlifter' | 'bass' | 'keys' | 'guitar' | 'guitarDirty' | 'guitarSample' | 'acid'
-export const MELODY_SYNTHS: readonly MelodySynth[] = ['lead', 'piano', 'pad', 'drone', 'riser', 'crash', 'boom', 'impacto', 'downlifter', 'bass', 'keys', 'guitar', 'guitarDirty', 'guitarSample', 'acid']
+export type MelodySynth = 'lead' | 'piano' | 'pad' | 'drone' | 'riser' | 'crash' | 'boom' | 'impacto' | 'downlifter' | 'bass' | 'keys' | 'guitar' | 'guitarDirty' | 'guitarSample' | 'acid' | 'rim' | 'click' | 'cowbell' | 'tom' | 'shaker'
+export const MELODY_SYNTHS: readonly MelodySynth[] = ['lead', 'piano', 'pad', 'drone', 'riser', 'crash', 'boom', 'impacto', 'downlifter', 'bass', 'keys', 'guitar', 'guitarDirty', 'guitarSample', 'acid', 'rim', 'click', 'cowbell', 'tom', 'shaker']
 
 /** Rango MIDI que se admite en un loop de melodía o bajo (C1–C7). */
 export const MIDI_MIN = 24
@@ -37,6 +37,11 @@ export const REGISTER: Record<MelodySynth | 'bass', readonly [number, number]> =
   guitarDirty: [48, 84],
   guitarSample: [52, 84], // la Hofner grabada (e3 hacia arriba)
   acid: [28, 64], // el 303: E1–E4
+  rim: [24, 60], // percusión de muestra (spec 045): la altura no cuenta
+  click: [24, 60],
+  cowbell: [24, 60],
+  tom: [24, 60],
+  shaker: [24, 60],
   bass: [28, 52], // E1–E3
 }
 
@@ -70,6 +75,12 @@ export const SYNTH_SOUND: Record<MelodySynth, string> = {
   guitarSample: '.s("hofner").release(0.1).gain(0.5)',
   // el ácido (spec 044), el «tiu-tiu-tiu» del 303: sierra con un filtro muy resonante (`lpq` 13) cuya envolvente se cierra rápido en cada nota, y una distorsión moderada. Opcional; sin oír.
   acid: '.s("sawtooth").lpf(700).lpq(13).lpenv(4).lpa(0.002).lpd(0.14).lps(0.05).distort(0.8).decay(0.18).sustain(0.2).release(0.05).gain(0.4)',
+  // la percusión del minimal (spec 045): muestras del uzu-drumkit con los nombres de strudel (suena igual en strudel.cc); la nota (C2) solo marca cuándo suena. Sin oír.
+  rim: '.s("rim").gain(0.8)',
+  click: '.s("misc").n(1).gain(0.7)',
+  cowbell: '.s("cb").gain(0.7)',
+  tom: '.s("mt").gain(0.8)',
+  shaker: '.s("sh").gain(0.7)',
   riser: '.s("pink").attack(0.12).decay(0.2).sustain(0.7).release(0.05).gain(0.6).room(0.3)',
 }
 
