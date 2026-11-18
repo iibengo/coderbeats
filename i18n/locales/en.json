@@ -187,7 +187,9 @@
     "chords": "chords",
     "chordsHint": "several notes at once: tapping adds another note on that step and tapping a note removes it",
     "ties": "ties",
-    "tiesHint": "a note can cross the bar line"
+    "tiesHint": "a note can cross the bar line",
+    "names": "note names",
+    "namesHint": "C D E on the rows and the name of the note you tap"
   },
   "remixes": {
     "title": "My songs",

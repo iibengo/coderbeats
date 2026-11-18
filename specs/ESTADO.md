@@ -535,3 +535,9 @@ Escritos. En la spec 017 va cada uno. **Aviso de lo que no se cumple:** el princ
 ### Qué probar en el móvil
 1. Importar una canción con `sinte: guitarra-grabada`: ¿suena a guitarra limpia?, ¿el volumen cuadra con la batería?, ¿se nota el pitch-shift «estirable» entre e3 y a3 (si sí, subir a 8 notas)?, ¿la nota de 0,5 s se corta seca?
 2. En Safari/iPhone: ¿carga la primera nota sin retraso notable?
+
+## Tanda 8 (2026-11-18): nombres de nota en el Órgano (spec 037)
+- Interruptor «nombres de nota» (⋯ del Órgano, solo con «Controles avanzados»): filas con do re mi / C D E según el idioma y aviso flotante con el nombre al tocar. Guardado en `coderbeats:studio:v2` (no en `ui:v1`, ver la spec). Sin él, el Órgano es el de siempre.
+### Qué probar en el móvil
+1. «Controles avanzados» → Órgano → ⋯ → «nombres de nota»: ¿las filas dicen do re mi?, ¿al tocar sale el nombre un segundo sin tapar las notas?, ¿se queda encendido al reabrir?
+2. Sin «avanzado»: el Órgano debe verse igual que antes.

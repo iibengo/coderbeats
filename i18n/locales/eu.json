@@ -187,7 +187,9 @@
     "chords": "akordeak",
     "chordsHint": "nota batzuk aldi berean: ukitzeak beste nota bat jartzen du urrats horretan eta nota bat ukitzeak kentzen du",
     "ties": "lotura",
-    "tiesHint": "nota batek konpas-lerroa zeharka dezake"
+    "tiesHint": "nota batek konpas-lerroa zeharka dezake",
+    "names": "nota-izenak",
+    "namesHint": "do re mi errenkadetan eta ukitzen duzun notaren izena"
   },
   "remixes": {
     "title": "Nire abestiak",

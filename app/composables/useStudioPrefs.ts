@@ -1,22 +1,34 @@
-// Preferencias del Estudio (spec 020/022): una sola, «controles avanzados». Clave propia (`coderbeats:studio:v2`); nunca toca `coderbeats:ui:v1`.
+// Preferencias del Estudio (spec 020/022/037): «controles avanzados» y, dentro del Órgano, «nombres de nota». Clave propia (`coderbeats:studio:v2`); nunca toca `coderbeats:ui:v1`.
 // Sin la marca, el Estudio se ve simple (crear y editar remixes); con ella, vuelve todo lo que se escondió (nada se borra).
 import { readJson, writeText } from '~/lib/storage'
 
 export const STUDIO_KEY = 'coderbeats:studio:v2'
-const isPrefs = (x: unknown): x is { advanced: boolean } => !!x && typeof x === 'object' && typeof (x as { advanced?: unknown }).advanced === 'boolean'
+const isPrefs = (x: unknown): x is { advanced: boolean; noteNames?: boolean } => {
+  if (!x || typeof x !== 'object') return false
+  const p = x as { advanced?: unknown; noteNames?: unknown }
+  return typeof p.advanced === 'boolean' && (p.noteNames === undefined || typeof p.noteNames === 'boolean')
+}
 const advanced = ref(false)
+const noteNames = ref(false)
 let loaded = false
 
 export function useStudioPrefs() {
   if (!loaded && import.meta.client) {
     loaded = true
-    advanced.value = readJson(STUDIO_KEY, isPrefs)?.advanced ?? false
+    const saved = readJson(STUDIO_KEY, isPrefs)
+    advanced.value = saved?.advanced ?? false
+    noteNames.value = saved?.noteNames ?? false
   }
   return {
     advanced,
+    noteNames,
     setAdvanced(v: boolean) {
       advanced.value = v
-      writeText(STUDIO_KEY, JSON.stringify({ advanced: v }))
+      writeText(STUDIO_KEY, JSON.stringify({ advanced: v, noteNames: noteNames.value }))
+    },
+    setNoteNames(v: boolean) {
+      noteNames.value = v
+      writeText(STUDIO_KEY, JSON.stringify({ advanced: advanced.value, noteNames: v }))
     },
   }
 }

@@ -187,7 +187,9 @@
     "chords": "acordes",
     "chordsHint": "varias notas a la vez: tocar pone otra nota en ese paso y tocar una nota la quita",
     "ties": "ligaduras",
-    "tiesHint": "una nota puede cruzar la línea de compás"
+    "tiesHint": "una nota puede cruzar la línea de compás",
+    "names": "nombres de nota",
+    "namesHint": "do re mi en las filas y el nombre de la nota que tocas"
   },
   "remixes": {
     "title": "Mis canciones",

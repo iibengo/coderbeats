@@ -1,0 +1,23 @@
+// Nombres de nota en el Órgano (spec 037): sin «avanzado» no hay interruptor y las filas son las de siempre; con él, los nombres siguen el idioma, aparece el aviso al tocar y se guarda.
+import { open, sleep } from './lib.mjs'
+const adv = !process.argv.includes('--sin')
+const { b, p, errs } = await open({ goto: false })
+await p.evaluateOnNewDocument((on) => { try { if (!localStorage.getItem('coderbeats:studio:v2')) localStorage.setItem('coderbeats:studio:v2', JSON.stringify({ advanced: on })) } catch {} }, adv)
+await p.goto(`http://localhost:${process.env.PORT || 3999}/estudio`, { waitUntil: 'networkidle2', timeout: 120000 })
+await p.evaluate(() => [...document.querySelectorAll('button')].find((x) => x.textContent.includes('Usar el micro'))?.click()); await sleep(8000)
+await p.evaluate(() => window.__stage().openOrgan(200, 420)); await sleep(1500)
+const filas = () => p.evaluate(() => [...document.querySelectorAll('.organ .w-11 span')].map((x) => x.textContent.trim()).slice(0, 4))
+console.log('filas (por defecto):', await filas())
+await p.evaluate(() => document.querySelector('[data-organ-more]').click()); await sleep(300)
+const hay = await p.evaluate(() => !!document.querySelector('[data-organ-names]'))
+console.log('interruptor:', hay)
+if (!hay) { console.log('toast al tocar (no debe haber):', await p.evaluate(() => !!document.querySelector('[data-organ-note-toast]')), errs); await b.close(); process.exit(0) }
+await p.evaluate(() => document.querySelector('[data-organ-names]').click()); await sleep(300)
+console.log('filas con nombres (es):', await filas())
+const g = await p.evaluate(() => { const c = document.querySelector('[data-organ-grid]'); const r = c.getBoundingClientRect(); return { x: r.x, y: r.y, cw: +c.dataset.cellW, rh: +c.dataset.rowH } })
+await p.mouse.click(g.x + 3 * g.cw, g.y + 4.5 * g.rh); await sleep(200)
+console.log('aviso al tocar:', await p.evaluate(() => document.querySelector('[data-organ-note-toast]')?.textContent))
+await sleep(1500)
+console.log('aviso tras 1,5 s (debe haberse ido):', await p.evaluate(() => document.querySelector('[data-organ-note-toast]')?.textContent ?? null))
+console.log('guardado:', await p.evaluate(() => localStorage.getItem('coderbeats:studio:v2')), 'ui:v1 intacto:', await p.evaluate(() => localStorage.getItem('coderbeats:ui:v1')))
+console.log(errs); await b.close()

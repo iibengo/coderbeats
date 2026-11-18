@@ -12,7 +12,7 @@ import { addChordNote, addMelNote, dropExtraMelodies, extraMelodies, gForBar, me
 import type { FreeLoop, LoopsState } from '~/lib/freeLoops'
 import { isTonic, rangeOf, rowOf, scaleNotes } from '~/lib/melodyView'
 import type { MelodyHit } from '~/lib/melody'
-import { midiName } from '~/lib/noteScore'
+import { noteName, rowLabel } from '~/lib/noteNames'
 import { STYLE_MUSIC } from '~/lib/styles'
 
 const props = defineProps<{ origin: { x: number; y: number } }>()
@@ -22,7 +22,21 @@ const { loops, style, playing } = engine
 const { t } = useI18n()
 const more = ref(false)
 // loops de 8 y 16 compases: solo en «Avanzado» (o si la melodía ya es así de larga)
-const adv = useStudioPrefs().advanced
+const prefs = useStudioPrefs()
+const adv = prefs.advanced
+// nombres de nota (spec 037): solo con «Controles avanzados»; sin el interruptor, el Órgano es el de siempre
+const { locale } = useI18n()
+const namesOn = computed(() => adv.value && prefs.noteNames.value)
+const toast = ref<string | null>(null)
+let toastTimer: ReturnType<typeof setTimeout> | undefined
+function preview(midi: number) {
+  engine.previewNote(midi, synth.value)
+  if (!namesOn.value) return
+  toast.value = noteName(midi, locale.value)
+  clearTimeout(toastTimer)
+  toastTimer = setTimeout(() => (toast.value = null), 1100)
+}
+onBeforeUnmount(() => clearTimeout(toastTimer))
 const lengths = computed(() => ([1, 2, 4, 8, 16] as const).filter((n) => n <= 4 || adv.value || bars.value >= n))
 const partLock = usePartLock()
 onMounted(() => partLock.enter())
@@ -133,12 +147,12 @@ function onDown(e: PointerEvent) {
   if (hit) {
     if (hit.resize) g = { kind: 'resize', id: e.pointerId, hit: hit.hit, dur: hit.hit.dur }
     else g = { kind: 'move', id: e.pointerId, x0: x, y0: y, hit: hit.hit, grab: x / cellW.value - hit.hit.pos, pos: hit.hit.pos, row: Math.floor(y / rowH.value), moved: false, outside: false }
-    engine.previewNote(hit.hit.midi, synth.value)
+    preview(hit.hit.midi)
     return
   }
   const row = Math.min(rows.value.length - 1, Math.max(0, Math.floor(y / rowH.value)))
   g = { kind: 'new', id: e.pointerId, x0: x, y0: y, pos: snapPos(x / cellW.value), row, dur: newDur(), moved: false }
-  engine.previewNote(midiOfRow(row), synth.value)
+  preview(midiOfRow(row))
 }
 
 function onMove(e: PointerEvent) {
@@ -158,7 +172,7 @@ function onMove(e: PointerEvent) {
     const row = Math.min(rows.value.length - 1, Math.max(0, Math.floor(y / rowH.value)))
     if (row !== g.row) {
       g.row = row
-      engine.previewNote(midiOfRow(row), synth.value)
+      preview(midiOfRow(row))
     }
   } else if (g.kind === 'resize') {
     const u = q()
@@ -255,7 +269,7 @@ function recNote(e: PointerEvent) {
   const { y } = cell(e)
   // Piano mágico: la altura es la siguiente nota de la melodía del estilo (se ignora dónde toques); si no, la fila
   const midi = r.mode === 'piano' && tuneNotes.length ? tuneNotes[tuneIdx++ % tuneNotes.length]!.midi : midiOfRow(Math.min(rows.value.length - 1, Math.max(0, Math.floor(y / rowH.value))))
-  engine.previewNote(midi, synth.value)
+  preview(midi)
   const raw = recSteps()
   if (raw === null) return // en la cuenta, suena pero no se apunta
   const pos = r12(Math.round(raw / unit.value) * unit.value)
@@ -282,7 +296,7 @@ function seek(e: Event) {
   if (sc) sc.scrollLeft = Math.max(0, cursor.value * cellW.value - sc.clientWidth / 2)
   // y suena la nota que hay ahí (si la hay), para colocar con calma
   const n = notes.value.find((h) => cursor.value >= h.pos && cursor.value < h.pos + h.dur)
-  if (n) engine.previewNote(n.midi, synth.value)
+  if (n) preview(n.midi)
 }
 
 // ── dibujo ───────────────────────────────────────────────────────────────────────
@@ -477,7 +491,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('resize', measure)
   window.removeEventListener('keydown', onKey)
 })
-const label = (m: number) => midiName(m).replace('#', '♯')
+const label = (m: number) => rowLabel(m, locale.value, namesOn.value)
 </script>
 
 <template>
@@ -515,6 +529,7 @@ const label = (m: number) => midiName(m).replace('#', '♯')
           <button class="h-11 rounded-full border px-4 text-sm" :class="triplets ? 'border-[#F496BC] text-white' : 'border-white/25 text-white/60'" :aria-pressed="triplets" :title="t('organ.tripletsHint')" data-organ-triplets @click="triplets = !triplets">{{ t('organ.triplets') }}</button>
           <button class="h-11 rounded-full border px-4 text-sm" :class="chordMode ? 'border-[#F496BC] text-white' : 'border-white/25 text-white/60'" :aria-pressed="chordMode" :title="t('organ.chordsHint')" data-organ-chords @click="chordMode = !chordMode">{{ t('organ.chords') }}</button>
           <button class="h-11 rounded-full border px-4 text-sm" :class="tieMode ? 'border-[#F496BC] text-white' : 'border-white/25 text-white/60'" :aria-pressed="tieMode" :title="t('organ.tiesHint')" data-organ-ties @click="tieMode = !tieMode">{{ t('organ.ties') }}</button>
+          <button class="h-11 rounded-full border px-4 text-sm" :class="prefs.noteNames.value ? 'border-[#F496BC] text-white' : 'border-white/25 text-white/60'" :aria-pressed="prefs.noteNames.value" :title="t('organ.namesHint')" data-organ-names @click="prefs.setNoteNames(!prefs.noteNames.value)">{{ t('organ.names') }}</button>
         </template>
       </div>
 
@@ -565,6 +580,8 @@ const label = (m: number) => midiName(m).replace('#', '♯')
       <p class="px-4 pb-2 text-center text-[11px] text-white/35">
         {{ t('organ.help') }}
       </p>
+      <!-- el nombre de la nota tocada, un momento (spec 037); solo existe con el interruptor -->
+      <div v-if="toast" class="pointer-events-none fixed top-24 left-1/2 z-[61] -translate-x-1/2 rounded-full border border-[#F496BC]/60 bg-black/80 px-4 py-1.5 text-base text-white" role="status" data-organ-note-toast>{{ toast }}</div>
     </div>
   </Teleport>
 </template>
