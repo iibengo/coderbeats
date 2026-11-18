@@ -9,3 +9,8 @@ Cinco golpes del **uzu-drumkit (Unlicense)**, en `public/samples/techno/` (con e
 - **No cambia lo que ya suena:** nadie usa esos sintes hasta que un archivo los lleve; los otros kits y sintes no cambian.
 ## Principios
 2 ✔ · 5 ⚠ cinco loops más por parte (el tope de 8 loops de siempre manda) · 7 ⚠ sin probar con gente · 8 ⚠ se añaden sonidos; no se quita nada. **Sin comprobar:** de oído, el volumen de cada golpe (ajustado por pico, no de oído: el shaker a −8 dB, lo demás −2 a −4), que «misc 11» sea de verdad un clic limpio y que fuera de tiempo suene a minimal (los medios pasos usan el mismo reloj, sin humanizar).
+
+## Corrección (2026-11-18): se oían casi mudas
+- **Causa 1 (error general, ya corregido en `fix(mezcla)`):** la dinámica por nota multiplicaba por el reparto del volumen todas las notas **menos la primera de cada compás** (la expresión no casaba tras `[`): esa sonaba hasta 4 veces más fuerte. Con loops de percusión fuera de la primera parte del compás (shaker, clic, tono nuevo), sonaban a ~0,23.
+- **Causa 2:** la percusión contaba en el reparto 1/√n como una capa más. Ahora **no cuenta** (como los adornos) y lleva el reparto de los demás con el balance de la melodía (−3 dB): añadirla no baja la base y suena como el charle.
+- **Sin comprobar de oído:** que el shaker (muestra de 0,03 s a −8 dB) y el clic (0,03 s) sean audibles; si no, se sube su `gain` o su fuerza en el `.txt`.

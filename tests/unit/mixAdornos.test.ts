@@ -61,4 +61,13 @@ describe('los adornos no cuentan en el reparto del volumen (spec 040)', () => {
     expect(isFreeLoop(L('sd'))).toBe(true)
     for (const bad of ['si', 1, null, {}, []]) expect(isFreeLoop({ ...L('sd'), adorno: bad }), JSON.stringify(bad)).toBe(false)
   })
+  it('la percusión del minimal no cuenta en el reparto: añadirla no baja la base y suena con el reparto de los demás (no casi muda)', () => {
+    const base = [L('bd'), L('hh'), L('mel', { synth: 'acid' })]
+    const perc = [L('mel', { synth: 'rim' }), L('mel', { synth: 'shaker' }), L('mel', { synth: 'click' })]
+    const sin = loopGains(base)
+    const con = loopGains([...base, ...perc])
+    for (const l of base) expect(con.get(l.id), l.instrument).toBeCloseTo(sin.get(l.id)!, 12)
+    for (const l of perc) expect(con.get(l.id)).toBeCloseTo(shareGain(3) * dbToGain(INSTRUMENT_BALANCE_DB.mel), 12)
+    expect(isAdorno(perc[0]!)).toBe(false) // no es un adorno: sigue el reparto
+  })
 })

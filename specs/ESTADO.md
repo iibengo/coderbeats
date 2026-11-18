@@ -617,3 +617,9 @@ Escritos. En la spec 017 va cada uno. **Aviso de lo que no se cumple:** el princ
 1. Ajustes → Avanzado: ¿se mueve el medidor con la música y se pone ámbar/rojo cerca del techo?
 2. Un techno con el EQ apagado y encendido: ¿más brillo sin chillar?, ¿el bombo pierde algo? Con el compresor techno encendido también.
 3. ¿Se nota algún cambio de sincronía o de CPU (el limitador añade 1,5 ms y un barrido por muestra)?
+
+## Tanda 20 (2026-11-18): las líneas verdes «que no suenan» (corrección de volumen)
+- **Dos causas** (spec 045, «Corrección»): (1) la dinámica por nota se saltaba la primera nota de cada compás al aplicar el reparto del volumen (esa sonaba hasta 4× más que las demás); (2) la percusión contaba como una capa en el reparto 1/√n y quedaba casi muda. Corregido: todas las notas igual y la percusión fuera del reparto. **Cambia lo que suena:** en cualquier melodía con dinámica dentro de una parte con varios loops, la primera nota de cada compás baja al nivel de las demás.
+### Qué probar en el móvil
+1. Importa `mozart-minimal.json`: ¿se oyen ya el shaker, el clic y el tono que entra en el 17? ¿La melodía de Mozart suena pareja y ya no «salta» la primera nota de cada compás?
+2. Una melodía tuya de siempre en una parte con varios loops: debería sonar más pareja (y algo más baja en la primera nota de cada compás).
