@@ -6,14 +6,20 @@
  */
 class GlueCompressor {
   constructor(sampleRate, o) {
+    this.sampleRate = sampleRate
+    this.power = 0 // potencia media del detector
+    this.grDb = 0 // reducción de ganancia actual (≤ 0), en dB
+    this.set(o)
+  }
+
+  /** Cambia los ajustes en marcha (spec 042: el interruptor «techno»); el detector y la reducción actual siguen, sin saltos. */
+  set(o) {
     this.o = o
-    const coef = (sec) => Math.exp(-1 / Math.max(1, sec * sampleRate))
+    const coef = (sec) => Math.exp(-1 / Math.max(1, sec * this.sampleRate))
     this.attack = coef(o.attack)
     this.release = coef(o.release)
     this.rms = coef(o.rmsMs / 1000)
     this.makeup = 10 ** (o.makeupDb / 20)
-    this.power = 0 // potencia media del detector
-    this.grDb = 0 // reducción de ganancia actual (≤ 0), en dB
   }
 
   /** Reducción objetivo (≤ 0 dB) para un nivel en dB: rodilla blanda alrededor del umbral. */
@@ -44,6 +50,11 @@ if (typeof registerProcessor === 'function') {
       constructor(options) {
         super()
         this.comp = new GlueCompressor(sampleRate, options.processorOptions)
+        // spec 042: cambiar de ajustes en marcha (el interruptor «techno»)
+        this.port.onmessage = (e) => {
+          const d = e.data
+          if (d && d.type === 'options' && d.options && typeof d.options.ratio === 'number') this.comp.set(d.options)
+        }
       }
 
       process(inputs, outputs) {

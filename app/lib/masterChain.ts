@@ -41,3 +41,10 @@ export interface GlueOptions {
 
 /** Ajustes del compresor: ratio bajo y umbral alto, para 1–2 dB de reducción como mucho en una mezcla normal. */
 export const GLUE_WARM: GlueOptions = { thresholdDb: -16, ratio: 1.8, kneeDb: 12, attack: 0.03, release: 0.12, rmsMs: 40, makeupDb: 1 }
+/**
+ * El compresor de pegamento «techno» (spec 042), **apagado por defecto** (interruptor en Ajustes → Avanzado): ratio 3 con el mismo umbral que el de siempre (−16 dB: más reducción que él por encima, igual por debajo), +1 dB de makeup para que el volumen no baje, y el mismo ataque lento (el bombo pasa) y la misma suelta
+ * corta (no «respira» con el bombo: de eso se encarga el sidechain). El mismo worklet sin latencia con otros ajustes. Sin comprobar de oído.
+ */
+export const GLUE_TECHNO: GlueOptions = { thresholdDb: -16, ratio: 3, kneeDb: 10, attack: 0.03, release: 0.12, rmsMs: 40, makeupDb: 2 }
+/** Los ajustes que toca: apagado, los de siempre (`GLUE_WARM`, el mismo objeto). */
+export const glueOptions = (techno: boolean): GlueOptions => (techno ? GLUE_TECHNO : GLUE_WARM)

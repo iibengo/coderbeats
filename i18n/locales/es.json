@@ -358,6 +358,12 @@
       "calibration": "Ajusta la app a tu voz y al retraso de tus cascos. Solo hace falta si usas el micro.",
       "drop": "Efecto de DJ: el ritmo y el bajo se cortan y vuelven de golpe.",
       "fresh": "Borra lo que tienes y empieza de cero."
+    },
+    "glue": {
+      "label": "Compresor techno",
+      "info": "Junta más la mezcla (ratio 3, umbral alto) para que el techno suene «junto». Apagado: suena como siempre. Se nota en cualquier cosa que suene, también en tus canciones.",
+      "on": "encendido",
+      "off": "apagado"
     }
   },
   "studio": {

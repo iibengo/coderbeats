@@ -358,6 +358,12 @@
       "calibration": "Aplikazioa zure ahotsera eta aurikularren atzerapenera doitzen du. Mikrofonoa erabiltzen baduzu bakarrik behar da.",
       "drop": "DJ efektua: erritmoa eta baxua moztu eta kolpe batean itzultzen dira.",
       "fresh": "Dituzunak garbitu eta hutsetik hasten da."
+    },
+    "glue": {
+      "label": "Techno konpresorea",
+      "info": "Nahasketa gehiago itsasten du (ratioa 3, atalase altua), technoak «batuta» ager dadin. Itzalita: beti bezala. Jotzen duen guztian eragiten du, zure abestietan ere.",
+      "on": "piztuta",
+      "off": "itzalita"
     }
   },
   "studio": {

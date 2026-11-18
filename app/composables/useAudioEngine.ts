@@ -17,6 +17,7 @@ import { KIT_ORDER, KITS, kitFromSaved, STYLES } from '~/lib/constants'
 import { GUITAR_SAMPLE, guitarMap } from '~/lib/guitarSamples'
 import { MELODY_DECISION_SEC } from '~/lib/liveMelody'
 import { scaleLabel, type SongScale } from '~/lib/songScale'
+import { glueOptions } from '~/lib/masterChain'
 import type { MelodyHit, MelodySynth } from '~/lib/melody'
 import { melodyOfPhrase } from '~/lib/melodyAssist'
 import { midiName } from '~/lib/noteScore'
@@ -176,6 +177,8 @@ type PilotSaved = { suggestions: boolean; melody: boolean; assist: boolean; bgMo
 let ctx: AudioContext | null = null
 /** el final de la cadena maestra (tras el techo): de ahí sale una derivación para grabar el audio de la app en vídeo (spec 013); el micro nunca entra */
 let masterEnd: AudioNode | null = null
+/** el compresor de pegamento de la salida (worklet); `null` si no cargó */
+let glueNode: AudioWorkletNode | null = null
 let videoTap: MediaStreamAudioDestinationNode | null = null
 let S: StrudelModule | null = null
 let stream: MediaStream | null = null
@@ -1381,6 +1384,9 @@ export function useAudioEngine() {
         const glue = new AudioWorkletNode(ctx!, 'master-glue', { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2], processorOptions: GLUE_WARM })
         saturator.disconnect()
         saturator.connect(glue).connect(limiter)
+        glueNode = glue
+        // spec 042: el compresor «techno» (apagado por defecto); si lo guardó la persona, entra con él
+        if (useStudioPrefs().glue.value) glue.port.postMessage({ type: 'options', options: glueOptions(true) })
       } catch (e) {
         log('error', `master-glue: ${e instanceof Error ? e.message : String(e)} (sin compresor de pegamento)`)
       }
@@ -1686,6 +1692,14 @@ export function useAudioEngine() {
    * Fija el tempo de la canción (o, con `null`, vuelve al del estilo). Sonando, se aplica en la siguiente
    * línea de compás y el motor rearranca desde la célula que se ve, como al cambiar de estilo.
    */
+  /** El compresor «techno» de la salida (spec 042): `true` lo enciende (ratio ~3), `false` vuelve a los ajustes de siempre. No cambia la latencia (mismo worklet). Sin el worklet, no hace nada. */
+  function setGlue(on: boolean) {
+    glueNode?.port.postMessage({ type: 'options', options: glueOptions(on) })
+    // solo en desarrollo y para el guion del navegador: mandar unos ajustes cualquiera al compresor (comprobar que el mensaje llega)
+    if (import.meta.dev && import.meta.client) (window as unknown as Record<string, unknown>).__glueSend = (o: object) => glueNode?.port.postMessage({ type: 'options', options: o })
+    log('cell', on ? 'compresor techno: encendido' : 'compresor techno: apagado')
+  }
+
   /** La escala de la canción (spec 038): se guarda con ella; `null` la quita. No toca el sonido. */
   function setSongScale(scale: SongScale | null) {
     const cur = song.value.scale ?? null
@@ -3398,6 +3412,7 @@ export function useAudioEngine() {
     onVisual,
     clockNow,
     setSongScale,
+    setGlue,
     cellPlan,
     looping,
     loopTarget,

@@ -358,6 +358,12 @@
       "calibration": "Tunes the app to your voice and your headphones' delay. Only needed if you use the mic.",
       "drop": "DJ effect: the rhythm and bass cut out and come back with a bang.",
       "fresh": "Clears what you have and starts from scratch."
+    },
+    "glue": {
+      "label": "Techno compressor",
+      "info": "Glues the mix together more (ratio 3, high threshold) so techno sounds tight. Off: it sounds as always. It affects everything that plays, including your songs.",
+      "on": "on",
+      "off": "off"
     }
   },
   "studio": {

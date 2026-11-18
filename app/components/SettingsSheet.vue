@@ -12,6 +12,10 @@ const emit = defineEmits<{ recalibrate: ['latency' | 'sounds']; pilot: []; previ
 const engine = useAudioEngine()
 const { t } = useI18n()
 const prefsStudio = useStudioPrefs()
+function toggleGlue() {
+  prefsStudio.setGlue(!prefsStudio.glue.value)
+  engine.setGlue(prefsStudio.glue.value)
+}
 const adv = prefsStudio.advanced
 const ui = useUi()
 // lo que reemplaza la canción la desvincula de la guardada de la que venía (spec 006, §10.4): así "Guardar" no machaca una guardada
@@ -184,6 +188,10 @@ watch(open, (o) => {
           </button>
 
           <template v-if="adv">
+            <div class="flex items-center justify-between" data-glue>
+              <span class="flex items-center gap-1.5">{{ t('settings.glue.label') }} <InfoTip :text="t('settings.glue.info')" /></span>
+              <button class="rounded-full px-3 py-0.5 text-xs" :class="chip(prefsStudio.glue.value)" :aria-pressed="prefsStudio.glue.value" data-glue-toggle @click="toggleGlue">{{ prefsStudio.glue.value ? t('settings.glue.on') : t('settings.glue.off') }}</button>
+            </div>
             <div class="flex items-center justify-between">
               <span class="flex items-center gap-1.5">{{ t('settings.bg.label') }} <InfoTip :text="t('settings.info.bg')" /></span>
               <span class="flex gap-1">

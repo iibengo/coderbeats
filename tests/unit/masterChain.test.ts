@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { GLUE_WARM, SATURATION, saturate, saturationCurve, type GlueOptions } from '../../app/lib/masterChain'
+import { GLUE_TECHNO, GLUE_WARM, SATURATION, glueOptions, saturate, saturationCurve, type GlueOptions } from '../../app/lib/masterChain'
 
-type Glue = { gain(l: number, r: number): number; target(db: number): number; grDb: number }
+type Glue = { gain(l: number, r: number): number; target(db: number): number; grDb: number; set(o: GlueOptions): void }
 // el worklet es JS plano (no se importa): se evalúa el archivo tal cual, con un `module` falso, sin los globales del worklet
 const mod: { exports: { GlueCompressor?: new (sr: number, o: GlueOptions) => Glue } } = { exports: {} }
 new Function('module', readFileSync('public/worklets/master-glue.js', 'utf8'))(mod)
@@ -91,5 +91,44 @@ describe('el compresor de pegamento (spec 010, §7): suave y sin latencia', () =
     expect(GLUE_WARM.ratio).toBeLessThanOrEqual(2)
     expect(GLUE_WARM.release).toBeLessThan(60 / 128)
     expect(GLUE_WARM.attack).toBeGreaterThanOrEqual(0.02)
+  })
+})
+
+describe('el compresor «techno» de la salida (spec 042)', () => {
+  const loud = (g: Glue, amp: number) => {
+    for (let i = 0; i < SR * 2; i++) g.gain(amp * Math.sin(i / 7), amp * Math.sin(i / 7))
+    return g.grDb
+  }
+  it('apagado, los ajustes son exactamente los de siempre (el mismo objeto)', () => {
+    expect(glueOptions(false)).toBe(GLUE_WARM)
+    expect(glueOptions(true)).toBe(GLUE_TECHNO)
+    expect(GLUE_WARM).toEqual({ thresholdDb: -16, ratio: 1.8, kneeDb: 12, attack: 0.03, release: 0.12, rmsMs: 40, makeupDb: 1 })
+  })
+  it('suave: ratio 3, umbral alto, mismo ataque lento y suelta corta; no toca lo flojo', () => {
+    expect(GLUE_TECHNO.ratio).toBe(3)
+    expect(GLUE_TECHNO.thresholdDb).toBe(GLUE_WARM.thresholdDb)
+    expect(GLUE_TECHNO.attack).toBe(GLUE_WARM.attack)
+    expect(GLUE_TECHNO.release).toBe(GLUE_WARM.release)
+    expect(loud(new GlueCompressor(SR, GLUE_TECHNO), 0.02)).toBeCloseTo(0, 1) // ≈ −37 dB
+  })
+  it('comprime más que el de siempre en una mezcla fuerte, y no demasiado (como mucho ~7 dB con una señal casi a tope)', () => {
+    const warm = loud(new GlueCompressor(SR, GLUE_WARM), 0.7)
+    const techno = loud(new GlueCompressor(SR, GLUE_TECHNO), 0.7)
+    expect(techno).toBeLessThan(warm) // más reducción (más negativa)
+    expect(techno).toBeGreaterThan(-8)
+  })
+  it('cambiar de ajustes en marcha da lo mismo que empezar con ellos, y sin saltos', () => {
+    const g = new GlueCompressor(SR, GLUE_WARM)
+    loud(g, 0.5)
+    g.set(GLUE_TECHNO)
+    const a = loud(g, 0.5)
+    const b = loud(new GlueCompressor(SR, GLUE_TECHNO), 0.5)
+    expect(a).toBeCloseTo(b, 1)
+    g.set(GLUE_WARM)
+    expect(Math.abs(g.gain(0.1, 0.1) - g.gain(0.1, 0.1))).toBeLessThan(0.01) // sin salto en la ganancia
+  })
+  it('sigue sin latencia (alimentación hacia delante)', () => {
+    const g = new GlueCompressor(SR, GLUE_TECHNO)
+    expect(typeof g.gain(0.5, 0.5)).toBe('number')
   })
 })
