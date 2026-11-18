@@ -11,3 +11,8 @@ Campo opcional `Song.sidechain?: 'si' | 'no'` (validado estrictamente; sin él, 
 - Cambia lo que suena solo en las canciones que lleven `sidechain: 'si'` (las que convierta el conversor en techno/house a partir de ahora). Los remixes de serie y lo guardado no lo llevan: suenan igual.
 ## Principios
 2 ✔ · 5 ✔ · 7 ⚠ (precedente: el techno y el house reales; sin probar con gente) · 8 ✔. **Sin comprobar:** cómo suena el bombeo (profundidad 0,6 con el ataque de 0,15 s a 132 bpm; si se oye demasiado o muy poco) y que el orbit 6 no suene distinto al 5 (mismo efecto por línea).
+
+## Compresión y pegada: no se hace (decisión a revisar)
+- **`.shape()` ya existe:** la «calidez» (por defecto 0,5 → `.shape(0.25)`) se añade a todos los loops de cada bloque en el motor y en el código mostrado. Otro `.shape()` encima no «pega»: satura más y sube el volumen.
+- **`.compressor()` de Strudel/superdough es por evento** (cada golpe lleva su propio compresor, de un pozo de nodos): no comprime el conjunto de la batería, así que no la «junta»; solo recortaría el pico de cada golpe suelto.
+- Pegar de verdad pide un **compresor de bus** en la cadena de salida del motor (hoy: limitador a −6 dB, ratio 20, y techo −1 dB). Eso toca el audio de todo lo que suena (incluidos Mis canciones y los remixes de serie) y **no se puede afinar sin oír**: se deja apuntado, no se programa.
