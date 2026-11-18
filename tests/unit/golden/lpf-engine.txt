@@ -1,0 +1,29 @@
+setcpm(132/4)
+stack(
+  // fondo · techno · do menor
+  note("[~ c2 c2 c2 ~ c2 c2 c3 ~ c2 c2 c2 ~ c2 c2 c3]").s("sawtooth").lpf(380).lpenv(1.5).decay(0.12).sustain(0).gain(0.55).orbit(2).color("bass"),
+  note("<[c3,eb3,g3]>").s("supersaw").attack(0.6).release(1.2).lpf(700).room(0.6).gain(0.1).orbit(3).color("chords"),
+  note("c0").s("sine").gain(0).color("pulse"),
+  // A · compases 0–7
+  stack(
+    stack(
+      s("bd ~ ~ ~ bd ~ ~ ~ bd ~ ~ ~ bd ~ ~ ~").gain(0.45).duckorbit("2:3:5").duckdepth(0.6).duckattack(0.15).color("l1").filterHaps((h) => h.whole.begin >= 0),
+      s("~ ~ ~ ~ sd ~ ~ ~ ~ ~ ~ ~ sd ~ ~ ~").n(1).gain(0.4).color("l2").filterHaps((h) => h.whole.begin >= 0),
+      s("~ ~ hh ~ ~ ~ hh ~ ~ ~ hh ~ ~ ~ hh ~").n(3).gain(0.22).color("l3").filterHaps((h) => h.whole.begin >= 0),
+      note("<[d2@16] [~@16] [~@16] [~@16]>").s("sawtooth").lpf(420).lpenv(2).decay(0.2).sustain(0.35).gain(0.6).orbit(5).gain("<[0.91@16] [~@16] [~@16] [~@16]>").color("l4").filterHaps((h) => h.whole.begin >= 0),
+      note("<[d4@16] [~@16] [~@16] [~@16]>").s("square").lpf(1800).decay(0.2).sustain(0.5).delay(0.25).orbit(5).gain("<[0.91@16] [~@16] [~@16] [~@16]>").color("l5").filterHaps((h) => h.whole.begin >= 0),
+      note("<[c4@16] [~@16] [~@16] [~@16]>").s("pink").attack(0.12).decay(0.2).sustain(0.7).release(0.05).gain(0.6).room(0.3).orbit(5).gain("<[0.91@16] [~@16] [~@16] [~@16]>").color("l6").filterHaps((h) => h.whole.begin >= 0),
+    ).room(ref(() => __cb.fx.room)).delay(ref(() => __cb.fx.delay)).shape(ref(() => __cb.fx.shape)),
+  ).lpf("<400 800 1600 1600 1600 1600 1600 1600>").filterHaps((h) => h.whole.begin >= 0 && h.whole.begin < 8),
+  // A · compases 8–15
+  stack(
+    stack(
+      s("bd ~ ~ ~ bd ~ ~ ~ bd ~ ~ ~ bd ~ ~ ~").gain(0.45).duckorbit("2:3:5").duckdepth(0.6).duckattack(0.15).color("l1").filterHaps((h) => h.whole.begin >= 0),
+      s("~ ~ ~ ~ sd ~ ~ ~ ~ ~ ~ ~ sd ~ ~ ~").n(1).gain(0.4).color("l2").filterHaps((h) => h.whole.begin >= 0),
+      s("~ ~ hh ~ ~ ~ hh ~ ~ ~ hh ~ ~ ~ hh ~").n(3).gain(0.22).color("l3").filterHaps((h) => h.whole.begin >= 0),
+      note("<[d2@16] [~@16] [~@16] [~@16]>").s("sawtooth").lpf(420).lpenv(2).decay(0.2).sustain(0.35).gain(0.6).orbit(5).gain("<[0.91@16] [~@16] [~@16] [~@16]>").color("l4").filterHaps((h) => h.whole.begin >= 0),
+      note("<[d4@16] [~@16] [~@16] [~@16]>").s("square").lpf(1800).decay(0.2).sustain(0.5).delay(0.25).orbit(5).gain("<[0.91@16] [~@16] [~@16] [~@16]>").color("l5").filterHaps((h) => h.whole.begin >= 0),
+      note("<[c4@16] [~@16] [~@16] [~@16]>").s("pink").attack(0.12).decay(0.2).sustain(0.7).release(0.05).gain(0.6).room(0.3).orbit(5).gain("<[0.91@16] [~@16] [~@16] [~@16]>").color("l6").filterHaps((h) => h.whole.begin >= 0),
+    ).room(ref(() => __cb.fx.room)).delay(ref(() => __cb.fx.delay)).shape(ref(() => __cb.fx.shape)),
+  ).lpf("<400 800 1600 1600 1600 1600 1600 1600>").filterHaps((h) => h.whole.begin >= 8 && h.whole.begin < 16),
+).djf(ref(() => __cb.fx.djf)).onTrigger((hap, ct, cps, t) => __cb.trig(hap, t), false)

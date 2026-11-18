@@ -587,3 +587,10 @@ Escritos. En la spec 017 va cada uno. **Aviso de lo que no se cumple:** el princ
 - **Hallazgo (decisión a revisar, la app no se toca):** el `lpf` de una parte, sin «wowo», se aplica a **todo el `stack` de la parte, también al bombo, la caja y el charle** (código mostrado y motor); la spec 008 §10 decía que solo afectaba a la melodía y los acordes, pero eso solo ocurre con wowo (la batería queda «limpia»; el wowo mínimo abre el filtro en cada golpe, así que no sirve de truco). Para que el charle no se apague, el conversor avisa y ofrece `charle: no`.
 ### Qué probar en el móvil
 1. Importa `minimal-ejemplo` (32 compases): ¿el filtro se abre y se cierra despacio sin saltos?, ¿el tono entra en el compás 17 (≈ 0:30 a 128 bpm) y sale en el 25 sin cortar el loop?, ¿el paso de una parte a otra (c16→c17, c24→c25) suena continuo?
+
+## Tanda 15 (2026-11-18): `lpfSoloSintes` (spec 008 §5 bis)
+- Campo opcional `Cell.lpfSoloSintes`: con `lpf`, el filtro solo afecta a los sintes y el bombo, la caja y el charle van limpios; el volumen no cambia; sin el campo, código idéntico byte a byte (test con referencia en `tests/unit/golden/`). El conversor: `filtro-solo-sintes: si` por parte.
+- El riser y el crash **sí** entran en el filtro de la parte (son sintes). El riser sube por el filtro (diseño). El crash con un `lpf` bajo queda casi mudo: **decisión a revisar** (no hay manera, hoy, de sacarlo del filtro sin tocar la app).
+### Qué probar en el móvil
+1. Un techno con `filtro:` bajo y `filtro-solo-sintes: si`: ¿el charle y el bombo siguen con su aire y su pegada mientras el filtro se abre?
+2. Lo mismo sin el campo (minimal): se filtra todo, como antes.

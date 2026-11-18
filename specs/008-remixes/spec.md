@@ -318,3 +318,11 @@ primer intervalo (el Himno agudo del Subidón 2 no suena al copiarlo a strudel.c
 **Se comprueba** (`tests/unit/remixes.test.ts`, `wowo.test.ts`): la estructura y las vueltas, los dos grupos y sus disparadores, el filtro por vuelta, el código mostrado en Strudel
 (los redobles 4·4·4·7, el último compás de cada riser en silencio, el drop justo después, el platillo cada 4, el pad de las raíces solo en el drop final, el bombo `e2`/`c2`
 alternos) y el código del motor con el preludio. **Pendiente:** escucharlo en la app.
+
+## §5 bis · `lpfSoloSintes`: el filtro de la parte solo en los sintes (2026-11-18)
+- **Hallazgo:** el `lpf` por vuelta de una parte, **sin** wowo, se aplica a **todo el `stack` de la parte**: también al bombo, la caja y el charle (en el código mostrado y en el motor). Lo de §10 («el bombo, la caja y los platillos van por fuera, limpios») solo ocurre **con** wowo. Para el minimal es lo correcto (se deja así).
+- **Cambio, opcional:** campo `Cell.lpfSoloSintes?: boolean` (validado: solo booleano). Con él **y** con `lpf`, el filtro solo envuelve los sintes (melodía, bajo, acordes propios y efectos, que también son sintes); **el bombo, la caja y el charle quedan fuera, sin lpf**, como con wowo. El volumen no cambia (el reparto `loopGains` se hace sobre toda la parte, no sobre cada bloque). Sin `lpf` no hace nada; con wowo, nada cambia (ya iba así).
+- **Sin el campo, el código es el de siempre, byte a byte:** `tests/unit/lpfSoloSintes.test.ts` compara con el código generado antes del cambio (`tests/unit/golden/lpf-display.txt` y `lpf-engine.txt`), también con wowo.
+- **El conversor** (fuera del repo) lo pone con `filtro-solo-sintes: si` en una parte con `filtro:`; por defecto no (el minimal filtra todo).
+- **Efectos dentro del filtro:** el riser y el crash son sintes y **sí** entran en el filtro de la parte (el riser **sube por él**: es su diseño; el crash es ruido agudo con `hpf(3500)` y un `lpf` bajo lo deja casi mudo). Los remixes de serie solo mezclan `lpf` y efectos en las partes «Riser» (filtros hasta 12 000 Hz), nunca con el crash.
+- **Sin comprobar:** de oído, el techno con filtro bajo y la batería limpia.

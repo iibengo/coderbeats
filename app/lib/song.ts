@@ -58,7 +58,7 @@ export interface SongState {
 }
 
 /** Lo que necesita el generador de cada célula. */
-export type CellCode = Pick<Cell, 'id' | 'name' | 'loops' | 'parts' | 'turns' | 'lpf' | 'wow' | 'groupOn' | 'groupOff'>
+export type CellCode = Pick<Cell, 'id' | 'name' | 'loops' | 'parts' | 'turns' | 'lpf' | 'lpfSoloSintes' | 'wow' | 'groupOn' | 'groupOff'>
 
 /**
  * - display: el código que se enseña y se copia (valores fijos, sin metrónomo ni ganchos).
@@ -218,14 +218,15 @@ function drumFxOf(st: SongState, mode: SongMode): string {
  * Líneas de unos loops con la sangría `ind` (cada una acabada en coma), dentro de un sub-stack con
  * los efectos si los hay. `phaseOffset`: compás global en el que empieza su célula (motor, spec 005).
  */
-function loopsLines(loops: FreeLoop[], st: SongState, mode: SongMode, duck: boolean, ind: string, phaseOffset = 0, withMel = false): string[] {
+function loopsLines(loops: FreeLoop[], st: SongState, mode: SongMode, duck: boolean, ind: string, phaseOffset = 0, withMel = false, gainBase?: FreeLoop[]): string[] {
   if (!loops.length) return []
   // el sidechain del bombo también empuja la melodía si hay una en este bloque (orbit 5), o en la célula (`withMel`)
   const duckStr =
     st.sidechain === 'no' ? '' : st.sidechain === 'si' ? duckWith(`2:3:${SIDECHAIN_ORBIT}`) : duck ? (withMel || loops.some((l) => l.instrument === 'mel') ? duckWith(`2:3:${MELODY_ORBIT}`) : DUCK) : ''
   const stepSeconds = 60 / (st.bpm ?? STYLES[st.style].bpm) / 4
   const engine = mode === 'engine'
-  const gains = loopGains(loops)
+  // `gainBase`: con `lpfSoloSintes` los loops de una parte se reparten en dos bloques, pero el reparto del volumen se hace sobre toda la parte (el mismo que sin el campo)
+  const gains = loopGains(gainBase ?? loops)
   const lines = loops.flatMap((l) => {
     const g = gains.get(l.id) ?? 1
     const current = loopLine(l, st, g, stepSeconds, mode, duckStr, 'current', phaseOffset)
@@ -246,18 +247,21 @@ function loopsLines(loops: FreeLoop[], st: SongState, mode: SongMode, duck: bool
 function cellBody(cell: CellCode, st: SongState, mode: SongMode, duck: boolean, ind: string, from: number, outer: string[] = [], inside: (i: string) => string[] = () => []): { lines: string[]; tail: string } {
   const tail = cellTail(cell, mode, from)
   const filtered = !!(cell.lpf && cell.lpf.length) || !!wowCode(cell.wow)
-  const clean = wowCode(cell.wow) ? cell.loops.filter((l) => l.instrument !== 'mel') : []
+  // fuera del filtro: con wowo, todo lo que no es melodía; con `lpfSoloSintes` (y un `lpf`), la batería (bombo, caja y charle). Sin ninguno de los dos, el filtro de toda la parte, como siempre.
+  const soloSintes = cell.lpfSoloSintes === true && !!(cell.lpf && cell.lpf.length)
+  const clean = wowCode(cell.wow) || soloSintes ? cell.loops.filter((l) => l.instrument !== 'mel') : []
   if (!filtered || (!clean.length && !outer.length)) {
     return { lines: [...outer, ...inside(ind), ...loopsLines(cell.loops, st, mode, duck, ind, from)], tail }
   }
   const dirty = cell.loops.filter((l) => !clean.includes(l))
   const withMel = dirty.some((l) => l.instrument === 'mel')
+  const base = soloSintes && !wowCode(cell.wow) ? cell.loops : undefined
   const lines = [
     ...outer,
-    ...loopsLines(clean, st, mode, duck, ind, from, withMel),
+    ...loopsLines(clean, st, mode, duck, ind, from, withMel, base),
     `${ind}stack(`,
     ...inside(ind + IND),
-    ...loopsLines(dirty, st, mode, duck, ind + IND, from),
+    ...loopsLines(dirty, st, mode, duck, ind + IND, from, false, base),
     `${ind})${tail},`,
   ]
   return { lines, tail: '' }

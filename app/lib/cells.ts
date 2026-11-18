@@ -36,6 +36,11 @@ export interface Cell {
    */
   lpf?: number[]
   /**
+   * Con `lpf`, el filtro solo afecta a los sintes (melodía, acordes y bajo propios): el bombo, la caja y el charle van limpios (spec 008 §5, nota de 2026-11-18). Opcional; sin él, el filtro afecta a toda
+   * la parte, como siempre (el minimal lo quiere así). Sin `lpf` no hace nada.
+   */
+  lpfSoloSintes?: boolean
+  /**
    * El "wowo" (spec 008, §9): resonancia y envolvente sobre el filtro por vuelta (`lpf`), para que el filtro se abra en
    * cada golpe. Solo tiene sentido con `lpf` (o solo, con el filtro abierto de por sí); sin él, el filtro de siempre.
    */
@@ -272,6 +277,7 @@ const isCell = (x: unknown): x is Cell => {
   const parts = x.parts
   if (!isObj(parts) || typeof parts.bass !== 'boolean' || typeof parts.chords !== 'boolean') return false
   if (x.lpf !== undefined && !isLpf(x.lpf)) return false
+  if (x.lpfSoloSintes !== undefined && typeof x.lpfSoloSintes !== 'boolean') return false
   if (x.wow !== undefined && !isWow(x.wow)) return false
   if (x.kind !== undefined && x.kind !== 'melodia') return false
   if ((x.groupOn !== undefined && !isGroupIds(x.groupOn)) || (x.groupOff !== undefined && !isGroupIds(x.groupOff))) return false
