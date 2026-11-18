@@ -7,7 +7,8 @@ import { mergeCells as mergeCellsPure } from '~/lib/mergeCells'
 import { bluetoothWarning } from '~/lib/voiceWarn'
 import { encodeWav } from '~/lib/wav'
 import { loadVoice, saveVoice } from '~/lib/voiceStore'
-import { fromPcm16, newVoiceId, prepareTake, type VoiceBars } from '~/lib/voiceLoop'
+import { cutBars, fromPcm16, newVoiceId, prepareTake, type VoiceBars } from '~/lib/voiceLoop'
+import { hitsFromSung, melodyCount, MAX_PART_MELODIES, type SingBars } from '~/lib/singPart'
 import { checkOutcome, correctLoops, type PilotScript } from '~/lib/pilotScripts'
 import { FX_DURATION, FxLimiter, fxToLoops, fxValue, type FxEvent, type FxKind } from '~/lib/stageFx'
 import { timelineToSong, type BarLayers } from '~/lib/liveCompose'
@@ -298,6 +299,8 @@ const voiceEnv = shallowRef<Record<string, Float32Array>>({})
 /** audios de voz que una canción pide y no están en este dispositivo (la bola se ve apagada con «audio no disponible») */
 const voiceMissing = shallowRef<string[]>([])
 const voiceRec = ref<'idle' | 'armed' | 'recording' | 'saving'>('idle')
+/** el loop de melodía que creó «Cantar esta parte» la última vez (spec 039); `null` si no hay */
+const lastSung = ref<number | null>(null)
 let voiceCancel = false
 /** muestras de voz ya registradas en superdough (por identificador) */
 const voiceReady = new Set<string>()
@@ -2743,6 +2746,65 @@ export function useAudioEngine() {
     voiceMissing,
     /** ¿Se puede grabar la voz? Sonando, una sola célula, y sin fuga del fondo al micro (cascos). */
     canVoice: computed(() => playing.value && !isMulti(song.value) && !melodyBlocked.value),
+    /** el loop de melodía creado al cantar la última vez (para «borrar toma»); solo vale mientras siga en la parte */
+    lastSung,
+    /**
+     * «Cantar esta parte» (spec 039): como «Grabar voz», arranca en la siguiente línea de compás (con un compás de cuenta) y graba `bars` compases; al acabar, detecta las notas
+     * con el detector de siempre, las ajusta a la escala de la canción, las cuantiza a la rejilla y **añade un loop de melodía nuevo** a la parte (no sustituye nada). Devuelve el resultado.
+     * Otra pulsación mientras espera o graba, lo cancela. No toca el reloj: usa la misma captura y las mismas líneas de compás que la voz.
+     */
+    singPart: async (bars: SingBars, scale: SongScale): Promise<'ok' | 'canceled' | 'no-play' | 'headphones' | 'full' | 'nothing'> => {
+      if (voiceRec.value !== 'idle') {
+        voiceCancel = true
+        return 'canceled'
+      }
+      const c = ctx
+      if (!c || !clock || !playing.value) return 'no-play'
+      if (melodyBlocked.value) {
+        say('Para cantar hacen falta cascos (se oye el fondo por el micro)')
+        return 'headphones'
+      }
+      if (melodyCount(loops.value.loops) >= MAX_PART_MELODIES || loops.value.loops.length >= MAX_LOOPS) {
+        say(`Ya hay ${MAX_PART_MELODIES} melodías en esta parte: borra alguna antes`)
+        return 'full'
+      }
+      voiceCancel = false
+      const bar = nextBarLine() + 1
+      const start = barTime(bar)
+      voiceRec.value = 'armed'
+      say('Canta desde el siguiente compás')
+      startCapture()
+      const len = bars * 16 * stepSeconds()
+      const wake = (t: number) => new Promise<void>((r) => setTimeout(r, Math.max(0, (t - (ctx?.currentTime ?? 0)) * 1000)))
+      try {
+        await wake(start)
+        if (!voiceCancel) voiceRec.value = 'recording'
+        await wake(start + len + latencySec + 0.35)
+        voiceRec.value = 'saving'
+        const cap = await stopCapture()
+        if (voiceCancel || !playing.value) return 'canceled'
+        const cut = cutBars(cap.buffer, cap.startTime, c.sampleRate, start, bars, bpm.value, latencySec)
+        const { hits, heard } = hitsFromSung(cut, c.sampleRate, { scale, bars, stepSeconds: stepSeconds(), register: STYLE_MUSIC[style.value].synth })
+        log('melody', `cantar la parte: ${heard} nota${heard === 1 ? '' : 's'} oída${heard === 1 ? '' : 's'} → ${hits.length} en ${scaleLabel(scale)}`)
+        if (!hits.length) {
+          say('No se oyó ninguna nota: no se crea nada')
+          return 'nothing'
+        }
+        const born = Math.max(bar + bars, nextBarLine())
+        // la toma empezó en el compás `bar`; la parte empezó en `birthCellStart`: el loop (de `bars` compases) cae en el mismo sitio que lo cantado
+        const phaseBar = (((bar - birthCellStart(born)) % bars) + bars) % bars
+        const id = loops.value.nextId
+        loops.value = { nextId: id + 1, loops: [...loops.value.loops, { id, instrument: 'mel', bars, phaseBar, hits, muted: false, bornAt: born, fromTemplate: false }] }
+        lastSung.value = id
+        reevaluate()
+        updateBackground()
+        say(`Melodía cantada: ${hits.length} notas en ${scaleLabel(scale)}`)
+        return 'ok'
+      } finally {
+        voiceRec.value = 'idle'
+        voiceCancel = false
+      }
+    },
     /**
      * «Grabar voz» (spec 007 F1, simplificada): arranca en la siguiente línea de compás y graba `bars` compases fijos (1, 2 o 4); al acabar corta la toma alineada
      * (con la latencia corregida), la guarda en IndexedDB y nace el loop de voz en la línea siguiente. Otra pulsación mientras espera o graba, lo cancela.

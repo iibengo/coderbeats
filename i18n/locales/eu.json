@@ -138,7 +138,24 @@
     "playLab": "▶ Jo Laborategian",
     "duplicate": "⧉ Bikoiztu aldaerarekin",
     "max8": "Remix batek gehienez 8 zati ditu.",
-    "many": "Zati honek 4 geruza baino gehiago ditu aldi berean: guztiak ikusten dira, baina gutxiagorekin hobeto entzuten da."
+    "many": "Zati honek 4 geruza baino gehiago ditu aldi berean: guztiak ikusten dira, baina gutxiagorekin hobeto entzuten da.",
+    "sing": "🎤 Abestu atal hau",
+    "singArmed": "Prestatu… (ukitu bertan behera uzteko)",
+    "singRecording": "Abestu orain (ukitu bertan behera uzteko)",
+    "singSaving": "Prozesatzen…",
+    "singBars": "konpasak",
+    "singScale": "Eskala: {s}",
+    "singNoScale": "Abestiak ez du eskalarik: abesterakoan galdetuko dizut",
+    "singPick": "abestiaren eskala",
+    "singUse": "Erabili eta abestu",
+    "singEdit": "Ikusi Organoan",
+    "singDelete": "Ezabatu hartualdia",
+    "singDone": "Eginda: atal honetako melodia berria. Zuzendu Organoan.",
+    "singNothing": "Ez da notarik entzun: ez da ezer sortu.",
+    "singNoMic": "Ezin izan da mikrofonoa ireki.",
+    "singHeadphones": "Aurikularrak behar dira: hondoa mikrofonora sartzen da.",
+    "singFull": "Atal honek jada {n} melodia ditu: ezabatu bat lehenago.",
+    "singNoPlay": "Hasi musika abesteko."
   },
   "lang": {
     "label": "Hizkuntza"

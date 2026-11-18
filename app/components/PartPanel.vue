@@ -4,6 +4,8 @@
 import { VOICE_HEX } from '~/lib/palette'
 import { isFxLoop, melLoopOf } from '~/lib/melodyEdit'
 import type { FreeLoop } from '~/lib/freeLoops'
+import { SING_BARS, melodyCount, MAX_PART_MELODIES, type SingBars } from '~/lib/singPart'
+import { scaleLabel, type SongScale } from '~/lib/songScale'
 
 const open = defineModel<boolean>('open', { required: true })
 const emit = defineEmits<{ drums: []; organ: [MouseEvent] }>()
@@ -70,6 +72,46 @@ async function playInLab() {
   if (await toLab.playInLab()) open.value = false
 }
 const many = computed(() => slots.value.filter((x) => x.has && x.on).length > 4)
+// ── Cantar esta parte (spec 039): graba 2–4 compases, ajusta las notas a la escala de la canción y añade una melodía nueva ──
+const partLock = usePartLock()
+const singBars = ref<SingBars>(2)
+const scale = computed(() => engine.song.value.scale ?? null)
+const askScale = ref(false) // si la canción no tiene escala, se pregunta (no se adivina)
+const picked = ref('7-minor')
+const SCALES: { value: string; label: string; scale: SongScale }[] = (['minor', 'major'] as const).flatMap((mode) =>
+  Array.from({ length: 12 }, (_, tonic) => ({ value: `${tonic}-${mode}`, label: scaleLabel({ tonic, mode }), scale: { tonic, mode } })),
+)
+const singState = engine.voiceRec
+const singMsg = ref('')
+const melodies = computed(() => melodyCount(loops.value))
+const canSing = computed(() => engine.playing.value && melodies.value < MAX_PART_MELODIES)
+async function sing(withScale?: SongScale) {
+  const sc = withScale ?? scale.value
+  if (!sc) {
+    askScale.value = true
+    return
+  }
+  askScale.value = false
+  if (withScale) engine.setSongScale(withScale)
+  singMsg.value = ''
+  partLock.enter()
+  try {
+    if (!(await engine.setListening(true))) return void (singMsg.value = t('part.singNoMic'))
+    const r = await engine.singPart(singBars.value, sc)
+    singMsg.value = r === 'ok' ? t('part.singDone') : r === 'nothing' ? t('part.singNothing') : r === 'headphones' ? t('part.singHeadphones') : r === 'full' ? t('part.singFull', { n: MAX_PART_MELODIES }) : r === 'no-play' ? t('part.singNoPlay') : ''
+  } finally {
+    partLock.leave()
+  }
+}
+function deleteSung() {
+  const id = engine.lastSung.value
+  if (id === null) return
+  const st = engine.loops.value
+  engine.editLoops({ ...st, loops: st.loops.filter((l) => l.id !== id) })
+  engine.lastSung.value = null
+  singMsg.value = ''
+}
+const hasSung = computed(() => engine.lastSung.value !== null && loops.value.some((l) => l.id === engine.lastSung.value))
 if (import.meta.dev && import.meta.client) (window as unknown as Record<string, unknown>).__parte = { slots: () => slots.value.map((s) => [s.key, s.has, s.on]), name: () => name.value }
 </script>
 
@@ -99,6 +141,29 @@ if (import.meta.dev && import.meta.client) (window as unknown as Record<string, 
             <button v-if="s.edit" class="mt-3 w-full rounded-full border border-white/20 py-2 text-xs text-white" :data-edit="s.key" @click="s.edit($event)">{{ t('part.editBtn') }}</button>
             <p v-else class="mt-3 text-center text-xs text-neutral-600">{{ s.hint }}</p>
           </div>
+        </div>
+        <!-- cantar esta parte (spec 039) -->
+        <div class="mt-3 rounded-2xl border border-white/10 p-3" data-sing>
+          <div class="flex items-center gap-2">
+            <button class="h-11 flex-1 rounded-full border border-[#F496BC] px-4 text-white disabled:opacity-40" :disabled="!canSing && singState === 'idle'" data-sing-btn @click="singState === 'idle' ? sing() : engine.singPart(singBars, scale ?? SCALES[0]!.scale)">
+              {{ singState === 'armed' ? t('part.singArmed') : singState === 'recording' ? t('part.singRecording') : singState === 'saving' ? t('part.singSaving') : t('part.sing') }}
+            </button>
+            <div v-if="singState === 'idle'" class="flex shrink-0 gap-1" role="group" :aria-label="t('part.singBars')">
+              <button v-for="n in SING_BARS" :key="n" class="h-11 w-11 rounded-full border text-sm" :class="singBars === n ? 'border-white text-white' : 'border-white/25 text-white/60'" :aria-pressed="singBars === n" :data-sing-bars="n" @click="singBars = n">{{ n }}</button>
+            </div>
+          </div>
+          <p class="mt-2 text-xs text-neutral-500">{{ scale ? t('part.singScale', { s: scaleLabel(scale) }) : t('part.singNoScale') }}</p>
+          <div v-if="askScale" class="mt-2 flex items-center gap-2" data-sing-ask>
+            <select v-model="picked" class="h-11 min-w-0 flex-1 rounded-lg border border-white/20 bg-black px-2 text-white" :aria-label="t('part.singPick')" data-sing-pick>
+              <option v-for="o in SCALES" :key="o.value" :value="o.value">{{ o.label }}</option>
+            </select>
+            <button class="h-11 rounded-full bg-white px-4 text-black" data-sing-use @click="sing(SCALES.find((o) => o.value === picked)!.scale)">{{ t('part.singUse') }}</button>
+          </div>
+          <div v-if="hasSung" class="mt-2 flex gap-2">
+            <button class="h-11 flex-1 rounded-full border border-white/20 text-sm text-white" data-sing-edit @click="emit('organ', $event)">{{ t('part.singEdit') }}</button>
+            <button class="h-11 flex-1 rounded-full border border-white/20 text-sm text-white" data-sing-delete @click="deleteSung">{{ t('part.singDelete') }}</button>
+          </div>
+          <p v-if="singMsg" class="mt-2 text-xs text-amber-300" role="status" data-sing-msg>{{ singMsg }}</p>
         </div>
         <button class="mt-3 w-full rounded-full bg-white py-2.5 font-medium text-black" data-play-lab @click="playInLab">{{ t('part.playLab') }}</button>
         <p v-if="labError" class="mt-1 text-xs text-amber-300" role="alert">{{ labError }}</p>

@@ -541,3 +541,13 @@ Escritos. En la spec 017 va cada uno. **Aviso de lo que no se cumple:** el princ
 ### Qué probar en el móvil
 1. «Controles avanzados» → Órgano → ⋯ → «nombres de nota»: ¿las filas dicen do re mi?, ¿al tocar sale el nombre un segundo sin tapar las notas?, ¿se queda encendido al reabrir?
 2. Sin «avanzado»: el Órgano debe verse igual que antes.
+
+## Tanda 9 (2026-11-18): escala de la canción y cantar una parte (specs 038 y 039)
+- **Nombres de nota en el Órgano** (`936fff0`, spec 037): ya hecho antes (Tanda 8).
+- **Escala** (spec 038, `be17c21`): campo opcional `scale` en la canción; el conversor acepta `escala:`, la deduce de los acordes, la imprime y avisa de notas fuera de la escala (LEEME al día). Sin el campo, todo igual.
+- **Cantar esta parte** (spec 039): botón en «Editar parte». Graba 2 o 4 compases, ajusta a la escala y cuantiza; crea un loop de melodía **nuevo** (tope 3 por parte); se corrige en el Órgano; «Borrar toma» para repetir; si falta la escala, la pregunta.
+### Qué probar en el móvil, en orden (con cascos)
+1. Importa una canción con `escala:` (o una sin ella). Estudio → «Editar parte» → «🎤 Cantar esta parte». Si no tenía escala, ¿te la pide?
+2. Canta una frase de 2 compases sobre la parte. ¿Aparece una melodía nueva que se parece a lo cantado y no desafina de la escala? ¿Llega a tiempo (sin desfase de un compás ni de un pulso)?
+3. «Ver en el Órgano»: ¿se ve y se corrige? «Borrar toma» y vuelve a cantar. A la cuarta melodía debe avisar del tope.
+4. **No lo he oído ni probado con una voz real**: el ajuste de la voz al cantar lo juzgas tú.

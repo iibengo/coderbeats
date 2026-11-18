@@ -37,6 +37,10 @@ export interface AssistOptions {
    * celdas, que es lo que suena hoy). Con 0,25 la duración se acerca a lo cantado (spec 002, §17; solo el laboratorio).
    */
   durGrid?: number
+  /**
+   * Escala propia (clases de altura 0–11) en vez de la del estilo (spec 039: la escala de la canción). Sin ella, todo como siempre. Con ella no hay acorde que desempate.
+   */
+  scale?: readonly number[]
 }
 
 /** Semitono más pequeño de la rejilla fina sin ayuda: un cuarto de semicorchea. */
@@ -162,8 +166,8 @@ export function assistMelody(notes: readonly RawNote[], o: AssistOptions): Melod
     let prevMidi: number | null = null
     work = work.map((n) => {
       const bar = o.startBar + Math.max(0, Math.floor(n.rel / 16))
-      const chord = music.chordTones[mod(bar, music.chordTones.length)] ?? []
-      const midi = snapToScale(n.midi, music.scale, chord, prevMidi)
+      const chord = o.scale ? [] : (music.chordTones[mod(bar, music.chordTones.length)] ?? [])
+      const midi = snapToScale(n.midi, o.scale ?? music.scale, chord, prevMidi)
       prevMidi = midi
       return { ...n, midi }
     })

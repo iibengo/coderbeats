@@ -138,7 +138,24 @@
     "playLab": "▶ Play in the Lab",
     "duplicate": "⧉ Duplicate with variation",
     "max8": "A remix has at most 8 parts.",
-    "many": "This part has more than 4 layers at once: all are shown, but it sounds better with fewer."
+    "many": "This part has more than 4 layers at once: all are shown, but it sounds better with fewer.",
+    "sing": "🎤 Sing this part",
+    "singArmed": "Get ready… (tap to cancel)",
+    "singRecording": "Sing now (tap to cancel)",
+    "singSaving": "Processing…",
+    "singBars": "bars",
+    "singScale": "Scale: {s}",
+    "singNoScale": "The song has no scale: I'll ask when you sing",
+    "singPick": "song scale",
+    "singUse": "Use and sing",
+    "singEdit": "See in the Organ",
+    "singDelete": "Delete take",
+    "singDone": "Done: a new melody in this part. Fix it in the Organ.",
+    "singNothing": "No note heard: nothing was created.",
+    "singNoMic": "The microphone could not be opened.",
+    "singHeadphones": "Headphones needed: the backing leaks into the mic.",
+    "singFull": "This part already has {n} melodies: delete one first.",
+    "singNoPlay": "Start the music to sing."
   },
   "lang": {
     "label": "Language"

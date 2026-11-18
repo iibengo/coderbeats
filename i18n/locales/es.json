@@ -138,7 +138,24 @@
     "playLab": "▶ Tocar en el Laboratorio",
     "duplicate": "⧉ Duplicar con variación",
     "max8": "Un remix lleva como mucho 8 partes.",
-    "many": "Esta parte lleva más de 4 capas a la vez: se ven todas, pero con menos se oye mejor."
+    "many": "Esta parte lleva más de 4 capas a la vez: se ven todas, pero con menos se oye mejor.",
+    "sing": "🎤 Cantar esta parte",
+    "singArmed": "Prepárate… (toca para cancelar)",
+    "singRecording": "Canta ahora (toca para cancelar)",
+    "singSaving": "Procesando…",
+    "singBars": "compases",
+    "singScale": "Escala: {s}",
+    "singNoScale": "La canción no tiene escala: te la pido al cantar",
+    "singPick": "escala de la canción",
+    "singUse": "Usar y cantar",
+    "singEdit": "Ver en el Órgano",
+    "singDelete": "Borrar toma",
+    "singDone": "Listo: es una melodía nueva de esta parte. Corrígela en el Órgano.",
+    "singNothing": "No se oyó ninguna nota: no se creó nada.",
+    "singNoMic": "No se pudo abrir el micro.",
+    "singHeadphones": "Hacen falta cascos: se oye el fondo por el micro.",
+    "singFull": "Ya hay {n} melodías en esta parte: borra alguna antes.",
+    "singNoPlay": "Pon la música en marcha para cantar."
   },
   "lang": {
     "label": "Idioma"
