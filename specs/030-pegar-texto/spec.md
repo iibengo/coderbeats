@@ -7,7 +7,7 @@ Estado: **idea apuntada, sin programar**. No toca nada de lo guardado. Complemen
 Escribiendo canciones a mano (17/11/2026) quedó claro que:
 
 - **Strudel es donde la música compleja ya funciona**: tresillos, acordes, dinámica, sin traducir nada.
-- El conversor `notas-a-json.mjs` vive **fuera** del repo (`~/Descargas/coderbeats-herramientas`) y funciona, pero obliga a salir de la app, abrir una terminal y volver a importar.
+- El conversor `notas-a-json.mjs` vive **fuera** del repo (`~/dev/coderbeats-herramientas`) y funciona, pero obliga a salir de la app, abrir una terminal y volver a importar.
 - Las canciones de estos días salían a trozos por fallos de forma (compases que no suman, loops medio vacíos), no por falta de herramientas: hace falta que **algo lo compruebe al pegar**.
 
 ## 1. Pegar notas (el formato del conversor) — OPCIONAL

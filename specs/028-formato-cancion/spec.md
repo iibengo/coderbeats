@@ -39,13 +39,13 @@ Valen para los remixes de dominio público y para Mis canciones. **Todo compatib
 | 4 Varias notas a la vez | Hecho en el código que suena (`[c4,e4,g4]`). **Falta editarlas en el Órgano** (sigue monofónico). | `37d8411` |
 | 2 Loops de 8/16 y ligaduras | Hecho (se leen, suenan, comprobado en Strudel; en el Órgano 8 y 16 solo en «Avanzado»; las ligaduras llevan un `.clip` alineado). **Falta dibujar/editar ligaduras en el Órgano** (al editar siguen recortándose al compás). | `c2cef87`, `1e2e563` |
 | 5 Bajo y acordes propios | Hecho como **sintes `bass` y `keys`** (loops normales; el Laboratorio los muestra como capas «bajo» y «acordes»); no se toca el fondo del estilo. **Sin probar de oído** el sonido. Sin editor propio de bajo/acordes en el Estudio todavía. | `f8ae184`, `eb11690` |
-| 6 Conversor | **Hecho** (fuera del repo, `~/Descargas/coderbeats-herramientas/notas-a-json.mjs`): `parte:` = una sección (1–16 compases en un solo loop), `bajo:`, `acordes:` (`[G3,Bb3,D4]:16`), tresillos (`4/3`), notas que cruzan compás. | — |
+| 6 Conversor | **Hecho** (fuera del repo, `~/dev/coderbeats-herramientas/notas-a-json.mjs`): `parte:` = una sección (1–16 compases en un solo loop), `bajo:`, `acordes:` (`[G3,Bb3,D4]:16`), tresillos (`4/3`), notas que cruzan compás. | — |
 - **Compatibilidad:** lo guardado no cambia (tests: mismo código Strudel para lo de 1/2/4 compases, para melodías con enteros y cuartos de paso, y sin ligaduras ni acordes).
 - **Decisión mía:** «bajo y acordes propios» como sintes en vez de un `role` nuevo en el loop (menos cambios en datos y validación).
 
 ## 10. Lecciones escribiendo canciones a mano (17/11/2026)
 De hacer Star Wars y Superman con el conversor, de oído y por prueba y error. Sirven para la próxima vez
-(están también, más largas y para quien escribe el `.txt`, en `~/Descargas/coderbeats-herramientas/LEEME-escribir-canciones.md`).
+(están también, más largas y para quien escribe el `.txt`, en `~/dev/coderbeats-herramientas/LEEME-escribir-canciones.md`).
 
 1. **Los huecos que se oyen son silencios escritos.** Un `r:n` de relleno al final de cada compás hace que la
    melodía toque, calle y vuelva a tocar. Si el tema no calla, se alarga la última nota; no se rellena con silencio.
@@ -79,7 +79,7 @@ frase se corta y suena a "trozo y salto".
   «compás corto: ¿es un compás de 3/4?» en vez de dejar pasar.
 - Si algún día se quiere un compás de verdad (el `setcpm` y la rejilla de 16), sería una spec aparte: toca el
   motor y el editor, y rompe la compatibilidad de lo guardado.
-- Lo aprendido, también en `~/Descargas/coderbeats-herramientas/LEEME-escribir-canciones.md` (regla 0).
+- Lo aprendido, también en `~/dev/coderbeats-herramientas/LEEME-escribir-canciones.md` (regla 0).
 
 ## 10. Órgano completo (2026-11-18)
 En el Órgano (cajón ⋯ → solo con «Controles avanzados»): **tresillos** (casillas de 4/3 de paso, con líneas rosas), **acordes** (tocar un hueco añade otra nota en el mismo paso; tocar una nota la quita; arrastrar no la mueve) y **ligaduras** (una nota puede cruzar la línea de compás, hasta la siguiente nota o el final del loop). Sin «avanzado» el Órgano es el de siempre. Lógica pura en `melodyEdit.ts` (`addChordNote`, `removeChordNote`, `unit` 4/3, `ties`) con tests; `tests/browser/organo-avanzado.mjs`. **Sin hacer:** mover o alargar una nota concreta de un acorde con el asa (se quita y se vuelve a poner), y dibujar las ligaduras con un símbolo distinto.
