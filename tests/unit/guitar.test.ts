@@ -95,3 +95,35 @@ describe('la guitarra grabada, guitarSample (spec 036)', () => {
     expect(songCode(state(loop('guitar')), 'display')).not.toContain(APP_ONLY_NOTE)
   })
 })
+
+describe('el sinte acid (spec 044)', () => {
+  it('existe, con su registro, y la app lo acepta al leer lo guardado', () => {
+    expect(MELODY_SYNTHS).toContain('acid')
+    expect(REGISTER.acid).toEqual([28, 64])
+    expect(isFreeLoop(loop('acid'))).toBe(true)
+  })
+  it('es una sierra con un filtro muy resonante (lpq 12–15) con envolvente y una distorsión moderada', () => {
+    const a = SYNTH_SOUND.acid
+    expect(a).toContain('.s("sawtooth")')
+    const q = Number(/lpq\(([\d.]+)\)/.exec(a)![1])
+    expect(q).toBeGreaterThanOrEqual(12)
+    expect(q).toBeLessThanOrEqual(15)
+    expect(a).toMatch(/\.lpenv\(/)
+    const d = Number(/distort\(([\d.]+)\)/.exec(a)![1])
+    expect(d).toBeGreaterThan(0)
+    expect(d).toBeLessThanOrEqual(1.5) // moderada (la guitarra sucia lleva 3)
+  })
+  it('lo demás no cambia: lead, guitar, guitarDirty y guitarSample siguen igual', () => {
+    expect(SYNTH_SOUND.lead).toBe('.s("square").lpf(1800).decay(0.2).sustain(0.5).delay(0.25)')
+    expect(SYNTH_SOUND.guitar).toContain('distort(0.5)')
+    expect(SYNTH_SOUND.guitarDirty).toContain('distort(3)')
+    expect(SYNTH_SOUND.guitarSample).toContain('"hofner"')
+  })
+  it('suena en el motor de patrones con el filtro resonante y sin samples ni samples() en el código', async () => {
+    const ev = await events(songCode(state(loop('acid')), 'display'), 2)
+    expect(ev.length).toBeGreaterThan(0)
+    expect(ev.every((e) => e.value.s === 'sawtooth')).toBe(true)
+    expect(Number(ev[0]!.value.resonance ?? ev[0]!.value.lpq)).toBeGreaterThanOrEqual(12)
+    expect(songCode(state(loop('acid')), 'display')).not.toContain('samples(')
+  })
+})

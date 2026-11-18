@@ -1976,7 +1976,7 @@ export function useAudioEngine() {
     const c = ctx
     if (!c || c.state !== 'running') return
     const t = c.currentTime
-    const wave = { piano: 'triangle', lead: 'square', pad: 'sawtooth', drone: 'sine', riser: 'sawtooth', crash: 'sawtooth', boom: 'sine', impacto: 'sine', downlifter: 'sawtooth', bass: 'sawtooth', keys: 'triangle', guitar: 'sawtooth', guitarDirty: 'sawtooth', guitarSample: 'sawtooth' }[synth] as OscillatorType
+    const wave = { piano: 'triangle', lead: 'square', pad: 'sawtooth', drone: 'sine', riser: 'sawtooth', crash: 'sawtooth', boom: 'sine', impacto: 'sine', downlifter: 'sawtooth', bass: 'sawtooth', keys: 'triangle', guitar: 'sawtooth', guitarDirty: 'sawtooth', guitarSample: 'sawtooth', acid: 'sawtooth' }[synth] as OscillatorType
     const osc = c.createOscillator()
     const lp = c.createBiquadFilter()
     const g = c.createGain()

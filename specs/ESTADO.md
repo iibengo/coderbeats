@@ -594,3 +594,8 @@ Escritos. En la spec 017 va cada uno. **Aviso de lo que no se cumple:** el princ
 ### Qué probar en el móvil
 1. Un techno con `filtro:` bajo y `filtro-solo-sintes: si`: ¿el charle y el bombo siguen con su aire y su pegada mientras el filtro se abre?
 2. Lo mismo sin el campo (minimal): se filtra todo, como antes.
+
+## Tanda 16 (2026-11-18): sinte `acid` (spec 044)
+- Sinte `acid` (sierra con `lpq` 13, envolvente rápida y `distort` 0,8); el conversor lo acepta con `sinte: acid`. Sin tocar nada más. Sin oír.
+### Qué probar en el móvil
+1. Una línea corta y grave con `sinte: acid`: ¿suena a 303 («tiu-tiu»)?, ¿la resonancia chilla o el volumen se pasa/queda flojo? (`SYNTH_SOUND.acid` en `app/lib/melody.ts`: `lpq`, `gain`).
