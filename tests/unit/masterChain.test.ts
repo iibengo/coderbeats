@@ -104,18 +104,19 @@ describe('el compresor «techno» de la salida (spec 042)', () => {
     expect(glueOptions(true)).toBe(GLUE_TECHNO)
     expect(GLUE_WARM).toEqual({ thresholdDb: -16, ratio: 1.8, kneeDb: 12, attack: 0.03, release: 0.12, rmsMs: 40, makeupDb: 1 })
   })
-  it('suave: ratio 3, umbral alto, mismo ataque lento y suelta corta; no toca lo flojo', () => {
-    expect(GLUE_TECHNO.ratio).toBe(3)
-    expect(GLUE_TECHNO.thresholdDb).toBe(GLUE_WARM.thresholdDb)
+  it('fuerte: ratio 4 y umbral más bajo que el de siempre, mismo ataque lento y suelta corta; no toca lo flojo', () => {
+    expect(GLUE_TECHNO.ratio).toBe(4)
+    expect(GLUE_TECHNO.thresholdDb).toBeLessThan(GLUE_WARM.thresholdDb)
     expect(GLUE_TECHNO.attack).toBe(GLUE_WARM.attack)
     expect(GLUE_TECHNO.release).toBe(GLUE_WARM.release)
-    expect(loud(new GlueCompressor(SR, GLUE_TECHNO), 0.02)).toBeCloseTo(0, 1) // ≈ −37 dB
+    expect(loud(new GlueCompressor(SR, GLUE_TECHNO), 0.02)).toBeCloseTo(0, 1) // ≈ −37 dB: por debajo del umbral no toca nada (solo el makeup)
   })
-  it('comprime más que el de siempre en una mezcla fuerte, y no demasiado (como mucho ~7 dB con una señal casi a tope)', () => {
+  it('comprime claramente más que el de siempre en una mezcla fuerte, sin pasarse (unos 10 dB como mucho con una señal casi a tope)', () => {
     const warm = loud(new GlueCompressor(SR, GLUE_WARM), 0.7)
     const techno = loud(new GlueCompressor(SR, GLUE_TECHNO), 0.7)
     expect(techno).toBeLessThan(warm) // más reducción (más negativa)
-    expect(techno).toBeGreaterThan(-8)
+    expect(techno).toBeLessThan(warm - 2) // al menos 2 dB más de reducción
+    expect(techno).toBeGreaterThan(-12)
   })
   it('cambiar de ajustes en marcha da lo mismo que empezar con ellos, y sin saltos', () => {
     const g = new GlueCompressor(SR, GLUE_WARM)

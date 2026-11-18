@@ -573,9 +573,9 @@ Escritos. En la spec 017 va cada uno. **Aviso de lo que no se cumple:** el princ
 1. Ajustes → kit «Techno» y un ritmo de techno: ¿el bombo tiene cuerpo?, ¿la palmada como caja suena a techno?, ¿el volumen cuadra con Electrónico y 808?
 
 ## Tanda 13 (2026-11-18): compresor «techno» de la salida (spec 042)
-- Interruptor en Ajustes → Avanzado → «Compresor techno» (apagado por defecto, se guarda en `coderbeats:studio:v2`): reajusta el compresor de pegamento que ya había (worklet sin latencia) a ratio 3 y +2 dB. Apagado, exactamente lo de siempre (test). Medido en Chrome: diferencia de ~0,3 dB con un techno de prueba (el limitador ya hace casi todo); **sin oír**.
+- Interruptor en Ajustes → Avanzado → «Compresor techno» (apagado por defecto, se guarda en `coderbeats:studio:v2`): reajusta el compresor de pegamento que ya había (worklet sin latencia) a **umbral −20 dB, ratio 4, +8 dB**. Apagado, exactamente lo de siempre (test). Medido en Chrome con un techno de prueba: RMS +2,3 dB, cresta −1,85 dB; **sin oír**.
 ### Qué probar en el móvil
-1. Una canción de techno con el compresor apagado y encendido (con la música sonando): ¿se nota?, ¿más «junto»?, ¿pisa el bombo?, ¿cambia el volumen? Si no se nota, `GLUE_TECHNO` se puede endurecer (spec 042).
+1. Una canción de techno con el compresor apagado y encendido (con la música sonando): ¿más «junto»?, ¿pisa el bombo?, ¿sube demasiado el volumen (~2 dB)? Si pasa, bajar el makeup o el ratio en `GLUE_TECHNO` (spec 042).
 2. Safari/iPhone: ¿se enciende y apaga sin cortes?
 ## Apuntado y no hecho (a petición)
 - Charle abierto, ride y bombo corto en el kit Techno: necesitan un campo por paso o por loop.
