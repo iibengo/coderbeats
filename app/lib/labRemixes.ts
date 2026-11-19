@@ -12,7 +12,7 @@ import {
 } from './remixes'
 import { DEMOS } from './demos'
 import type { MelodySynth } from './melody'
-import { fast, shift, ELISA_A, ELISA_B, GRIEG_A, GRIEG_B, HABANERA_A, HABANERA_B, KOROBEINIKI_A, KOROBEINIKI_B } from './publicTunes'
+import { fast, shift, ELISA_A, LACRIMOSA_A, LACRIMOSA_B, ELISA_B, GRIEG_A, GRIEG_B, HABANERA_A, HABANERA_B, KOROBEINIKI_A, KOROBEINIKI_B } from './publicTunes'
 import type { KitId, StyleId } from './types'
 import { MAX_LAYERS, MAX_PARTS, partsFromSong, type LabLayer, type LabPart } from './remixParts'
 export { MAX_LAYERS, MAX_PARTS }
@@ -202,6 +202,15 @@ export const LAB_REMIXES: readonly LabRemix[] = [
     intro: shift(HABANERA_A, 5), sub: shift(HABANERA_B, 5), drop: shift(HABANERA_A, 5), drop2: shift(HABANERA_B, 5), final: shift(HABANERA_B, 5),
     dropFx: [{ notes: MZ_CRASH, synth: 'crash' }], unverified: true,
     shape: [{ name: 'Intro', bars: 4 }, { name: 'Estrofa', bars: 4 }, { name: 'Subida', bars: 4 }, { name: 'Drop', bars: 8 }, { name: 'Break', bars: 4 }, { name: 'Drop 2', bars: 4 }, { name: 'Final', bars: 4 }],
+  }),
+  // Lacrimosa (Mozart, Requiem, dominio público) en drill a 140 bpm, en Re menor: el suspiro de los violines y el canto, a medio tiempo (un compás de 12/8 = 2 de 4/4, en tresillos).
+  // Notas copiadas de la partitura (ver `publicTunes.ts`), por eso sin «de memoria»; ni el ritmo ni el 808 se han oído.
+  recipe({
+    id: 'lacrimosa-drill', title: 'Lacrimosa (Requiem)', composer: 'Mozart', style: 'drill', kit: '808', key: 'Re menor',
+    kick: DEMOS.drill.bd, clap: DEMOS.drill.sd, hat: DEMOS.drill.hh, hats16: DEMOS.drill.hh, roll: P.sdRoll, noise: RISER_NOISE, pad: RISER_PAD,
+    intro: shift(LACRIMOSA_A, -12), sub: LACRIMOSA_B, drop: shift(LACRIMOSA_A, -12), drop2: LACRIMOSA_B, final: LACRIMOSA_B,
+    dropFx: [{ notes: MZ_CRASH, synth: 'crash' }],
+    shape: [{ name: 'Intro', bars: 4 }, { name: 'Estrofa', bars: 4 }, { name: 'Subida', bars: 4 }, { name: 'Drop', bars: 8 }, { name: 'Break', bars: 4 }, { name: 'Drop 2', bars: 8 }, { name: 'Final', bars: 4 }],
   }),
 ]
 export const labRemixById = (id: string): LabRemix | undefined => LAB_REMIXES.find((r) => r.id === id)

@@ -5,8 +5,9 @@
 Todo en `main`, **sin push**; 1410 tests, typecheck y build en verde. **Nada se ha oído ni visto en un móvil.**
 - **Estilo `drill`** (UK, 140 bpm, re menor, kit 808): caja solo en el tiempo 3, bombo en 0, 6 y 11, platillo roto, 808 largo (re – si♭ – sol – la) y stabs (Dm B♭ Gm Am). Con demo, plantilla, rótulos, densidad de melodía y melodías de dominio público (Habanera, Himno de la alegría, Sinfonía n.º 40). Aparece en el Laboratorio (círculo de ritmo) y en el Estudio.
 - **Arreglo de paso:** la melodía sugerida podía poner una nota en el último paso del compás, que a tempos rápidos dura menos de 0,12 s; ahora no se elige un paso donde no cabe la nota mínima. Los tests de los demás estilos siguen igual.
-- **Falta (apuntado en la spec):** hi-hats con tresillos y rolls, 808 con deslizamiento y **el Lacrimosa** (necesita partitura de dominio público verificada; no se han escrito las notas de memoria).
-- **Qué probar en el móvil, en orden:** 1) Laboratorio → Círculo de ritmo → estilo **drill**: ¿se oye medio tiempo, con la caja en el tiempo 3 y el platillo roto? 2) El 808 y los stabs del fondo: ¿grave sin ensuciar, y los acordes oscuros? 3) Una melodía (Habanera o Mozart) sobre el drill: ¿suena bien y a 140?
+- **Remix «Lacrimosa (Requiem)»** en drill (Remixes del Laboratorio): notas **copiadas de la partitura** de Breitkopf (IMSLP 26746, vía Commons), no de memoria; el suspiro de los violines coincide con un MIDI y el canto está leído de la imagen. Un compás de 12/8 = 2 de 4/4 en tresillos.
+- **Falta (apuntado en la spec):** hi-hats con tresillos y rolls, 808 con deslizamiento, y el compás 5 del canto (re–mi–fa–sol, el sol dudoso).
+- **Qué probar en el móvil, en orden:** 1) Laboratorio → Círculo de ritmo → estilo **drill**: ¿se oye medio tiempo, con la caja en el tiempo 3 y el platillo roto? 2) El 808 y los stabs del fondo: ¿grave sin ensuciar, y los acordes oscuros? 3) Una melodía (Habanera o Mozart) sobre el drill: ¿suena bien y a 140? 4) Laboratorio → Remixes → **Lacrimosa (Requiem)**: ¿se reconoce el tema? ¿El suspiro de los violines y el canto suenan a Mozart sobre el drill? ¿El tresillo se siente natural a medio tiempo?
 
 ---
 
