@@ -197,14 +197,19 @@ export function everyBeat(notes: readonly Note[]): Note[] {
  * - **la escalera** (5–6): el soprano sube re–mi–fa–sol–la–si–do–re: el respiro del break;
  * - **la subida** (7–8): el soprano sube cromático hasta la5: la melodía **cambia antes del drop**.
  * Todo **tres semitonos más grave que Mozart** (re menor → si menor) y a **145 bpm**. La batería drill entra por capas (charles, caja que se acelera, y luego todo) y se va en el break y en el puente (solo el gancho,
- * suave: el silencio de antes del último drop). Cuerdas con ataque firme y grano (`cuerdas`), coro de fondo `coro`, bajo `sub` (808 que se desliza en saltos cortos). Fondo del estilo apagado. 72 compases ≈ 2 min. Sin oír.
+ * suave, con un riser de ruido que sube y se corta en el último compás: el vacío de antes del último drop). Cada drop lo estrena un platillo con su cola. Cuerdas con ataque firme y grano (`cuerdas`), coro de fondo `coro`, bajo `sub` (808 que se desliza en saltos cortos). Fondo del estilo apagado. 72 compases ≈ 2 min. Sin oír.
  */
 function lacrimosaDrill(): LabRemix {
   const HOOK = 0
   const TUNE = 2
   const STAIRS = 4
   const CLIMB = 6
-  const SOFT = 0 // la fuerza más baja (el 0,55 del volumen): las cuerdas de la intro, el puente y el final
+  // la fuerza de las cuerdas y el coro en cada parte, para que **el drop dé un salto** (medido en la exportación: Estrofa y Subida a solo 1–2 dB del drop, porque al entrar el bombo y la caja el motor
+  // baja el resto de loops, el reparto 1/√n): suave en la intro, el puente y el final; baja en la estrofa; media en la subida y el break; a tope en los drops
+  const SOFT = 0
+  const LOW = 0.35
+  const MID = 0.6
+  const FULL = 1
   const bar = (from: number, notes: readonly Note[]): Note[] => lacSlice(shift(notes, LAC_SHIFT), from, from + 2)
   // el gancho lo tocan las cuerdas (el violín I); el resto del tema lo **canta el coro de fondo** (el soprano, sinte `coro`), envuelto en reverb
   const tema = (from: number, strength?: number): LabLayer => ({ key: 'tema', label: 'tema', mel: [{ notes: from === HOOK ? bar(from, LAC.vln1) : legato(bar(from, LAC.soprano)), synth: from === HOOK ? 'cuerdas' : 'coro', ...(strength !== undefined ? { strength } : {}) }] })
@@ -216,17 +221,20 @@ function lacrimosaDrill(): LabRemix {
   const bajo = (from: number): LabLayer => ({ key: 'bajo', label: 'bajo', mel: [{ notes: everyBeat(bar(from, LAC.bajo)), synth: 'sub' }] })
   const charles = { notes: DRILL.hat.notes, strengths: DRILL.hat.strengths, synth: 'hat' as const }
   const abierto = { notes: DRILL.open, synth: 'hatOpen' as const }
-  const ritmo: LabLayer = { key: 'ritmo', label: 'ritmo', drums: { bd: DRILL.bd, sd: DRILL.sd }, mel: [charles, abierto] }
+  // el platillo (`crash`) que estrena cada drop, con su cola de reverb, y el riser de ruido del puente (sin el pad de los otros remixes: está en otra tonalidad): los gestos de transición
+  const platillo = { notes: MZ_CRASH, synth: 'crash' as const }
+  const subida: LabLayer = { key: 'subida', label: 'subida', mel: [{ notes: RISER_NOISE, synth: 'riser' }] }
+  const ritmo: LabLayer = { key: 'ritmo', label: 'ritmo', drums: { bd: DRILL.bd, sd: DRILL.sd }, mel: [charles, abierto, platillo] }
   const caja: LabLayer = { key: 'caja', label: 'caja', drums: { sd: P.sdRoll }, mel: [charles] }
   const hat: LabLayer = { key: 'hat', label: 'platillo', mel: [charles] }
   const parts: { name: string; bars: Turns; layers: LabLayer[] }[] = [
     { name: 'Intro', bars: 8, layers: [acordes(HOOK, SOFT), tema(HOOK, SOFT)] },
-    { name: 'Estrofa', bars: 8, layers: [hat, bajo(TUNE), acordes(TUNE), tema(TUNE)] },
-    { name: 'Subida', bars: 4, layers: [caja, bajo(CLIMB), acordes(CLIMB), tema(CLIMB)] },
-    { name: 'Drop', bars: 16, layers: [ritmo, bajo(TUNE), acordes(TUNE), tema(TUNE)] },
-    { name: 'Break', bars: 8, layers: [acordes(STAIRS), tema(STAIRS)] },
-    { name: 'Puente', bars: 4, layers: [tema(HOOK, SOFT)] },
-    { name: 'Drop 2', bars: 16, layers: [ritmo, bajo(TUNE), acordes(TUNE), tema(TUNE)] },
+    { name: 'Estrofa', bars: 8, layers: [hat, bajo(TUNE), acordes(TUNE, LOW), tema(TUNE, LOW)] },
+    { name: 'Subida', bars: 4, layers: [caja, bajo(CLIMB), acordes(CLIMB, MID), tema(CLIMB, MID)] },
+    { name: 'Drop', bars: 16, layers: [ritmo, bajo(TUNE), acordes(TUNE, FULL), tema(TUNE, FULL)] },
+    { name: 'Break', bars: 8, layers: [acordes(STAIRS, MID), tema(STAIRS, MID)] },
+    { name: 'Puente', bars: 4, layers: [tema(HOOK, SOFT), subida] },
+    { name: 'Drop 2', bars: 16, layers: [ritmo, bajo(TUNE), acordes(TUNE, FULL), tema(TUNE, FULL)] },
     { name: 'Final', bars: 8, layers: [acordes(HOOK, SOFT), tema(HOOK, SOFT)] },
   ]
   const song = { ...songFromParts(parts), bpm: LAC_BPM }

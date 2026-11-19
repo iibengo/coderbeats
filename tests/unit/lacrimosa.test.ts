@@ -62,7 +62,7 @@ describe('Lacrimosa en drill: el remix (spec 048)', () => {
     for (const c of r.song.cells) expect(c.parts).toEqual({ bass: false, chords: false })
     const keys = (n: string) => r.parts.find((p) => p.name === n)!.layers.map((l) => l.key)
     expect(keys('Intro')).toEqual(['acordes', 'tema'])
-    expect(keys('Puente')).toEqual(['tema']) // el respiro de antes del último drop: solo el gancho
+    expect(keys('Puente')).toEqual(['subida', 'tema']) // el respiro de antes del último drop: el gancho y un riser que sube
     expect(keys('Drop')).toEqual(['ritmo', 'bajo', 'acordes', 'tema'])
     expect(keys('Break')).toEqual(['acordes', 'tema'])
     expect(r.parts.find((p) => p.name === 'Drop')!.layers.find((l) => l.key === 'ritmo')!.mel!.some((m) => m.synth === 'hat')).toBe(true) // los tresillos
@@ -88,15 +88,17 @@ describe('Lacrimosa en drill: el remix (spec 048)', () => {
     const mel = drop.loops.find((l) => l.synth === 'coro')! // el coro canta el soprano
     expect(mel.hits.map((h) => h.midi)).toEqual([66, 74, 71, 71, 70, 66, 74, 71, 71, 70])
   })
-  it('las partes suaves (intro, puente y final) llevan la fuerza más baja; las demás, la de siempre', () => {
+  it('la fuerza de las cuerdas sube por partes hasta el drop: suave (intro, puente, final) < baja (estrofa) < media (subida, break) < a tope (drops)', () => {
     const str = (n: string) => r.song.cells.find((c) => c.name === n)!.loops.filter((l) => l.synth === 'cuerdas').map((l) => l.hits[0]!.strength)
     expect(str('Intro')).toEqual([0, 0])
     expect(str('Puente')).toEqual([0])
     expect(str('Final')).toEqual([0, 0])
-    expect(str('Drop').every((x) => x === 0.8)).toBe(true)
+    expect(str('Drop').every((x) => x === 1)).toBe(true) // a tope
+    expect(str('Estrofa').every((x) => x === 0.35)).toBe(true) // más baja: para que el drop dé el salto
+    expect(str('Subida').every((x) => x === 0.6)).toBe(true)
     // y se conserva al pasar de la canción a las capas del Laboratorio
-    expect(r.parts.find((p) => p.name === 'Puente')!.layers[0]!.mel![0]!.strength).toBe(0)
-    expect(r.parts.find((p) => p.name === 'Drop')!.layers.find((l) => l.key === 'tema')!.mel![0]!.strength).toBeUndefined()
+    expect(r.parts.find((p) => p.name === 'Puente')!.layers.find((l) => l.key === 'tema')!.mel![0]!.strength).toBe(0)
+    expect(r.parts.find((p) => p.name === 'Drop')!.layers.find((l) => l.key === 'tema')!.mel![0]!.strength).toBe(1)
   })
   it('el coro canta el soprano de fondo: la vocal «a» y mucha reverb; las cuerdas llevan el colchón (violines y viola)', () => {
     expect(SYNTH_SOUND.coro).toContain('.vowel("a")')
@@ -202,5 +204,30 @@ describe('legato de las cuerdas y el coro, y el charles abierto (spec 048)', () 
     expect(has('Intro')).toBe(false)
     const closed = DRILL.hat.notes.map((n) => n[0])
     for (const [p] of DRILL.open) expect(closed.some((c) => Math.abs(c - p) < 1e-9)).toBe(false) // no pisa un golpe cerrado
+  })
+})
+
+describe('transiciones: el platillo estrena cada drop y el riser del puente se corta (spec 048)', () => {
+  const r = labRemixById('lacrimosa-drill')!
+  it('cada drop lleva un `crash` en su capa de ritmo, en el primer paso, y cabe en los 8 loops', () => {
+    for (const name of ['Drop', 'Drop 2']) {
+      const c = r.song.cells.find((x) => x.name === name)!
+      const crash = c.loops.find((l) => l.synth === 'crash')!
+      expect(crash.hits[0]!.pos).toBe(0)
+      expect(c.loops.length).toBeLessThanOrEqual(8)
+    }
+    expect(r.song.cells.find((x) => x.name === 'Subida')!.loops.some((l) => l.synth === 'crash')).toBe(false)
+  })
+  it('el puente lleva un riser de ruido que sube y deja el último compás vacío: el golpe del Drop 2 llega tras un vacío', () => {
+    const c = r.song.cells.find((x) => x.name === 'Puente')!
+    const riser = c.loops.find((l) => l.synth === 'riser')!
+    expect(riser).toBeDefined()
+    expect(Math.max(...riser.hits.map((h) => h.pos + (h.dur ?? 0)))).toBeLessThanOrEqual(48 + 1e-9) // acaba antes del compás 4
+    expect(c.loops.some((l) => l.synth === 'pad')).toBe(false) // sin el pad de los otros remixes (otra tonalidad)
+  })
+  it('el riser no es un tema ni cuenta como melodía en el Laboratorio: la parte lleva «subida» y «tema»', () => {
+    const p = r.parts.find((x) => x.name === 'Puente')!
+    expect(p.layers.map((l) => l.key)).toEqual(['subida', 'tema'])
+    expect(p.layers.length).toBeLessThanOrEqual(4)
   })
 })
