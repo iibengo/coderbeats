@@ -105,7 +105,12 @@
       "autoOff": "Automatikoa: ez",
       "zoomAria": "zoom amaigabea zatien artean (prototipoa)",
       "next": "hurrengoa: {name}",
-      "unverified": "notak buruz: partiturarekin egiaztatu"
+      "unverified": "notak buruz: partiturarekin egiaztatu",
+      "search": "Bilatu remixa…",
+      "all": "guztiak",
+      "noResults": "Ez dago bilaketarekin bat datorren remixik.",
+      "library": "liburutegia",
+      "openPlayer": "Ireki erreproduzigailua"
     }
   },
   "start": {

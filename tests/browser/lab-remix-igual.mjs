@@ -14,7 +14,7 @@ const snap = await p.evaluate(() => {
   const buttons = [...document.querySelectorAll('button')].map((x) => (x.getAttribute('aria-label') || '') + '|' + x.textContent.trim().replace(/\s+/g, ' '))
   return { canvas: cv.toDataURL(), buttons }
 })
-const now = { canvasSha: createHash('sha256').update(snap.canvas).digest('hex'), buttons: snap.buttons.filter((t) => !/zoom|vista|auto/i.test(t)) }
+const now = { canvasSha: createHash('sha256').update(snap.canvas).digest('hex'), buttons: snap.buttons.filter((t) => !/zoom|vista|auto|biblioteca/i.test(t)) }
 // con el interruptor apagado no hay nada de zoom que mirar: parte y capas siguen funcionando igual
 await p.evaluate(() => document.querySelector('[data-part=Drop]').click()); await sleep(2500)
 now.afterDrop = await p.evaluate(() => ({ part: window.__remix.part(), on: window.__remix.on() }))

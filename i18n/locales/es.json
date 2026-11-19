@@ -105,7 +105,12 @@
       "autoOff": "Auto: no",
       "zoomAria": "zoom infinito entre partes (prototipo)",
       "next": "siguiente: {name}",
-      "unverified": "notas de memoria: revisar con partitura"
+      "unverified": "notas de memoria: revisar con partitura",
+      "search": "Buscar remix…",
+      "all": "todos",
+      "noResults": "Ningún remix coincide con la búsqueda.",
+      "library": "biblioteca",
+      "openPlayer": "Abrir el reproductor"
     }
   },
   "start": {

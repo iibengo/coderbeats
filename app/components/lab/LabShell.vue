@@ -1,9 +1,10 @@
 <script setup lang="ts">
 // Marco común de cada pantalla del Laboratorio (spec 017): fondo negro, estilo, el escenario cuadrado en la ranura, y debajo ▶/■ (que para todo) con la frase de cómo se toca.
+// `bare` (la biblioteca de Remixes, spec 051): solo la cabecera y el contenido, sin la fila ▶/■ y la frase.
 import { LAB_STYLES } from '~/composables/useLab'
 import type { StyleId } from '~/lib/types'
 
-defineProps<{ title: string; phrase: string; hideStyle?: boolean }>()
+defineProps<{ title: string; phrase: string; hideStyle?: boolean; bare?: boolean }>()
 const emit = defineEmits<{ back: []; style: [id: StyleId]; play: []; stop: [] }>()
 const engine = useAudioEngine()
 const { t } = useI18n()
@@ -31,7 +32,7 @@ function toggle() {
       </button>
     </nav>
     <div class="mt-3"><slot /></div>
-    <div class="mt-3 flex items-center gap-3">
+    <div v-if="!bare" class="mt-3 flex items-center gap-3">
       <button class="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-white/25 text-lg" :aria-label="engine.playing.value ? t('app.stopAll') : t('app.play')" @click="toggle">{{ engine.playing.value ? '■' : '▶' }}</button>
       <p class="text-sm text-white/60">{{ phrase }}</p>
     </div>

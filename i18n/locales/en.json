@@ -105,7 +105,12 @@
       "autoOff": "Auto: off",
       "zoomAria": "infinite zoom between parts (prototype)",
       "next": "next: {name}",
-      "unverified": "notes from memory: check against the score"
+      "unverified": "notes from memory: check against the score",
+      "search": "Search remixes…",
+      "all": "all",
+      "noResults": "No remix matches your search.",
+      "library": "library",
+      "openPlayer": "Open player"
     }
   },
   "start": {

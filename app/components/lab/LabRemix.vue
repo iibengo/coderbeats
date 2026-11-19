@@ -7,9 +7,10 @@ import { VOICE_HEX } from '~/lib/palette'
 import { liveLane, makePulso, makePulsoLive, pushLive, setLivePart, PULSO_COMPACT, type PulsoScene } from '~/lib/visuals/pulso'
 import { songTimeline } from '~/lib/timeline'
 import { borderAngle, partProgress } from '~/lib/partProgress'
+import { coverBars, filterRemixes, fmtDuration, styleChips, styleLabel } from '~/lib/remixLibrary'
 import type { FreeLoop } from '~/lib/freeLoops'
 import { addSong, makeSaved } from '~/lib/library'
-import { autoNext, barSeconds, finalPartOf, labRemixFromSaved, LAB_REMIXES, partLoops, partsOn, remixTake, songFromTake, takePlan, type LabLayer, type LabRemix, type TakeBar } from '~/lib/labRemixes'
+import { autoNext, barSeconds, finalPartOf, remixSeconds, labRemixFromSaved, LAB_REMIXES, partLoops, partsOn, remixTake, songFromTake, takePlan, type LabLayer, type LabRemix, type TakeBar } from '~/lib/labRemixes'
 import { readJson, writeText } from '~/lib/storage'
 import { encodeShare, shareUrl } from '~/lib/shareLink'
 import { diveProgress, diveWindow, dives, hitsNext, levelsFor, NESTED_SCALE, reducedFade, stackAt, type Ring } from '~/lib/zoomStack'
@@ -23,6 +24,31 @@ const stage = ref<{ ripple: (x: number, y: number, c: string, g?: number, r?: nu
 const C = LAB_W / 2
 
 const remix = ref<LabRemix | null>(null)
+// ── biblioteca y mini reproductor (spec 051): la lista de remixes (con buscador y filtros) o el reproductor; el remix cargado sigue sonando al volver a la lista ──
+const view = ref<'lista' | 'player'>('lista')
+const query = ref('')
+const styleFilter = ref<string>('todos') // 'todos' o la clave de un estilo (`styleKey`)
+function showLibrary() {
+  view.value = 'lista'
+}
+function miniToggle() {
+  if (engine.playing.value) lab.stopAll()
+  else if (remix.value) void goPart(part.value)
+}
+const coverCache = new Map<string, number[]>()
+/** la carátula de un remix (cinco alturas de su línea de tiempo), calculada una vez */
+function coverOf(r: LabRemix): number[] {
+  let c = coverCache.get(r.id)
+  if (!c) {
+    try {
+      c = coverBars(songTimeline(r.song, r.style))
+    } catch {
+      c = [0.14, 0.14, 0.14, 0.14, 0.14]
+    }
+    coverCache.set(r.id, c)
+  }
+  return c
+}
 // los míos: lo que se editó en el Estudio y se guardó en Mis canciones (con la marca `lab`) vuelve aquí
 const library = useLibrary()
 const route = useRoute()
@@ -38,6 +64,12 @@ onMounted(async () => {
   }
 })
 const mios = computed(() => library.lib.value.entries.flatMap((e) => (e.saved ? [labRemixFromSaved(e.saved)] : [])).filter((r): r is LabRemix => !!r))
+const chips = computed(() => styleChips([...LAB_REMIXES, ...mios.value]))
+const groups = computed(() => [
+  { id: 'serie', label: t('lab.remix.groupSerie'), items: filterRemixes(LAB_REMIXES, query.value, styleFilter.value) },
+  { id: 'mios', label: t('lab.remix.groupMine'), items: filterRemixes(mios.value, query.value, styleFilter.value) },
+].filter((g) => g.items.length))
+const rowSub = (r: LabRemix) => `${r.id.startsWith('mio:') ? t('lab.remix.mineKind') : r.composer} · ${styleLabel(r.style)}${r.unverified ? ` · ${t('lab.remix.unverified')}` : ''}`
 const part = ref('') // la parte elegida, por nombre (entra en el siguiente compás)
 const shown = ref('') // la que suena ya
 let shownFrom = 0 // compás desde el que `shown` vale `part`
@@ -64,6 +96,8 @@ const recBars = ref(0)
 const plan = computed(() => takePlan(remix.value?.style ?? 'techno', remix.value?.song.bpm))
 
 async function pick(r: LabRemix) {
+  // otro remix: no se pueden mezclar dos; el que suena se para y el nuevo carga **sin empezar solo** (la persona decide cuándo)
+  if (remix.value && remix.value.id !== r.id && engine.playing.value) lab.stopAll()
   await lab.begin()
   await lab.changeStyle(r.style)
   engine.setBpm(r.song.bpm ?? null) // el tempo de la canción manda (si no, el del estilo)
@@ -73,6 +107,7 @@ async function pick(r: LabRemix) {
   visIndex.value = 0
   dive = null
   await enter(part.value)
+  view.value = 'player'
 }
 /** pone una parte: todos sus loops (los apagados, silenciados) y su fondo; sonando, entra en el siguiente compás */
 async function enter(name: string) {
@@ -496,29 +531,60 @@ function draw(g: CanvasRenderingContext2D, f: StageFrame) {
   }
 }
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`
-const phrase = computed(() => (remix.value ? t(auto.value ? 'lab.remix.phraseAuto' : 'lab.remix.phrase') : t('lab.remix.pick')))
+const phrase = computed(() => (remix.value && view.value === 'player' ? t(auto.value ? 'lab.remix.phraseAuto' : 'lab.remix.phrase') : t('lab.remix.pick')))
 </script>
 
 <template>
-  <LabShell :title="t('lab.screens.remixes.title')" :phrase="phrase" hide-style @back="emit('back')" @style="() => {}" @play="remix ? goPart(part) : undefined" @stop="lab.stopAll()">
-    <div v-if="!remix" class="grid gap-3 py-2">
-      <h2 class="text-xs uppercase tracking-wide text-white/40">{{ t('lab.remix.groupSerie') }}</h2>
-      <button v-for="r in LAB_REMIXES" :key="r.id" class="rounded-2xl border border-white/15 bg-white/5 p-4 text-left" @click="pick(r)">
-        <div class="text-lg">{{ r.title }}</div>
-        <div class="text-sm text-white/60">{{ r.composer }}{{ r.key ? ` · ${r.key}` : '' }} · {{ r.style }}{{ r.unverified ? ` · ${t('lab.remix.unverified')}` : '' }}</div>
-      </button>
-      <h2 v-if="mios.length" class="mt-2 text-xs uppercase tracking-wide text-white/40">{{ t('lab.remix.groupMine') }}</h2>
-      <button v-for="r in mios" :key="r.id" class="rounded-2xl border border-white/15 bg-white/5 p-4 text-left" @click="pick(r)">
-        <div class="text-lg">{{ r.title }}</div>
-        <div class="text-sm text-white/60">{{ r.id.startsWith('mio:') ? t('lab.remix.mineKind') : r.composer }}{{ r.key ? ` · ${r.key}` : '' }} · {{ r.style }}</div>
-      </button>
+  <LabShell :title="t('lab.screens.remixes.title')" :phrase="phrase" hide-style :bare="view === 'lista'" @back="emit('back')" @style="() => {}" @play="remix ? goPart(part) : undefined" @stop="lab.stopAll()">
+    <!-- la biblioteca (spec 051): buscador, filtros por estilo y una fila por remix con su carátula -->
+    <div v-if="view === 'lista'" class="pb-28" data-library>
+      <input
+        v-model="query"
+        type="search"
+        enterkeyhint="search"
+        autocomplete="off"
+        class="h-11 w-full rounded-xl border border-white/20 bg-white/5 px-4 text-base text-white placeholder:text-white/40"
+        :placeholder="t('lab.remix.search')"
+        :aria-label="t('lab.remix.search')"
+        data-search
+      />
+      <div class="-mx-3 mt-3 flex gap-2 overflow-x-auto px-3 pb-1" role="group" aria-label="estilo" data-style-chips>
+        <button class="min-h-11 shrink-0 rounded-full border px-4 text-sm" :class="styleFilter === 'todos' ? 'border-[#F496BC] text-white' : 'border-white/20 text-white/60'" :aria-pressed="styleFilter === 'todos'" @click="styleFilter = 'todos'">{{ t('lab.remix.all') }}</button>
+        <button v-for="c in chips" :key="c.key" class="min-h-11 shrink-0 rounded-full border px-4 text-sm" :class="styleFilter === c.key ? 'border-[#F496BC] text-white' : 'border-white/20 text-white/60'" :aria-pressed="styleFilter === c.key" @click="styleFilter = c.key">{{ c.label }}</button>
+      </div>
+      <div v-for="g in groups" :key="g.id" class="mt-4 grid grid-cols-1 gap-2">
+        <h2 class="text-xs uppercase tracking-wide text-white/40">{{ g.label }}</h2>
+        <button v-for="r in g.items" :key="r.id" class="flex w-full min-w-0 items-center gap-3 rounded-2xl border bg-white/5 p-3 text-left" :class="remix?.id === r.id ? 'border-[#F496BC]/60' : 'border-white/10'" :data-remix="r.id" @click="pick(r)">
+          <LabCover :bars="coverOf(r)" />
+          <span class="min-w-0 flex-1">
+            <span class="block truncate text-base" :class="remix?.id === r.id ? 'text-[#F496BC]' : 'text-white'">{{ r.title }}</span>
+            <span class="block truncate text-sm text-white/60">{{ rowSub(r) }}</span>
+          </span>
+          <span class="shrink-0 text-xs text-white/40">{{ fmtDuration(remixSeconds(r)) }}</span>
+        </button>
+      </div>
+      <p v-if="!groups.length" class="mt-6 text-sm text-white/50" role="status" data-no-results>{{ t('lab.remix.noResults') }}</p>
     </div>
     <template v-else>
+      <button class="mb-2 grid h-11 w-11 place-items-center rounded-full border border-white/20 text-lg" :aria-label="t('lab.remix.library')" data-library-back @click="showLibrary">⌄</button>
       <LabStage v-if="vista === 'circulos'" ref="stage" :draw="drawStage" @down="down" />
       <LabPulso v-else ref="stage" :scene="pulsoScene" />
     </template>
+    <!-- el mini reproductor: con un remix cargado y en la biblioteca, una barra fija abajo; tocarla vuelve al reproductor; ▶/■ para o pone a sonar sin salir de la lista -->
+    <div v-if="remix && view === 'lista'" class="fixed inset-x-0 bottom-0 z-10 mx-auto w-full max-w-[460px] border-t border-white/15 bg-black/95 px-3 pt-3 backdrop-blur" style="padding-bottom: max(0.75rem, env(safe-area-inset-bottom))" data-mini-player>
+      <div class="flex items-center gap-3">
+        <button class="flex min-w-0 flex-1 items-center gap-3 text-left" :aria-label="t('lab.remix.openPlayer')" @click="view = 'player'">
+          <LabCover :bars="coverOf(remix)" :size="44" />
+          <span class="min-w-0">
+            <span class="block truncate text-sm text-white">{{ remix.title }}</span>
+            <span class="block truncate text-xs text-white/50">{{ shown }}</span>
+          </span>
+        </button>
+        <button class="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-white/30 text-lg" :aria-label="engine.playing.value ? t('app.stopAll') : t('app.play')" data-mini-play @click="miniToggle">{{ engine.playing.value ? '■' : '▶' }}</button>
+      </div>
+    </div>
     <template #extra>
-      <template v-if="remix">
+      <template v-if="remix && view === 'player'">
         <!-- las partes se eligen con `click` (no con `pointerdown`): si el dedo empieza a desplazar la pantalla sobre un botón, el navegador cancela el toque y no cambia de parte -->
         <div class="mt-4 grid grid-cols-2 gap-2" aria-label="partes">
           <!-- el borde es el fondo del botón (2 px de relleno alrededor de un centro negro): el de la parte que suena se ilumina con sus compases (`progressBg`); la que va a entrar parpadea; las demás, tenues -->
@@ -563,7 +629,7 @@ const phrase = computed(() => (remix.value ? t(auto.value ? 'lab.remix.phraseAut
         <!-- salir de aquí: volver a la lista de remixes o abrir este en el Estudio (dos botones claros, aparte del resto) -->
         <div class="mt-8 grid grid-cols-2 gap-3 border-t border-white/10 pt-6">
           <button class="order-2 min-h-12 rounded-2xl border border-white/25 px-3 text-sm text-white" data-open-studio @click="openInStudio">{{ t('lab.remix.openStudio') }}</button>
-          <button class="order-1 min-h-12 rounded-2xl border border-white/25 px-3 text-sm text-white" data-remix-list @click="remix = null; lab.stopAll()">{{ t('lab.remix.other') }}</button>
+          <button class="order-1 min-h-12 rounded-2xl border border-white/25 px-3 text-sm text-white" data-remix-list @click="showLibrary">{{ t('lab.remix.other') }}</button>
         </div>
       </template>
     </template>
