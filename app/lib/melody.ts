@@ -6,8 +6,8 @@
  */
 /** `drone`: un sine con mucha reverb, para fondos (la demo del dembow); no es de los que se eligen para cantar */
 /** `bass` y `keys` (spec 028 §5): el bajo y los acordes **propios de la canción**, hechos de notas (en `keys`, varias a la vez), en vez del fondo del estilo */
-export type MelodySynth = 'lead' | 'piano' | 'pad' | 'drone' | 'riser' | 'crash' | 'boom' | 'impacto' | 'downlifter' | 'bass' | 'keys' | 'guitar' | 'guitarDirty' | 'guitarSample' | 'acid' | 'rim' | 'click' | 'cowbell' | 'tom' | 'shaker' | 'hat' | 'sub' | 'cuerdas' | 'dub'
-export const MELODY_SYNTHS: readonly MelodySynth[] = ['lead', 'piano', 'pad', 'drone', 'riser', 'crash', 'boom', 'impacto', 'downlifter', 'bass', 'keys', 'guitar', 'guitarDirty', 'guitarSample', 'acid', 'rim', 'click', 'cowbell', 'tom', 'shaker', 'hat', 'sub', 'cuerdas', 'dub']
+export type MelodySynth = 'lead' | 'piano' | 'pad' | 'drone' | 'riser' | 'crash' | 'boom' | 'impacto' | 'downlifter' | 'bass' | 'keys' | 'guitar' | 'guitarDirty' | 'guitarSample' | 'acid' | 'rim' | 'click' | 'cowbell' | 'tom' | 'shaker' | 'hat' | 'sub' | 'cuerdas' | 'coro' | 'dub'
+export const MELODY_SYNTHS: readonly MelodySynth[] = ['lead', 'piano', 'pad', 'drone', 'riser', 'crash', 'boom', 'impacto', 'downlifter', 'bass', 'keys', 'guitar', 'guitarDirty', 'guitarSample', 'acid', 'rim', 'click', 'cowbell', 'tom', 'shaker', 'hat', 'sub', 'cuerdas', 'coro', 'dub']
 
 /** Rango MIDI que se admite en un loop de melodía o bajo (C1–C7). */
 export const MIDI_MIN = 24
@@ -42,6 +42,7 @@ export const REGISTER: Record<MelodySynth | 'bass', readonly [number, number]> =
   cowbell: [24, 60],
   tom: [24, 60],
   shaker: [24, 60],
+  coro: [52, 84], // coro de fondo del drill (spec 048): E3–C6
   cuerdas: [52, 90], // cuerdas orquestales (spec 048): E3–F#6
   sub: [28, 52], // el 808 del drill (spec 048): E1–E3
   hat: [24, 60], // el charles del 808 para los redobles (spec 048): la altura no cuenta
@@ -57,6 +58,9 @@ export const SYNTH_SOUND_DISPLAY = { guitarSample: '.s("gm_electric_guitar_clean
 export const SYNTH_ECHO: Partial<Record<MelodySynth, string>> = {
   dub: '.off(3/16, x => x.lpf(650).postgain(0.6).off(3/16, y => y.lpf(480).postgain(0.6).off(3/16, z => z.lpf(340).postgain(0.6))))',
 }
+
+/** el volumen más bajo de un golpe de charles `hat` (spec 048): en el tema de referencia la fuerza de los golpes va de 0,2 a 1 */
+export const HAT_GAIN_FLOOR = 0.2
 
 export const SYNTH_SOUND: Record<MelodySynth, string> = {
   piano: '.s("triangle").fm(1.5).fmh(2).decay(0.6).sustain(0.2).room(0.4)',
@@ -90,12 +94,14 @@ export const SYNTH_SOUND: Record<MelodySynth, string> = {
   cowbell: '.s("cb").gain(0.7)',
   tom: '.s("mt").gain(0.8)',
   shaker: '.s("sh").gain(0.7)',
-  // cuerdas orquestales del drill (spec 048): sierra con **ataque firme** (10 ms, no una nota infinita y suave), filtro que quita lo áspero, algo de vibrato y una cola de reverb larga, como las de los vídeos. Sin oír.
-  cuerdas: '.s("sawtooth").attack(0.01).decay(0.3).sustain(0.55).release(0.4).lpf(3200).vib(5).vibmod(0.12).room(0.7).roomsize(5).gain(0.4)',
+  // cuerdas orquestales del drill (spec 048): tres sierras algo desafinadas (el **grano** rasposo) con **ataque firme** (10 ms, no una nota infinita y suave), los graves recortados (`hpf` 200: dejan sitio al 808), algo de vibrato y una cola de reverb larga. Sin oír.
+  cuerdas: '.s("supersaw").unison(3).detune(0.2).spread(0.4).attack(0.01).decay(0.3).sustain(0.55).release(0.4).hpf(200).lpf(3200).vib(5).vibmod(0.12).room(0.7).roomsize(5).gain(0.35)',
+  // el canto de fondo del Lacrimosa en drill (spec 048): un coro lúgubre, no angelical: sierras con un filtro de vocal «a» (formantes, `vowel`), ataque suave, nota larga que se difumina en una reverb muy amplia y volumen bajo, en segundo plano. Sin oír.
+  coro: '.s("supersaw").unison(2).detune(0.1).vowel("a").attack(0.06).decay(0.4).sustain(0.7).release(0.9).lpf(2800).room(0.9).roomsize(7).gain(0.3)',
   // el 808 del drill (spec 048): seno grave y largo, como el del fondo del estilo; las notas pegadas **se deslizan** de una a otra (`SUB_SLIDE_SECONDS`, en `song.ts`). Sin oír.
   sub: '.s("sine").lpf(300).decay(0.9).sustain(0.5).gain(0.9)',
-  // el charles cerrado del kit 808 (CC0, ya registrado con el kit) para los redobles de tresillos del drill (spec 048); como los de la batería: `.bank("RolandTR808").n(0)`. Sin oír.
-  hat: '.s("hh").bank("RolandTR808").n(0).gain(0.5)',
+  // el charles cerrado del kit 808 (CC0, ya registrado con el kit) para los redobles de tresillos del drill (spec 048); como los de la batería: `.bank("RolandTR808").n(0)`, y **fino, seco y cortado al instante** (`hpf` 6500, caída de 35 ms, sin cola): «ts» agudo que rasga sin tapar los graves. Sin oír.
+  hat: '.s("hh").bank("RolandTR808").n(0).hpf(6500).decay(0.035).sustain(0).gain(0.5)',
   // el stab del dub techno (spec 046): dos sierras desafinadas (`supersaw` con `unison(2)`) por un filtro resonante de envolvente rápida y sustain 0, un poco de saturación y reverb larga (`room`, `roomsize`),
   // y un eco de corchea con puntillo (3/16) **con el filtro dentro**: Strudel no tiene filtro en el bucle del `delay`, así que las tres repeticiones se escriben con `.off(3/16, …)`, cada una con menos
   // `postgain` y un `lpf` más cerrado (más oscura): ese eco es `SYNTH_ECHO.dub`, que va **al final de la línea** (después del `.gain("…")` por nota, que si no recortaría las repeticiones). Recibe acordes
@@ -192,16 +198,16 @@ export function melodyClip(hits: readonly MelodyHit[], bars: number, phaseBar: n
 
 /**
  * Ganancia por nota (spec 029 §2): un patrón con la misma estructura que `melodyMini` pero con el volumen de cada nota.
- * `strength` 0..1 se lleva a 0.55–1 (nunca 0: una nota no se calla sola). Devuelve `null` si **todas** las notas están a
+ * `strength` 0..1 se lleva a `floor`–1 (0,55 por defecto; nunca 0: una nota no se calla sola; el charles del drill baja a 0,2: su velocidad varía mucho, spec 048). Devuelve `null` si **todas** las notas están a
  * `1` (lo de siempre): así lo guardado y lo que no usa dinámica genera exactamente el mismo código.
  */
-export function melodyGains(hits: readonly MelodyHit[], bars: number, phaseBar: number): string | null {
+export function melodyGains(hits: readonly MelodyHit[], bars: number, phaseBar: number, floor = 0.55): string | null {
   const valid = hits.filter((h) => isMidi(h.midi) && Number.isFinite(h.pos) && Number.isFinite(h.dur) && h.dur > 0)
   const same = (s: unknown) => Math.abs(safeStrength(s) - 1) < 1e-6
   if (valid.every((h) => same(h.strength))) return null
   const weight = (s: unknown) => {
     const v = Math.min(1, Math.max(0, safeStrength(s)))
-    return Math.round((0.55 + 0.45 * v) * 1000) / 1000
+    return Math.round((floor + (1 - floor) * v) * 1000) / 1000
   }
   // cada nota con su peso; los acordes vuelven a repartirse el mismo peso (Strudel aplica el gain a todo el hap)
   return loopMinis(

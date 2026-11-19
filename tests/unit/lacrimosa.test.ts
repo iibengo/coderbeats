@@ -4,6 +4,7 @@ import { labRemixById, LAB_REMIXES, remixBars, remixBpm, remixSeconds } from '..
 import { subSlide } from '../../app/lib/melodyVariants'
 import { isFreeLoop } from '../../app/lib/cells'
 import { songCode, type SongState } from '../../app/lib/song'
+import { SYNTH_SOUND } from '../../app/lib/melody'
 import { events } from '../helpers/strudelEval'
 
 const midis = (n: readonly (readonly [number, number, number])[]) => n.map((x) => x[2])
@@ -67,28 +68,28 @@ describe('Lacrimosa en drill: el remix (spec 048)', () => {
     expect(r.parts.find((p) => p.name === 'Drop')!.layers.find((l) => l.key === 'ritmo')!.mel!.some((m) => m.synth === 'hat')).toBe(true) // los tresillos
   })
   it('cada parte es una célula válida con sus loops (como mucho 8) y se usan cuatro trozos distintos de la obra', () => {
-    const themes = new Set<string>()
     for (const c of r.song.cells) {
       expect(c.loops.length).toBeLessThanOrEqual(8)
       for (const l of c.loops) expect(isFreeLoop(l)).toBe(true)
-      const mel = c.loops.find((l) => l.synth === 'cuerdas')!
-      themes.add(JSON.stringify(mel.hits.map((h) => h.midi)))
     }
+    const themes = new Set(r.parts.map((p) => JSON.stringify(p.layers.find((l) => l.key === 'tema')!.mel![0]!.notes)))
     expect(themes.size).toBe(4) // gancho, tema, escalera y subida
   })
   it('suena preciso: el tema con el sinte `cuerdas` (ataque firme) y el bajo con el 808 `sub`', () => {
     const synths = new Set(r.song.cells.flatMap((c) => c.loops.filter((l) => l.instrument === 'mel').map((l) => l.synth)))
-    expect(synths.has('cuerdas')).toBe(true) // cuerdas con ataque firme
+    expect(synths.has('cuerdas')).toBe(true) // cuerdas con ataque firme y grano
+    expect(synths.has('coro')).toBe(true) // el canto de fondo
+    expect(synths.has('keys')).toBe(false)
     expect(synths.has('sub')).toBe(true)
     expect(synths.has('pad')).toBe(false) // el pad con ataque lento y mucha reverb emborronaba las notas de 0,29 s
   })
   it('tres semitonos más grave que Mozart (si menor): el tema de los drops es el soprano −3', () => {
     const drop = r.song.cells.find((c) => c.name === 'Drop')!
-    const mel = drop.loops.find((l) => l.synth === 'cuerdas')!
+    const mel = drop.loops.find((l) => l.synth === 'coro')! // el coro canta el soprano
     expect(mel.hits.map((h) => h.midi)).toEqual([66, 74, 71, 71, 70, 66, 74, 71, 71, 70])
   })
   it('las partes suaves (intro, puente y final) llevan la fuerza más baja; las demás, la de siempre', () => {
-    const str = (n: string) => r.song.cells.find((c) => c.name === n)!.loops.filter((l) => l.synth === 'cuerdas' || l.synth === 'keys').map((l) => l.hits[0]!.strength)
+    const str = (n: string) => r.song.cells.find((c) => c.name === n)!.loops.filter((l) => l.synth === 'cuerdas').map((l) => l.hits[0]!.strength)
     expect(str('Intro')).toEqual([0, 0])
     expect(str('Puente')).toEqual([0])
     expect(str('Final')).toEqual([0, 0])
@@ -97,13 +98,24 @@ describe('Lacrimosa en drill: el remix (spec 048)', () => {
     expect(r.parts.find((p) => p.name === 'Puente')!.layers[0]!.mel![0]!.strength).toBe(0)
     expect(r.parts.find((p) => p.name === 'Drop')!.layers.find((l) => l.key === 'tema')!.mel![0]!.strength).toBeUndefined()
   })
+  it('el coro canta el soprano de fondo: la vocal «a» y mucha reverb; las cuerdas llevan el colchón (violines y viola)', () => {
+    expect(SYNTH_SOUND.coro).toContain('.vowel("a")')
+    expect(SYNTH_SOUND.coro).toContain('.room(0.9)')
+    expect(SYNTH_SOUND.coro).toContain('.gain(0.3)') // segundo plano
+    expect(SYNTH_SOUND.cuerdas).toContain('.hpf(200)') // sin graves: dejan sitio al 808
+    expect(SYNTH_SOUND.cuerdas).toContain('.attack(0.01)') // ataque firme
+    const drop = r.parts.find((p) => p.name === 'Drop')!
+    expect(drop.layers.find((l) => l.key === 'tema')!.mel![0]!.synth).toBe('coro')
+    expect(drop.layers.find((l) => l.key === 'acordes')!.mel![0]!.synth).toBe('cuerdas')
+    expect(r.parts.find((p) => p.name === 'Intro')!.layers.find((l) => l.key === 'tema')!.mel![0]!.synth).toBe('cuerdas') // el gancho, solo cuerdas
+  })
   it('el código de una parte lleva 145 bpm y Strudel toca el soprano en tresillos de 12/8', async () => {
     const cell = r.song.cells[1]! // Estrofa: compases 3–4 de 12/8
     const st = { loops: cell.loops, bpm: r.song.bpm, style: 'drill', kit: '808', background: { mode: 'manual', parts: { bass: false, chords: false } }, metronome: false, fx: { filter: 1, space: 0, warmth: 0 } } as unknown as SongState
     const code = songCode(st, 'display')
     expect(code).toContain('setcpm(145/4)')
     expect(code).toContain('.s("sine")') // el 808
-    const ev = (await events(code, 1)).filter((e) => e.value.s === 'sawtooth') // el tema (cuerdas)
+    const ev = (await events(code, 1)).filter((e) => e.value.vowel === 'a') // el tema (el coro)
     // compás 1 de 4/4 = primera mitad del compás 3 de 12/8: la4 larga (4 corcheas = 4/6 de compás de 4/4... 2/3) y fa5 y re5 en 4/6 y 5/6
     expect(ev.map((e) => Math.round(e.begin * 6 * 1e6) / 1e6)).toEqual([0, 4, 5])
   })

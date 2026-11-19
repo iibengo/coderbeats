@@ -15,13 +15,14 @@ describe('drill (spec 048)', () => {
     expect(STYLE_MUSIC.drill.scale[0]).toBe(2)
     expect(demoSteps('sd')).toEqual([8])
   })
-  it('bombo escaso y platillo en chorro: seguido y con paradas (nunca las 16 semicorcheas)', () => {
+  it('bombo escaso y platillo sincopado en grupos 3-2-3, con huecos (como el tema de referencia)', () => {
     expect(demoSteps('bd')).toEqual([0, 6, 11])
     const hh = demoSteps('hh')
-    expect(hh.length).toBeGreaterThanOrEqual(10)
-    expect(hh.length).toBeLessThan(16)
-    expect(hh.slice(0, 7)).toEqual([0, 1, 2, 3, 4, 5, 6]) // el chorro
-    expect(hh).not.toContain(7) // y la parada
+    expect(hh).toEqual([2, 3, 5, 7, 10, 13, 15])
+    expect(hh.length).toBeLessThanOrEqual(8) // ~6 golpes por compás medidos; nunca un chorro
+    const gaps = hh.slice(1).map((x, i) => x - hh[i]!)
+    expect(Math.max(...gaps)).toBeGreaterThanOrEqual(3) // con huecos
+    expect(gaps.filter((g) => g === 1).length).toBeLessThanOrEqual(1) // a lo sumo un par pegado
     expect(DEMOS.drill.hh.split(' ')).toHaveLength(16)
   })
   it('los tres patrones tienen 16 pasos y las plantillas coinciden con la demo', () => {
@@ -91,46 +92,74 @@ const tokens = (p: string): string[] => p.split(' ')
 const stepsOf = (p: string, bar: number): number[] => tokens(p).slice(bar * 16, bar * 16 + 16).flatMap((t, i) => (t === '~' ? [] : [i]))
 
 describe('la batería drill de los vídeos (spec 048)', () => {
-  it('4 compases de 16 pasos: bombo desplazado, caja en el tiempo 3 con un redoble al final', () => {
-    for (const k of ['bd', 'sd', 'hh'] as const) expect(tokens(DRILL[k])).toHaveLength(64)
-    for (let b = 0; b < 4; b++) expect(stepsOf(DRILL.sd, b)).toContain(8) // la caja del tiempo 3, siempre
-    expect(stepsOf(DRILL.sd, 3)).toEqual([8, 12, 13, 14, 15]) // el redoble del compás 4
+  it('bombo desplazado y caja en el tiempo 3 con un redoble al final del compás 4', () => {
+    for (const k of ['bd', 'sd'] as const) expect(tokens(DRILL[k])).toHaveLength(64)
+    for (let b = 0; b < 4; b++) expect(stepsOf(DRILL.sd, b)).toContain(8)
+    expect(stepsOf(DRILL.sd, 3)).toEqual([8, 12, 13, 14, 15])
     expect(stepsOf(DRILL.bd, 0)).toEqual([0, 10])
     for (let b = 0; b < 4; b++) expect(stepsOf(DRILL.bd, b)).toContain(0)
   })
-  it('el charles va en chorro: tramos seguidos de semicorcheas con paradas, y nunca los 16 pasos', () => {
+  const hatSteps = (bar: number): number[] => DRILL.hat.notes.map((n) => n[0]).filter((p) => p >= bar * 16 && p < bar * 16 + 16).map((p) => p - bar * 16)
+  it('el charles es escaso, de ~6 a ~10 golpes por compás (el original tiene ~6,4), nunca un chorro', () => {
     for (let b = 0; b < 4; b++) {
-      const s = stepsOf(DRILL.hh, b)
-      expect(s.length).toBeGreaterThanOrEqual(10)
-      expect(s.length).toBeLessThan(16)
+      const n = hatSteps(b).length
+      expect(n, `compás ${b + 1}`).toBeGreaterThanOrEqual(6)
+      expect(n, `compás ${b + 1}`).toBeLessThanOrEqual(10)
+    }
+    expect(DRILL.hat.notes.length / 4).toBeLessThan(9)
+  })
+  it('sincopado en grupos 3-2-3: el esqueleto 2·5·7·10·13·15 en los cuatro compases', () => {
+    for (let b = 0; b < 4; b++) for (const k of [2, 5, 7, 10]) expect(hatSteps(b), `compás ${b + 1}`).toContain(k)
+    for (let b = 0; b < 3; b++) expect(hatSteps(b), `compás ${b + 1}`).toContain(13) // (el 4 lo cambia el redoble)
+    const core = [2, 5, 7, 10, 13, 15].slice(1).map((x, i) => x - [2, 5, 7, 10, 13, 15][i]!)
+    expect(core).toEqual([3, 2, 3, 3, 2]) // 3-2-3 · 3-2(-3)
+    for (let b = 0; b < 4; b++) {
+      // los huecos: no hay tramo de más de 3 golpes seguidos a semicorchea (el chorro de antes)
+      const s = hatSteps(b).filter((x) => Number.isInteger(x))
       let run = 1
       let best = 1
       for (let i = 1; i < s.length; i++) best = Math.max(best, (run = s[i] === s[i - 1]! + 1 ? run + 1 : 1))
-      expect(best).toBeGreaterThanOrEqual(6) // un chorro de 6 o más seguidas
+      expect(best, `compás ${b + 1}`).toBeLessThanOrEqual(2)
     }
   })
-  it('21 golpes de tresillo (3, 6, 3 y 9) a 2/3 de paso, justo donde el charles de la rejilla para', () => {
-    expect(DRILL.rolls).toHaveLength(21)
-    expect(DRILL.rolls[0]).toEqual([14, 2 / 3, PERC_MIDI])
-    for (const [p, d] of DRILL.rolls) {
+  it('la fuerza varía mucho (de 0,4 a 1) y el tono sube en las ráfagas', () => {
+    const st = DRILL.hat.strengths
+    expect(st).toHaveLength(DRILL.hat.notes.length)
+    expect(Math.min(...st)).toBeLessThanOrEqual(0.45)
+    expect(Math.max(...st)).toBe(1)
+    expect(new Set(st).size).toBeGreaterThanOrEqual(7)
+    // el redoble del compás 4: seis golpes a 2/3 de paso, cada vez más fuertes y más agudos
+    const roll = DRILL.hat.notes.map((n, i) => ({ n, s: st[i]! })).filter((x) => x.n[0] >= 48 + 12)
+    expect(roll).toHaveLength(6)
+    for (let i = 1; i < roll.length; i++) {
+      expect(roll[i]!.n[2]).toBeGreaterThan(roll[i - 1]!.n[2])
+      expect(roll[i]!.s).toBeGreaterThan(roll[i - 1]!.s)
+    }
+    expect(roll[0]!.n[2]).toBe(PERC_MIDI)
+  })
+  it('todo cae en la rejilla de semicorcheas o de tresillos de semicorchea (doceavos de paso) y cabe en 4 compases', () => {
+    for (const [p, d] of DRILL.hat.notes) {
+      expect(Math.abs(p * 3 - Math.round(p * 3)), `${p}`).toBeLessThan(1e-9)
       expect(p + d).toBeLessThanOrEqual(64 + 1e-9)
-      const bar = Math.floor(p / 16)
-      const step = p - bar * 16
-      expect(stepsOf(DRILL.hh, bar).filter((x) => x >= step - 1e-9 && x < step + d - 1e-9), `${p}`).toEqual([]) // no se pisan con un golpe de la rejilla
     }
   })
-  it('`hat` es un sinte de muestra del 808: percusión (no melodía), válida al leer lo guardado', () => {
-    const loop: FreeLoop = { id: 1, instrument: 'mel', bars: 4, phaseBar: 0, muted: false, bornAt: 0, fromTemplate: false, synth: 'hat', hits: DRILL.rolls.map(([pos, dur, midi]) => ({ pos, dur, midi, strength: 0.7 })) as never }
+  const hatLoop = (): FreeLoop => ({ id: 1, instrument: 'mel', bars: 4, phaseBar: 0, muted: false, bornAt: 0, fromTemplate: false, synth: 'hat', hits: DRILL.hat.notes.map(([pos, dur, midi], i) => ({ pos, dur, midi, strength: DRILL.hat.strengths[i]! })) as never })
+  it('`hat` es un sinte de muestra del 808, fino y seco: percusión (no melodía), válida al leer lo guardado', () => {
     expect(isPercSynth('hat')).toBe(true)
     expect(SYNTH_SOUND.hat).toContain('.s("hh").bank("RolandTR808")')
-    expect(isFreeLoop(loop)).toBe(true)
-    expect(melodyCount([loop])).toBe(0)
+    expect(SYNTH_SOUND.hat).toContain('.hpf(6500)') // fino
+    expect(SYNTH_SOUND.hat).toContain('.sustain(0)') // sin cola
+    expect(isFreeLoop(hatLoop())).toBe(true)
+    expect(melodyCount([hatLoop()])).toBe(0)
   })
-  it('Strudel toca los tresillos: cada golpe cae en su doceavo de paso', async () => {
-    const loop: FreeLoop = { id: 1, instrument: 'mel', bars: 4, phaseBar: 0, muted: false, bornAt: 0, fromTemplate: false, synth: 'hat', hits: DRILL.rolls.map(([pos, dur, midi]) => ({ pos, dur, midi, strength: 0.7 })) as never }
-    const st = { loops: [loop], style: 'drill', kit: '808', background: { mode: 'off', parts: { bass: false, chords: false } }, metronome: false, fx: { filter: 1, space: 0, warmth: 0 } } as unknown as Parameters<typeof songCode>[0]
-    const ev = (await events(songCode(st, 'display'), 4)).filter((e) => e.value.s === 'hh')
+  it('Strudel toca cada golpe en su doceavo de paso, con su volumen (de 0,2 a 1 del volumen del loop) y su tono', async () => {
+    const st = { loops: [hatLoop()], style: 'drill', kit: '808', background: { mode: 'off', parts: { bass: false, chords: false } }, metronome: false, fx: { filter: 1, space: 0, warmth: 0 } } as unknown as Parameters<typeof songCode>[0]
+    const code = songCode(st, 'display')
+    const ev = (await events(code, 4)).filter((e) => e.value.s === 'hh')
     const got = ev.map((e) => Math.round(e.begin * 16 * 12) / 12).sort((a, b) => a - b)
-    expect(got).toEqual(DRILL.rolls.map(([p]) => Math.round(p * 12) / 12).sort((a, b) => a - b))
+    expect(got).toEqual(DRILL.hat.notes.map(([p]) => Math.round(p * 12) / 12).sort((a, b) => a - b))
+    const gains = ev.map((e) => Number(e.value.gain)).filter((g) => Number.isFinite(g))
+    expect(gains.length).toBe(ev.length)
+    expect(Math.max(...gains) / Math.min(...gains)).toBeGreaterThan(1.8) // la fuerza se nota (el rango medido es más amplio)
   })
 })

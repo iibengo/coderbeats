@@ -220,19 +220,19 @@ export const STYLE_MUSIC: Record<StyleId, StyleMusic> = {
     ],
     synth: 'lead',
   },
-  // drill (2026-11-19, spec 048): UK drill, 140 bpm, re menor, kit 808. Medio tiempo: caja solo en el tiempo 3, bombo escaso, platillo en chorro (seguido y con paradas)
+  // drill (2026-11-19, spec 048): UK drill, 140 bpm, re menor, kit 808. Medio tiempo: caja solo en el tiempo 3, bombo escaso, platillo sincopado en grupos 3-2-3, con huecos
   // y un 808 largo y grave (re – si♭ – sol – la) que se desliza entre raíces, con stabs oscuros de acordes (Dm B♭ Gm Am). Los redobles de tresillos van aparte (sinte `hat`). Sin probar de oído.
   drill: {
     key: 're menor',
     priors: {
       bd: prior(0.03, { 0: 1, 6: 0.8, 11: 0.8 }),
       sd: prior(0.02, { 8: 1 }),
-      hh: prior(0.3, { 0: 1, 1: 0.8, 2: 1, 3: 0.8, 4: 0.8, 5: 0.8, 6: 0.8, 9: 0.8, 10: 1, 11: 0.8, 12: 1, 14: 0.8, 15: 0.8 }),
+      hh: prior(0.15, { 2: 1, 3: 0.6, 5: 1, 7: 0.8, 10: 1, 13: 1, 15: 0.8, 0: 0.5 }),
     },
     templates: {
       bd: 'bd ~ ~ ~ ~ ~ bd ~ ~ ~ ~ bd ~ ~ ~ ~',
       sd: '~ ~ ~ ~ ~ ~ ~ ~ sd ~ ~ ~ ~ ~ ~ ~',
-      hh: 'hh hh hh hh hh hh hh ~ ~ hh hh hh hh ~ hh hh',
+      hh: '~ ~ hh hh ~ hh ~ hh ~ ~ hh ~ ~ hh ~ hh',
     },
     background: {
       // el 808: un golpe largo en el 1 y uno corto a contratiempo, cada compás una raíz (re, si♭, sol, la; de 49 a 73 Hz: más grave se pierde en un móvil). El golpe largo **se desliza**

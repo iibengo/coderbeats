@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { songBars } from '~/lib/cells'
 import { barSeconds, finalPartOf, LAB_REMIXES, MAX_LAYERS, MAX_PARTS, partLoops, remixBars, remixSeconds, remixTake, runsOfTake, songFromTake, takePlan, turnChunks, type LabPart } from '~/lib/labRemixes'
 
-const hasDrum = (p: LabPart, inst: 'bd' | 'sd' | 'hh') => p.layers.some((l) => l.drums?.[inst])
+// el platillo puede ser el de la batería o el charles `hat` del drill (spec 048, un sinte de muestra con su propio patrón)
+const hasDrum = (p: LabPart, inst: 'bd' | 'sd' | 'hh') => p.layers.some((l) => l.drums?.[inst] || (inst === 'hh' && l.mel?.some((m) => m.synth === 'hat')))
 const isDrop = (p: LabPart) => /^drop/i.test(p.name)
 
 describe('remixes del Laboratorio: reglas', () => {

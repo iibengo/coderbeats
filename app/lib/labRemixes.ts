@@ -134,27 +134,33 @@ const inLead = (notes: readonly Note[]): Note[] => notes.map(([p, d, m]) => [p, 
 
 const TECHNO = { kick: T.bd4, clap: T.clap, hat: T.hat, hats16: T.hats16, roll: T.roll, noise: RISER_NOISE, pad: RISER_PAD }
 
-// ── Lacrimosa (Mozart, Requiem) en drill a 140 bpm (spec 048) ──────────────────────────────────────────
+// ── Lacrimosa (Mozart, Requiem) en drill (spec 048) ───────────────────────────────────────────────────
 /** Un patrón de batería de 4 compases (64 símbolos) a partir de los pasos de cada compás. */
-const drums4 = (name: 'bd' | 'sd' | 'hh', bars: readonly (readonly number[])[]): string => bars.flatMap((steps) => Array.from({ length: 16 }, (_, i) => (steps.includes(i) ? name : '~'))).join(' ')
-/** Una ráfaga de `n` golpes de tresillo de semicorchea (a 2/3 de paso unos de otros) desde el paso `start` del loop de 4 compases. */
-const burst = (start: number, n: number): Note[] => Array.from({ length: n }, (_, i) => [start + (i * 2) / 3, 2 / 3, PERC_MIDI] as const)
+const drums4 = (name: 'bd' | 'sd', bars: readonly (readonly number[])[]): string => bars.flatMap((steps) => Array.from({ length: 16 }, (_, i) => (steps.includes(i) ? name : '~'))).join(' ')
+
+/** Un golpe de charles: paso del compás, fuerza (0..1) y semitonos que sube el tono (0 si no se dice). */
+type HatHit = readonly [step: number, strength: number, pitch?: number]
+/**
+ * El charles del drill como en el tema de referencia (medido sobre su audio, dos drops de 12 s): **~6 golpes por compás**, en la rejilla de semicorcheas, con **grupos 3-2-3** (intervalos de 3 y 2 semicorcheas, algún par pegado)
+ * y huecos largos, y una **fuerza muy variable** (de 0,2 a 1). Aquí, 4 compases: el mismo esqueleto (2 5 7 · 10 13 15) con un golpe de más que cambia cada compás, una ráfaga de tresillos con el tono subiendo al final del 2
+ * y un redoble de 6 al final del 4 que crece. Es el sinte `hat` (el charles del 808, fino y cortado al instante).
+ */
+const HAT_BARS: readonly (readonly HatHit[])[] = [
+  [[2, 0.8], [3, 0.55], [5, 0.85], [7, 0.45], [10, 0.8], [13, 0.7], [15, 0.5]],
+  [[0, 0.6], [2, 0.75], [5, 0.8], [7, 0.4], [10, 0.85], [13, 0.7], [14, 0.5], [14 + 2 / 3, 0.6, 1], [15 + 1 / 3, 0.8, 2]],
+  [[0, 0.5], [2, 0.85], [3, 0.5], [5, 0.8], [7, 0.5], [10, 0.75], [13, 0.7], [15, 0.45]],
+  [[2, 0.8], [5, 0.85], [7, 0.5], [10, 0.8], [12, 0.4], [12 + 2 / 3, 0.5, 1], [13 + 1 / 3, 0.6, 2], [14, 0.7, 3], [14 + 2 / 3, 0.85, 4], [15 + 1 / 3, 1, 5]],
+]
+const hatHits = HAT_BARS.flatMap((bar, b) => bar.map(([step, strength, pitch]) => ({ note: [b * 16 + step, Number.isInteger(step) ? 1 : 2 / 3, PERC_MIDI + (pitch ?? 0)] as const, strength })))
 
 /**
- * La batería del drill como en los vídeos (spec 048), en 4 compases: **bombo desplazado** (el 1 y uno o dos golpes sincopados), **caja solo en el tiempo 3** con un redoble al final del compás 4, y un **charles en chorro**:
- * semicorcheas seguidas que se paran, con **ráfagas de tresillos** (sinte `hat`, a 2/3 de paso) en los huecos: al final de los compases 1 y 2, a mitad del 3 y un redoble largo al final del 4.
+ * La batería drill de los vídeos (spec 048), en 4 compases: **bombo desplazado**, **caja solo en el tiempo 3** con un redoble al final del compás 4 y el **charles** `hat` de arriba.
  */
 export const DRILL = {
   bd: drums4('bd', [[0, 10], [0, 7, 11], [0, 10], [0, 7, 9, 14]]),
   sd: drums4('sd', [[8], [8], [8, 15], [8, 12, 13, 14, 15]]),
-  hh: drums4('hh', [
-    [0, 1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13],
-    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
-    [0, 1, 2, 3, 4, 5, 8, 9, 10, 11, 12, 13, 14, 15],
-    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
-  ]),
-  /** los tresillos del charles: 3 + 6 + 3 + 9 golpes */
-  rolls: [...burst(14, 3), ...burst(28, 6), ...burst(38, 3), ...burst(58, 9)] as readonly Note[],
+  /** el charles: las notas (en pasos del loop de 4 compases) y la fuerza de cada una */
+  hat: { notes: hatHits.map((h) => h.note) as readonly Note[], strengths: hatHits.map((h) => h.strength) as readonly number[] },
 } as const
 
 /**
@@ -162,11 +168,11 @@ export const DRILL = {
  * drops largos y un respiro de silencio antes del último): no se toca la melodía entera de seguido, sino que se juega con cuatro trozos de la obra (cada uno, 2 compases de 12/8 = 4 de 4/4 a medio tiempo,
  * un loop de 4 compases que **se repite** dentro de cada parte), cada uno **con su bajo y sus acordes** (la armonía siempre es la de Mozart):
  * - el **gancho** (compases 1–2): el «suspiro» de los violines, que abre y cierra, **suave**;
- * - **el tema** (3–4): «La-cry-mo-sa di-es il-la», el que se reconoce: vuelve en cada drop (16 compases cada uno);
+ * - **el tema** (3–4): «La-cry-mo-sa di-es il-la», **cantado por un coro de fondo**; vuelve en cada drop (16 compases cada uno), sobre las cuerdas (violines y viola);
  * - **la escalera** (5–6): el soprano sube re–mi–fa–sol–la–si–do–re: el respiro del break;
  * - **la subida** (7–8): el soprano sube cromático hasta la5: la melodía **cambia antes del drop**.
  * Todo **tres semitonos más grave que Mozart** (re menor → si menor) y a **145 bpm**. La batería drill entra por capas (charles, caja que se acelera, y luego todo) y se va en el break y en el puente (solo el gancho,
- * suave: el silencio de antes del último drop). Cuerdas con ataque firme (`cuerdas`), acordes `keys`, bajo `sub` (808 que se desliza en saltos cortos). Fondo del estilo apagado. 72 compases ≈ 2 min. Sin oír.
+ * suave: el silencio de antes del último drop). Cuerdas con ataque firme y grano (`cuerdas`), coro de fondo `coro`, bajo `sub` (808 que se desliza en saltos cortos). Fondo del estilo apagado. 72 compases ≈ 2 min. Sin oír.
  */
 function lacrimosaDrill(): LabRemix {
   const HOOK = 0
@@ -175,16 +181,18 @@ function lacrimosaDrill(): LabRemix {
   const CLIMB = 6
   const SOFT = 0 // la fuerza más baja (el 0,55 del volumen): las cuerdas de la intro, el puente y el final
   const bar = (from: number, notes: readonly Note[]): Note[] => lacSlice(shift(notes, LAC_SHIFT), from, from + 2)
-  const tema = (from: number, strength?: number): LabLayer => ({ key: 'tema', label: 'tema', mel: [{ notes: bar(from, from === HOOK ? LAC.vln1 : LAC.soprano), synth: 'cuerdas', ...(strength !== undefined ? { strength } : {}) }] })
+  // el gancho lo tocan las cuerdas (el violín I); el resto del tema lo **canta el coro de fondo** (el soprano, sinte `coro`), envuelto en reverb
+  const tema = (from: number, strength?: number): LabLayer => ({ key: 'tema', label: 'tema', mel: [{ notes: bar(from, from === HOOK ? LAC.vln1 : LAC.soprano), synth: from === HOOK ? 'cuerdas' : 'coro', ...(strength !== undefined ? { strength } : {}) }] })
   const acordes = (from: number, strength?: number): LabLayer => ({
     key: 'acordes',
     label: 'acordes',
-    mel: [{ notes: [...bar(from, LAC.vln2), ...bar(from, LAC.viola), ...(from > HOOK ? bar(from, LAC.vln1) : [])], synth: 'keys', ...(strength !== undefined ? { strength } : {}) }],
+    mel: [{ notes: [...bar(from, LAC.vln2), ...bar(from, LAC.viola), ...(from > HOOK ? bar(from, LAC.vln1) : [])], synth: 'cuerdas', ...(strength !== undefined ? { strength } : {}) }],
   })
   const bajo = (from: number): LabLayer => ({ key: 'bajo', label: 'bajo', mel: [{ notes: bar(from, LAC.bajo), synth: 'sub' }] })
-  const ritmo: LabLayer = { key: 'ritmo', label: 'ritmo', drums: { bd: DRILL.bd, sd: DRILL.sd, hh: DRILL.hh }, mel: [{ notes: DRILL.rolls, synth: 'hat' }] }
-  const caja: LabLayer = { key: 'caja', label: 'caja', drums: { sd: P.sdRoll, hh: DRILL.hh } }
-  const hat: LabLayer = { key: 'hat', label: 'platillo', drums: { hh: DRILL.hh } }
+  const charles = { notes: DRILL.hat.notes, strengths: DRILL.hat.strengths, synth: 'hat' as const }
+  const ritmo: LabLayer = { key: 'ritmo', label: 'ritmo', drums: { bd: DRILL.bd, sd: DRILL.sd }, mel: [charles] }
+  const caja: LabLayer = { key: 'caja', label: 'caja', drums: { sd: P.sdRoll }, mel: [charles] }
+  const hat: LabLayer = { key: 'hat', label: 'platillo', mel: [charles] }
   const parts: { name: string; bars: Turns; layers: LabLayer[] }[] = [
     { name: 'Intro', bars: 8, layers: [acordes(HOOK, SOFT), tema(HOOK, SOFT)] },
     { name: 'Estrofa', bars: 8, layers: [hat, bajo(TUNE), acordes(TUNE), tema(TUNE)] },
@@ -327,7 +335,7 @@ export function partLoops(part: LabPart, on: ReadonlySet<string>, firstId: numbe
       const tokens = pattern.split(' ')
       add({ instrument: inst, bars: tokens.length === 64 ? 4 : 1, hits: tokens.flatMap((t, step) => (t === '~' ? [] : [{ pos: step, strength: 0.8 }])) })
     }
-    for (const m of l.mel ?? []) add({ instrument: 'mel', bars: 4, hits: m.notes.map(([pos, dur, midi]) => ({ pos, dur, midi, strength: m.strength ?? 0.8 })), ...(m.synth ? { synth: m.synth } : {}) })
+    for (const m of l.mel ?? []) add({ instrument: 'mel', bars: 4, hits: m.notes.map(([pos, dur, midi], i) => ({ pos, dur, midi, strength: m.strengths?.[i] ?? m.strength ?? 0.8 })), ...(m.synth ? { synth: m.synth } : {}) })
   }
   return { loops, ids, nextId: id }
 }

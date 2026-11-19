@@ -18,7 +18,7 @@ export interface LabLayer {
   key: string
   label: string
   drums?: Partial<Record<Instrument, string>>
-  mel?: { notes: readonly Note[]; synth?: MelodySynth; /** fuerza de todas las notas (0..1; 0,8 si no se dice): para las partes suaves */ strength?: number }[]
+  mel?: { notes: readonly Note[]; synth?: MelodySynth; /** fuerza de todas las notas (0..1; 0,8 si no se dice): para las partes suaves */ strength?: number; /** la fuerza de cada nota (0..1), una por nota y en su orden: para una parte con velocidad variable, como el charles del drill */ strengths?: readonly number[] }[]
   bass?: boolean
   chords?: boolean
 }
@@ -47,9 +47,15 @@ export function patternOf(l: FreeLoop): string {
   return t.join(' ')
 }
 /** La fuerza de un loop de melodía si todas sus notas la comparten y no es la de siempre (0,8): así una parte suave se conserva al pasar de canción a capas. */
-const strengthOf = (l: FreeLoop): { strength?: number } => {
-  const s = l.hits[0]?.strength
-  return typeof s === 'number' && Math.abs(s - 0.8) > 1e-9 && l.hits.every((h) => h.strength === s) ? { strength: s } : {}
+const strengthOf = (l: FreeLoop): { strength?: number; strengths?: number[] } => {
+  const hs = l.hits.filter((h) => typeof h.midi === 'number')
+  const s = hs[0]?.strength
+  if (typeof s !== 'number') return {}
+  if (hs.every((h) => h.strength === s)) return Math.abs(s - 0.8) > 1e-9 ? { strength: s } : {}
+  // velocidad variable: una por nota, en el orden de `notesOf` (que repite el loop si es más corto que 4 compases)
+  const total = l.bars * 16
+  if (total <= 0 || 64 % total !== 0) return {}
+  return { strengths: Array.from({ length: 64 / total }, () => hs.map((h) => h.strength)).flat() }
 }
 /** Las notas de un loop de melodía como un loop de 4 compases (si es más corto se repite). */
 export function notesOf(l: FreeLoop): Note[] {
@@ -67,6 +73,8 @@ const median = (xs: number[]): number => {
 const midiOf = (l: FreeLoop): number[] => l.hits.flatMap((h) => (typeof h.midi === 'number' ? [h.midi] : []))
 /** un bajo hecho de notas: una melodía grave (mediana ≤ MIDI 45); unos acordes hechos de notas: un pad de notas largas (media ≥ 8 pasos) */
 const isLowMel = (l: FreeLoop): boolean => median(midiOf(l)) <= 45
+/** unas cuerdas con varias notas a la vez (el colchón de violines y viola del Lacrimosa en drill, spec 048): son los acordes, no el tema */
+const isChordStrings = (l: FreeLoop): boolean => l.synth === 'cuerdas' && l.hits.some((h, i) => l.hits.some((g, j) => j > i && Math.abs(g.pos - h.pos) < 1e-6))
 const isChordPad = (l: FreeLoop): boolean => l.synth === 'pad' && l.hits.length > 0 && l.hits.reduce((n, h) => n + (h.dur ?? 0), 0) / l.hits.length >= 8
 
 /** Las capas de una célula (solo lo que suena). `groupTheme`: la melodía del grupo en paralelo que suena con ella, si ella no lleva ninguna. */
@@ -83,20 +91,23 @@ export function layersOfCell(cell: Cell, groupTheme: FreeLoop | null = null): La
   const percs = mels.filter((l) => isPercSynth(l.synth))
   const notes = mels.filter((l) => !isFx(l) && !isPercSynth(l.synth))
   const bassMel = cell.parts.bass ? undefined : (notes.find((l) => l.synth === 'bass' || l.synth === 'sub') ?? notes.find(isLowMel))
-  const chordMel = cell.parts.chords ? undefined : notes.find((l) => l !== bassMel && (l.synth === 'keys' || isChordPad(l)))
+  const chordMel = cell.parts.chords ? undefined : notes.find((l) => l !== bassMel && (l.synth === 'keys' || isChordPad(l) || isChordStrings(l)))
   const theme = notes.find((l) => l !== bassMel && l !== chordMel) ?? groupTheme ?? undefined
   const rising = fx.some((l) => l.synth === 'riser')
   const riseFx = fx.filter((l) => l.synth === 'riser' || (rising && l.synth === 'pad'))
   const dropFx = [...fx.filter((l) => !riseFx.includes(l)), ...percs]
+  // el charles `hat` del drill (spec 048) va con la capa de platillo o de caja si no hay ritmo entero, no con la subida
+  const hatMel = percs.filter((l) => l.synth === 'hat')
   const m = (ls: FreeLoop[]) => ls.map((l) => ({ notes: notesOf(l), synth: l.synth, ...strengthOf(l) }))
   const out: LabLayer[] = []
   if (bd && sd) out.push({ key: 'ritmo', label: 'ritmo', drums: { bd: patternOf(bd), sd: patternOf(sd), ...(hh ? { hh: patternOf(hh) } : {}) }, ...(dropFx.length ? { mel: m(dropFx) } : {}) })
   else {
     if (bd) out.push({ key: 'bombo', label: 'bombo', drums: { bd: patternOf(bd) } })
-    if (sd) out.push({ key: 'caja', label: 'caja', drums: { sd: patternOf(sd), ...(hh ? { hh: patternOf(hh) } : {}) } })
-    else if (hh) out.push({ key: 'hat', label: 'platillo', drums: { hh: patternOf(hh) } })
+    if (sd) out.push({ key: 'caja', label: 'caja', drums: { sd: patternOf(sd), ...(hh ? { hh: patternOf(hh) } : {}) }, ...(hatMel.length ? { mel: m(hatMel) } : {}) })
+    else if (hh) out.push({ key: 'hat', label: 'platillo', drums: { hh: patternOf(hh) }, ...(hatMel.length ? { mel: m(hatMel) } : {}) })
+    else if (hatMel.length) out.push({ key: 'hat', label: 'platillo', mel: m(hatMel) })
   }
-  const leftover = out.some((l) => l.key === 'ritmo') ? riseFx : [...riseFx, ...dropFx]
+  const leftover = out.some((l) => l.key === 'ritmo') ? riseFx : [...riseFx, ...dropFx.filter((l) => !hatMel.includes(l))]
   if (leftover.length) out.push({ key: 'subida', label: 'subida', mel: m(leftover) })
   if (cell.parts.bass) out.push({ key: 'bajo', label: 'bajo', bass: true })
   else if (bassMel) out.push({ key: 'bajo', label: 'bajo', mel: m([bassMel]) })
