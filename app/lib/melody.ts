@@ -100,8 +100,8 @@ export const SYNTH_SOUND: Record<MelodySynth, string> = {
   cuerdas: '.s("supersaw").unison(3).detune(0.3).spread(0.6).attack(0.01).decay(0.3).sustain(0.55).release(0.4).hpf(200).lpf(3600).vib(5).vibmod(0.12).noise(0.12).room(0.8).roomsize(6).gain(0.5)',
   // el canto de fondo del Lacrimosa en drill (spec 048): un coro lúgubre, no angelical: sierras con un filtro de vocal «a» (formantes, `vowel`), ataque suave, nota larga que se difumina en una reverb muy amplia y volumen bajo, en segundo plano. Sin oír.
   coro: '.s("supersaw").unison(2).detune(0.1).vowel("a").attack(0.04).decay(0.4).sustain(0.7).release(0.8).lpf(2800).room(0.55).roomsize(6).gain(0.8)',
-  // el 808 del drill (spec 048): seno grave y largo, como el del fondo del estilo; las notas pegadas **se deslizan** de una a otra (`SUB_SLIDE_SECONDS`, en `song.ts`). Sin oír.
-  sub: '.s("sine").lpf(400).decay(0.9).sustain(0.5).gain(1.7)',
+  // el 808 del drill (spec 048): seno grave y largo con una saturación suave (`shape`: los armónicos que hacen que se note en un altavoz pequeño; un seno puro no se oye en un móvil), como el del fondo del estilo; las notas pegadas **se deslizan** de una a otra (`SUB_SLIDE_SECONDS`, en `song.ts`). Sin oír.
+  sub: '.s("sine").lpf(400).decay(0.9).sustain(0.5).shape(0.3).gain(1.7)',
   // el charles cerrado del kit 808 (CC0, ya registrado con el kit) para los redobles de tresillos del drill (spec 048); como los de la batería: `.bank("RolandTR808").n(0)`, y **fino, seco y cortado al instante** (`hpf` 6500, caída de 35 ms, sin cola): «ts» agudo que rasga sin tapar los graves. Sin oír.
   hat: '.s("hh").bank("RolandTR808").n(0).hpf(6500).decay(0.035).sustain(0).gain(0.9)',
   // el stab del dub techno (spec 046): dos sierras desafinadas (`supersaw` con `unison(2)`) por un filtro resonante de envolvente rápida y sustain 0, un poco de saturación y reverb larga (`room`, `roomsize`),

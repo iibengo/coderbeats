@@ -165,3 +165,12 @@ describe('la batería drill de los vídeos (spec 048)', () => {
     expect(Math.max(...gains) / Math.min(...gains)).toBeGreaterThan(1.4) // la fuerza se nota (el rango medido es más amplio; el suelo es 0,35)
   })
 })
+
+describe('el 808 lleva saturación suave para oírse en un altavoz pequeño (spec 048)', () => {
+  it('el del fondo del estilo y el sinte `sub` llevan `shape`; el resto de estilos, sin cambios', () => {
+    expect(STYLE_MUSIC.drill.background.bass.sound).toContain('.shape(0.3)')
+    expect(SYNTH_SOUND.sub).toContain('.shape(0.3)')
+    expect(STYLE_MUSIC.reggaeton.background.bass.sound).not.toContain('shape(')
+    expect(STYLE_MUSIC.dembow.background.bass.sound).not.toContain('shape(')
+  })
+})

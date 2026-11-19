@@ -245,7 +245,7 @@ export const STYLE_MUSIC: Record<StyleId, StyleMusic> = {
           { pos: 32, dur: 7, note: 'g1', slide: 3 }, { pos: 42, dur: 6, note: 'g1' },
           { pos: 48, dur: 7, note: 'a1', slide: -2 }, { pos: 58, dur: 6, note: 'a1' },
         ],
-        sound: '.s("sine").lpf(300).decay(0.9).sustain(0.5).gain(0.9)',
+        sound: '.s("sine").lpf(300).decay(0.9).sustain(0.5).shape(0.3).gain(0.9)',
       },
       chords: ['note("<[d3,f3,a3] [bb2,d3,f3] [g2,bb2,d3] [a2,c3,e3]>").struct("x ~ ~ ~ ~ ~ x ~").s("triangle").decay(0.3).sustain(0).lpf(1800).room(0.4).gain(0.26)'],
     },
