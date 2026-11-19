@@ -122,20 +122,22 @@ describe('la batería drill de los vídeos (spec 048)', () => {
       expect(best, `compás ${b + 1}`).toBeLessThanOrEqual(2)
     }
   })
-  it('la fuerza varía mucho (de 0,4 a 1) y el tono sube en las ráfagas', () => {
+  it('la fuerza varía mucho (de 0,4 a 1) y el tono sube en el redoble', () => {
     const st = DRILL.hat.strengths
     expect(st).toHaveLength(DRILL.hat.notes.length)
     expect(Math.min(...st)).toBeLessThanOrEqual(0.45)
     expect(Math.max(...st)).toBe(1)
     expect(new Set(st).size).toBeGreaterThanOrEqual(7)
-    // el redoble del compás 4: seis golpes a 2/3 de paso, cada vez más fuertes y más agudos
-    const roll = DRILL.hat.notes.map((n, i) => ({ n, s: st[i]! })).filter((x) => x.n[0] >= 48 + 12)
-    expect(roll).toHaveLength(6)
+    // el redoble del compás 4: tres golpes a 2/3 de paso, cada vez más fuertes y más agudos (y solo ese: el original casi no tiene golpes pegados)
+    const roll = DRILL.hat.notes.map((n, i) => ({ n, s: st[i]! })).filter((x) => x.n[0] >= 48 + 14)
+    expect(roll).toHaveLength(3)
     for (let i = 1; i < roll.length; i++) {
       expect(roll[i]!.n[2]).toBeGreaterThan(roll[i - 1]!.n[2])
       expect(roll[i]!.s).toBeGreaterThan(roll[i - 1]!.s)
     }
-    expect(roll[0]!.n[2]).toBe(PERC_MIDI)
+    expect(roll[0]!.n[2]).toBeGreaterThan(PERC_MIDI)
+    const adjacent = DRILL.hat.notes.filter((n, i, a) => i > 0 && n[0] - a[i - 1]![0] < 1 - 1e-9).length
+    expect(adjacent).toBeLessThanOrEqual(2) // como mucho dos golpes pegados en los 4 compases
   })
   it('todo cae en la rejilla de semicorcheas o de tresillos de semicorchea (doceavos de paso) y cabe en 4 compases', () => {
     for (const [p, d] of DRILL.hat.notes) {
@@ -160,6 +162,6 @@ describe('la batería drill de los vídeos (spec 048)', () => {
     expect(got).toEqual(DRILL.hat.notes.map(([p]) => Math.round(p * 12) / 12).sort((a, b) => a - b))
     const gains = ev.map((e) => Number(e.value.gain)).filter((g) => Number.isFinite(g))
     expect(gains.length).toBe(ev.length)
-    expect(Math.max(...gains) / Math.min(...gains)).toBeGreaterThan(1.8) // la fuerza se nota (el rango medido es más amplio)
+    expect(Math.max(...gains) / Math.min(...gains)).toBeGreaterThan(1.4) // la fuerza se nota (el rango medido es más amplio; el suelo es 0,35)
   })
 })

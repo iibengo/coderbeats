@@ -142,14 +142,13 @@ const drums4 = (name: 'bd' | 'sd', bars: readonly (readonly number[])[]): string
 type HatHit = readonly [step: number, strength: number, pitch?: number]
 /**
  * El charles del drill como en el tema de referencia (medido sobre su audio, dos drops de 12 s): **~6 golpes por compás**, en la rejilla de semicorcheas, con **grupos 3-2-3** (intervalos de 3 y 2 semicorcheas, algún par pegado)
- * y huecos largos, y una **fuerza muy variable** (de 0,2 a 1). Aquí, 4 compases: el mismo esqueleto (2 5 7 · 10 13 15) con un golpe de más que cambia cada compás, una ráfaga de tresillos con el tono subiendo al final del 2
- * y un redoble de 6 al final del 4 que crece. Es el sinte `hat` (el charles del 808, fino y cortado al instante).
+ * y huecos largos, y una **fuerza muy variable** (de 0,2 a 1). Aquí, 4 compases: el mismo esqueleto (2 5 7 · 10 13 15) con un golpe de más que cambia cada compás, un redoble corto de tres golpes de tresillo al final del 4, que crece y sube de tono (el original casi no tiene golpes pegados: antes había más y sonaba atropellado). Es el sinte `hat` (el charles del 808, fino y cortado al instante).
  */
 const HAT_BARS: readonly (readonly HatHit[])[] = [
   [[2, 0.8], [3, 0.55], [5, 0.85], [7, 0.45], [10, 0.8], [13, 0.7], [15, 0.5]],
-  [[0, 0.6], [2, 0.75], [5, 0.8], [7, 0.4], [10, 0.85], [13, 0.7], [14, 0.5], [14 + 2 / 3, 0.6, 1], [15 + 1 / 3, 0.8, 2]],
+  [[0, 0.6], [2, 0.75], [5, 0.8], [7, 0.4], [10, 0.85], [13, 0.7], [15, 0.5]],
   [[0, 0.5], [2, 0.85], [3, 0.5], [5, 0.8], [7, 0.5], [10, 0.75], [13, 0.7], [15, 0.45]],
-  [[2, 0.8], [5, 0.85], [7, 0.5], [10, 0.8], [12, 0.4], [12 + 2 / 3, 0.5, 1], [13 + 1 / 3, 0.6, 2], [14, 0.7, 3], [14 + 2 / 3, 0.85, 4], [15 + 1 / 3, 1, 5]],
+  [[2, 0.8], [5, 0.85], [7, 0.5], [10, 0.8], [12, 0.5], [14, 0.7, 1], [14 + 2 / 3, 0.85, 3], [15 + 1 / 3, 1, 5]],
 ]
 const hatHits = HAT_BARS.flatMap((bar, b) => bar.map(([step, strength, pitch]) => ({ note: [b * 16 + step, Number.isInteger(step) ? 1 : 2 / 3, PERC_MIDI + (pitch ?? 0)] as const, strength })))
 

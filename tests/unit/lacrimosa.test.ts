@@ -100,10 +100,11 @@ describe('Lacrimosa en drill: el remix (spec 048)', () => {
   })
   it('el coro canta el soprano de fondo: la vocal «a» y mucha reverb; las cuerdas llevan el colchón (violines y viola)', () => {
     expect(SYNTH_SOUND.coro).toContain('.vowel("a")')
-    expect(SYNTH_SOUND.coro).toContain('.room(0.9)')
-    expect(SYNTH_SOUND.coro).toContain('.gain(0.3)') // segundo plano
+    expect(SYNTH_SOUND.coro).toContain('.room(0.7)')
+    expect(SYNTH_SOUND.coro).toContain('.gain(0.5)') // presente pero por debajo de las cuerdas y el 808
     expect(SYNTH_SOUND.cuerdas).toContain('.hpf(200)') // sin graves: dejan sitio al 808
     expect(SYNTH_SOUND.cuerdas).toContain('.attack(0.01)') // ataque firme
+    expect(SYNTH_SOUND.cuerdas).toContain('.noise(0.12)') // el roce del arco: una sierra limpia suena a sinte
     const drop = r.parts.find((p) => p.name === 'Drop')!
     expect(drop.layers.find((l) => l.key === 'tema')!.mel![0]!.synth).toBe('coro')
     expect(drop.layers.find((l) => l.key === 'acordes')!.mel![0]!.synth).toBe('cuerdas')
