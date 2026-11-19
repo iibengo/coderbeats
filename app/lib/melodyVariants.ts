@@ -90,8 +90,9 @@ export function glideOffsets(hits: readonly MelodyHit[], maxGap = 0.01): number[
 
 /** lo que tarda el 808 (`sub`) en llegar a su nota al deslizarse (s) */
 export const SUB_SLIDE_SECONDS = 0.15
-/** las notas del 808 que se deslizan: pegadas en el mismo compás con un hueco de a lo sumo 3 pasos */
+/** las notas del 808 que se deslizan: pegadas en el mismo compás con un hueco de a lo sumo 3 pasos, y solo los saltos **cortos** (hasta `SUB_SLIDE_MAX` semitonos): los deslizamientos del drill son sutiles; un salto grande suena a «bloop» */
 const SUB_SLIDE_GAP = 3
+export const SUB_SLIDE_MAX = 5
 
 /**
  * El deslizamiento del 808 del drill (spec 048): a cada nota **pegada a la anterior** se le pone un `penv` que parte de la altura de la anterior y cae a la suya (portamento).
@@ -99,7 +100,7 @@ const SUB_SLIDE_GAP = 3
  */
 export function subSlide(hits: readonly MelodyHit[], bars: number, phaseBar: number): string {
   const ok = [...hits].filter((h) => isMidi(h.midi) && Number.isFinite(h.pos) && Number.isFinite(h.dur) && h.dur > 0).sort((a, b) => a.pos - b.pos)
-  const g = glideOffsets(ok, SUB_SLIDE_GAP)
+  const g = glideOffsets(ok, SUB_SLIDE_GAP).map((x) => (Math.abs(x) <= SUB_SLIDE_MAX ? x : 0))
   if (!g.some((x) => x !== 0)) return ''
   return `.penv("${variantMini(ok, bars, phaseBar, (_h, k) => String(Math.round(g[k] ?? 0)))}").pattack(0.001).pdecay(${SUB_SLIDE_SECONDS}).psustain(0)`
 }

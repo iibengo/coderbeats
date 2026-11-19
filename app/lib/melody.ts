@@ -6,8 +6,8 @@
  */
 /** `drone`: un sine con mucha reverb, para fondos (la demo del dembow); no es de los que se eligen para cantar */
 /** `bass` y `keys` (spec 028 §5): el bajo y los acordes **propios de la canción**, hechos de notas (en `keys`, varias a la vez), en vez del fondo del estilo */
-export type MelodySynth = 'lead' | 'piano' | 'pad' | 'drone' | 'riser' | 'crash' | 'boom' | 'impacto' | 'downlifter' | 'bass' | 'keys' | 'guitar' | 'guitarDirty' | 'guitarSample' | 'acid' | 'rim' | 'click' | 'cowbell' | 'tom' | 'shaker' | 'hat' | 'sub' | 'dub'
-export const MELODY_SYNTHS: readonly MelodySynth[] = ['lead', 'piano', 'pad', 'drone', 'riser', 'crash', 'boom', 'impacto', 'downlifter', 'bass', 'keys', 'guitar', 'guitarDirty', 'guitarSample', 'acid', 'rim', 'click', 'cowbell', 'tom', 'shaker', 'hat', 'sub', 'dub']
+export type MelodySynth = 'lead' | 'piano' | 'pad' | 'drone' | 'riser' | 'crash' | 'boom' | 'impacto' | 'downlifter' | 'bass' | 'keys' | 'guitar' | 'guitarDirty' | 'guitarSample' | 'acid' | 'rim' | 'click' | 'cowbell' | 'tom' | 'shaker' | 'hat' | 'sub' | 'cuerdas' | 'dub'
+export const MELODY_SYNTHS: readonly MelodySynth[] = ['lead', 'piano', 'pad', 'drone', 'riser', 'crash', 'boom', 'impacto', 'downlifter', 'bass', 'keys', 'guitar', 'guitarDirty', 'guitarSample', 'acid', 'rim', 'click', 'cowbell', 'tom', 'shaker', 'hat', 'sub', 'cuerdas', 'dub']
 
 /** Rango MIDI que se admite en un loop de melodía o bajo (C1–C7). */
 export const MIDI_MIN = 24
@@ -42,6 +42,7 @@ export const REGISTER: Record<MelodySynth | 'bass', readonly [number, number]> =
   cowbell: [24, 60],
   tom: [24, 60],
   shaker: [24, 60],
+  cuerdas: [52, 90], // cuerdas orquestales (spec 048): E3–F#6
   sub: [28, 52], // el 808 del drill (spec 048): E1–E3
   hat: [24, 60], // el charles del 808 para los redobles (spec 048): la altura no cuenta
   dub: [36, 79], // acordes de dub techno: C2–G5
@@ -89,6 +90,8 @@ export const SYNTH_SOUND: Record<MelodySynth, string> = {
   cowbell: '.s("cb").gain(0.7)',
   tom: '.s("mt").gain(0.8)',
   shaker: '.s("sh").gain(0.7)',
+  // cuerdas orquestales del drill (spec 048): sierra con **ataque firme** (10 ms, no una nota infinita y suave), filtro que quita lo áspero, algo de vibrato y una cola de reverb larga, como las de los vídeos. Sin oír.
+  cuerdas: '.s("sawtooth").attack(0.01).decay(0.3).sustain(0.55).release(0.4).lpf(3200).vib(5).vibmod(0.12).room(0.7).roomsize(5).gain(0.4)',
   // el 808 del drill (spec 048): seno grave y largo, como el del fondo del estilo; las notas pegadas **se deslizan** de una a otra (`SUB_SLIDE_SECONDS`, en `song.ts`). Sin oír.
   sub: '.s("sine").lpf(300).decay(0.9).sustain(0.5).gain(0.9)',
   // el charles cerrado del kit 808 (CC0, ya registrado con el kit) para los redobles de tresillos del drill (spec 048); como los de la batería: `.bank("RolandTR808").n(0)`. Sin oír.

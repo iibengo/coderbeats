@@ -18,7 +18,7 @@ export interface LabLayer {
   key: string
   label: string
   drums?: Partial<Record<Instrument, string>>
-  mel?: { notes: readonly Note[]; synth?: MelodySynth }[]
+  mel?: { notes: readonly Note[]; synth?: MelodySynth; /** fuerza de todas las notas (0..1; 0,8 si no se dice): para las partes suaves */ strength?: number }[]
   bass?: boolean
   chords?: boolean
 }
@@ -45,6 +45,11 @@ export function patternOf(l: FreeLoop): string {
     for (let at = p; at < n; at += total) t[at] = 'x'
   }
   return t.join(' ')
+}
+/** La fuerza de un loop de melodía si todas sus notas la comparten y no es la de siempre (0,8): así una parte suave se conserva al pasar de canción a capas. */
+const strengthOf = (l: FreeLoop): { strength?: number } => {
+  const s = l.hits[0]?.strength
+  return typeof s === 'number' && Math.abs(s - 0.8) > 1e-9 && l.hits.every((h) => h.strength === s) ? { strength: s } : {}
 }
 /** Las notas de un loop de melodía como un loop de 4 compases (si es más corto se repite). */
 export function notesOf(l: FreeLoop): Note[] {
@@ -83,7 +88,7 @@ export function layersOfCell(cell: Cell, groupTheme: FreeLoop | null = null): La
   const rising = fx.some((l) => l.synth === 'riser')
   const riseFx = fx.filter((l) => l.synth === 'riser' || (rising && l.synth === 'pad'))
   const dropFx = [...fx.filter((l) => !riseFx.includes(l)), ...percs]
-  const m = (ls: FreeLoop[]) => ls.map((l) => ({ notes: notesOf(l), synth: l.synth }))
+  const m = (ls: FreeLoop[]) => ls.map((l) => ({ notes: notesOf(l), synth: l.synth, ...strengthOf(l) }))
   const out: LabLayer[] = []
   if (bd && sd) out.push({ key: 'ritmo', label: 'ritmo', drums: { bd: patternOf(bd), sd: patternOf(sd), ...(hh ? { hh: patternOf(hh) } : {}) }, ...(dropFx.length ? { mel: m(dropFx) } : {}) })
   else {
@@ -97,7 +102,7 @@ export function layersOfCell(cell: Cell, groupTheme: FreeLoop | null = null): La
   else if (bassMel) out.push({ key: 'bajo', label: 'bajo', mel: m([bassMel]) })
   if (cell.parts.chords) out.push({ key: 'acordes', label: 'acordes', chords: true })
   else if (chordMel) out.push({ key: 'acordes', label: 'acordes', mel: m([chordMel]) })
-  if (theme) out.push({ key: 'tema', label: 'tema', mel: [{ notes: notesOf(theme), synth: theme.synth }] })
+  if (theme) out.push({ key: 'tema', label: 'tema', mel: [{ notes: notesOf(theme), synth: theme.synth, ...strengthOf(theme) }] })
   return capLayers(out)
 }
 

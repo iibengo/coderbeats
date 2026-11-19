@@ -48,9 +48,9 @@ describe('remixes del Laboratorio: reglas', () => {
           expect(Math.max(...notes.map((x) => x[0]))).toBeLessThan(64)
         }
       })
-      it('el remix entero dura entre 45 y 90 s y es una sola canción', () => {
+      it('el remix entero dura entre 45 y 120 s (el objetivo de 1 a 2 minutos de CLAUDE.md) y es una sola canción', () => {
         expect(remixSeconds(r)).toBeGreaterThanOrEqual(45)
-        expect(remixSeconds(r)).toBeLessThanOrEqual(90)
+        expect(remixSeconds(r)).toBeLessThanOrEqual(120)
         expect(songBars(r.song)).toBe(remixBars(r))
         expect(r.song.cells.length).toBe(r.parts.length)
       })

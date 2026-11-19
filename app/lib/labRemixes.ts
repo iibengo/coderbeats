@@ -158,39 +158,49 @@ export const DRILL = {
 } as const
 
 /**
- * El Lacrimosa en drill, **armado como un tema de techno minimal** (spec 048): no se toca la melodía entera de seguido, sino que se juega con cuatro trozos de la obra (cada uno, 2 compases de 12/8 = 4 de 4/4
- * a medio tiempo, un loop de 4 compases), cada uno **con su bajo y sus acordes** (así la armonía siempre es la de Mozart):
- * - el **gancho** (compases 1–2): el «suspiro» de los violines, que abre y cierra;
- * - **el tema** (3–4): «La-cry-mo-sa di-es il-la», el que se reconoce: vuelve en cada drop, **dos vueltas seguidas** (8 compases);
+ * El Lacrimosa en drill, **armado como un tema de techno minimal** (spec 048) y medido sobre un tema de referencia de YouTube (2:26, ~145 bpm, **si menor**, cuerdas muy bajitas al principio,
+ * drops largos y un respiro de silencio antes del último): no se toca la melodía entera de seguido, sino que se juega con cuatro trozos de la obra (cada uno, 2 compases de 12/8 = 4 de 4/4 a medio tiempo,
+ * un loop de 4 compases que **se repite** dentro de cada parte), cada uno **con su bajo y sus acordes** (la armonía siempre es la de Mozart):
+ * - el **gancho** (compases 1–2): el «suspiro» de los violines, que abre y cierra, **suave**;
+ * - **el tema** (3–4): «La-cry-mo-sa di-es il-la», el que se reconoce: vuelve en cada drop (16 compases cada uno);
  * - **la escalera** (5–6): el soprano sube re–mi–fa–sol–la–si–do–re: el respiro del break;
- * - **la subida** (7–8): el soprano sube cromático hasta la5: la melodía **cambia antes del drop** (dos veces).
- * La batería drill entra por capas (charles, caja que se acelera, y luego todo) y se va en el break. Fondo del estilo apagado. Sin oír.
+ * - **la subida** (7–8): el soprano sube cromático hasta la5: la melodía **cambia antes del drop**.
+ * Todo **tres semitonos más grave que Mozart** (re menor → si menor) y a **145 bpm**. La batería drill entra por capas (charles, caja que se acelera, y luego todo) y se va en el break y en el puente (solo el gancho,
+ * suave: el silencio de antes del último drop). Cuerdas con ataque firme (`cuerdas`), acordes `keys`, bajo `sub` (808 que se desliza en saltos cortos). Fondo del estilo apagado. 72 compases ≈ 2 min. Sin oír.
  */
 function lacrimosaDrill(): LabRemix {
   const HOOK = 0
   const TUNE = 2
   const STAIRS = 4
   const CLIMB = 6
-  const bar = (from: number, notes: readonly Note[]): Note[] => lacSlice(notes, from, from + 2)
-  const tema = (from: number): LabLayer => ({ key: 'tema', label: 'tema', mel: [{ notes: bar(from, from === HOOK ? LAC.vln1 : LAC.soprano), synth: 'lead' }] })
-  const acordes = (from: number): LabLayer => ({ key: 'acordes', label: 'acordes', mel: [{ notes: [...bar(from, LAC.vln2), ...bar(from, LAC.viola), ...(from > HOOK ? bar(from, LAC.vln1) : [])], synth: 'keys' }] })
+  const SOFT = 0 // la fuerza más baja (el 0,55 del volumen): las cuerdas de la intro, el puente y el final
+  const bar = (from: number, notes: readonly Note[]): Note[] => lacSlice(shift(notes, LAC_SHIFT), from, from + 2)
+  const tema = (from: number, strength?: number): LabLayer => ({ key: 'tema', label: 'tema', mel: [{ notes: bar(from, from === HOOK ? LAC.vln1 : LAC.soprano), synth: 'cuerdas', ...(strength !== undefined ? { strength } : {}) }] })
+  const acordes = (from: number, strength?: number): LabLayer => ({
+    key: 'acordes',
+    label: 'acordes',
+    mel: [{ notes: [...bar(from, LAC.vln2), ...bar(from, LAC.viola), ...(from > HOOK ? bar(from, LAC.vln1) : [])], synth: 'keys', ...(strength !== undefined ? { strength } : {}) }],
+  })
   const bajo = (from: number): LabLayer => ({ key: 'bajo', label: 'bajo', mel: [{ notes: bar(from, LAC.bajo), synth: 'sub' }] })
   const ritmo: LabLayer = { key: 'ritmo', label: 'ritmo', drums: { bd: DRILL.bd, sd: DRILL.sd, hh: DRILL.hh }, mel: [{ notes: DRILL.rolls, synth: 'hat' }] }
   const caja: LabLayer = { key: 'caja', label: 'caja', drums: { sd: P.sdRoll, hh: DRILL.hh } }
   const hat: LabLayer = { key: 'hat', label: 'platillo', drums: { hh: DRILL.hh } }
   const parts: { name: string; bars: Turns; layers: LabLayer[] }[] = [
-    { name: 'Intro', bars: 4, layers: [acordes(HOOK), tema(HOOK)] },
-    { name: 'Estrofa', bars: 4, layers: [hat, bajo(TUNE), acordes(TUNE), tema(TUNE)] },
+    { name: 'Intro', bars: 8, layers: [acordes(HOOK, SOFT), tema(HOOK, SOFT)] },
+    { name: 'Estrofa', bars: 8, layers: [hat, bajo(TUNE), acordes(TUNE), tema(TUNE)] },
     { name: 'Subida', bars: 4, layers: [caja, bajo(CLIMB), acordes(CLIMB), tema(CLIMB)] },
-    { name: 'Drop', bars: 8, layers: [ritmo, bajo(TUNE), acordes(TUNE), tema(TUNE)] },
-    { name: 'Break', bars: 4, layers: [acordes(STAIRS), tema(STAIRS)] },
-    { name: 'Puente', bars: 4, layers: [caja, bajo(CLIMB), acordes(CLIMB), tema(CLIMB)] },
-    { name: 'Drop 2', bars: 8, layers: [ritmo, bajo(TUNE), acordes(TUNE), tema(TUNE)] },
-    { name: 'Final', bars: 4, layers: [acordes(HOOK), tema(HOOK)] },
+    { name: 'Drop', bars: 16, layers: [ritmo, bajo(TUNE), acordes(TUNE), tema(TUNE)] },
+    { name: 'Break', bars: 8, layers: [acordes(STAIRS), tema(STAIRS)] },
+    { name: 'Puente', bars: 4, layers: [tema(HOOK, SOFT)] },
+    { name: 'Drop 2', bars: 16, layers: [ritmo, bajo(TUNE), acordes(TUNE), tema(TUNE)] },
+    { name: 'Final', bars: 8, layers: [acordes(HOOK, SOFT), tema(HOOK, SOFT)] },
   ]
-  const song = songFromParts(parts)
-  return { id: 'lacrimosa-drill', title: 'Lacrimosa (Requiem)', composer: 'Mozart', style: 'drill', kit: '808', key: 'Re menor', song, parts: partsFromSong(song) }
+  const song = { ...songFromParts(parts), bpm: LAC_BPM }
+  return { id: 'lacrimosa-drill', title: 'Lacrimosa (Requiem)', composer: 'Mozart', style: 'drill', kit: '808', key: 'Si menor', song, parts: partsFromSong(song) }
 }
+/** el Lacrimosa del remix, tres semitonos más grave que el original (re menor → si menor) y el tempo del tema de referencia */
+const LAC_SHIFT = -3
+const LAC_BPM = 145
 
 export const LAB_REMIXES: readonly LabRemix[] = [
   recipe({
@@ -275,7 +285,7 @@ export const labRemixById = (id: string): LabRemix | undefined => LAB_REMIXES.fi
 export const remixBpm = (r: Pick<LabRemix, 'style' | 'song'>): number => r.song.bpm ?? STYLES[r.style].bpm
 /** Lo que dura un compás (s): con `bpm` el de la canción; sin él, el del estilo. */
 export const barSeconds = (style: StyleId, bpm?: number | null): number => (60 / (bpm ?? STYLES[style].bpm)) * 4
-/** Lo que dura el remix principal: la suma de sus partes (≈ 1 min 10 s con las 7 de las recetas; entre 45 y 90 s). */
+/** Lo que dura el remix principal: la suma de sus partes (≈ 1 min 10 s con las 7 de las recetas; entre 45 y 120 s). */
 export const remixBars = (r: LabRemix): number => r.parts.reduce((n, p) => n + p.bars, 0)
 export const remixSeconds = (r: LabRemix): number => remixBars(r) * barSeconds(r.style, r.song.bpm)
 
@@ -317,7 +327,7 @@ export function partLoops(part: LabPart, on: ReadonlySet<string>, firstId: numbe
       const tokens = pattern.split(' ')
       add({ instrument: inst, bars: tokens.length === 64 ? 4 : 1, hits: tokens.flatMap((t, step) => (t === '~' ? [] : [{ pos: step, strength: 0.8 }])) })
     }
-    for (const m of l.mel ?? []) add({ instrument: 'mel', bars: 4, hits: m.notes.map(([pos, dur, midi]) => ({ pos, dur, midi, strength: 0.8 })), ...(m.synth ? { synth: m.synth } : {}) })
+    for (const m of l.mel ?? []) add({ instrument: 'mel', bars: 4, hits: m.notes.map(([pos, dur, midi]) => ({ pos, dur, midi, strength: m.strength ?? 0.8 })), ...(m.synth ? { synth: m.synth } : {}) })
   }
   return { loops, ids, nextId: id }
 }
