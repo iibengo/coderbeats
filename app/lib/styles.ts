@@ -220,6 +220,44 @@ export const STYLE_MUSIC: Record<StyleId, StyleMusic> = {
     ],
     synth: 'lead',
   },
+  // drill (2026-11-19, spec 048): UK drill, 140 bpm, re menor, kit 808. Medio tiempo: caja solo en el tiempo 3, bombo escaso, platillo roto
+  // y un 808 largo y grave (re – si♭ – sol – la) con stabs oscuros de acordes (Dm B♭ Gm Am). Sin tresillos ni deslizamiento (spec 048, «Sin hacer»). Sin probar de oído.
+  drill: {
+    key: 're menor',
+    priors: {
+      bd: prior(0.03, { 0: 1, 6: 0.8, 11: 0.8 }),
+      sd: prior(0.02, { 8: 1 }),
+      hh: prior(0.3, { 0: 1, 2: 1, 3: 0.7, 5: 0.8, 7: 1, 8: 0.7, 10: 1, 12: 1, 13: 0.7, 15: 0.8 }),
+    },
+    templates: {
+      bd: 'bd ~ ~ ~ ~ ~ bd ~ ~ ~ ~ bd ~ ~ ~ ~',
+      sd: '~ ~ ~ ~ ~ ~ ~ ~ sd ~ ~ ~ ~ ~ ~ ~',
+      hh: 'hh ~ hh hh ~ hh ~ hh hh ~ hh ~ hh hh ~ hh',
+    },
+    background: {
+      // el 808: un golpe largo en el 1 y uno corto a contratiempo, cada compás una raíz (re, si♭, sol, la)
+      bass: {
+        bars: 4,
+        notes: [
+          { pos: 0, dur: 7, note: 'd1' }, { pos: 10, dur: 6, note: 'd1' },
+          { pos: 16, dur: 7, note: 'bb0' }, { pos: 26, dur: 6, note: 'bb0' },
+          { pos: 32, dur: 7, note: 'g1' }, { pos: 42, dur: 6, note: 'g1' },
+          { pos: 48, dur: 7, note: 'a0' }, { pos: 58, dur: 6, note: 'a0' },
+        ],
+        sound: '.s("sine").lpf(300).decay(0.9).sustain(0.5).gain(0.9)',
+      },
+      chords: ['note("<[d3,f3,a3] [bb2,d3,f3] [g2,bb2,d3] [a2,c3,e3]>").struct("x ~ ~ ~ ~ ~ x ~").s("triangle").decay(0.3).sustain(0).lpf(1800).room(0.4).gain(0.26)'],
+    },
+    // re menor: D E F G A B♭ C
+    scale: [2, 4, 5, 7, 9, 10, 0],
+    chordTones: [
+      [2, 5, 9],
+      [10, 2, 5],
+      [7, 10, 2],
+      [9, 0, 4],
+    ],
+    synth: 'lead',
+  },
   // techno (2026-11-14, spec 008 §9): 128 bpm, do menor, kit «Electrónico» (antes 909, spec 010). Bombo 4×4, caja (palmada) en 2 y 4, open hat a
   // contratiempo; el bajo, a corcheas, el pulso que no para. La melodía va a semicorcheas con las notas repetidas
   // apagadas (una nota = un golpe), para que el lead de una célula con wowo pase por el filtro golpe a golpe.

@@ -15,6 +15,7 @@ export const STYLES: Record<StyleId, Style> = {
   dnb: { id: 'dnb', label: 'Drum and bass', bpm: 174, quantizeEvery: 2 },
   dembow: { id: 'dembow', label: 'Dembow', bpm: 120, quantizeEvery: 1 },
   reggaeton: { id: 'reggaeton', label: 'Reggaetón', bpm: 95, quantizeEvery: 1 },
+  drill: { id: 'drill', label: 'Drill', bpm: 140, quantizeEvery: 1 },
   techno: { id: 'techno', label: 'Techno', bpm: 128, quantizeEvery: 1, legacy: true },
   techno2: { id: 'techno2', label: 'Techno', bpm: 132, quantizeEvery: 1 },
 }

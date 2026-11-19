@@ -24,6 +24,12 @@ export const DEMOS: Record<StyleId, Record<Instrument, string>> = {
     sd: '~ ~ ~ sd ~ ~ sd ~ ~ ~ ~ sd ~ ~ sd ~',
     hh: '~ ~ hh ~ ~ ~ hh ~ ~ ~ hh ~ ~ ~ hh ~',
   },
+  // drill (spec 048): medio tiempo a 140 bpm: bombo escaso (0, 6, 11), caja solo en el tiempo 3 (paso 8) y platillo roto, con huecos
+  drill: {
+    bd: 'bd ~ ~ ~ ~ ~ bd ~ ~ ~ ~ bd ~ ~ ~ ~',
+    sd: '~ ~ ~ ~ ~ ~ ~ ~ sd ~ ~ ~ ~ ~ ~ ~',
+    hh: 'hh ~ hh hh ~ hh ~ hh hh ~ hh ~ hh hh ~ hh',
+  },
   // dembow: bombo a negras, caja en 3 6 11 14, platillo en semicorcheas (el patrón de la demo, sin la intro)
   dembow: {
     bd: 'bd ~ ~ ~ bd ~ ~ ~ bd ~ ~ ~ bd ~ ~ ~',

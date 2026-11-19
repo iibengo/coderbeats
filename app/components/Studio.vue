@@ -59,7 +59,7 @@ const stage = ref<InstanceType<typeof VisualStage> | null>(null)
 const renderer = computed(() => stage.value?.rendererName ?? '')
 const layoutInfo = () => stage.value?.layoutInfo() ?? ''
 
-const STYLE_SHORT: Record<StyleId, string> = { hiphop90: 'hip hop', house: 'house (clásico)', dnb: 'dnb', dembow: 'dembow', reggaeton: 'reggaetón', techno: 'techno (clásico)', house2: 'house', techno2: 'techno' }
+const STYLE_SHORT: Record<StyleId, string> = { hiphop90: 'hip hop', house: 'house (clásico)', dnb: 'dnb', dembow: 'dembow', reggaeton: 'reggaetón', drill: 'drill', techno: 'techno (clásico)', house2: 'house', techno2: 'techno' }
 // la lista para elegir lleva los 5 estilos; un estilo clásico solo sale si es el de la canción que se tiene abierta
 const styleMenu = ref(false)
 /** cambiar de estilo con algo hecho cambia el bajo, los acordes y el tempo (el ritmo y la melodía se quedan): se avisa */

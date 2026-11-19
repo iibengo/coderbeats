@@ -32,9 +32,9 @@ export const TUNES: readonly Tune[] = [
   // de dominio público, escritas de memoria (revisar con la partitura): `publicTunes.ts`
   { id: 'korobeiniki', name: 'Korobeiniki', styles: ['techno', 'techno2', 'hiphop90'], tonic: 9, notes: KOROBEINIKI_A, unverified: true },
   { id: 'grieg', name: 'En la gruta del rey de la montaña', styles: ['dnb', 'techno', 'techno2'], tonic: 11, notes: GRIEG_A, unverified: true },
-  { id: 'habanera', name: 'Habanera (Carmen)', styles: ['dembow', 'reggaeton', 'hiphop90'], tonic: 2, notes: HABANERA_A, unverified: true },
-  { id: 'oda', name: 'Himno de la alegría', styles: ['dembow', 'reggaeton', 'house', 'house2', 'hiphop90'], tonic: 2, notes: ODE_A },
-  { id: 'mozart', name: 'Sinfonía n.º 40', styles: ['techno', 'techno2'], tonic: 7, notes: MOZART_G.a },
+  { id: 'habanera', name: 'Habanera (Carmen)', styles: ['dembow', 'reggaeton', 'hiphop90', 'drill'], tonic: 2, notes: HABANERA_A, unverified: true },
+  { id: 'oda', name: 'Himno de la alegría', styles: ['dembow', 'reggaeton', 'house', 'house2', 'hiphop90', 'drill'], tonic: 2, notes: ODE_A },
+  { id: 'mozart', name: 'Sinfonía n.º 40', styles: ['techno', 'techno2', 'drill'], tonic: 7, notes: MOZART_G.a },
   {
     id: 'jacques',
     name: 'Fray Santiago',

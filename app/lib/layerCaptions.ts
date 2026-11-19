@@ -51,6 +51,15 @@ export const STYLE_LAYERS: Record<StyleId, Record<LayerKind, LayerInfo>> = {
     mel: { name: 'Melodía', line: 'el estribillo que se pega' },
     ghost: GHOST,
   },
+  drill: {
+    bd: { name: 'Bombo', line: 'pocos golpes, desplazados' },
+    sd: { name: 'Caja', line: 'un solo golpe, en el tiempo tres' },
+    hh: { name: 'Platillo', line: 'golpes y huecos, nunca seguido' },
+    bass: { name: 'Bajo', line: 'el 808 largo que hace temblar' },
+    chords: { name: 'Acordes', line: 'stabs oscuros entre los golpes' },
+    mel: { name: 'Melodía', line: 'el tema que suena solemne' },
+    ghost: GHOST,
+  },
   dembow: {
     bd: { name: 'Bombo', line: 'el latido, cuatro seguidos' },
     sd: { name: 'Caja', line: 'el tresillo que define el dembow' },
