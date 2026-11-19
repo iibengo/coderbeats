@@ -100,8 +100,8 @@ describe('Lacrimosa en drill: el remix (spec 048)', () => {
   })
   it('el coro canta el soprano de fondo: la vocal «a» y mucha reverb; las cuerdas llevan el colchón (violines y viola)', () => {
     expect(SYNTH_SOUND.coro).toContain('.vowel("a")')
-    expect(SYNTH_SOUND.coro).toContain('.room(0.7)')
-    expect(SYNTH_SOUND.coro).toContain('.gain(0.5)') // presente pero por debajo de las cuerdas y el 808
+    expect(SYNTH_SOUND.coro).toContain('.room(0.55)')
+    expect(SYNTH_SOUND.coro).toContain('.gain(0.8)') // presente: se oía como un murmullo tapado
     expect(SYNTH_SOUND.cuerdas).toContain('.hpf(200)') // sin graves: dejan sitio al 808
     expect(SYNTH_SOUND.cuerdas).toContain('.attack(0.01)') // ataque firme
     expect(SYNTH_SOUND.cuerdas).toContain('.noise(0.12)') // el roce del arco: una sierra limpia suena a sinte
@@ -138,5 +138,31 @@ describe('el 808 `sub` se desliza entre notas pegadas (spec 048)', () => {
   })
   it('sin notas pegadas, nada (el código de siempre)', () => {
     expect(subSlide([H(0, 2, 38), H(8, 2, 41)], 1, 0)).toBe('')
+  })
+})
+
+import { everyBeat, labRemixById as byId } from '../../app/lib/labRemixes'
+import { melodyGains, STRINGS_GAIN_FLOOR } from '../../app/lib/melody'
+
+describe('el 808 a cada tiempo y las cuerdas suaves de verdad (spec 048)', () => {
+  it('cada golpe del bajo que empieza en un pulso se parte en dos: uno en el pulso y otro en el tiempo siguiente, a la misma altura', () => {
+    const out = everyBeat([[0, 5.333, 38], [8, 5.333, 41], [18, 5, 40]])
+    expect(out).toEqual([[0, 3.5, 38], [4, 3.5, 38], [8, 3.5, 41], [12, 3.5, 41], [18, 5, 40]]) // el de 18 no empieza en un pulso: se queda
+  })
+  it('en el drop, el 808 late cada tiempo (el doble de golpes que el contrabajo)', () => {
+    const r = byId('lacrimosa-drill')!
+    const drop = r.song.cells.find((c) => c.name === 'Drop')!
+    const bajo = drop.loops.find((l) => l.synth === 'sub')!
+    const orig = lacSlice(LAC.bajo, 2, 4).length
+    expect(bajo.hits.length).toBeGreaterThanOrEqual(orig * 1.6)
+    const starts = bajo.hits.map((h) => h.pos).sort((a, b) => a - b)
+    const gaps = starts.slice(1).map((p, i) => p - starts[i]!)
+    expect(gaps.filter((g) => Math.abs(g - 4) < 1e-6).length).toBeGreaterThan(gaps.length * 0.4) // muchos golpes a un tiempo (4 pasos) del anterior
+  })
+  it('las cuerdas suaves bajan hasta el suelo propio: la fuerza 0 sale a 0,33 (antes 0,55) y la de siempre (0,8) a ~0,87', () => {
+    const H = (strength: number) => ({ pos: 0, dur: 2, midi: 60, strength })
+    expect(melodyGains([H(0)], 1, 0, STRINGS_GAIN_FLOOR)).toBe('0.33@16'.replace('@16', '@2') + ' ~@14'.replace('@14', '@14'))
+    expect(melodyGains([H(0.8)], 1, 0, STRINGS_GAIN_FLOOR)).toContain('0.866')
+    expect(melodyGains([H(0)], 1, 0)).toContain('0.55') // los demás sintes, como siempre
   })
 })

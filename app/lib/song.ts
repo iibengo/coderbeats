@@ -11,7 +11,7 @@ import type { KitId, StyleId } from './types'
 import { anyPart, type BackgroundMode, type Parts } from './background'
 import { bassCode } from './bass'
 import { subSlide } from './melodyVariants'
-import { HAT_GAIN_FLOOR, melodyClip, melodyGains, melodyMini, SYNTH_ECHO, SYNTH_SOUND, SYNTH_SOUND_DISPLAY, type MelodyHit, type MelodySynth } from './melody'
+import { HAT_GAIN_FLOOR, STRINGS_GAIN_FLOOR, melodyClip, melodyGains, melodyMini, SYNTH_ECHO, SYNTH_SOUND, SYNTH_SOUND_DISPLAY, type MelodyHit, type MelodySynth } from './melody'
 import { SUGGEST_GAIN } from './suggestMelody'
 import type { Cell, Segment } from './cells'
 import { wowCode, wowControls } from './wow'
@@ -178,7 +178,7 @@ function loopLine(
     if (synth === 'sub') line += subSlide(hits, safeNum(src.bars), safeNum(src.phaseBar))
     // dinámica por nota (spec 029 §2): solo si alguna nota lleva su fuerza; si no, el gain del loop de siempre.
     // Con dinámica, el volumen del loop se multiplica en cada nota.
-    const dyn = melodyGains(hits, safeNum(src.bars), safeNum(src.phaseBar), synth === 'hat' ? HAT_GAIN_FLOOR : undefined)
+    const dyn = melodyGains(hits, safeNum(src.bars), safeNum(src.phaseBar), synth === 'hat' ? HAT_GAIN_FLOOR : synth === 'cuerdas' ? STRINGS_GAIN_FLOOR : undefined)
     if (dyn) {
       // solo se multiplican las notas (los silencios `~@n` se quedan como están)
       const mult = (t: string) =>

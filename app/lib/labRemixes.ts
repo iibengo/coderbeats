@@ -145,10 +145,10 @@ type HatHit = readonly [step: number, strength: number, pitch?: number]
  * y huecos largos, y una **fuerza muy variable** (de 0,2 a 1). Aquí, 4 compases: el mismo esqueleto (2 5 7 · 10 13 15) con un golpe de más que cambia cada compás, un redoble corto de tres golpes de tresillo al final del 4, que crece y sube de tono (el original casi no tiene golpes pegados: antes había más y sonaba atropellado). Es el sinte `hat` (el charles del 808, fino y cortado al instante).
  */
 const HAT_BARS: readonly (readonly HatHit[])[] = [
-  [[2, 0.8], [3, 0.55], [5, 0.85], [7, 0.45], [10, 0.8], [13, 0.7], [15, 0.5]],
-  [[0, 0.6], [2, 0.75], [5, 0.8], [7, 0.4], [10, 0.85], [13, 0.7], [15, 0.5]],
-  [[0, 0.5], [2, 0.85], [3, 0.5], [5, 0.8], [7, 0.5], [10, 0.75], [13, 0.7], [15, 0.45]],
-  [[2, 0.8], [5, 0.85], [7, 0.5], [10, 0.8], [12, 0.5], [14, 0.7, 1], [14 + 2 / 3, 0.85, 3], [15 + 1 / 3, 1, 5]],
+  [[2, 0.95], [5, 1], [7, 0.55], [10, 0.95], [13, 0.85], [15, 0.6]],
+  [[0, 0.7], [2, 0.9], [5, 0.95], [7, 0.5], [10, 1], [13, 0.85], [15, 0.6]],
+  [[2, 1], [3, 0.6], [5, 0.95], [7, 0.6], [10, 0.9], [13, 0.85], [15, 0.55]],
+  [[2, 0.95], [5, 1], [7, 0.6], [10, 0.95], [12, 0.6], [14, 0.8, 1], [14 + 2 / 3, 0.9, 3], [15 + 1 / 3, 1, 5]],
 ]
 const hatHits = HAT_BARS.flatMap((bar, b) => bar.map(([step, strength, pitch]) => ({ note: [b * 16 + step, Number.isInteger(step) ? 1 : 2 / 3, PERC_MIDI + (pitch ?? 0)] as const, strength })))
 
@@ -161,6 +161,14 @@ export const DRILL = {
   /** el charles: las notas (en pasos del loop de 4 compases) y la fuerza de cada una */
   hat: { notes: hatHits.map((h) => h.note) as readonly Note[], strengths: hatHits.map((h) => h.strength) as readonly number[] },
 } as const
+
+/**
+ * El 808 **a cada tiempo** (spec 048): el contrabajo del Lacrimosa toca un golpe por pulso (cada 8 pasos = 2 tiempos); en el tema de referencia el grave late cada ~0,41 s (cada tiempo) y en la versión anterior cada ~0,74 s.
+ * Cada golpe que empieza en un pulso se parte en dos de 3,5 pasos: el segundo vuelve a pegar a la misma altura en el tiempo siguiente (sin deslizamiento: misma nota).
+ */
+export function everyBeat(notes: readonly Note[]): Note[] {
+  return notes.flatMap(([p, d, m]) => (Math.abs(p / 8 - Math.round(p / 8)) < 1e-6 && d > 4.5 ? [[p, 3.5, m] as const, [p + 4, 3.5, m] as const] : [[p, d, m] as const]))
+}
 
 /**
  * El Lacrimosa en drill, **armado como un tema de techno minimal** (spec 048) y medido sobre un tema de referencia de YouTube (2:26, ~145 bpm, **si menor**, cuerdas muy bajitas al principio,
@@ -187,7 +195,7 @@ function lacrimosaDrill(): LabRemix {
     label: 'acordes',
     mel: [{ notes: [...bar(from, LAC.vln2), ...bar(from, LAC.viola), ...(from > HOOK ? bar(from, LAC.vln1) : [])], synth: 'cuerdas', ...(strength !== undefined ? { strength } : {}) }],
   })
-  const bajo = (from: number): LabLayer => ({ key: 'bajo', label: 'bajo', mel: [{ notes: bar(from, LAC.bajo), synth: 'sub' }] })
+  const bajo = (from: number): LabLayer => ({ key: 'bajo', label: 'bajo', mel: [{ notes: everyBeat(bar(from, LAC.bajo)), synth: 'sub' }] })
   const charles = { notes: DRILL.hat.notes, strengths: DRILL.hat.strengths, synth: 'hat' as const }
   const ritmo: LabLayer = { key: 'ritmo', label: 'ritmo', drums: { bd: DRILL.bd, sd: DRILL.sd }, mel: [charles] }
   const caja: LabLayer = { key: 'caja', label: 'caja', drums: { sd: P.sdRoll }, mel: [charles] }

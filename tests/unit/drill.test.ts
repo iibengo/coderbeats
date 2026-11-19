@@ -122,10 +122,10 @@ describe('la batería drill de los vídeos (spec 048)', () => {
       expect(best, `compás ${b + 1}`).toBeLessThanOrEqual(2)
     }
   })
-  it('la fuerza varía mucho (de 0,4 a 1) y el tono sube en el redoble', () => {
+  it('la fuerza varía mucho (de 0,5 a 1) y el tono sube en el redoble', () => {
     const st = DRILL.hat.strengths
     expect(st).toHaveLength(DRILL.hat.notes.length)
-    expect(Math.min(...st)).toBeLessThanOrEqual(0.45)
+    expect(Math.min(...st)).toBeLessThanOrEqual(0.55)
     expect(Math.max(...st)).toBe(1)
     expect(new Set(st).size).toBeGreaterThanOrEqual(7)
     // el redoble del compás 4: tres golpes a 2/3 de paso, cada vez más fuertes y más agudos (y solo ese: el original casi no tiene golpes pegados)
