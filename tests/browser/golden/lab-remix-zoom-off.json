@@ -2,7 +2,16 @@
   "canvasSha": "cdf3c451aee36b2d1dd0a45b1b5d9a4a55a97a2ac0ec458e863d6b37fbed4933",
   "buttons": [
     "volver al menú|← Menú",
-    "tocar|▶",
+    "más opciones|⋯",
+    "remix anterior|",
+    "tocar|",
+    "remix siguiente|",
+    "|● Grabar mi versión",
+    "|escuchar el remix original",
+    "|🔗 enlace",
+    "|Abrir en el Estudio",
+    "|otra canción",
+    "|cerrar",
     "|Intro",
     "|Estrofa",
     "|Subida",
@@ -11,12 +20,7 @@
     "|Drop 2",
     "|Final",
     "|platillo",
-    "|subida",
-    "|● Grabar mi versión",
-    "|escuchar el remix original",
-    "|🔗 enlace",
-    "|Abrir en el Estudio",
-    "|otra canción"
+    "|subida"
   ],
   "afterDrop": {
     "part": "Drop",

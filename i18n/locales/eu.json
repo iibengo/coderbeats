@@ -104,13 +104,19 @@
       "autoOn": "Automatikoa: bai",
       "autoOff": "Automatikoa: ez",
       "zoomAria": "zoom amaigabea zatien artean (prototipoa)",
-      "next": "hurrengoa: {name}",
+      "next": "hurrengo remixa",
       "unverified": "notak buruz: partiturarekin egiaztatu",
       "search": "Bilatu remixa…",
       "all": "guztiak",
       "noResults": "Ez dago bilaketarekin bat datorren remixik.",
       "library": "liburutegia",
-      "openPlayer": "Ireki erreproduzigailua"
+      "openPlayer": "Ireki erreproduzigailua",
+      "prev": "aurreko remixa",
+      "more": "aukera gehiago",
+      "sheetMine": "Nire bertsioa",
+      "sheetShare": "Entzun eta partekatu",
+      "sheetOptions": "Aukerak",
+      "close": "itxi"
     }
   },
   "start": {

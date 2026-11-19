@@ -104,13 +104,19 @@
       "autoOn": "Auto: on",
       "autoOff": "Auto: off",
       "zoomAria": "infinite zoom between parts (prototype)",
-      "next": "next: {name}",
+      "next": "next remix",
       "unverified": "notes from memory: check against the score",
       "search": "Search remixes…",
       "all": "all",
       "noResults": "No remix matches your search.",
       "library": "library",
-      "openPlayer": "Open player"
+      "openPlayer": "Open player",
+      "prev": "previous remix",
+      "more": "more options",
+      "sheetMine": "My version",
+      "sheetShare": "Listen and share",
+      "sheetOptions": "Options",
+      "close": "close"
     }
   },
   "start": {

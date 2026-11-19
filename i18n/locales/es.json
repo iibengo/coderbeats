@@ -104,13 +104,19 @@
       "autoOn": "Auto: sí",
       "autoOff": "Auto: no",
       "zoomAria": "zoom infinito entre partes (prototipo)",
-      "next": "siguiente: {name}",
+      "next": "remix siguiente",
       "unverified": "notas de memoria: revisar con partitura",
       "search": "Buscar remix…",
       "all": "todos",
       "noResults": "Ningún remix coincide con la búsqueda.",
       "library": "biblioteca",
-      "openPlayer": "Abrir el reproductor"
+      "openPlayer": "Abrir el reproductor",
+      "prev": "remix anterior",
+      "more": "más opciones",
+      "sheetMine": "Mi versión",
+      "sheetShare": "Escuchar y compartir",
+      "sheetOptions": "Opciones",
+      "close": "cerrar"
     }
   },
   "start": {

@@ -97,3 +97,33 @@ describe('la carátula y la duración (spec 051)', () => {
     expect(fmtDuration(remixSeconds(labRemixById('lacrimosa-drill')!))).toBe('1:59')
   })
 })
+
+import { neighborId } from '../../app/lib/remixLibrary'
+
+describe('anterior y siguiente (spec 052)', () => {
+  const list = [{ id: 'a' }, { id: 'b' }, { id: 'c' }]
+  it('el siguiente y el anterior de un remix, dando la vuelta por los extremos', () => {
+    expect(neighborId(list, 'a', 1)).toBe('b')
+    expect(neighborId(list, 'b', 1)).toBe('c')
+    expect(neighborId(list, 'c', 1)).toBe('a') // del último, al primero
+    expect(neighborId(list, 'a', -1)).toBe('c') // del primero, al último
+    expect(neighborId(list, 'c', -1)).toBe('b')
+  })
+  it('con uno o ningún remix no hay otro; si el actual no está, el siguiente es el primero y el anterior el último', () => {
+    expect(neighborId([{ id: 'a' }], 'a', 1)).toBeNull()
+    expect(neighborId([], 'a', -1)).toBeNull()
+    expect(neighborId(list, 'zz', 1)).toBe('a')
+    expect(neighborId(list, 'zz', -1)).toBe('c')
+    expect(neighborId(list, null, 1)).toBe('a')
+  })
+  it('con los remixes de verdad recorre los doce y vuelve al principio', () => {
+    const seen: string[] = []
+    let id: string | null = LAB_REMIXES[0]!.id
+    for (let i = 0; i < LAB_REMIXES.length; i++) {
+      seen.push(id!)
+      id = neighborId(LAB_REMIXES, id, 1)
+    }
+    expect(new Set(seen).size).toBe(LAB_REMIXES.length)
+    expect(id).toBe(LAB_REMIXES[0]!.id)
+  })
+})

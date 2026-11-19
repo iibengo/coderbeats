@@ -79,3 +79,14 @@ export function fmtDuration(seconds: number): string {
   const s = Number.isFinite(seconds) ? Math.max(0, Math.round(seconds)) : 0
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 }
+
+/**
+ * Anterior y siguiente (spec 052): el remix que viene `dir` pasos desde `currentId` en la lista, dando la vuelta por los extremos. Con un solo remix (o ninguno) no hay otro: `null`.
+ * Si el actual no está en la lista, el siguiente es el primero y el anterior, el último.
+ */
+export function neighborId(list: readonly { id: string }[], currentId: string | null, dir: 1 | -1): string | null {
+  if (list.length < 2) return null
+  const i = list.findIndex((r) => r.id === currentId)
+  if (i < 0) return (dir === 1 ? list[0] : list[list.length - 1])!.id
+  return list[(i + dir + list.length) % list.length]!.id
+}

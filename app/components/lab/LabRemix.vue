@@ -7,7 +7,7 @@ import { VOICE_HEX } from '~/lib/palette'
 import { liveLane, makePulso, makePulsoLive, pushLive, setLivePart, PULSO_COMPACT, type PulsoScene } from '~/lib/visuals/pulso'
 import { songTimeline } from '~/lib/timeline'
 import { borderAngle, partProgress } from '~/lib/partProgress'
-import { coverBars, filterRemixes, fmtDuration, styleChips, styleLabel } from '~/lib/remixLibrary'
+import { coverBars, filterRemixes, fmtDuration, neighborId, styleChips, styleLabel } from '~/lib/remixLibrary'
 import type { FreeLoop } from '~/lib/freeLoops'
 import { addSong, makeSaved } from '~/lib/library'
 import { autoNext, barSeconds, finalPartOf, remixSeconds, labRemixFromSaved, LAB_REMIXES, partLoops, partsOn, remixTake, songFromTake, takePlan, type LabLayer, type LabRemix, type TakeBar } from '~/lib/labRemixes'
@@ -29,8 +29,32 @@ const view = ref<'lista' | 'player'>('lista')
 const query = ref('')
 const styleFilter = ref<string>('todos') // 'todos' o la clave de un estilo (`styleKey`)
 function showLibrary() {
+  menuOpen.value = false
   view.value = 'lista'
 }
+// ── la pantalla «reproduciendo» (spec 052): el menú «⋯» (una hoja con los extras), anterior y siguiente remix ──
+const menuOpen = ref(false)
+const remixList = computed(() => [...LAB_REMIXES, ...mios.value])
+const remixSub = computed(() => (remix.value ? [remix.value.composer, remix.value.key, styleLabel(remix.value.style)].filter(Boolean).join(' · ') : ''))
+/** anterior y siguiente: si sonaba, el nuevo sigue sonando desde su primera parte (la persona ya había empezado); si estaba parado, queda parado */
+async function skip(dir: 1 | -1) {
+  const id = neighborId(remixList.value, remix.value?.id ?? null, dir)
+  const next = remixList.value.find((r) => r.id === id)
+  if (!next) return
+  const wasPlaying = engine.playing.value && mode.value === 'actuar'
+  await pick(next)
+  if (wasPlaying) await goPart(part.value)
+}
+/** una acción del menú «⋯»: cierra la hoja y la hace (las opciones no cierran) */
+function run(f: () => unknown) {
+  menuOpen.value = false
+  void f()
+}
+function onKey(e: KeyboardEvent) {
+  if (e.key === 'Escape' && menuOpen.value) menuOpen.value = false
+}
+onMounted(() => window.addEventListener('keydown', onKey))
+onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 function miniToggle() {
   if (engine.playing.value) lab.stopAll()
   else if (remix.value) void goPart(part.value)
@@ -96,6 +120,7 @@ const recBars = ref(0)
 const plan = computed(() => takePlan(remix.value?.style ?? 'techno', remix.value?.song.bpm))
 
 async function pick(r: LabRemix) {
+  menuOpen.value = false
   // otro remix: no se pueden mezclar dos; el que suena se para y el nuevo carga **sin empezar solo** (la persona decide cuándo)
   if (remix.value && remix.value.id !== r.id && engine.playing.value) lab.stopAll()
   await lab.begin()
@@ -123,7 +148,7 @@ async function enter(name: string) {
   const pl = partLoops(p, on.value, 1, true)
   ids = pl.ids
   loopInfo = new Map(pl.loops.map((l) => [l.id, l]))
-  liveScene.title = r.title
+  liveScene.title = [r.composer, styleLabel(r.style)].filter(Boolean).join(' · ') // el título va en la cabecera; el lienzo, compositor y estilo
   engine.setBackgroundMode('manual')
   engine.setBackgroundManual(partsOn(p, on.value))
   engine.editLoops({ loops: pl.loops, nextId: pl.nextId })
@@ -535,7 +560,10 @@ const phrase = computed(() => (remix.value && view.value === 'player' ? t(auto.v
 </script>
 
 <template>
-  <LabShell :title="t('lab.screens.remixes.title')" :phrase="phrase" hide-style :bare="view === 'lista'" @back="emit('back')" @style="() => {}" @play="remix ? goPart(part) : undefined" @stop="lab.stopAll()">
+  <LabShell :title="view === 'player' && remix ? remix.title : t('lab.screens.remixes.title')" :phrase="phrase" hide-style bare @back="emit('back')" @style="() => {}" @play="remix ? goPart(part) : undefined" @stop="lab.stopAll()">
+    <template #header>
+      <button v-if="remix && view === 'player'" class="grid h-11 w-11 place-items-center rounded-full border border-white/20 text-lg" :aria-label="t('lab.remix.more')" aria-haspopup="dialog" data-more @click="menuOpen = true">⋯</button>
+    </template>
     <!-- la biblioteca (spec 051): buscador, filtros por estilo y una fila por remix con su carátula -->
     <div v-if="view === 'lista'" class="pb-28" data-library>
       <input
@@ -566,9 +594,26 @@ const phrase = computed(() => (remix.value && view.value === 'player' ? t(auto.v
       <p v-if="!groups.length" class="mt-6 text-sm text-white/50" role="status" data-no-results>{{ t('lab.remix.noResults') }}</p>
     </div>
     <template v-else>
-      <button class="mb-2 grid h-11 w-11 place-items-center rounded-full border border-white/20 text-lg" :aria-label="t('lab.remix.library')" data-library-back @click="showLibrary">⌄</button>
-      <LabStage v-if="vista === 'circulos'" ref="stage" :draw="drawStage" @down="down" />
-      <LabPulso v-else ref="stage" :scene="pulsoScene" />
+      <!-- el reproductor (spec 052): «⌄» a la biblioteca (sin parar el sonido), compositor · tonalidad · estilo, el lienzo y el transporte -->
+      <div class="flex items-center gap-3">
+        <button class="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-white/20 text-lg" :aria-label="t('lab.remix.library')" data-library-back @click="showLibrary">⌄</button>
+        <p class="min-w-0 truncate text-sm text-white/60">{{ remixSub }}</p>
+      </div>
+      <div class="mt-2">
+        <LabStage v-if="vista === 'circulos'" ref="stage" :draw="drawStage" @down="down" />
+        <LabPulso v-else ref="stage" :scene="pulsoScene" />
+      </div>
+      <div class="mt-3 flex items-center justify-center gap-6" data-transport>
+        <button class="grid h-12 w-12 place-items-center rounded-full border border-white/20 text-white/80" :aria-label="t('lab.remix.prev')" data-prev @click="skip(-1)">
+          <svg viewBox="0 0 24 24" class="h-6 w-6" fill="currentColor" aria-hidden="true"><path d="M6 6h2v12H6zM20 6v12L9.5 12z" /></svg>
+        </button>
+        <button class="grid h-16 w-16 place-items-center rounded-full border-2 border-white text-white" :aria-label="engine.playing.value ? t('app.stopAll') : t('app.play')" data-play @click="miniToggle">
+          <svg viewBox="0 0 24 24" class="h-7 w-7" fill="currentColor" aria-hidden="true"><path v-if="engine.playing.value" d="M7 7h10v10H7z" /><path v-else d="M8 5v14l11-7z" /></svg>
+        </button>
+        <button class="grid h-12 w-12 place-items-center rounded-full border border-white/20 text-white/80" :aria-label="t('lab.remix.next')" data-next @click="skip(1)">
+          <svg viewBox="0 0 24 24" class="h-6 w-6" fill="currentColor" aria-hidden="true"><path d="M16 6h2v12h-2zM4 6l10.5 6L4 18z" /></svg>
+        </button>
+      </div>
     </template>
     <!-- el mini reproductor: con un remix cargado y en la biblioteca, una barra fija abajo; tocarla vuelve al reproductor; ▶/■ para o pone a sonar sin salir de la lista -->
     <div v-if="remix && view === 'lista'" class="fixed inset-x-0 bottom-0 z-10 mx-auto w-full max-w-[460px] border-t border-white/15 bg-black/95 px-3 pt-3 backdrop-blur" style="padding-bottom: max(0.75rem, env(safe-area-inset-bottom))" data-mini-player>
@@ -583,10 +628,51 @@ const phrase = computed(() => (remix.value && view.value === 'player' ? t(auto.v
         <button class="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-white/30 text-lg" :aria-label="engine.playing.value ? t('app.stopAll') : t('app.play')" data-mini-play @click="miniToggle">{{ engine.playing.value ? '■' : '▶' }}</button>
       </div>
     </div>
+    <!-- la hoja «⋯» (spec 052): los extras, fuera de la pantalla principal. Con la hoja cerrada los botones siguen en el DOM (`v-show`) -->
+    <div v-if="remix && view === 'player'" v-show="menuOpen" class="fixed inset-0 z-20" data-more-sheet>
+      <div class="absolute inset-0 bg-black/60" @click="menuOpen = false" />
+      <div class="absolute inset-x-0 bottom-0 mx-auto max-h-[85dvh] w-full max-w-[460px] overflow-y-auto rounded-t-3xl border-t border-white/15 bg-[#0f0f12] px-4 pt-3" style="padding-bottom: max(1rem, env(safe-area-inset-bottom))" role="dialog" aria-modal="true" :aria-label="t('lab.remix.more')">
+        <div class="mx-auto mb-3 h-1 w-10 rounded-full bg-white/20" aria-hidden="true" />
+        <h2 class="text-xs uppercase tracking-wide text-white/40">{{ t('lab.remix.sheetMine') }}</h2>
+        <div class="mt-2 grid gap-2">
+          <button v-if="!rec" class="flex min-h-12 w-full items-center rounded-2xl border border-white/15 bg-white/5 px-4 text-left text-base disabled:opacity-40" :disabled="mode !== 'actuar'" @click="run(startRec)">{{ t('lab.remix.rec') }}</button>
+          <button v-if="mine && !rec" class="flex min-h-12 w-full items-center rounded-2xl border border-white/15 bg-white/5 px-4 text-left text-base" @click="run(listenMine)">{{ t('lab.remix.mine', { time: fmt(mine.length * barSeconds(remix.style, remix.song.bpm)) }) }}</button>
+          <button v-if="mine && !rec" class="flex min-h-12 w-full items-center rounded-2xl border border-white/15 bg-white/5 px-4 text-left text-base disabled:opacity-40" :disabled="video.phase === 'recording' || video.phase === 'waiting'" @click="run(makeVideo)">{{ t('lab.remix.video') }}</button>
+        </div>
+        <h2 class="mt-5 text-xs uppercase tracking-wide text-white/40">{{ t('lab.remix.sheetShare') }}</h2>
+        <div class="mt-2 grid gap-2">
+          <button class="flex min-h-12 w-full items-center rounded-2xl border border-white/15 bg-white/5 px-4 text-left text-base" @click="run(listenOriginal)">{{ t('lab.remix.original') }}</button>
+          <button class="flex min-h-12 w-full items-center rounded-2xl border border-white/15 bg-white/5 px-4 text-left text-base" data-share-link @click="run(shareLink)">{{ t('lab.remix.link') }}</button>
+          <button class="flex min-h-12 w-full items-center rounded-2xl border border-white/15 bg-white/5 px-4 text-left text-base" data-open-studio @click="run(openInStudio)">{{ t('lab.remix.openStudio') }}</button>
+          <button class="flex min-h-12 w-full items-center rounded-2xl border border-white/15 bg-white/5 px-4 text-left text-base" data-remix-list @click="run(showLibrary)">{{ t('lab.remix.other') }}</button>
+        </div>
+        <h2 class="mt-5 text-xs uppercase tracking-wide text-white/40">{{ t('lab.remix.sheetOptions') }}</h2>
+        <div class="mt-2 flex flex-wrap gap-2" role="group" aria-label="opciones">
+          <button class="min-h-11 rounded-full border px-4 text-sm" :class="auto ? 'border-[#F496BC] text-white' : 'border-white/20 text-white/60'" data-auto-toggle :aria-pressed="auto" @click="toggleAuto">{{ auto ? t('lab.remix.autoOn') : t('lab.remix.autoOff') }}</button>
+          <button class="min-h-11 rounded-full border px-4 text-sm" :class="vista === 'pulso' ? 'border-[#F496BC] text-white' : 'border-white/20 text-white/60'" data-vista-toggle :aria-pressed="vista === 'pulso'" @click="toggleVista">{{ vista === 'pulso' ? t('lab.remix.vistaPulso') : t('lab.remix.vistaCirculos') }}</button>
+          <button class="min-h-11 rounded-full border px-4 text-sm" :class="zoomOn ? 'border-[#F496BC] text-white' : 'border-white/20 text-white/60'" :aria-label="t('lab.remix.zoomAria')" :aria-pressed="zoomOn" data-zoom-toggle @click="toggleZoom">{{ zoomOn ? t('lab.remix.zoomOn') : t('lab.remix.zoomOff') }}</button>
+        </div>
+        <button class="mt-5 min-h-12 w-full rounded-2xl border border-white/25 text-base text-white" data-sheet-close @click="menuOpen = false">{{ t('lab.remix.close') }}</button>
+      </div>
+    </div>
     <template #extra>
       <template v-if="remix && view === 'player'">
+        <!-- lo que está en marcha, a la vista con el menú cerrado: la grabación (con su Terminar) y los avisos del vídeo y del enlace -->
+        <div v-if="rec" class="mt-3 flex items-center justify-between gap-3 rounded-2xl border border-[#ff4d6d]/60 px-4 py-2" data-rec-status>
+          <span class="text-sm text-white/80"><span class="text-[#ff4d6d]">●</span> {{ recBars }}/{{ plan.maxBars }}<span v-if="rec.endBar !== null"> · final</span></span>
+          <button class="min-h-11 rounded-lg border border-[#ff4d6d] px-4 text-sm" :disabled="rec.endBar !== null" @click="endRec">{{ rec.endBar !== null ? t('lab.remix.finishing') : t('lab.remix.finish') }}</button>
+        </div>
+        <p v-if="openError" class="mt-2 text-sm text-red-300" role="alert">{{ openError }}</p>
+        <p v-if="linkNote" class="mt-2 text-sm text-white/70" role="status" data-link-note>{{ linkNote }}</p>
+        <p v-if="video.phase === 'waiting' || video.phase === 'recording'" class="mt-2 text-sm text-white/60" role="status">{{ t('lab.remix.videoRec', { a: video.elapsed.toFixed(0), b: video.total.toFixed(0) }) }} <button class="ml-2 underline" @click="exporter.stop()">{{ t('lab.remix.stop') }}</button></p>
+        <p v-else-if="video.phase === 'error'" class="mt-2 text-sm text-red-300" role="alert">{{ video.message }}</p>
+        <div v-else-if="video.phase === 'done'" class="mt-2 flex gap-2 text-sm">
+          <button class="min-h-11 rounded-lg border border-white/25 px-4" @click="exporter.save(true)">{{ t('lab.remix.share') }}</button>
+          <button class="min-h-11 rounded-lg border border-white/25 px-4" @click="exporter.save(false)">{{ t('lab.remix.save') }}</button>
+        </div>
+        <p class="mt-3 text-sm text-white/50">{{ phrase }}</p>
         <!-- las partes se eligen con `click` (no con `pointerdown`): si el dedo empieza a desplazar la pantalla sobre un botón, el navegador cancela el toque y no cambia de parte -->
-        <div class="mt-4 grid grid-cols-2 gap-2" aria-label="partes">
+        <div class="mt-3 grid grid-cols-2 gap-2" aria-label="partes">
           <!-- el borde es el fondo del botón (2 px de relleno alrededor de un centro negro): el de la parte que suena se ilumina con sus compases (`progressBg`); la que va a entrar parpadea; las demás, tenues -->
           <button
             v-for="pt in remix.parts"
@@ -601,36 +687,6 @@ const phrase = computed(() => (remix.value && view.value === 'player' ? t(auto.v
           </button>
         </div>
         <div class="mt-4"><LabDj @start="goPart(part)" /></div>
-        <div class="mt-4 flex flex-wrap items-center gap-2">
-          <button v-if="!rec" class="rounded-lg border border-white/25 px-4 py-2 text-sm" :disabled="mode !== 'actuar'" @click="startRec">{{ t('lab.remix.rec') }}</button>
-          <button v-else class="rounded-lg border border-[#ff4d6d] px-4 py-2 text-sm" :disabled="rec.endBar !== null" @click="endRec">{{ rec.endBar !== null ? t('lab.remix.finishing') : t('lab.remix.finish') }}</button>
-          <button v-if="mine && !rec" class="rounded-lg border border-white/25 px-4 py-2 text-sm" @click="listenMine">{{ t('lab.remix.mine', { time: fmt(mine.length * barSeconds(remix.style, remix.song.bpm)) }) }}</button>
-          <button v-if="mine && !rec" class="rounded-lg border border-white/25 px-4 py-2 text-sm" :disabled="video.phase === 'recording' || video.phase === 'waiting'" @click="makeVideo">{{ t('lab.remix.video') }}</button>
-        </div>
-        <p v-if="openError" class="mt-2 text-sm text-red-300" role="alert">{{ openError }}</p>
-        <p v-if="linkNote" class="mt-2 text-sm text-white/70" role="status" data-link-note>{{ linkNote }}</p>
-        <p v-if="video.phase === 'waiting' || video.phase === 'recording'" class="mt-2 text-sm text-white/60" role="status">{{ t('lab.remix.videoRec', { a: video.elapsed.toFixed(0), b: video.total.toFixed(0) }) }} <button class="ml-2 underline" @click="exporter.stop()">{{ t('lab.remix.stop') }}</button></p>
-        <p v-else-if="video.phase === 'error'" class="mt-2 text-sm text-red-300" role="alert">{{ video.message }}</p>
-        <div v-else-if="video.phase === 'done'" class="mt-2 flex gap-2 text-sm">
-          <button class="rounded-lg border border-white/25 px-4 py-2" @click="exporter.save(true)">{{ t('lab.remix.share') }}</button>
-          <button class="rounded-lg border border-white/25 px-4 py-2" @click="exporter.save(false)">{{ t('lab.remix.save') }}</button>
-        </div>
-        <!-- opciones: tres interruptores con su estado (el activo, con el acento) -->
-        <div class="mt-6 flex flex-wrap gap-2" role="group" aria-label="opciones">
-          <button class="min-h-11 rounded-full border px-4 text-sm" :class="auto ? 'border-[#F496BC] text-white' : 'border-white/20 text-white/60'" data-auto-toggle :aria-pressed="auto" @click="toggleAuto">{{ auto ? t('lab.remix.autoOn') : t('lab.remix.autoOff') }}</button>
-          <button class="min-h-11 rounded-full border px-4 text-sm" :class="vista === 'pulso' ? 'border-[#F496BC] text-white' : 'border-white/20 text-white/60'" data-vista-toggle :aria-pressed="vista === 'pulso'" @click="toggleVista">{{ vista === 'pulso' ? t('lab.remix.vistaPulso') : t('lab.remix.vistaCirculos') }}</button>
-          <button class="min-h-11 rounded-full border px-4 text-sm" :class="zoomOn ? 'border-[#F496BC] text-white' : 'border-white/20 text-white/60'" :aria-label="t('lab.remix.zoomAria')" :aria-pressed="zoomOn" data-zoom-toggle @click="toggleZoom">{{ zoomOn ? t('lab.remix.zoomOn') : t('lab.remix.zoomOff') }}</button>
-        </div>
-        <!-- escuchar y compartir -->
-        <div class="mt-3 flex flex-wrap gap-2">
-          <button class="min-h-11 rounded-full border border-white/20 px-4 text-sm text-white/70" @click="listenOriginal">{{ t('lab.remix.original') }}</button>
-          <button class="min-h-11 rounded-full border border-white/20 px-4 text-sm text-white/70" data-share-link @click="shareLink">{{ t('lab.remix.link') }}</button>
-        </div>
-        <!-- salir de aquí: volver a la lista de remixes o abrir este en el Estudio (dos botones claros, aparte del resto) -->
-        <div class="mt-8 grid grid-cols-2 gap-3 border-t border-white/10 pt-6">
-          <button class="order-2 min-h-12 rounded-2xl border border-white/25 px-3 text-sm text-white" data-open-studio @click="openInStudio">{{ t('lab.remix.openStudio') }}</button>
-          <button class="order-1 min-h-12 rounded-2xl border border-white/25 px-3 text-sm text-white" data-remix-list @click="showLibrary">{{ t('lab.remix.other') }}</button>
-        </div>
       </template>
     </template>
   </LabShell>
