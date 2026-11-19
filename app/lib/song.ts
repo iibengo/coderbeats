@@ -10,6 +10,7 @@ import type { FreeLoop } from './freeLoops'
 import type { KitId, StyleId } from './types'
 import { anyPart, type BackgroundMode, type Parts } from './background'
 import { bassCode } from './bass'
+import { subSlide } from './melodyVariants'
 import { melodyClip, melodyGains, melodyMini, SYNTH_ECHO, SYNTH_SOUND, SYNTH_SOUND_DISPLAY, type MelodyHit, type MelodySynth } from './melody'
 import { SUGGEST_GAIN } from './suggestMelody'
 import type { Cell, Segment } from './cells'
@@ -173,6 +174,8 @@ function loopLine(
     // las notas que cruzan la línea de compás (ligaduras) llevan un `.clip("…")`; sin ellas, el código es el de siempre
     const clip = melodyClip(hits, safeNum(src.bars), safeNum(src.phaseBar))
     line = `note("${melodyMini(hits, safeNum(src.bars), safeNum(src.phaseBar))}")${clip ? `.clip("${clip}")` : ''}${mode === 'display' && synth === 'guitarSample' ? SYNTH_SOUND_DISPLAY.guitarSample : (SYNTH_SOUND[synth] ?? SYNTH_SOUND.piano)}.orbit(${st.sidechain === 'si' && (synth === 'bass' || synth === 'keys') ? SIDECHAIN_ORBIT : MELODY_ORBIT})`
+    // el 808 del drill (spec 048): las notas pegadas se deslizan; el resto de sintes, sin tocar
+    if (synth === 'sub') line += subSlide(hits, safeNum(src.bars), safeNum(src.phaseBar))
     // dinámica por nota (spec 029 §2): solo si alguna nota lleva su fuerza; si no, el gain del loop de siempre.
     // Con dinámica, el volumen del loop se multiplica en cada nota.
     const dyn = melodyGains(hits, safeNum(src.bars), safeNum(src.phaseBar))

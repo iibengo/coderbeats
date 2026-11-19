@@ -88,6 +88,22 @@ export function glideOffsets(hits: readonly MelodyHit[], maxGap = 0.01): number[
   })
 }
 
+/** lo que tarda el 808 (`sub`) en llegar a su nota al deslizarse (s) */
+export const SUB_SLIDE_SECONDS = 0.15
+/** las notas del 808 que se deslizan: pegadas en el mismo compás con un hueco de a lo sumo 3 pasos */
+const SUB_SLIDE_GAP = 3
+
+/**
+ * El deslizamiento del 808 del drill (spec 048): a cada nota **pegada a la anterior** se le pone un `penv` que parte de la altura de la anterior y cae a la suya (portamento).
+ * Vacío si ninguna nota se desliza. El patrón tiene la misma estructura que el de `note()`.
+ */
+export function subSlide(hits: readonly MelodyHit[], bars: number, phaseBar: number): string {
+  const ok = [...hits].filter((h) => isMidi(h.midi) && Number.isFinite(h.pos) && Number.isFinite(h.dur) && h.dur > 0).sort((a, b) => a.pos - b.pos)
+  const g = glideOffsets(ok, SUB_SLIDE_GAP)
+  if (!g.some((x) => x !== 0)) return ''
+  return `.penv("${variantMini(ok, bars, phaseBar, (_h, k) => String(Math.round(g[k] ?? 0)))}").pattack(0.001).pdecay(${SUB_SLIDE_SECONDS}).psustain(0)`
+}
+
 /** Menor periodo (divisor del nº de compases) con el que se repiten los compases. */
 function period(bars: string[]): number {
   for (let p = 1; p < bars.length; p++) {

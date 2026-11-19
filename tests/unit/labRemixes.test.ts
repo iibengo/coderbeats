@@ -33,7 +33,8 @@ describe('remixes del Laboratorio: reglas', () => {
         const most = Math.max(...r.parts.map((p) => p.layers.length))
         for (const d of drops) {
           expect(hasDrum(d, 'bd') && hasDrum(d, 'sd') && hasDrum(d, 'hh')).toBe(true)
-          expect(d.layers.some((l) => l.bass) && d.layers.some((l) => l.chords) && d.layers.some((l) => l.key === 'tema')).toBe(true)
+          // el bajo y los acordes: los del fondo del estilo (`bass`, `chords`) o los propios de la canción (capas `bajo` y `acordes`, spec 028 §5)
+          expect(d.layers.some((l) => l.bass || l.key === 'bajo') && d.layers.some((l) => l.chords || l.key === 'acordes') && d.layers.some((l) => l.key === 'tema')).toBe(true)
           expect(d.layers.length).toBe(most)
         }
         // los vecinos no son iguales (contraste claro entre partes)

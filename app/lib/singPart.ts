@@ -30,7 +30,7 @@ export interface SungOptions {
 }
 
 /** Cuántas melodías hay en la parte (sin contar efectos ni el bajo y los acordes propios de la canción). */
-export const melodyCount = (loops: readonly FreeLoop[]): number => loops.filter((l) => l.instrument === 'mel' && !isFxLoop(l) && l.synth !== 'bass' && l.synth !== 'keys' && !isPercSynth(l.synth)).length
+export const melodyCount = (loops: readonly FreeLoop[]): number => loops.filter((l) => l.instrument === 'mel' && !isFxLoop(l) && l.synth !== 'bass' && l.synth !== 'sub' && l.synth !== 'keys' && !isPercSynth(l.synth)).length
 
 /** ¿Se oyó algo? (una toma de silencio no crea nada) */
 export const hasSung = (samples: Float32Array): boolean => hasVoice(samples)

@@ -15,11 +15,13 @@ describe('drill (spec 048)', () => {
     expect(STYLE_MUSIC.drill.scale[0]).toBe(2)
     expect(demoSteps('sd')).toEqual([8])
   })
-  it('bombo escaso y platillo roto (con huecos, nunca todas las semicorcheas)', () => {
+  it('bombo escaso y platillo en chorro: seguido y con paradas (nunca las 16 semicorcheas)', () => {
     expect(demoSteps('bd')).toEqual([0, 6, 11])
     const hh = demoSteps('hh')
-    expect(hh.length).toBeGreaterThan(6)
-    expect(hh.length).toBeLessThan(12)
+    expect(hh.length).toBeGreaterThanOrEqual(10)
+    expect(hh.length).toBeLessThan(16)
+    expect(hh.slice(0, 7)).toEqual([0, 1, 2, 3, 4, 5, 6]) // el chorro
+    expect(hh).not.toContain(7) // y la parada
     expect(DEMOS.drill.hh.split(' ')).toHaveLength(16)
   })
   it('los tres patrones tienen 16 pasos y las plantillas coinciden con la demo', () => {
@@ -78,44 +80,57 @@ describe('el 808 del drill se desliza (spec 048)', () => {
   })
 })
 
-import { DRILL_ROLLS, labRemixById } from '../../app/lib/labRemixes'
+import { DRILL, labRemixById } from '../../app/lib/labRemixes'
 import { PERC_MIDI, isPercSynth } from '../../app/lib/percSamples'
 import { SYNTH_SOUND } from '../../app/lib/melody'
 import { isFreeLoop } from '../../app/lib/cells'
 import type { FreeLoop } from '../../app/lib/freeLoops'
 import { melodyCount } from '../../app/lib/singPart'
 
-describe('los redobles de tresillos del drill (spec 048)', () => {
-  const hatLoop = (): FreeLoop => ({
-    id: 1, instrument: 'mel', bars: 4, phaseBar: 0, muted: false, bornAt: 0, fromTemplate: false, synth: 'hat',
-    hits: DRILL_ROLLS.map(([pos, dur, midi]) => ({ pos, dur, midi, strength: 0.7 })) as never,
+const tokens = (p: string): string[] => p.split(' ')
+const stepsOf = (p: string, bar: number): number[] => tokens(p).slice(bar * 16, bar * 16 + 16).flatMap((t, i) => (t === '~' ? [] : [i]))
+
+describe('la batería drill de los vídeos (spec 048)', () => {
+  it('4 compases de 16 pasos: bombo desplazado, caja en el tiempo 3 con un redoble al final', () => {
+    for (const k of ['bd', 'sd', 'hh'] as const) expect(tokens(DRILL[k])).toHaveLength(64)
+    for (let b = 0; b < 4; b++) expect(stepsOf(DRILL.sd, b)).toContain(8) // la caja del tiempo 3, siempre
+    expect(stepsOf(DRILL.sd, 3)).toEqual([8, 12, 13, 14, 15]) // el redoble del compás 4
+    expect(stepsOf(DRILL.bd, 0)).toEqual([0, 10])
+    for (let b = 0; b < 4; b++) expect(stepsOf(DRILL.bd, b)).toContain(0)
   })
-  it('15 golpes en tres ráfagas (3, 3 y 9) a 2/3 de paso unos de otros, dentro de los 4 compases', () => {
-    expect(DRILL_ROLLS).toHaveLength(15)
-    expect(DRILL_ROLLS[0]).toEqual([30, 2 / 3, PERC_MIDI])
-    expect(DRILL_ROLLS[1]![0]).toBeCloseTo(30 + 2 / 3, 9)
-    expect(DRILL_ROLLS[3]![0]).toBe(38)
-    expect(DRILL_ROLLS[6]![0]).toBe(58)
-    for (const [p, d] of DRILL_ROLLS) expect(p + d).toBeLessThanOrEqual(64 + 1e-9)
+  it('el charles va en chorro: tramos seguidos de semicorcheas con paradas, y nunca los 16 pasos', () => {
+    for (let b = 0; b < 4; b++) {
+      const s = stepsOf(DRILL.hh, b)
+      expect(s.length).toBeGreaterThanOrEqual(10)
+      expect(s.length).toBeLessThan(16)
+      let run = 1
+      let best = 1
+      for (let i = 1; i < s.length; i++) best = Math.max(best, (run = s[i] === s[i - 1]! + 1 ? run + 1 : 1))
+      expect(best).toBeGreaterThanOrEqual(6) // un chorro de 6 o más seguidas
+    }
+  })
+  it('21 golpes de tresillo (3, 6, 3 y 9) a 2/3 de paso, justo donde el charles de la rejilla para', () => {
+    expect(DRILL.rolls).toHaveLength(21)
+    expect(DRILL.rolls[0]).toEqual([14, 2 / 3, PERC_MIDI])
+    for (const [p, d] of DRILL.rolls) {
+      expect(p + d).toBeLessThanOrEqual(64 + 1e-9)
+      const bar = Math.floor(p / 16)
+      const step = p - bar * 16
+      expect(stepsOf(DRILL.hh, bar).filter((x) => x >= step - 1e-9 && x < step + d - 1e-9), `${p}`).toEqual([]) // no se pisan con un golpe de la rejilla
+    }
   })
   it('`hat` es un sinte de muestra del 808: percusión (no melodía), válida al leer lo guardado', () => {
+    const loop: FreeLoop = { id: 1, instrument: 'mel', bars: 4, phaseBar: 0, muted: false, bornAt: 0, fromTemplate: false, synth: 'hat', hits: DRILL.rolls.map(([pos, dur, midi]) => ({ pos, dur, midi, strength: 0.7 })) as never }
     expect(isPercSynth('hat')).toBe(true)
     expect(SYNTH_SOUND.hat).toContain('.s("hh").bank("RolandTR808")')
-    expect(isFreeLoop(hatLoop())).toBe(true)
-    expect(melodyCount([hatLoop()])).toBe(0)
+    expect(isFreeLoop(loop)).toBe(true)
+    expect(melodyCount([loop])).toBe(0)
   })
-  it('Strudel los toca en tresillos: cada golpe cae en su sitio (en doceavos de paso)', async () => {
-    const st = { loops: [hatLoop()], style: 'drill', kit: '808', background: { mode: 'off', parts: { bass: false, chords: false } }, metronome: false, fx: { filter: 1, space: 0, warmth: 0 } } as unknown as Parameters<typeof songCode>[0]
+  it('Strudel toca los tresillos: cada golpe cae en su doceavo de paso', async () => {
+    const loop: FreeLoop = { id: 1, instrument: 'mel', bars: 4, phaseBar: 0, muted: false, bornAt: 0, fromTemplate: false, synth: 'hat', hits: DRILL.rolls.map(([pos, dur, midi]) => ({ pos, dur, midi, strength: 0.7 })) as never }
+    const st = { loops: [loop], style: 'drill', kit: '808', background: { mode: 'off', parts: { bass: false, chords: false } }, metronome: false, fx: { filter: 1, space: 0, warmth: 0 } } as unknown as Parameters<typeof songCode>[0]
     const ev = (await events(songCode(st, 'display'), 4)).filter((e) => e.value.s === 'hh')
     const got = ev.map((e) => Math.round(e.begin * 16 * 12) / 12).sort((a, b) => a - b)
-    expect(got).toEqual(DRILL_ROLLS.map(([p]) => Math.round(p * 12) / 12).sort((a, b) => a - b))
-  })
-  it('el remix Lacrimosa los lleva en los dos drops, en la capa de ritmo', () => {
-    const r = labRemixById('lacrimosa-drill')!
-    for (const name of ['Drop', 'Drop 2']) {
-      const ritmo = r.parts.find((p) => p.name === name)!.layers.find((l) => l.key === 'ritmo')!
-      expect(ritmo.mel!.some((m) => m.synth === 'hat')).toBe(true)
-    }
-    expect(r.parts.find((p) => p.name === 'Intro')!.layers.some((l) => l.mel?.some((m) => m.synth === 'hat'))).toBe(false)
+    expect(got).toEqual(DRILL.rolls.map(([p]) => Math.round(p * 12) / 12).sort((a, b) => a - b))
   })
 })

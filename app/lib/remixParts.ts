@@ -77,7 +77,7 @@ export function layersOfCell(cell: Cell, groupTheme: FreeLoop | null = null): La
   // la percusión del minimal (spec 045) no es melodía: va con el ritmo
   const percs = mels.filter((l) => isPercSynth(l.synth))
   const notes = mels.filter((l) => !isFx(l) && !isPercSynth(l.synth))
-  const bassMel = cell.parts.bass ? undefined : (notes.find((l) => l.synth === 'bass') ?? notes.find(isLowMel))
+  const bassMel = cell.parts.bass ? undefined : (notes.find((l) => l.synth === 'bass' || l.synth === 'sub') ?? notes.find(isLowMel))
   const chordMel = cell.parts.chords ? undefined : notes.find((l) => l !== bassMel && (l.synth === 'keys' || isChordPad(l)))
   const theme = notes.find((l) => l !== bassMel && l !== chordMel) ?? groupTheme ?? undefined
   const rising = fx.some((l) => l.synth === 'riser')
