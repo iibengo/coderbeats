@@ -1,6 +1,7 @@
 // Laboratorio · Remixes: elegir canción, tocar partes (entran en el siguiente compás y no avanzan solas), capas, grabar con «Terminar» (entra el final y acaba en un compás justo), escuchar y vídeo.
-import { labOpen, click, sleep } from './lab-lib.mjs'
+import { labOpen, labClassic, click, sleep } from './lab-lib.mjs'
 const { b, p, errs, O } = await labOpen()
+await labClassic(p)
 await click(p, 'Remixes'); await sleep(5000)
 await click(p, 'Mozart'); await sleep(2500)
 const st = () => p.evaluate(() => ({ part: window.__remix.part(), shown: window.__remix.shown(), on: window.__remix.on(), mode: window.__remix.mode(), rec: window.__remix.rec(), take: window.__remix.take() }))

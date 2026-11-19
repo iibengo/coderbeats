@@ -320,6 +320,18 @@ export const LAB_REMIXES: readonly LabRemix[] = [
   }),
   lacrimosaDrill(),
 ]
+/**
+ * Pasar solo a la siguiente parte (spec 050): ¿qué parte hay que pedir ahora? La parte `current` empezó a sonar en el compás `shownBar` y dura `bars` compases; la siguiente entra **en el compás siguiente**
+ * al que se pide, así que se pide en el último de la actual (`shownBar + bars − 1`). La última parte no tiene siguiente: sigue en bucle. `null` = todavía no, o no hay siguiente.
+ */
+export function autoNext(parts: readonly { name: string; bars: number }[], current: string, shownBar: number, bar: number): string | null {
+  const i = parts.findIndex((p) => p.name === current)
+  const cur = parts[i]
+  const next = parts[i + 1]
+  if (!cur || !next || !Number.isFinite(shownBar) || !Number.isFinite(bar)) return null
+  return bar >= shownBar + cur.bars - 1 ? next.name : null
+}
+
 export const labRemixById = (id: string): LabRemix | undefined => LAB_REMIXES.find((r) => r.id === id)
 
 // ── duraciones ─────────────────────────────────────────────────────────────────────────────────────

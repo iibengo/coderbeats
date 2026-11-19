@@ -231,3 +231,39 @@ describe('transiciones: el platillo estrena cada drop y el riser del puente se c
     expect(p.layers.length).toBeLessThanOrEqual(4)
   })
 })
+
+import { autoNext } from '../../app/lib/labRemixes'
+
+describe('pasar solo a la siguiente parte (spec 050)', () => {
+  const r = labRemixById('lacrimosa-drill')!
+  it('la parte siguiente se pide en el último compás de la actual (y entra justo en el siguiente)', () => {
+    // la Intro dura 8 compases: empezó en el compás 10 → se pide en el 17 (10 + 8 − 1)
+    expect(autoNext(r.parts, 'Intro', 10, 16)).toBeNull()
+    expect(autoNext(r.parts, 'Intro', 10, 17)).toBe('Estrofa')
+    expect(autoNext(r.parts, 'Intro', 10, 25)).toBe('Estrofa') // si se llega tarde, se pide igualmente
+    expect(autoNext(r.parts, 'Subida', 0, 3)).toBe('Drop') // la subida dura 4
+    expect(autoNext(r.parts, 'Drop', 0, 14)).toBeNull() // el drop dura 16
+    expect(autoNext(r.parts, 'Drop', 0, 15)).toBe('Break')
+  })
+  it('recorre el remix entero en orden, parte a parte, y la última sigue en bucle', () => {
+    let name = r.parts[0]!.name
+    let bar = 0
+    const seen = [name]
+    for (let i = 0; i < 50 && bar < 400; i++) {
+      const next = autoNext(r.parts, name, bar, bar + r.parts.find((p) => p.name === name)!.bars - 1)
+      if (!next) break
+      bar += r.parts.find((p) => p.name === name)!.bars
+      name = next
+      seen.push(name)
+    }
+    expect(seen).toEqual(r.parts.map((p) => p.name))
+    expect(bar).toBe(72 - 8) // los compases de todas las partes menos los de la última
+    expect(autoNext(r.parts, 'Final', 0, 9999)).toBeNull()
+  })
+  it('datos raros: una parte que no existe o un compás que no es un número no piden nada', () => {
+    expect(autoNext(r.parts, 'Nada', 0, 100)).toBeNull()
+    expect(autoNext(r.parts, 'Intro', Number.NaN, 100)).toBeNull()
+    expect(autoNext(r.parts, 'Intro', 0, Number.NaN)).toBeNull()
+    expect(autoNext([], 'Intro', 0, 100)).toBeNull()
+  })
+})

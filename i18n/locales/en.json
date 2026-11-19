@@ -66,6 +66,7 @@
     "remix": {
       "pick": "Pick a song.",
       "phrase": "Tap a part: it comes in on the next bar and stays until you pick another. Inside, switch layers on and off.",
+      "phraseAuto": "Tap a part: it comes in on the next bar. When it ends it moves on to the next by itself (turn «Auto» off to stay on one). Use the DJ inside.",
       "mineKind": "my song",
       "entering": "coming in…",
       "listening": "listening",
@@ -98,6 +99,10 @@
       "linkFail": "Couldn't share the link",
       "zoomOff": "Zoom: off",
       "zoomOn": "Zoom: on",
+      "vistaCirculos": "View: circles",
+      "vistaPulso": "View: pulse",
+      "autoOn": "Auto: on",
+      "autoOff": "Auto: off",
       "zoomAria": "infinite zoom between parts (prototype)",
       "next": "next: {name}",
       "unverified": "notes from memory: check against the score"

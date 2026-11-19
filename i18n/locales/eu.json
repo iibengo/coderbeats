@@ -66,6 +66,7 @@
     "remix": {
       "pick": "Aukeratu abesti bat.",
       "phrase": "Ukitu zati bat: hurrengo konpasean sartzen da eta beste bat aukeratu arte geratzen da. Barruan, piztu eta itzali geruzak.",
+      "phraseAuto": "Ukitu zati bat: hurrengo konpasean sartzen da. Amaitzean, bere kabuz hurrengora pasatzen da («Automatikoa» itzali batean gelditzeko). Barruan, erabili DJa.",
       "mineKind": "nire abestia",
       "entering": "sartzen…",
       "listening": "entzuten",
@@ -98,6 +99,10 @@
       "linkFail": "Ezin izan da esteka partekatu",
       "zoomOff": "Zoom: ez",
       "zoomOn": "Zoom: bai",
+      "vistaCirculos": "Ikuspegia: borobilak",
+      "vistaPulso": "Ikuspegia: pultsua",
+      "autoOn": "Automatikoa: bai",
+      "autoOff": "Automatikoa: ez",
       "zoomAria": "zoom amaigabea zatien artean (prototipoa)",
       "next": "hurrengoa: {name}",
       "unverified": "notak buruz: partiturarekin egiaztatu"

@@ -66,6 +66,7 @@
     "remix": {
       "pick": "Elige una canción.",
       "phrase": "Toca una parte: entra en el siguiente compás y se queda hasta que elijas otra. Dentro, enciende y apaga capas.",
+      "phraseAuto": "Toca una parte: entra en el siguiente compás. Al acabar, pasa sola a la siguiente (apaga «Auto» para quedarte en una). Dentro, usa el DJ.",
       "mineKind": "mi canción",
       "entering": "entra…",
       "listening": "escuchando",
@@ -98,6 +99,10 @@
       "linkFail": "No se pudo compartir el enlace",
       "zoomOff": "Zoom: no",
       "zoomOn": "Zoom: sí",
+      "vistaCirculos": "Vista: círculos",
+      "vistaPulso": "Vista: pulso",
+      "autoOn": "Auto: sí",
+      "autoOff": "Auto: no",
       "zoomAria": "zoom infinito entre partes (prototipo)",
       "next": "siguiente: {name}",
       "unverified": "notas de memoria: revisar con partitura"

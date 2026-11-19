@@ -4,8 +4,11 @@
 import { useLab } from '~/composables/useLab'
 import { fontPx, LAB_W } from '~/lib/lab'
 import { VOICE_HEX } from '~/lib/palette'
+import { liveLane, makePulso, makePulsoLive, pushLive, setLivePart, PULSO_COMPACT, type PulsoScene } from '~/lib/visuals/pulso'
+import { songTimeline } from '~/lib/timeline'
+import type { FreeLoop } from '~/lib/freeLoops'
 import { addSong, makeSaved } from '~/lib/library'
-import { barSeconds, finalPartOf, labRemixFromSaved, LAB_REMIXES, partLoops, partsOn, remixTake, songFromTake, takePlan, type LabLayer, type LabRemix, type TakeBar } from '~/lib/labRemixes'
+import { autoNext, barSeconds, finalPartOf, labRemixFromSaved, LAB_REMIXES, partLoops, partsOn, remixTake, songFromTake, takePlan, type LabLayer, type LabRemix, type TakeBar } from '~/lib/labRemixes'
 import { readJson, writeText } from '~/lib/storage'
 import { encodeShare, shareUrl } from '~/lib/shareLink'
 import { diveProgress, diveWindow, dives, hitsNext, levelsFor, NESTED_SCALE, reducedFade, stackAt, type Ring } from '~/lib/zoomStack'
@@ -83,6 +86,8 @@ async function enter(name: string) {
   on.value = new Set(p.start)
   const pl = partLoops(p, on.value, 1, true)
   ids = pl.ids
+  loopInfo = new Map(pl.loops.map((l) => [l.id, l]))
+  liveScene.title = r.title
   engine.setBackgroundMode('manual')
   engine.setBackgroundManual(partsOn(p, on.value))
   engine.editLoops({ loops: pl.loops, nextId: pl.nextId })
@@ -98,9 +103,52 @@ async function goPart(name: string) {
   startDive(name)
   part.value = name
   shownFrom = engine.playing.value ? nextBar() : 0
+  if (shown.value === name) shownBar = shownFrom // la misma parte: no hay cambio que lo anote, vuelve a empezar en ese compás
   await enter(name)
   note()
 }
+// ── vista «Pulso» (spec 050): el lienzo de círculos de siempre, o las cinco columnas del visual (sin capas tocables; se cambia de parte con el pad) ──
+const VISTA_KEY = 'coderbeats:lab:vista:v1'
+const vista = ref<'circulos' | 'pulso'>(readJson(VISTA_KEY, (x): x is { v: 'circulos' | 'pulso' } => !!x && typeof x === 'object' && ((x as { v?: unknown }).v === 'circulos' || (x as { v?: unknown }).v === 'pulso'))?.v ?? 'pulso')
+// ── pasar solo a la siguiente parte (spec 050): al acabar sus compases, la parte siguiente entra en el compás justo; la última sigue en bucle hasta que la persona haga algo. Apagado, nada avanza solo (como antes) ──
+const AUTO_KEY = 'coderbeats:lab:auto:v1'
+const auto = ref(readJson(AUTO_KEY, (x): x is { v: boolean } => !!x && typeof x === 'object' && typeof (x as { v?: unknown }).v === 'boolean')?.v ?? true)
+function toggleAuto() {
+  auto.value = !auto.value
+  writeText(AUTO_KEY, JSON.stringify({ v: auto.value }))
+}
+let shownBar = 0 // el compás en el que empezó a sonar la parte que se ve
+function toggleVista() {
+  vista.value = vista.value === 'pulso' ? 'circulos' : 'pulso'
+  writeText(VISTA_KEY, JSON.stringify({ v: vista.value }))
+}
+/** la escena en directo (actuando) y, escuchando, la de la línea de tiempo de esa canción */
+const liveScene = makePulsoLive('', PULSO_COMPACT)
+const listenScene = ref<PulsoScene | null>(null)
+const pulsoScene = computed<PulsoScene>(() => (mode.value === 'escuchar' && listenScene.value ? listenScene.value : liveScene))
+// qué carril es cada loop de la parte que suena (los golpes del motor traen el id del loop)
+let loopInfo = new Map<number, FreeLoop>()
+let offVisual: (() => void) | null = null
+/** ¿suena de verdad el bajo o los acordes del fondo del estilo en la parte de ahora? El motor sigue **emitiendo** sus golpes aunque esa capa esté apagada (se silencian en el audio, no en los eventos): como el Estudio con `bgParts`, solo cuentan si la capa está encendida */
+function bgSounds(kind: 'bass' | 'chords'): boolean {
+  const p = remix.value?.parts.find((x) => x.name === shown.value)
+  return !!p?.layers.some((l) => l[kind] && on.value.has(l.key))
+}
+function onHit(h: Parameters<Parameters<typeof engine.onVisual>[0]>[0]) {
+  if (h.kind !== 'hit' || mode.value !== 'actuar') return
+  if ((h.instrument === 'bass' || h.instrument === 'chords') && !bgSounds(h.instrument)) return
+  const r = liveLane(h.instrument, h.loopId !== null ? (loopInfo.get(h.loopId) ?? null) : null, h.strength)
+  if (r) pushLive(liveScene, r.lane, r.level, h.time)
+}
+onMounted(() => {
+  offVisual = engine.onVisual(onHit)
+})
+onBeforeUnmount(() => offVisual?.())
+// el nombre de la parte que suena y el flash al cambiar
+watch(() => shown.value, (n) => {
+  if (n) setLivePart(liveScene, n, engine.clockNow().time)
+})
+
 // ── zoom infinito (spec 026, prototipo): apagado por defecto; con él apagado esta pantalla se ve y funciona exactamente igual ──
 const ZOOM_KEY = 'coderbeats:lab:zoom:v1'
 const zoomOn = ref(readJson(ZOOM_KEY, (x): x is { on: boolean } => !!x && typeof (x as { on?: unknown }).on === 'boolean')?.on ?? false)
@@ -254,7 +302,16 @@ onMounted(() => {
   timer = setInterval(() => {
     if (!engine.playing.value) return
     const bar = engine.clockNow().bar
-    if (shown.value !== part.value && bar >= shownFrom) shown.value = part.value
+    if (shown.value !== part.value && bar >= shownFrom) {
+      shown.value = part.value
+      shownBar = bar
+    }
+    // pasar solo a la siguiente parte, en el compás justo (la nueva entra en el siguiente compás: se pide en el último de la actual)
+    const rm = remix.value
+    if (auto.value && rm && mode.value === 'actuar' && shown.value === part.value && (rec.value?.endBar ?? null) === null) {
+      const next = autoNext(rm.parts, part.value, shownBar, bar)
+      if (next) void goPart(next)
+    }
     const r = rec.value
     if (!r || bar < r.startBar) return
     recBars.value = bar - r.startBar + 1
@@ -325,6 +382,7 @@ async function listen(take: TakeBar[]) {
   if (!r) return
   const song = songFromTake(r, take)
   if (!song) return
+  listenScene.value = makePulso(songTimeline(song, r.style), r.title, PULSO_COMPACT)
   mode.value = 'escuchar'
   engine.stop()
   engine.setSong(song)
@@ -416,7 +474,7 @@ function draw(g: CanvasRenderingContext2D, f: StageFrame) {
   }
 }
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`
-const phrase = computed(() => (remix.value ? t('lab.remix.phrase') : t('lab.remix.pick')))
+const phrase = computed(() => (remix.value ? t(auto.value ? 'lab.remix.phraseAuto' : 'lab.remix.phrase') : t('lab.remix.pick')))
 </script>
 
 <template>
@@ -434,7 +492,8 @@ const phrase = computed(() => (remix.value ? t('lab.remix.phrase') : t('lab.remi
       </button>
     </div>
     <template v-else>
-      <LabStage ref="stage" :draw="drawStage" @down="down" />
+      <LabStage v-if="vista === 'circulos'" ref="stage" :draw="drawStage" @down="down" />
+      <LabPulso v-else ref="stage" :scene="pulsoScene" />
     </template>
     <template #extra>
       <template v-if="remix">
@@ -466,6 +525,8 @@ const phrase = computed(() => (remix.value ? t('lab.remix.phrase') : t('lab.remi
           <button class="rounded-lg border border-white/25 px-4 py-2" @click="exporter.save(false)">{{ t('lab.remix.save') }}</button>
         </div>
         <div class="mt-3 flex items-center gap-4 text-xs text-white/40">
+          <button class="underline decoration-white/20" data-auto-toggle :aria-pressed="auto" @click="toggleAuto">{{ auto ? t('lab.remix.autoOn') : t('lab.remix.autoOff') }}</button>
+          <button class="underline decoration-white/20" data-vista-toggle :aria-pressed="vista === 'pulso'" @click="toggleVista">{{ vista === 'pulso' ? t('lab.remix.vistaPulso') : t('lab.remix.vistaCirculos') }}</button>
           <button class="underline decoration-white/20" @click="listenOriginal">{{ t('lab.remix.original') }}</button>
           <button class="underline decoration-white/20" :aria-label="t('lab.remix.zoomAria')" :aria-pressed="zoomOn" data-zoom-toggle @click="toggleZoom">{{ zoomOn ? t('lab.remix.zoomOn') : t('lab.remix.zoomOff') }}</button>
           <button class="underline decoration-white/20" data-share-link @click="shareLink">{{ t('lab.remix.link') }}</button>
