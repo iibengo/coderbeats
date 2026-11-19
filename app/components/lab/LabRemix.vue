@@ -6,6 +6,7 @@ import { fontPx, LAB_W } from '~/lib/lab'
 import { VOICE_HEX } from '~/lib/palette'
 import { liveLane, makePulso, makePulsoLive, pushLive, setLivePart, PULSO_COMPACT, type PulsoScene } from '~/lib/visuals/pulso'
 import { songTimeline } from '~/lib/timeline'
+import { borderAngle, partProgress } from '~/lib/partProgress'
 import type { FreeLoop } from '~/lib/freeLoops'
 import { addSong, makeSaved } from '~/lib/library'
 import { autoNext, barSeconds, finalPartOf, labRemixFromSaved, LAB_REMIXES, partLoops, partsOn, remixTake, songFromTake, takePlan, type LabLayer, type LabRemix, type TakeBar } from '~/lib/labRemixes'
@@ -118,6 +119,13 @@ function toggleAuto() {
   writeText(AUTO_KEY, JSON.stringify({ v: auto.value }))
 }
 let shownBar = 0 // el compás en el que empezó a sonar la parte que se ve
+// el borde del botón de la parte que suena se ilumina con sus compases (spec 050); al acabar, con Auto entra la siguiente y sin Auto vuelve a empezar
+const progress = ref(0)
+const padSize = ref({ w: 180, h: 64 })
+const progressBg = computed(() => {
+  const a = Math.round(borderAngle(progress.value, padSize.value.w, padSize.value.h) * 10) / 10
+  return `conic-gradient(from 0deg, #fff ${a}deg, rgba(255,255,255,.2) ${a}deg)`
+})
 function toggleVista() {
   vista.value = vista.value === 'pulso' ? 'circulos' : 'pulso'
   writeText(VISTA_KEY, JSON.stringify({ v: vista.value }))
@@ -300,12 +308,26 @@ watch(() => engine.playing.value, (p) => {
 let timer: ReturnType<typeof setInterval> | null = null
 onMounted(() => {
   timer = setInterval(() => {
-    if (!engine.playing.value) return
-    const bar = engine.clockNow().bar
+    if (!engine.playing.value) {
+      progress.value = 0
+      return
+    }
+    const clk = engine.clockNow()
+    const bar = clk.bar
     if (shown.value !== part.value && bar >= shownFrom) {
       shown.value = part.value
       shownBar = bar
     }
+    // el progreso de la parte que suena (el borde de su botón)
+    const cur = mode.value === 'actuar' && shown.value === part.value ? remix.value?.parts.find((x) => x.name === shown.value) : undefined
+    if (cur) {
+      progress.value = Math.round(partProgress(clk.bar, clk.barPhase, shownBar, cur.bars) * 200) / 200
+      const el = document.querySelector('[data-part]')
+      if (el) {
+        const r = el.getBoundingClientRect()
+        if (r.width > 0 && (Math.abs(r.width - padSize.value.w) > 0.5 || Math.abs(r.height - padSize.value.h) > 0.5)) padSize.value = { w: r.width, h: r.height }
+      }
+    } else progress.value = 0
     // pasar solo a la siguiente parte, en el compás justo (la nueva entra en el siguiente compás: se pide en el último de la actual)
     const rm = remix.value
     if (auto.value && rm && mode.value === 'actuar' && shown.value === part.value && (rec.value?.endBar ?? null) === null) {
@@ -499,15 +521,17 @@ const phrase = computed(() => (remix.value ? t(auto.value ? 'lab.remix.phraseAut
       <template v-if="remix">
         <!-- las partes se eligen con `click` (no con `pointerdown`): si el dedo empieza a desplazar la pantalla sobre un botón, el navegador cancela el toque y no cambia de parte -->
         <div class="mt-4 grid grid-cols-2 gap-2" aria-label="partes">
+          <!-- el borde es el fondo del botón (2 px de relleno alrededor de un centro negro): el de la parte que suena se ilumina con sus compases (`progressBg`); la que va a entrar parpadea; las demás, tenues -->
           <button
             v-for="pt in remix.parts"
             :key="pt.name"
             :data-part="pt.name"
-            class="touch-manipulation rounded-2xl border px-4 py-5 text-lg"
-            :class="mode === 'actuar' && part === pt.name ? (shown === pt.name ? 'border-2 border-white text-white' : 'animate-pulse border-2 border-white/70 text-white') : 'border-white/15 text-white/45'"
+            class="touch-manipulation rounded-2xl p-[2px] text-lg"
+            :class="mode === 'actuar' && part === pt.name ? (shown === pt.name ? (engine.playing.value ? '' : 'bg-white') : 'animate-pulse bg-white/70') : 'bg-white/15'"
+            :style="mode === 'actuar' && part === pt.name && shown === pt.name && engine.playing.value ? { background: progressBg } : undefined"
             @click="goPart(pt.name)"
           >
-            {{ pt.name }}<span v-if="mode === 'actuar' && part === pt.name && shown !== pt.name" class="ml-2 text-xs text-white/50">{{ t('lab.remix.entering') }}</span>
+            <span class="block rounded-[14px] bg-black px-4 py-5" :class="mode === 'actuar' && part === pt.name ? 'text-white' : 'text-white/45'">{{ pt.name }}<span v-if="mode === 'actuar' && part === pt.name && shown !== pt.name" class="ml-2 text-xs text-white/50">{{ t('lab.remix.entering') }}</span></span>
           </button>
         </div>
         <div class="mt-4"><LabDj @start="goPart(part)" /></div>
