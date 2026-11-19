@@ -1,6 +1,6 @@
 /**
  * Visualizador «Pulso» (spec 049): vertical 9:16, para un tema oscuro y de golpes secos (el drill). Cinco columnas, una por voz (bombo, bajo, caja, platillo, melodía; los colores de `VOICE_HEX`), cada una con una barra
- * cuya altura es la **energía de esa voz en ese instante**: cada golpe suma su fuerza y se apaga rápido, con una línea clara arriba y un destello seco en el golpe. Una **línea del compás** que se rellena de izquierda a derecha y vuelve a empezar con cada compás (y engorda un poco con el bombo)
+ * cuya altura es la **energía de esa voz en ese instante**: cada golpe suma su fuerza y se apaga rápido, con una línea clara arriba y un destello seco en el golpe. Un **suelo** quieto que engorda un poco con el bombo (el peso del drop)
  * y un flash blanco breve al cambiar de sección. Puro: dibuja con lo que le dan (un contexto 2D y una línea de tiempo), sin DOM. Todo se precalcula en `makePulso`; el dibujo **no asigna objetos** (los textos se cachean).
  * Reglas de `specs/DISENO.md`: fondo `INK`, un instrumento un color, texto de al menos 11 px reales (`fontPx`), movimiento reducido sin destellos ni flash.
  */
@@ -256,8 +256,6 @@ export interface PulsoOptions {
   scale: number
   /** `prefers-reduced-motion`: sin destellos ni flash de sección */
   reduced: boolean
-  /** en directo: la fase del compás (0..1) que da el reloj del motor; con línea de tiempo se saca del instante */
-  phase?: number
 }
 
 export function drawPulso(ctx: Ctx2D, sc: PulsoScene, t: number, o: PulsoOptions): void {
@@ -289,16 +287,9 @@ export function drawPulso(ctx: Ctx2D, sc: PulsoScene, t: number, o: PulsoOptions
     }
   }
 
-  // la línea del compás (spec 050): se rellena de izquierda a derecha con cada compás y vuelve a empezar al pasar al siguiente; cuatro marcas, una por tiempo; engorda un poco con el bombo (el peso)
-  const phase = sc.live ? Math.min(1, Math.max(0, o.phase ?? 0)) : (((t / sc.tl.barSeconds) % 1) + 1) % 1
-  const lineW = w - 2 * M
-  const thick = 6 + sc.energy[0]! * 30
-  ctx.fillStyle = 'rgba(255,255,255,.12)'
-  ctx.fillRect(M, floorY, lineW, thick)
+  // el suelo: quieto, ancho; solo engorda con el bombo (el peso). (Se probó una línea que se rellenaba con cada compás y se quitó: el movimiento constante le quitaba el protagonismo a las barras.)
   ctx.fillStyle = sc.fill[0]!
-  ctx.fillRect(M, floorY, lineW * phase, thick)
-  ctx.fillStyle = INK
-  for (let k = 1; k < 4; k++) ctx.fillRect(M + (lineW * k) / 4 - 1, floorY, 2, thick)
+  ctx.fillRect(M, floorY, w - 2 * M, 4 + sc.energy[0]! * 36)
 
   // el flash de cambio de sección (en directo, el de cambio de parte)
   let name: string

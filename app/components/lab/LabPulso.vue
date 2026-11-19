@@ -28,7 +28,7 @@ onMounted(() => {
     const c = engine.clockNow()
     // en directo, el reloj de lo que se oye; con línea de tiempo, el compás y la fase del motor
     const t = sc.live ? c.time : (((c.bar + c.barPhase) * sc.tl.barSeconds) % Math.max(1e-6, sc.tl.duration) + sc.tl.duration) % Math.max(1e-6, sc.tl.duration)
-    drawPulso(g, sc, engine.playing.value || sc.live ? t : 0, { scale: (cv.value?.clientWidth || sc.size.w) / sc.size.w, reduced, phase: engine.playing.value ? c.barPhase : 0 })
+    drawPulso(g, sc, engine.playing.value || sc.live ? t : 0, { scale: (cv.value?.clientWidth || sc.size.w) / sc.size.w, reduced })
     frameHook?.()
   }
   tick()

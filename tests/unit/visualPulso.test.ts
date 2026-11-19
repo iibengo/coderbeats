@@ -213,50 +213,33 @@ describe('los dos tamaños de Pulso (spec 050)', () => {
   })
 })
 
-describe('la línea del compás se rellena (spec 050)', () => {
+describe('el suelo es una línea quieta (spec 050)', () => {
   const lineW = PULSO_W - 72
-  const line = (ops: ReturnType<typeof fake>['ops'], floorY: number) => ops.filter((o) => o.op === 'rect' && o.a[1] === floorY)
-  const floorOf = (size = PULSO_VERTICAL) => layoutFor(size).floorY
-  it('con línea de tiempo, el relleno sigue la fase del compás: la mitad a mitad de compás, y empieza de nuevo al pasar al siguiente', () => {
-    const bs = tl.barSeconds
-    const fill = (t: number) => {
-      const c = fake()
-      drawPulso(c.ctx, makePulso(tl, 'x'), t, { scale: 1, reduced: false })
-      return line(c.ops, floorOf()).find((o) => o.fill.startsWith('rgba(245,201,122') && o.a[2] <= lineW + 1e-6 && o.a[2] !== lineW)?.a[2] ?? 0
-    }
-    expect(fill(bs * 7 + bs * 0.5)).toBeCloseTo(lineW * 0.5, 4)
-    expect(fill(bs * 7 + bs * 0.25)).toBeCloseTo(lineW * 0.25, 4)
-    expect(fill(bs * 8 + 0.001)).toBeLessThan(lineW * 0.01) // el compás siguiente: vuelve a empezar
-    expect(fill(bs * 7 + bs * 0.99)).toBeGreaterThan(lineW * 0.95) // y justo antes, casi llena
-  })
-  it('en directo, la fase la da el reloj del motor (`phase`) y sin ella (parado) la línea está vacía', () => {
-    const run = (phase?: number) => {
-      const c = fake()
-      drawPulso(c.ctx, makePulsoLive('x'), 1, { scale: 1, reduced: false, phase })
-      return line(c.ops, floorOf(PULSO_COMPACT)).find((o) => o.fill.startsWith('rgba(245,201,122'))?.a[2] ?? 0
-    }
-    expect(run(0.75)).toBeCloseTo(lineW * 0.75, 4)
-    expect(run(0)).toBe(0)
-    expect(run(undefined)).toBe(0)
-    expect(run(5)).toBeCloseTo(lineW, 4) // acotada a 1
-    expect(run(-2)).toBe(0)
-  })
-  it('tres marcas finas separan los cuatro tiempos, y la línea se ve también con movimiento reducido (es un indicador, no un adorno)', () => {
+  const floorOps = (ops: ReturnType<typeof fake>['ops'], floorY: number) => ops.filter((o) => o.op === 'rect' && o.a[1] === floorY)
+  const floor = (t: number, size = PULSO_VERTICAL) => {
     const c = fake()
-    drawPulso(c.ctx, makePulso(tl, 'x'), 3.3, { scale: 1, reduced: true })
-    const ticks = line(c.ops, floorOf()).filter((o) => o.fill === INK)
-    expect(ticks).toHaveLength(3)
-    expect(ticks.map((o) => Math.round(o.a[0] + 1))).toEqual([36 + lineW / 4, 36 + lineW / 2, 36 + (3 * lineW) / 4].map(Math.round))
-    expect(line(c.ops, floorOf()).some((o) => o.fill.startsWith('rgba(245,201,122'))).toBe(true)
+    drawPulso(c.ctx, makePulso(tl, 'x', size), t, { scale: 1, reduced: false })
+    return floorOps(c.ops, layoutFor(size).floorY)
+  }
+  it('es una sola línea ancha del color del bombo, sin relleno que avance ni marcas de los tiempos', () => {
+    const ops = floor(sec('Intro').t0 + 3)
+    expect(ops).toHaveLength(1)
+    expect(ops[0]!.a[0]).toBe(36)
+    expect(ops[0]!.a[2]).toBe(lineW)
+    expect(ops[0]!.fill).toBe('rgba(245,201,122,.9)')
+    expect(ops.some((o) => o.fill === INK)).toBe(false)
   })
-  it('engorda un poco con el bombo pero cabe sobre el pie', () => {
+  it('no se mueve con el compás: a lo largo de un compás sin bombo (la intro) es exactamente la misma', () => {
+    const t0 = sec('Intro').t0 + tl.barSeconds * 2
+    const a = floor(t0)
+    for (const f of [0.1, 0.25, 0.5, 0.75, 0.99]) expect(floor(t0 + tl.barSeconds * f)).toEqual(a)
+  })
+  it('engorda con el bombo y cabe sobre el pie', () => {
     const l = layoutFor(PULSO_VERTICAL)
-    const c = fake()
-    const sc = makePulso(tl, 'x')
+    const quiet = floor(sec('Intro').t0 + 3)[0]!
     const t = Array.from(tl.lanes.bd.t).find((x) => x >= sec('Drop').t0 + 1)! + 0.001
-    drawPulso(c.ctx, sc, t, { scale: 1, reduced: false })
-    const track = line(c.ops, l.floorY).find((o) => o.fill === 'rgba(255,255,255,.12)')!
-    expect(track.a[3]).toBeGreaterThan(6)
-    expect(l.floorY + track.a[3]).toBeLessThanOrEqual(l.footerY)
+    const hit = floor(t)[0]!
+    expect(hit.a[3]).toBeGreaterThan(quiet.a[3])
+    expect(l.floorY + hit.a[3]).toBeLessThanOrEqual(l.footerY)
   })
 })
