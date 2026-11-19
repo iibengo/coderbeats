@@ -37,6 +37,7 @@ export const DENSITY: Record<StyleId, readonly [number, number]> = {
   dnb: [3, 5],
   dembow: [4, 6],
   reggaeton: [3, 5],
+  drill: [3, 5],
   techno: [5, 8],
   house2: [4, 7],
   techno2: [5, 8],
@@ -90,7 +91,8 @@ const pick = <T>(rand: () => number, items: readonly T[], weights: readonly numb
 function barRhythm(rand: () => number, count: number, o: { anchors: Set<number>; weak: Set<number>; grid: number; minSteps: number }): number[] {
   const cands: number[] = []
   const weights: number[] = []
-  for (let s = 0; s < 16; s += o.grid) {
+  // (una nota no cruza la línea de compás: en el último paso solo cabe una de 1 paso, y a tempos rápidos eso dura menos que `MIN_NOTE_SEC`)
+  for (let s = 0; s + o.minSteps <= 16; s += o.grid) {
     cands.push(s)
     const strong = o.anchors.has(s)
     const weak = o.weak.has(s)
