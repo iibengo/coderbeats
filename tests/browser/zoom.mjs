@@ -17,7 +17,7 @@ await sleep(2500)
 console.log('al aterrizar:', JSON.stringify(await z()), '| parte:', await p.evaluate(() => window.__remix.part()))
 await p.screenshot({ path: `${O}/zoom3.png` })
 // por un botón de parte lejana: atraviesa las intermedias
-await p.evaluate(() => document.querySelector('[data-part="Drop 2"]').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))); await sleep(300)
+await p.evaluate(() => document.querySelector('[data-part="Drop 2"]').click()); await sleep(300)
 console.log('a «Drop 2»:', JSON.stringify(await z())); await sleep(3500)
 console.log('aterrizado:', JSON.stringify(await z()), await p.evaluate(() => window.__remix.part()), errs)
 await click(p, 'Zoom: sí'); await sleep(300)

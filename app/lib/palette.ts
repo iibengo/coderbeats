@@ -3,6 +3,8 @@
  * las bolas, el aro, el agua y Tailwind.
  */
 export const INK = '#0B0B0F'
+/** El acento rosa (specs/DISENO.md): lo seleccionado, el botón principal, lo que se quiere destacar. Es el mismo tono que la caja: el contexto lo distingue. */
+export const ACCENT = '#F496BC'
 
 export type Voice = 'bd' | 'bass' | 'sd' | 'mel' | 'hh'
 

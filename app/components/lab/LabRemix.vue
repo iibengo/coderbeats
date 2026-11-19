@@ -497,14 +497,15 @@ const phrase = computed(() => (remix.value ? t(auto.value ? 'lab.remix.phraseAut
     </template>
     <template #extra>
       <template v-if="remix">
+        <!-- las partes se eligen con `click` (no con `pointerdown`): si el dedo empieza a desplazar la pantalla sobre un botón, el navegador cancela el toque y no cambia de parte -->
         <div class="mt-4 grid grid-cols-2 gap-2" aria-label="partes">
           <button
             v-for="pt in remix.parts"
             :key="pt.name"
             :data-part="pt.name"
-            class="rounded-2xl border px-4 py-5 text-lg"
+            class="touch-manipulation rounded-2xl border px-4 py-5 text-lg"
             :class="mode === 'actuar' && part === pt.name ? (shown === pt.name ? 'border-2 border-white text-white' : 'animate-pulse border-2 border-white/70 text-white') : 'border-white/15 text-white/45'"
-            @pointerdown.prevent="goPart(pt.name)"
+            @click="goPart(pt.name)"
           >
             {{ pt.name }}<span v-if="mode === 'actuar' && part === pt.name && shown !== pt.name" class="ml-2 text-xs text-white/50">{{ t('lab.remix.entering') }}</span>
           </button>
@@ -524,14 +525,21 @@ const phrase = computed(() => (remix.value ? t(auto.value ? 'lab.remix.phraseAut
           <button class="rounded-lg border border-white/25 px-4 py-2" @click="exporter.save(true)">{{ t('lab.remix.share') }}</button>
           <button class="rounded-lg border border-white/25 px-4 py-2" @click="exporter.save(false)">{{ t('lab.remix.save') }}</button>
         </div>
-        <div class="mt-3 flex items-center gap-4 text-xs text-white/40">
-          <button class="underline decoration-white/20" data-auto-toggle :aria-pressed="auto" @click="toggleAuto">{{ auto ? t('lab.remix.autoOn') : t('lab.remix.autoOff') }}</button>
-          <button class="underline decoration-white/20" data-vista-toggle :aria-pressed="vista === 'pulso'" @click="toggleVista">{{ vista === 'pulso' ? t('lab.remix.vistaPulso') : t('lab.remix.vistaCirculos') }}</button>
-          <button class="underline decoration-white/20" @click="listenOriginal">{{ t('lab.remix.original') }}</button>
-          <button class="underline decoration-white/20" :aria-label="t('lab.remix.zoomAria')" :aria-pressed="zoomOn" data-zoom-toggle @click="toggleZoom">{{ zoomOn ? t('lab.remix.zoomOn') : t('lab.remix.zoomOff') }}</button>
-          <button class="underline decoration-white/20" data-share-link @click="shareLink">{{ t('lab.remix.link') }}</button>
-          <button class="underline decoration-white/20" @click="openInStudio">{{ t('lab.remix.openStudio') }}</button>
-          <button class="underline decoration-white/20" @click="remix = null; lab.stopAll()">{{ t('lab.remix.other') }}</button>
+        <!-- opciones: tres interruptores con su estado (el activo, con el acento) -->
+        <div class="mt-6 flex flex-wrap gap-2" role="group" aria-label="opciones">
+          <button class="min-h-11 rounded-full border px-4 text-sm" :class="auto ? 'border-[#F496BC] text-white' : 'border-white/20 text-white/60'" data-auto-toggle :aria-pressed="auto" @click="toggleAuto">{{ auto ? t('lab.remix.autoOn') : t('lab.remix.autoOff') }}</button>
+          <button class="min-h-11 rounded-full border px-4 text-sm" :class="vista === 'pulso' ? 'border-[#F496BC] text-white' : 'border-white/20 text-white/60'" data-vista-toggle :aria-pressed="vista === 'pulso'" @click="toggleVista">{{ vista === 'pulso' ? t('lab.remix.vistaPulso') : t('lab.remix.vistaCirculos') }}</button>
+          <button class="min-h-11 rounded-full border px-4 text-sm" :class="zoomOn ? 'border-[#F496BC] text-white' : 'border-white/20 text-white/60'" :aria-label="t('lab.remix.zoomAria')" :aria-pressed="zoomOn" data-zoom-toggle @click="toggleZoom">{{ zoomOn ? t('lab.remix.zoomOn') : t('lab.remix.zoomOff') }}</button>
+        </div>
+        <!-- escuchar y compartir -->
+        <div class="mt-3 flex flex-wrap gap-2">
+          <button class="min-h-11 rounded-full border border-white/20 px-4 text-sm text-white/70" @click="listenOriginal">{{ t('lab.remix.original') }}</button>
+          <button class="min-h-11 rounded-full border border-white/20 px-4 text-sm text-white/70" data-share-link @click="shareLink">{{ t('lab.remix.link') }}</button>
+        </div>
+        <!-- salir de aquí: volver a la lista de remixes o abrir este en el Estudio (dos botones claros, aparte del resto) -->
+        <div class="mt-8 grid grid-cols-2 gap-3 border-t border-white/10 pt-6">
+          <button class="order-2 min-h-12 rounded-2xl border border-white/25 px-3 text-sm text-white" data-open-studio @click="openInStudio">{{ t('lab.remix.openStudio') }}</button>
+          <button class="order-1 min-h-12 rounded-2xl border border-white/25 px-3 text-sm text-white" data-remix-list @click="remix = null; lab.stopAll()">{{ t('lab.remix.other') }}</button>
         </div>
       </template>
     </template>

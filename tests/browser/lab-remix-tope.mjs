@@ -3,7 +3,7 @@ import { labOpen, click, sleep } from './lab-lib.mjs'
 const { b, p, errs } = await labOpen()
 await click(p, 'Remixes'); await sleep(5000)
 await click(p, 'Wow'); await sleep(2500)
-await p.evaluate(() => document.querySelector('[data-part=Drop]').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))); await sleep(2500)
+await p.evaluate(() => document.querySelector('[data-part=Drop]').click()); await sleep(2500)
 await click(p, 'Grabar mi versión')
 let last = ''
 for (let i = 0; i < 80; i++) {
