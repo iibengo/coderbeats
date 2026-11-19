@@ -6,8 +6,8 @@
  */
 /** `drone`: un sine con mucha reverb, para fondos (la demo del dembow); no es de los que se eligen para cantar */
 /** `bass` y `keys` (spec 028 §5): el bajo y los acordes **propios de la canción**, hechos de notas (en `keys`, varias a la vez), en vez del fondo del estilo */
-export type MelodySynth = 'lead' | 'piano' | 'pad' | 'drone' | 'riser' | 'crash' | 'boom' | 'impacto' | 'downlifter' | 'bass' | 'keys' | 'guitar' | 'guitarDirty' | 'guitarSample' | 'acid' | 'rim' | 'click' | 'cowbell' | 'tom' | 'shaker' | 'hat' | 'sub' | 'cuerdas' | 'coro' | 'dub'
-export const MELODY_SYNTHS: readonly MelodySynth[] = ['lead', 'piano', 'pad', 'drone', 'riser', 'crash', 'boom', 'impacto', 'downlifter', 'bass', 'keys', 'guitar', 'guitarDirty', 'guitarSample', 'acid', 'rim', 'click', 'cowbell', 'tom', 'shaker', 'hat', 'sub', 'cuerdas', 'coro', 'dub']
+export type MelodySynth = 'lead' | 'piano' | 'pad' | 'drone' | 'riser' | 'crash' | 'boom' | 'impacto' | 'downlifter' | 'bass' | 'keys' | 'guitar' | 'guitarDirty' | 'guitarSample' | 'acid' | 'rim' | 'click' | 'cowbell' | 'tom' | 'shaker' | 'hat' | 'hatOpen' | 'sub' | 'cuerdas' | 'coro' | 'dub'
+export const MELODY_SYNTHS: readonly MelodySynth[] = ['lead', 'piano', 'pad', 'drone', 'riser', 'crash', 'boom', 'impacto', 'downlifter', 'bass', 'keys', 'guitar', 'guitarDirty', 'guitarSample', 'acid', 'rim', 'click', 'cowbell', 'tom', 'shaker', 'hat', 'hatOpen', 'sub', 'cuerdas', 'coro', 'dub']
 
 /** Rango MIDI que se admite en un loop de melodía o bajo (C1–C7). */
 export const MIDI_MIN = 24
@@ -45,6 +45,7 @@ export const REGISTER: Record<MelodySynth | 'bass', readonly [number, number]> =
   coro: [52, 84], // coro de fondo del drill (spec 048): E3–C6
   cuerdas: [52, 90], // cuerdas orquestales (spec 048): E3–F#6
   sub: [28, 52], // el 808 del drill (spec 048): E1–E3
+  hatOpen: [24, 60], // el charles abierto del drill (spec 048): ruido corto; la altura no cuenta
   hat: [24, 60], // el charles del 808 para los redobles (spec 048): la altura no cuenta
   dub: [36, 79], // acordes de dub techno: C2–G5
   bass: [28, 52], // E1–E3
@@ -104,6 +105,8 @@ export const SYNTH_SOUND: Record<MelodySynth, string> = {
   sub: '.s("sine").lpf(400).decay(0.9).sustain(0.5).shape(0.3).gain(1.7)',
   // el charles cerrado del kit 808 (CC0, ya registrado con el kit) para los redobles de tresillos del drill (spec 048); como los de la batería: `.bank("RolandTR808").n(0)`, y **fino, seco y cortado al instante** (`hpf` 6500, caída de 35 ms, sin cola): «ts» agudo que rasga sin tapar los graves. Sin oír.
   hat: '.s("hh").bank("RolandTR808").n(0).hpf(6500).decay(0.035).sustain(0).gain(0.9)',
+  // el charles abierto, breve (spec 048): el kit 808 solo trae uno cerrado, así que es una ráfaga de ruido blanco filtrada a los agudos con una cola corta (0,16 s: abierto, pero no un platillo largo). Un acento puntual. Sin oír.
+  hatOpen: '.s("white").attack(0.001).decay(0.16).sustain(0).release(0.03).hpf(7500).gain(0.35)',
   // el stab del dub techno (spec 046): dos sierras desafinadas (`supersaw` con `unison(2)`) por un filtro resonante de envolvente rápida y sustain 0, un poco de saturación y reverb larga (`room`, `roomsize`),
   // y un eco de corchea con puntillo (3/16) **con el filtro dentro**: Strudel no tiene filtro en el bucle del `delay`, así que las tres repeticiones se escriben con `.off(3/16, …)`, cada una con menos
   // `postgain` y un `lpf` más cerrado (más oscura): ese eco es `SYNTH_ECHO.dub`, que va **al final de la línea** (después del `.gain("…")` por nota, que si no recortaría las repeticiones). Recibe acordes

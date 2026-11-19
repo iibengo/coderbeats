@@ -152,15 +152,33 @@ const HAT_BARS: readonly (readonly HatHit[])[] = [
 ]
 const hatHits = HAT_BARS.flatMap((bar, b) => bar.map(([step, strength, pitch]) => ({ note: [b * 16 + step, Number.isInteger(step) ? 1 : 2 / 3, PERC_MIDI + (pitch ?? 0)] as const, strength })))
 
+/** El charles abierto: un acento breve de vez en cuando (sinte `hatOpen`, ruido corto): al final del compás 1 y del 3, donde el charles cerrado deja hueco (paso 14). */
+const OPEN_HAT: readonly Note[] = [[14, 1, PERC_MIDI] as const, [46, 1, PERC_MIDI] as const]
+
 /**
  * La batería drill de los vídeos (spec 048), en 4 compases: **bombo desplazado**, **caja solo en el tiempo 3** con un redoble al final del compás 4 y el **charles** `hat` de arriba.
  */
 export const DRILL = {
   bd: drums4('bd', [[0, 10], [0, 7, 11], [0, 10], [0, 7, 9, 14]]),
   sd: drums4('sd', [[8], [8], [8, 15], [8, 12, 13, 14, 15]]),
+  /** el charles abierto (acento breve) */
+  open: OPEN_HAT,
   /** el charles: las notas (en pasos del loop de 4 compases) y la fuerza de cada una */
   hat: { notes: hatHits.map((h) => h.note) as readonly Note[], strengths: hatHits.map((h) => h.strength) as readonly number[] },
 } as const
+
+/**
+ * Legato (spec 048): cada nota dura hasta el inicio de la siguiente de su voz si entre las dos hay un hueco de a lo sumo `max` pasos (las cuerdas y el coro ligan; sin él, cada nota se corta y suena a teclado).
+ * Se aplica **voz por voz** (cada voz es monofónica); el gancho de los violines no lo lleva: sus silencios son parte del «suspiro».
+ */
+export function legato(notes: readonly Note[], max = 3): Note[] {
+  const s = [...notes].sort((a, b) => a[0] - b[0])
+  return s.map(([p, d, m], i) => {
+    const next = s[i + 1]
+    const gap = next ? next[0] - (p + d) : 0
+    return next && gap > 1e-6 && gap <= max + 1e-9 ? ([p, next[0] - p, m] as const) : ([p, d, m] as const)
+  })
+}
 
 /**
  * El 808 **a cada tiempo** (spec 048): el contrabajo del Lacrimosa toca un golpe por pulso (cada 8 pasos = 2 tiempos); en el tema de referencia el grave late cada ~0,41 s (cada tiempo) y en la versión anterior cada ~0,74 s.
@@ -189,15 +207,16 @@ function lacrimosaDrill(): LabRemix {
   const SOFT = 0 // la fuerza más baja (el 0,55 del volumen): las cuerdas de la intro, el puente y el final
   const bar = (from: number, notes: readonly Note[]): Note[] => lacSlice(shift(notes, LAC_SHIFT), from, from + 2)
   // el gancho lo tocan las cuerdas (el violín I); el resto del tema lo **canta el coro de fondo** (el soprano, sinte `coro`), envuelto en reverb
-  const tema = (from: number, strength?: number): LabLayer => ({ key: 'tema', label: 'tema', mel: [{ notes: bar(from, from === HOOK ? LAC.vln1 : LAC.soprano), synth: from === HOOK ? 'cuerdas' : 'coro', ...(strength !== undefined ? { strength } : {}) }] })
+  const tema = (from: number, strength?: number): LabLayer => ({ key: 'tema', label: 'tema', mel: [{ notes: from === HOOK ? bar(from, LAC.vln1) : legato(bar(from, LAC.soprano)), synth: from === HOOK ? 'cuerdas' : 'coro', ...(strength !== undefined ? { strength } : {}) }] })
   const acordes = (from: number, strength?: number): LabLayer => ({
     key: 'acordes',
     label: 'acordes',
-    mel: [{ notes: [...bar(from, LAC.vln2), ...bar(from, LAC.viola), ...(from > HOOK ? bar(from, LAC.vln1) : [])], synth: 'cuerdas', ...(strength !== undefined ? { strength } : {}) }],
+    mel: [{ notes: [...legato(bar(from, LAC.vln2)), ...legato(bar(from, LAC.viola)), ...(from > HOOK ? legato(bar(from, LAC.vln1)) : [])], synth: 'cuerdas', ...(strength !== undefined ? { strength } : {}) }],
   })
   const bajo = (from: number): LabLayer => ({ key: 'bajo', label: 'bajo', mel: [{ notes: everyBeat(bar(from, LAC.bajo)), synth: 'sub' }] })
   const charles = { notes: DRILL.hat.notes, strengths: DRILL.hat.strengths, synth: 'hat' as const }
-  const ritmo: LabLayer = { key: 'ritmo', label: 'ritmo', drums: { bd: DRILL.bd, sd: DRILL.sd }, mel: [charles] }
+  const abierto = { notes: DRILL.open, synth: 'hatOpen' as const }
+  const ritmo: LabLayer = { key: 'ritmo', label: 'ritmo', drums: { bd: DRILL.bd, sd: DRILL.sd }, mel: [charles, abierto] }
   const caja: LabLayer = { key: 'caja', label: 'caja', drums: { sd: P.sdRoll }, mel: [charles] }
   const hat: LabLayer = { key: 'hat', label: 'platillo', mel: [charles] }
   const parts: { name: string; bars: Turns; layers: LabLayer[] }[] = [

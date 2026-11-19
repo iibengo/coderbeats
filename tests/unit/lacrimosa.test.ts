@@ -166,3 +166,41 @@ describe('el 808 a cada tiempo y las cuerdas suaves de verdad (spec 048)', () =>
     expect(melodyGains([H(0)], 1, 0)).toContain('0.55') // los demás sintes, como siempre
   })
 })
+
+import { legato } from '../../app/lib/labRemixes'
+import { DRILL } from '../../app/lib/labRemixes'
+
+describe('legato de las cuerdas y el coro, y el charles abierto (spec 048)', () => {
+  it('`legato` alarga cada nota hasta la siguiente si el hueco es corto; los huecos grandes y la última se quedan', () => {
+    expect(legato([[0, 4, 60], [6, 2, 62], [20, 2, 64]], 3)).toEqual([[0, 6, 60], [6, 2, 62], [20, 2, 64]])
+    expect(legato([[0, 4, 60]])).toEqual([[0, 4, 60]])
+    expect(legato([[8, 2, 62], [0, 4, 60]], 4)[0]).toEqual([0, 8, 60]) // ordena por posición
+  })
+  it('el soprano del coro y el colchón de cuerdas van ligados; el gancho de los violines, no (sus silencios son el «suspiro»)', () => {
+    const r = labRemixById('lacrimosa-drill')!
+    const intro = r.parts.find((p) => p.name === 'Intro')!.layers.find((l) => l.key === 'tema')!.mel![0]!.notes
+    const orig = lacSlice(LAC.vln1, 0, 2).map((n) => n[1])
+    expect(intro.map((n) => n[1])).toEqual(orig) // sin legato: mismas duraciones
+    // el soprano ya va pegado (sus silencios son de verdad, mayores que el hueco del legato): igual
+    const tema = r.parts.find((p) => p.name === 'Drop')!.layers.find((l) => l.key === 'tema')!.mel![0]!.notes
+    expect(tema.map((n) => n[1])).toEqual(lacSlice(LAC.soprano, 2, 4).map((n) => n[1]))
+    // el colchón de cuerdas (violín II y viola, un golpe por pulso con un hueco de una corchea) sí se alarga
+    const acordes = r.parts.find((p) => p.name === 'Drop')!.layers.find((l) => l.key === 'acordes')!.mel![0]!.notes
+    const raw = [...lacSlice(LAC.vln2, 2, 4), ...lacSlice(LAC.viola, 2, 4), ...lacSlice(LAC.vln1, 2, 4)]
+    expect(acordes.length).toBe(raw.length)
+    expect(acordes.reduce((a, n) => a + n[1], 0)).toBeGreaterThan(raw.reduce((a, n) => a + n[1], 0) + 20)
+  })
+  it('el charles abierto es un acento puntual (dos golpes en 4 compases) con ruido corto, solo en los drops y fuera de la rejilla del cerrado', () => {
+    expect(DRILL.open).toHaveLength(2)
+    expect(SYNTH_SOUND.hatOpen).toContain('.s("white")')
+    expect(SYNTH_SOUND.hatOpen).toContain('.decay(0.16)') // abierto pero breve
+    const r = labRemixById('lacrimosa-drill')!
+    const has = (n: string) => r.parts.find((p) => p.name === n)!.layers.some((l) => l.mel?.some((m) => m.synth === 'hatOpen'))
+    expect(has('Drop')).toBe(true)
+    expect(has('Drop 2')).toBe(true)
+    expect(has('Estrofa')).toBe(false)
+    expect(has('Intro')).toBe(false)
+    const closed = DRILL.hat.notes.map((n) => n[0])
+    for (const [p] of DRILL.open) expect(closed.some((c) => Math.abs(c - p) < 1e-9)).toBe(false) // no pisa un golpe cerrado
+  })
+})

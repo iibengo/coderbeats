@@ -3,7 +3,7 @@
  * un loop `mel` con su patrón propio de pasos (cualquiera, también fuera de tiempo) y la nota fija. Se llaman con los nombres de strudel (`rim`, `cb`, `mt`, `sh`, `misc`), así que **el código mostrado suena igual
  * pegado en strudel.cc**, sin `samples()` ni avisos. No son capas de la melodía: el Órgano, el aviso de «melodías apiladas» y el tope de melodías no los cuentan.
  */
-export const PERC_SYNTHS = ['rim', 'click', 'cowbell', 'tom', 'shaker', 'hat'] as const
+export const PERC_SYNTHS = ['rim', 'click', 'cowbell', 'tom', 'shaker', 'hat', 'hatOpen'] as const
 export type PercSynth = (typeof PERC_SYNTHS)[number]
 export const isPercSynth = (s: string | undefined): boolean => !!s && (PERC_SYNTHS as readonly string[]).includes(s)
 /** `hat` (spec 048) no lleva archivo propio: es el charles del kit 808 (`RolandTR808_hh`, que el motor ya registra), para redobles fuera de la rejilla de la batería */
