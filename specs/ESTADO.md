@@ -1,5 +1,16 @@
 # Estado (2026-11-15) — lo hecho mientras no estabas
 
+# Tanda 5 (2026-11-19): visualizador aparte (spec 049)
+
+Todo en `main`, **sin push**. **Nada visto en un móvil.**
+- **Línea de tiempo de una canción** (`app/lib/timeline.ts`, pura): de los loops, el tempo y los compases saca cuándo suena cada golpe, en qué voz y con qué volumen **sin motor de audio y sin reproducir**.
+- **Visualizador «Pulso»** (`app/lib/visuals/pulso.ts`): vertical 9:16, cinco columnas (una por voz, con la paleta), barras que siguen la energía, suelo del bombo y flash al cambiar de sección. Para un tema oscuro de golpes secos (el drill).
+- **Ruta de prueba `/visual?r=lacrimosa-drill&t=45`** (solo `nuxt dev`, no sale en el build): no suena; reloj propio, pausa y deslizador.
+- **No se tocó** `VisualStage`, `LabStage`, `useVideoExport` ni el motor. **Falta:** vídeo offline (con el audio offline de `PENDIENTES.md`), más estilos y probarlo en el iPhone.
+- **Qué probar:** con `npm run dev`, abre `/visual?r=lacrimosa-drill` (en el móvil: `npm run dev:phone`): ¿se lee el ritmo? ¿Pesa el drop? ¿Va a 60 fps? ¿El destello del cambio de sección es demasiado fuerte?
+
+---
+
 # Tanda 4 (2026-11-19): estilo drill (spec 048)
 
 Todo en `main`, **sin push**; 1440 tests, typecheck y build en verde. **Nada se ha oído ni visto en un móvil.**

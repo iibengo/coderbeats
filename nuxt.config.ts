@@ -26,7 +26,7 @@ export default defineNuxtConfig({
   typescript: { strict: true },
 
   // Todo el audio corre en el navegador: la página no se renderiza en el servidor.
-  routeRules: { '/': { ssr: false }, '/lab': { ssr: false }, '/estudio': { ssr: false }, ...(process.env.NODE_ENV === 'production' ? {} : { '/spike': { ssr: false }, '/lab/voz': { ssr: false }, '/lab/aro': { ssr: false }, '/lab/sonido': { ssr: false }, '/lab/estudio': { ssr: false } }) },
+  routeRules: { '/': { ssr: false }, '/lab': { ssr: false }, '/estudio': { ssr: false }, ...(process.env.NODE_ENV === 'production' ? {} : { '/spike': { ssr: false }, '/lab/voz': { ssr: false }, '/lab/aro': { ssr: false }, '/lab/sonido': { ssr: false }, '/lab/estudio': { ssr: false }, '/visual': { ssr: false } }) },
 
   // Páginas de desarrollo (en dev/): /spike (banco de pruebas de Strudel) y /lab/voz (laboratorio de voz, spec 002).
   // Solo existen con `nuxt dev`: no entran en el build.
@@ -39,6 +39,7 @@ export default defineNuxtConfig({
       pages.push({ name: 'lab-aro', path: '/lab/aro', file: dev('lab-aro.vue') })
       pages.push({ name: 'lab-sonido', path: '/lab/sonido', file: dev('lab-sonido.vue') })
       pages.push({ name: 'lab-estudio', path: '/lab/estudio', file: dev('lab-estudio.vue') })
+      pages.push({ name: 'visual', path: '/visual', file: dev('visual.vue') }) // el visualizador aparte (spec 049)
     },
   },
 
