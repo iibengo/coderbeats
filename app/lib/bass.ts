@@ -11,7 +11,15 @@ export interface BassNote {
   dur: number
   /** nombre de la nota en Strudel ('a1', 'bb0'…) */
   note: string
+  /**
+   * Deslizamiento (spec 048, el 808 del drill): semitonos **desde los que arranca** la nota; la altura cae a la suya en `SLIDE_SECONDS` (envolvente de altura `penv`). Entero de −12 a 12;
+   * sin él (y sin él en ninguna nota del patrón), el código es exactamente el de siempre.
+   */
+  slide?: number
 }
+
+/** lo que tarda el 808 en llegar a su nota al deslizarse (s) */
+export const SLIDE_SECONDS = 0.2
 
 export interface BassPattern {
   bars: 1 | 2 | 4
@@ -58,5 +66,15 @@ export function notesInBar(p: BassPattern, bar: number): BassNote[] {
 export function bassCode(p: BassPattern): string {
   const bars = Array.from({ length: p.bars }, (_, b) => barMini(notesInBar(p, b)))
   const mini = bars.length === 1 ? bars[0]! : `<${bars.join(' ')}>`
-  return `note("${mini}")${p.sound}`
+  const slide = slideMini(p)
+  return `note("${mini}")${p.sound}${slide ? `.penv("${slide}").pattack(0.001).pdecay(${SLIDE_SECONDS}).psustain(0)` : ''}`
+}
+
+const clampSlide = (n: number | undefined): number => (typeof n === 'number' && Number.isFinite(n) ? Math.max(-12, Math.min(12, Math.round(n))) : 0)
+
+/** El patrón de `penv`: **la misma estructura que el de las notas** (mismos pasos, mismas duraciones, mismo reparto por compás) con el desplazamiento de cada nota (0 = sin deslizar). Vacío si ninguna nota se desliza. */
+export function slideMini(p: BassPattern): string {
+  if (!p.notes.some((n) => clampSlide(n.slide) !== 0)) return ''
+  const bars = Array.from({ length: p.bars }, (_, b) => barMini(notesInBar(p, b).map((n) => ({ ...n, note: String(clampSlide(n.slide)) }))))
+  return bars.length === 1 ? bars[0]! : `<${bars.join(' ')}>`
 }

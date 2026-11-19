@@ -221,7 +221,7 @@ export const STYLE_MUSIC: Record<StyleId, StyleMusic> = {
     synth: 'lead',
   },
   // drill (2026-11-19, spec 048): UK drill, 140 bpm, re menor, kit 808. Medio tiempo: caja solo en el tiempo 3, bombo escaso, platillo roto
-  // y un 808 largo y grave (re – si♭ – sol – la) con stabs oscuros de acordes (Dm B♭ Gm Am). Sin tresillos ni deslizamiento (spec 048, «Sin hacer»). Sin probar de oído.
+  // y un 808 largo y grave (re – si♭ – sol – la) que se desliza entre raíces, con stabs oscuros de acordes (Dm B♭ Gm Am). Los redobles de tresillos van aparte (sinte `hat`). Sin probar de oído.
   drill: {
     key: 're menor',
     priors: {
@@ -235,14 +235,15 @@ export const STYLE_MUSIC: Record<StyleId, StyleMusic> = {
       hh: 'hh ~ hh hh ~ hh ~ hh hh ~ hh ~ hh hh ~ hh',
     },
     background: {
-      // el 808: un golpe largo en el 1 y uno corto a contratiempo, cada compás una raíz (re, si♭, sol, la)
+      // el 808: un golpe largo en el 1 y uno corto a contratiempo, cada compás una raíz (re, si♭, sol, la; de 49 a 73 Hz: más grave se pierde en un móvil). El golpe largo **se desliza**
+      // desde la raíz anterior (`slide` = raíz anterior − esta, en semitonos): el portamento del 808 del drill
       bass: {
         bars: 4,
         notes: [
-          { pos: 0, dur: 7, note: 'd1' }, { pos: 10, dur: 6, note: 'd1' },
-          { pos: 16, dur: 7, note: 'bb0' }, { pos: 26, dur: 6, note: 'bb0' },
-          { pos: 32, dur: 7, note: 'g1' }, { pos: 42, dur: 6, note: 'g1' },
-          { pos: 48, dur: 7, note: 'a0' }, { pos: 58, dur: 6, note: 'a0' },
+          { pos: 0, dur: 7, note: 'd2', slide: -5 }, { pos: 10, dur: 6, note: 'd2' },
+          { pos: 16, dur: 7, note: 'bb1', slide: 4 }, { pos: 26, dur: 6, note: 'bb1' },
+          { pos: 32, dur: 7, note: 'g1', slide: 3 }, { pos: 42, dur: 6, note: 'g1' },
+          { pos: 48, dur: 7, note: 'a1', slide: -2 }, { pos: 58, dur: 6, note: 'a1' },
         ],
         sound: '.s("sine").lpf(300).decay(0.9).sustain(0.5).gain(0.9)',
       },

@@ -11,6 +11,7 @@ import {
   type Note,
 } from './remixes'
 import { DEMOS } from './demos'
+import { PERC_MIDI } from './percSamples'
 import type { MelodySynth } from './melody'
 import { fast, shift, ELISA_A, LACRIMOSA_A, LACRIMOSA_B, ELISA_B, GRIEG_A, GRIEG_B, HABANERA_A, HABANERA_B, KOROBEINIKI_A, KOROBEINIKI_B } from './publicTunes'
 import type { KitId, StyleId } from './types'
@@ -63,6 +64,8 @@ interface Recipe {
   final: readonly Note[]
   /** lo que remata el drop: platillo, impacto, pad en la raíz */
   dropFx: { notes: readonly Note[]; synth: MelodySynth }[]
+  /** percusión propia que suena en **todos** los drops con el ritmo (spec 048: los redobles de tresillos del drill, sinte `hat`) */
+  percFx?: { notes: readonly Note[]; synth: MelodySynth }[]
   /** otra estructura (por defecto, las 7 partes de arriba) */
   shape?: { name: PartKind; bars: number }[]
   /** el tema está escrito de memoria: falta contrastarlo con la partitura */
@@ -81,7 +84,7 @@ const SHAPE: { name: PartKind; bars: number }[] = [
   { name: 'Final', bars: 4 },
 ]
 function layersOf(r: Recipe, name: PartKind): LabLayer[] {
-  const fx = (extra: { notes: readonly Note[]; synth: MelodySynth }[]): LabLayer => ({ key: 'ritmo', label: 'ritmo', drums: { bd: r.kick, sd: r.clap, hh: r.hats16 }, mel: extra })
+  const fx = (extra: { notes: readonly Note[]; synth: MelodySynth }[]): LabLayer => ({ key: 'ritmo', label: 'ritmo', drums: { bd: r.kick, sd: r.clap, hh: r.hats16 }, mel: [...extra, ...(r.percFx ?? [])] })
   switch (name) {
     case 'Intro':
       return [L.kick(r.kick), L.theme(r.intro, 'pad')]
@@ -128,6 +131,13 @@ function recipe(r: Recipe): LabRemix {
 const inLead = (notes: readonly Note[]): Note[] => notes.map(([p, d, m]) => [p, d, m > 84 ? m - 12 : m] as const)
 
 const TECHNO = { kick: T.bd4, clap: T.clap, hat: T.hat, hats16: T.hats16, roll: T.roll, noise: RISER_NOISE, pad: RISER_PAD }
+
+/**
+ * Los redobles del charles del drill (spec 048): **ráfagas de tresillos** de semicorchea (3 golpes por cada 2 pasos: a 2/3 de paso unos de otros) que rompen el charles de la rejilla, en un loop de 4 compases (64 pasos):
+ * una ráfaga al final del compás 2, otra a mitad del 3 y un redoble largo en la segunda mitad del 4 (el que empuja hacia la vuelta). Sinte `hat`, el charles del kit 808. Sin oír.
+ */
+const burst = (start: number, n: number): Note[] => Array.from({ length: n }, (_, i) => [start + (i * 2) / 3, 2 / 3, PERC_MIDI] as const)
+export const DRILL_ROLLS: readonly Note[] = [...burst(30, 3), ...burst(38, 3), ...burst(58, 9)]
 
 export const LAB_REMIXES: readonly LabRemix[] = [
   recipe({
@@ -209,7 +219,7 @@ export const LAB_REMIXES: readonly LabRemix[] = [
     id: 'lacrimosa-drill', title: 'Lacrimosa (Requiem)', composer: 'Mozart', style: 'drill', kit: '808', key: 'Re menor',
     kick: DEMOS.drill.bd, clap: DEMOS.drill.sd, hat: DEMOS.drill.hh, hats16: DEMOS.drill.hh, roll: P.sdRoll, noise: RISER_NOISE, pad: RISER_PAD,
     intro: shift(LACRIMOSA_A, -12), sub: LACRIMOSA_B, drop: shift(LACRIMOSA_A, -12), drop2: LACRIMOSA_B, final: LACRIMOSA_B,
-    dropFx: [{ notes: MZ_CRASH, synth: 'crash' }],
+    dropFx: [{ notes: MZ_CRASH, synth: 'crash' }], percFx: [{ notes: DRILL_ROLLS, synth: 'hat' }],
     shape: [{ name: 'Intro', bars: 4 }, { name: 'Estrofa', bars: 4 }, { name: 'Subida', bars: 4 }, { name: 'Drop', bars: 8 }, { name: 'Break', bars: 4 }, { name: 'Drop 2', bars: 8 }, { name: 'Final', bars: 4 }],
   }),
 ]

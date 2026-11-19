@@ -20,7 +20,13 @@ Hay una moda de versiones «classical drill» (melodías clásicas sobre un ritm
 - **12/8 → 4/4:** un compás de 12/8 son 2 de 4/4 a 140 bpm (medio tiempo); una corchea de 12/8 dura 8/3 de paso (tercios de paso, spec 028 §3). Comprobado evaluando el código Strudel: las notas caen en 1/6, 2/6, 4/6, 5/6… de cada compás.
 - **Estructura:** 7 partes (Intro 4 · Estrofa 4 · Subida 4 · Drop 8 · Break 4 · Drop 2 8 · Final 4): el suspiro (una octava más grave, para el sinte) en la intro y el drop, y el canto en la subida, el segundo drop y el final.
 
+## Redobles y deslizamiento (hecho)
+- **Redobles de tresillos:** nuevo sinte de muestra `hat` (el charles del kit 808, CC0, ya registrado con el kit: `.s("hh").bank("RolandTR808").n(0)`; sin archivo nuevo). Es percusión como la del minimal (spec 045): patrón propio en cualquier paso, no cuenta como melodía. La batería sigue a una casilla por paso, así que los tresillos van como ese loop aparte. En el remix Lacrimosa, en **los dos drops**, capa de ritmo: ráfaga de 3 golpes al final del compás 2, otra a mitad del 3 y un redoble de 9 en la segunda mitad del 4 (golpes a 2/3 de paso). Comprobado evaluando el código Strudel: cada golpe cae en su doceavo de paso.
+- **808 con deslizamiento:** `BassNote.slide` (semitonos desde los que arranca la nota; −12 a 12) → `.penv("…").pattack(0.001).pdecay(0.2).psustain(0)` con la **misma estructura** que el patrón de notas. Los demás estilos no llevan `slide`: su código es el de siempre (test). El golpe largo de cada compás se desliza desde la raíz anterior (−5, +4, +3, −2).
+- **808 más agudo:** subido una octava (re2, si♭1, sol1, la1: 49–73 Hz); `d1`, `bb0` y `a0` (22–37 Hz) no se oyen en un móvil.
+- **Compás 5 del canto:** el sol4 final queda confirmado (la cabeza está sobre la línea del sol): re4 mi4 fa4 sol4, una corchea por pulso. **No se usa** en el remix: lleva a compases que no se han transcrito.
+
 ## Sin hacer (apuntado)
-- **Hi-hats con tresillos y rolls:** la rejilla es de 16 pasos por compás; no está comprobado que el motor admita subdivisiones dentro de un paso. Hoy, platillo roto sin rolls.
-- **808 con deslizamiento (portamento):** el `penv` de las variantes de melodía existe, pero no se ha probado en el bajo. Hoy, el 808 no se desliza.
-- **Sin oír.** Ni el ritmo, ni el 808, ni los stabs se han oído ni visto en un móvil.
+- Los redobles solo están en el remix Lacrimosa; el estilo drill «a secas» (Círculo de ritmo) sigue con el charles de 16 pasos, sin tresillos.
+- Más compases del Lacrimosa (del 5 en adelante): hay que leerlos igual de la partitura.
+- **Sin oír.** Ni los redobles, ni el deslizamiento (¿se oye como portamento o como un «bloop»?), ni el nivel del charles `hat` (gain 0,5, a ojo).

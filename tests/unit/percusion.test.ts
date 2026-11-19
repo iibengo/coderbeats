@@ -17,7 +17,7 @@ const state = (loops: FreeLoop[]): SongState => ({ loops, style: 'techno2', kit:
 
 describe('la percusión del minimal (spec 045)', () => {
   it('cinco sintes de muestra, válidos al leer lo guardado, con los nombres de strudel', () => {
-    expect(PERC_SYNTHS).toEqual(['rim', 'click', 'cowbell', 'tom', 'shaker'])
+    expect(PERC_SYNTHS).toEqual(['rim', 'click', 'cowbell', 'tom', 'shaker', 'hat'])
     for (const s of PERC_SYNTHS) {
       expect(MELODY_SYNTHS).toContain(s)
       expect(REGISTER[s]).toBeDefined()
