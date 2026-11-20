@@ -7,9 +7,9 @@ Ion quiere sacar **el remix original** (el de «escuchar el remix original») a 
 - **Botón «🎧 Guardar audio (MP3)»** en el menú «⋯» del remix, en «Escuchar y compartir», debajo de «escuchar el remix original». Toca el remix **entero, desde el principio, con Auto** (`songFromTake(remix, remixTake(remix))`, igual que «escuchar el remix original»).
 - **En tiempo real, como el vídeo** (dura lo que el remix), con «Grabando el audio 40/116 s ■ parar», luego «Preparando el MP3… 60 %» y, al acabar, **Compartir MP3 / Guardar MP3** (hoja del sistema en el móvil, descarga en el ordenador). El estado se ve con el menú cerrado.
 - **Captura sin comprimir** de la salida maestra (después del limitador de −1 dBFS; sin el micro): `public/worklets/pcm-capture.js` + `engine.pcmCapture()`. Es estéreo y a la frecuencia del navegador (48 kHz aquí). **No pasa por Opus**: el MP3 sale de audio sin pérdida previa.
-- **Recorte exacto** (`app/lib/audioExport.ts`, puro): se quita el silencio de antes de que suene el primer golpe y se corta a **la duración exacta** del remix (compases × 4 × 60 / bpm), con un fundido de salida de 0,3 s para que no haya chasquido (la cola de reverb del final se pierde).
+- **Recorte exacto** (`app/lib/audioExport.ts`, puro): se quita el silencio de antes de que suene el primer golpe y se corta a **la duración exacta** del remix (compases × 4 × 60 / bpm), con un fundido de salida (0,3 s en la primera versión; **2,5 s desde la spec 055**).
 - **MP3 de 320 kbps** con `@breezystack/lamejs` (**LGPL-3.0**, compatible con nuestra AGPL-3.0; acreditado en «Acerca de» y comprobado en `about.test.ts`). Se carga solo al exportar (`import()` dinámico) y cede el hilo para que la pantalla no se congele.
-- **Sin normalizar el volumen** (decidido lo más simple): sale como suena la app (≈ −16 LUFS, pico −2,7 dBFS). Si luego se publica, se añade una normalización a ≈ −14 LUFS.
+- **Volumen:** en la primera versión salía como suena la app (≈ −16 LUFS); desde la **spec 055** se lleva a −14 LUFS.
 - Nombre: «título-coderbeats-AAAAMMDD-HHMM.mp3».
 - Cancelar (■ parar) **no guarda nada**; si la app pasa a segundo plano, se cancela (Safari suspende el audio).
 

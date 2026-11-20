@@ -1,9 +1,10 @@
 /**
  * Exportar el audio a MP3 (spec 054): toca la canción desde el principio, captura la salida **sin comprimir** (sin el micro) con el mismo patrón que el vídeo (en tiempo real, con progreso y cancelar),
- * recorta el silencio de antes de que empiece la música y el final exacto (con un fundido de 0,3 s), codifica a MP3 y da el archivo. Nada sale del navegador.
+ * recorta el silencio de antes de que empiece la música y el final exacto (con un fundido de 2,5 s), lleva el volumen a −14 LUFS sin pasar de −2,3 dBFS, codifica a MP3 y da el archivo. Nada sale del navegador.
  */
 import { reactive } from 'vue'
 import { songBars, type Song } from '~/lib/cells'
+import { normalizeLoudness } from '~/lib/loudness'
 import { encodeMp3, firstSound, joinChunks, mp3FileName, sliceWithFade, MP3_KBPS } from '~/lib/audioExport'
 
 export type AudioPhase = 'idle' | 'recording' | 'encoding' | 'done' | 'error'
@@ -11,7 +12,10 @@ const state = reactive({ phase: 'idle' as AudioPhase, elapsed: 0, total: 0, mess
 export const useAudioExportState = () => state
 
 let cancelFlag: (() => void) | null = null
-const FADE_S = 0.3
+const FADE_S = 2.5
+/** objetivo de volumen (Spotify normaliza a ≈ −14 LUFS) y techo de pico (−2,3 dBFS: la codificación a MP3 suma ≈ 0,8 dB y así queda por debajo de −1 dBTP; medido) */
+const TARGET_LUFS = -14
+const CEILING_DB = -2.3
 
 export function useAudioExport() {
   const engine = useAudioEngine()
@@ -75,7 +79,12 @@ export function useAudioExport() {
       const fade = Math.round(FADE_S * sr)
       state.phase = 'encoding'
       state.message = ''
-      const parts = await encodeMp3(sliceWithFade(l, from, frames, fade), sliceWithFade(r, from, frames, fade), sr, MP3_KBPS, (p) => (state.elapsed = seconds * p))
+      const outL = sliceWithFade(l, from, frames, fade)
+      const outR = sliceWithFade(r, from, frames, fade)
+      // al volumen de streaming sin pasar del techo de pico (spec 055); cede el hilo antes, que son unos segundos de cuentas
+      await wait(0)
+      normalizeLoudness(outL, outR, sr, TARGET_LUFS, CEILING_DB)
+      const parts = await encodeMp3(outL, outR, sr, MP3_KBPS, (p) => (state.elapsed = seconds * p))
       const blob = new Blob(parts as BlobPart[], { type: 'audio/mpeg' })
       state.bytes = blob.size
       state.url = URL.createObjectURL(blob)
