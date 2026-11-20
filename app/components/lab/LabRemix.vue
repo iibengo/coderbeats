@@ -474,6 +474,25 @@ const listenOriginal = () => (remix.value ? listen(remixTake(remix.value)) : und
 const listenMine = () => (mine.value ? listen(mine.value) : undefined)
 const exporter = useVideoExport(() => stage.value?.videoSource() ?? null)
 const video = useVideoState()
+// guardar el audio del remix original en MP3 (spec 054): suena entero, desde el principio, en tiempo real
+const audioExp = useAudioExport()
+const audio = useAudioExportState()
+async function exportMp3() {
+  const r = remix.value
+  if (!r) return
+  const song = songFromTake(r, remixTake(r))
+  if (!song) return
+  listenScene.value = makePulso(songTimeline(song, r.style), r.title, PULSO_COMPACT)
+  mode.value = 'escuchar'
+  await audioExp.start(song, r.title)
+}
+// al acabar (o fallar), la pantalla vuelve a poder tocarse
+watch(() => audio.phase, async (p) => {
+  if ((p === 'encoding' || p === 'done' || p === 'error' || p === 'idle') && mode.value === 'escuchar') {
+    mode.value = 'actuar'
+    await engine.clearAll()
+  }
+})
 async function makeVideo() {
   if (!remix.value || !mine.value) return
   // la grabación es la de mi versión, desde el principio, y dura lo mismo que ella
@@ -642,6 +661,7 @@ const phrase = computed(() => (remix.value && view.value === 'player' ? t(auto.v
         <h2 class="mt-5 text-xs uppercase tracking-wide text-white/40">{{ t('lab.remix.sheetShare') }}</h2>
         <div class="mt-2 grid gap-2">
           <button class="flex min-h-12 w-full items-center rounded-2xl border border-white/15 bg-white/5 px-4 text-left text-base" @click="run(listenOriginal)">{{ t('lab.remix.original') }}</button>
+          <button class="flex min-h-12 w-full items-center rounded-2xl border border-white/15 bg-white/5 px-4 text-left text-base disabled:opacity-40" :disabled="audio.phase === 'recording' || audio.phase === 'encoding' || !!rec" data-audio-export @click="run(exportMp3)">{{ t('lab.remix.audio') }}</button>
           <button class="flex min-h-12 w-full items-center rounded-2xl border border-white/15 bg-white/5 px-4 text-left text-base" data-share-link @click="run(shareLink)">{{ t('lab.remix.link') }}</button>
           <button class="flex min-h-12 w-full items-center rounded-2xl border border-white/15 bg-white/5 px-4 text-left text-base" data-open-studio @click="run(openInStudio)">{{ t('lab.remix.openStudio') }}</button>
           <button class="flex min-h-12 w-full items-center rounded-2xl border border-white/15 bg-white/5 px-4 text-left text-base" data-remix-list @click="run(showLibrary)">{{ t('lab.remix.other') }}</button>
@@ -666,6 +686,13 @@ const phrase = computed(() => (remix.value && view.value === 'player' ? t(auto.v
         <p v-if="linkNote" class="mt-2 text-sm text-white/70" role="status" data-link-note>{{ linkNote }}</p>
         <p v-if="video.phase === 'waiting' || video.phase === 'recording'" class="mt-2 text-sm text-white/60" role="status">{{ t('lab.remix.videoRec', { a: video.elapsed.toFixed(0), b: video.total.toFixed(0) }) }} <button class="ml-2 underline" @click="exporter.stop()">{{ t('lab.remix.stop') }}</button></p>
         <p v-else-if="video.phase === 'error'" class="mt-2 text-sm text-red-300" role="alert">{{ video.message }}</p>
+        <p v-if="audio.phase === 'recording'" class="mt-2 text-sm text-white/60" role="status" data-audio-status>{{ t('lab.remix.audioRec', { a: audio.elapsed.toFixed(0), b: audio.total.toFixed(0) }) }} <button class="ml-2 underline" @click="audioExp.cancel()">{{ t('lab.remix.stop') }}</button></p>
+        <p v-else-if="audio.phase === 'encoding'" class="mt-2 text-sm text-white/60" role="status" data-audio-status>{{ t('lab.remix.audioEnc') }} {{ audio.total ? Math.round((audio.elapsed / audio.total) * 100) : 0 }} %</p>
+        <p v-else-if="audio.phase === 'error'" class="mt-2 text-sm text-red-300" role="alert" data-audio-status>{{ audio.message }}</p>
+        <div v-else-if="audio.phase === 'done'" class="mt-2 flex gap-2 text-sm" data-audio-done>
+          <button class="min-h-11 rounded-lg border border-white/25 px-4" @click="audioExp.save(true)">{{ t('lab.remix.audioShare') }}</button>
+          <button class="min-h-11 rounded-lg border border-white/25 px-4" data-audio-save @click="audioExp.save(false)">{{ t('lab.remix.audioSave') }}</button>
+        </div>
         <div v-else-if="video.phase === 'done'" class="mt-2 flex gap-2 text-sm">
           <button class="min-h-11 rounded-lg border border-white/25 px-4" @click="exporter.save(true)">{{ t('lab.remix.share') }}</button>
           <button class="min-h-11 rounded-lg border border-white/25 px-4" @click="exporter.save(false)">{{ t('lab.remix.save') }}</button>

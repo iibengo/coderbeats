@@ -15,6 +15,7 @@
     "dev:phone": "nuxt dev --host --https"
   },
   "dependencies": {
+    "@breezystack/lamejs": "^1.2.7",
     "@nuxt/fonts": "^0.14.0",
     "@nuxt/icon": "^2.5.1",
     "@nuxtjs/i18n": "^10.6.0",

@@ -4,6 +4,9 @@
 
 - **Rehecho** `korobeiniki-techno` con la receta del Lacrimosa: 8 partes, 64 compases ≈ 1 min 56 s, `techno2`. **Solo la melodía popular rusa es de otro**; bajo a contratiempo, stabs, tema picado, fraseo y forma son nuestros (`app/lib/korobeiniki.ts`), sin copiar el arreglo de Tetris. Mismo id (lo guardado sigue abriendo). Tests nuevos (`tests/unit/korobeiniki.test.ts`). **Ion lo ha oído (2026-11-20): «se escucha bien».** Sigue sin contrastarse con partitura (notas de memoria) y sin probar a fondo en un iPhone.
 - **Qué probar:** Laboratorio → Remixes → Korobeiniki: ¿se reconoce la melodía y a la vez suena a techno propio? ¿El drop da salto? ¿El bajo a contratiempo con el bombo suena bien?
+- **Guardar audio (MP3)** en el menú «⋯» del remix (spec 054, a petición de Ion): toca el remix original entero en tiempo real, captura la salida **sin comprimir** (worklet `pcm-capture`), recorta el silencio inicial y el final exacto, y codifica a **MP3 de 320 kbps** con `@breezystack/lamejs` (LGPL-3.0, acreditado en «Acerca de»). Sin normalizar el volumen. Comprobado en el navegador sin pantalla con Korobeiniki: 116,40 s, 48 kHz estéreo, −16,3 LUFS, pico −2,7 dBFS. **No oído y sin probar en iPhone.**
+- **Qué probar (spec 054):** Laboratorio → Remixes → un remix → «⋯» → «🎧 Guardar audio (MP3)»: ¿cuenta los segundos, termina en «Preparando…» y ofrece Guardar/Compartir? ¿El MP3 suena bien y dura lo que el remix? ¿Con ■ parar se cancela sin guardar? En el iPhone, ¿«Compartir MP3» abre la hoja del sistema?
+
 
 # Tanda 5 (2026-11-19): visualizador aparte (spec 049)
 

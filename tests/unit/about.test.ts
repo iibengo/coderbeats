@@ -31,5 +31,7 @@ describe('Acerca de: licencia y créditos', () => {
     const pkg = JSON.parse(read('package.json'))
     expect(pkg.dependencies['@strudel/web']).toBeDefined()
     expect(pkg.dependencies.meyda).toBeDefined()
+    expect(pkg.dependencies['@breezystack/lamejs']).toBeDefined()
+    expect(JSON.parse(read('node_modules/@breezystack/lamejs/package.json')).license).toBe('LGPL-3.0') // la que acreditamos
   })
 })

@@ -5,6 +5,7 @@ import { COMMIT_IDLE, softQuantize, TapTake } from '~/lib/tapMelody'
 import { DEFAULT_PRODUCTION } from '~/lib/production'
 import { mergeCells as mergeCellsPure } from '~/lib/mergeCells'
 import { bluetoothWarning } from '~/lib/voiceWarn'
+import { firstSound } from '~/lib/audioExport'
 import { encodeWav } from '~/lib/wav'
 import { loadVoice, saveVoice } from '~/lib/voiceStore'
 import { cutBars, fromPcm16, newVoiceId, prepareTake, type VoiceBars } from '~/lib/voiceLoop'
@@ -2824,6 +2825,60 @@ export function useAudioEngine() {
       say(lost ? `Fundidas · ${lost} no entraron (↶ deshacer lo devuelve todo)` : 'Fundidas')
       log('cell', `célula ${aId} fundida en ${bId}: ${r.dropped.hits} golpes iguales, ${r.dropped.notes} notas que no cupieron`)
       return true
+    },
+    /**
+     * El audio de la app (lo que se oye, sin el micro) **sin comprimir**, para exportarlo a MP3 (spec 054): una captura estéreo de la salida maestra (después del limitador). `null` si todavía no hay audio
+     * o el navegador no admite worklets. `frames()` y `firstFrame()` dicen cuánto se lleva y dónde empieza la música (el primer fotograma con sonido, −1 si aún no); `stop()` da los bloques.
+     */
+    pcmCapture: async (): Promise<{ sampleRate: number; start: () => void; frames: () => number; firstFrame: () => number; stop: () => Promise<{ l: Float32Array[]; r: Float32Array[] }> } | null> => {
+      if (!ctx || !masterEnd) return null
+      const c = ctx
+      try {
+        await c.audioWorklet.addModule(`${useRuntimeConfig().app.baseURL}worklets/pcm-capture.js`)
+        const node = new AudioWorkletNode(c, 'pcm-capture', { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2] })
+        const mute = c.createGain()
+        mute.gain.value = 0
+        masterEnd.connect(node)
+        node.connect(mute).connect(c.destination)
+        const l: Float32Array[] = []
+        const r: Float32Array[] = []
+        let frames = 0
+        let first = -1
+        let stopped: () => void = () => {}
+        const done = new Promise<void>((res) => (stopped = res))
+        node.port.onmessage = (e: MessageEvent<{ type: string; l?: Float32Array; r?: Float32Array }>) => {
+          if (e.data.type === 'stopped') return stopped()
+          if (e.data.type !== 'chunk' || !e.data.l || !e.data.r) return
+          if (first < 0) {
+            const i = firstSound(e.data.l, e.data.r)
+            if (i >= 0) first = frames + i
+          }
+          l.push(e.data.l)
+          r.push(e.data.r)
+          frames += e.data.l.length
+        }
+        return {
+          sampleRate: c.sampleRate,
+          start: () => node.port.postMessage('start'),
+          frames: () => frames,
+          firstFrame: () => first,
+          stop: async () => {
+            node.port.postMessage('stop')
+            await done
+            try {
+              masterEnd?.disconnect(node)
+              node.disconnect()
+              mute.disconnect()
+            } catch {
+              /* ya desconectado */
+            }
+            return { l, r }
+          },
+        }
+      } catch (e) {
+        log('error', `pcm-capture: ${e instanceof Error ? e.message : String(e)}`)
+        return null
+      }
     },
     /** El audio de la app (lo que se oye, sin el micro) como un flujo para grabarlo en vídeo. `null` si todavía no hay audio. */
     videoAudio: (): MediaStream | null => {
