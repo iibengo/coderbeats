@@ -1,5 +1,10 @@
 # Estado (2026-11-15) — lo hecho mientras no estabas
 
+# Tanda 6 (2026-11-20): Korobeiniki en techno, arreglo propio (spec 053)
+
+- **Rehecho** `korobeiniki-techno` con la receta del Lacrimosa: 8 partes, 64 compases ≈ 1 min 56 s, `techno2`. **Solo la melodía popular rusa es de otro**; bajo a contratiempo, stabs, tema picado, fraseo y forma son nuestros (`app/lib/korobeiniki.ts`), sin copiar el arreglo de Tetris. Mismo id (lo guardado sigue abriendo). Tests nuevos (`tests/unit/korobeiniki.test.ts`). **Sin oír; notas de memoria.**
+- **Qué probar:** Laboratorio → Remixes → Korobeiniki: ¿se reconoce la melodía y a la vez suena a techno propio? ¿El drop da salto? ¿El bajo a contratiempo con el bombo suena bien?
+
 # Tanda 5 (2026-11-19): visualizador aparte (spec 049)
 
 Todo en `main`, **sin push**. **Nada visto en un móvil.**

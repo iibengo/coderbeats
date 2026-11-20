@@ -14,7 +14,8 @@ import { DEMOS } from './demos'
 import { PERC_MIDI } from './percSamples'
 import { LAC, lacSlice } from './lacrimosa'
 import type { MelodySynth } from './melody'
-import { fast, shift, ELISA_A, ELISA_B, GRIEG_A, GRIEG_B, HABANERA_A, HABANERA_B, KOROBEINIKI_A, KOROBEINIKI_B } from './publicTunes'
+import { fast, shift, ELISA_A, ELISA_B, GRIEG_A, GRIEG_B, HABANERA_A, HABANERA_B } from './publicTunes'
+import { KORO_BASS, KORO_BASS_CLIMB, KORO_BREAK, KORO_CLIMB, KORO_HOOK, KORO_STABS, KORO_TUNE, KORO_TUNE2 } from './korobeiniki'
 import type { KitId, StyleId } from './types'
 import { MAX_LAYERS, MAX_PARTS, partsFromSong, type LabLayer, type LabPart } from './remixParts'
 export { MAX_LAYERS, MAX_PARTS }
@@ -244,6 +245,37 @@ function lacrimosaDrill(): LabRemix {
 const LAC_SHIFT = -3
 const LAC_BPM = 145
 
+/**
+ * Korobeiniki en techno (spec 053), con **arreglo propio** (ver `korobeiniki.ts`): solo la melodía popular es de otro; bajo a contratiempo, stabs sincopados y forma de techno minimal son nuestros.
+ * 8 partes, 64 compases a 132 bpm ≈ 1 min 56 s. Techno nuevo (`techno2`: el viejo `techno` es solo para lo ya guardado). La fuerza de la tira sube de la intro al drop (como en el Lacrimosa).
+ * Gancho (intro y final) · tema picado (estrofa y drop) · segunda frase ligada (subida y break) · las dos frases mezcladas (drop 2). Sin oír; notas de memoria.
+ */
+function korobeinikiTechno(): LabRemix {
+  const SOFT = 0
+  const LOW = 0.35
+  const MID = 0.6
+  const FULL = 1
+  const tema = (notes: readonly Note[], synth: MelodySynth, strength: number): LabLayer => ({ key: 'tema', label: 'tema', mel: [{ notes, synth, strength }] })
+  const acordes = (strength: number): LabLayer => ({ key: 'acordes', label: 'acordes', mel: [{ notes: KORO_STABS, synth: 'keys', strength }] })
+  const bajo = (notes: readonly Note[]): LabLayer => ({ key: 'bajo', label: 'bajo', mel: [{ notes, synth: 'sub' }] })
+  const clap = '~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ sd ~ ~ ~'
+  const platillo = { notes: MZ_CRASH, synth: 'crash' as const }
+  const subida: LabLayer = { key: 'subida', label: 'subida', mel: [{ notes: RISER_NOISE, synth: 'riser' }, { notes: RISER_PAD, synth: 'pad' }] }
+  const ritmo: LabLayer = { key: 'ritmo', label: 'ritmo', drums: { bd: T.bd4, sd: clap, hh: DEMOS.techno2.hh }, mel: [platillo] }
+  const parts: { name: string; bars: Turns; layers: LabLayer[] }[] = [
+    { name: 'Intro', bars: 4, layers: [acordes(SOFT), tema(KORO_HOOK, 'pad', SOFT)] },
+    { name: 'Estrofa', bars: 8, layers: [L.hat(DEMOS.techno2.hh), bajo(KORO_BASS), acordes(LOW), tema(KORO_TUNE, 'lead', LOW)] },
+    { name: 'Subida', bars: 4, layers: [{ key: 'caja', label: 'caja', drums: { sd: T.roll, hh: T.hats16 } }, subida, bajo(KORO_BASS_CLIMB), tema(KORO_CLIMB, 'lead', MID)] },
+    { name: 'Drop', bars: 16, layers: [ritmo, bajo(KORO_BASS), acordes(FULL), tema(KORO_TUNE, 'lead', FULL)] },
+    { name: 'Break', bars: 8, layers: [acordes(MID), tema(KORO_BREAK, 'pad', MID)] },
+    { name: 'Puente', bars: 4, layers: [tema(KORO_HOOK, 'pad', SOFT), { key: 'subida', label: 'subida', mel: [{ notes: RISER_NOISE, synth: 'riser' }] }] },
+    { name: 'Drop 2', bars: 16, layers: [ritmo, bajo(KORO_BASS), acordes(FULL), tema(KORO_TUNE2, 'lead', FULL)] },
+    { name: 'Final', bars: 4, layers: [acordes(SOFT), tema(KORO_HOOK, 'pad', SOFT)] },
+  ]
+  const song = songFromParts(parts)
+  return { id: 'korobeiniki-techno', title: 'Korobeiniki', composer: 'popular rusa', style: 'techno2', kit: 'electro', key: 'Do menor', song, parts: partsFromSong(song), unverified: true }
+}
+
 export const LAB_REMIXES: readonly LabRemix[] = [
   recipe({
     id: 'oda-alegria-dembow', title: 'Himno de la alegría', composer: 'Beethoven', style: 'dembow', kit: '808', key: 'Re mayor',
@@ -280,13 +312,6 @@ export const LAB_REMIXES: readonly LabRemix[] = [
     intro: WOW_HOOK, sub: WOW_HOOK, drop: WOW_HOOK, drop2: up(WOW_HOOK, 12), final: WOW_HOOK,
     dropFx: [{ notes: MZ_CRASH, synth: 'crash' }, { notes: WOW_IMPACT, synth: 'boom' }],
   }),
-  // Korobeiniki (canción popular rusa, dominio público) en techno; el tema está escrito de memoria
-  recipe({
-    id: 'korobeiniki-techno', title: 'Korobeiniki', composer: 'popular rusa', style: 'techno2', kit: 'electro', key: 'Do menor',
-    kick: T.bd4, clap: '~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ sd ~ ~ ~', hat: DEMOS.techno2.hh, hats16: T.hats16, roll: T.roll, noise: RISER_NOISE, pad: RISER_PAD,
-    intro: shift(KOROBEINIKI_A, 3), sub: shift(KOROBEINIKI_B, 3), drop: shift(KOROBEINIKI_A, 3), drop2: shift(KOROBEINIKI_B, 3), final: shift(KOROBEINIKI_A, 3),
-    dropFx: [{ notes: MZ_CRASH, synth: 'crash' }], unverified: true,
-  }),
   // En la gruta del rey de la montaña (Grieg, dominio público) en dnb, **acelerando**: el tema se dobla (corcheas → semicorcheas) a medida que sube la energía; de memoria
   recipe({
     id: 'gruta-dnb', title: 'En la gruta del rey de la montaña', composer: 'Grieg', style: 'dnb', kit: 'electro', key: 'Re menor',
@@ -319,6 +344,7 @@ export const LAB_REMIXES: readonly LabRemix[] = [
     shape: [{ name: 'Intro', bars: 4 }, { name: 'Estrofa', bars: 4 }, { name: 'Subida', bars: 4 }, { name: 'Drop', bars: 8 }, { name: 'Break', bars: 4 }, { name: 'Drop 2', bars: 4 }, { name: 'Final', bars: 4 }],
   }),
   lacrimosaDrill(),
+  korobeinikiTechno(),
 ]
 /**
  * Pasar solo a la siguiente parte (spec 050): ¿qué parte hay que pedir ahora? La parte `current` empezó a sonar en el compás `shownBar` y dura `bars` compases; la siguiente entra **en el compás siguiente**
