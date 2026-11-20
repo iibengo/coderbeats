@@ -6,8 +6,8 @@
  */
 /** `drone`: un sine con mucha reverb, para fondos (la demo del dembow); no es de los que se eligen para cantar */
 /** `bass` y `keys` (spec 028 §5): el bajo y los acordes **propios de la canción**, hechos de notas (en `keys`, varias a la vez), en vez del fondo del estilo */
-export type MelodySynth = 'lead' | 'piano' | 'pad' | 'drone' | 'riser' | 'crash' | 'boom' | 'impacto' | 'downlifter' | 'bass' | 'keys' | 'guitar' | 'guitarDirty' | 'guitarSample' | 'acid' | 'rim' | 'click' | 'cowbell' | 'tom' | 'shaker' | 'hat' | 'hatOpen' | 'sub' | 'cuerdas' | 'coro' | 'dub'
-export const MELODY_SYNTHS: readonly MelodySynth[] = ['lead', 'piano', 'pad', 'drone', 'riser', 'crash', 'boom', 'impacto', 'downlifter', 'bass', 'keys', 'guitar', 'guitarDirty', 'guitarSample', 'acid', 'rim', 'click', 'cowbell', 'tom', 'shaker', 'hat', 'hatOpen', 'sub', 'cuerdas', 'coro', 'dub']
+export type MelodySynth = 'lead' | 'piano' | 'pad' | 'drone' | 'riser' | 'crash' | 'boom' | 'impacto' | 'downlifter' | 'bass' | 'keys' | 'guitar' | 'guitarDirty' | 'guitarSample' | 'acid' | 'rim' | 'click' | 'cowbell' | 'tom' | 'shaker' | 'hat' | 'hatOpen' | 'sub' | 'cuerdas' | 'coro' | 'dub' | 'stabW' | 'leadW'
+export const MELODY_SYNTHS: readonly MelodySynth[] = ['lead', 'piano', 'pad', 'drone', 'riser', 'crash', 'boom', 'impacto', 'downlifter', 'bass', 'keys', 'guitar', 'guitarDirty', 'guitarSample', 'acid', 'rim', 'click', 'cowbell', 'tom', 'shaker', 'hat', 'hatOpen', 'sub', 'cuerdas', 'coro', 'dub', 'stabW', 'leadW']
 
 /** Rango MIDI que se admite en un loop de melodía o bajo (C1–C7). */
 export const MIDI_MIN = 24
@@ -48,6 +48,8 @@ export const REGISTER: Record<MelodySynth | 'bass', readonly [number, number]> =
   hatOpen: [24, 60], // el charles abierto del drill (spec 048): ruido corto; la altura no cuenta
   hat: [24, 60], // el charles del 808 para los redobles (spec 048): la altura no cuenta
   dub: [36, 79], // acordes de dub techno: C2–G5
+  stabW: [36, 79], // stabs anchos del Korobeiniki en techno (spec 056): C2–G5
+  leadW: [48, 96], // melodía brillante y con algo de espacio del Korobeiniki en techno (spec 056): C3–C7
   bass: [28, 52], // E1–E3
 }
 
@@ -112,6 +114,10 @@ export const SYNTH_SOUND: Record<MelodySynth, string> = {
   // `postgain` y un `lpf` más cerrado (más oscura): ese eco es `SYNTH_ECHO.dub`, que va **al final de la línea** (después del `.gain("…")` por nota, que si no recortaría las repeticiones). Recibe acordes
   // (varias notas a la vez). En el motor, `room` y `shape` los gobiernan los controles de Espacio y Calidez. Sin oír.
   dub: '.s("supersaw").unison(2).detune(0.3).spread(0.4).lpf(800).lpq(3).lpenv(3).lpa(0.003).lpd(0.18).lps(0).decay(0.3).sustain(0).release(0.15).shape(0.25).room(0.9).roomsize(8).gain(0.35)',
+  // los stabs anchos del Korobeiniki en techno (spec 056): sierra con el filtro más abierto (más 2–6 kHz que `keys`), corta y seca, que **rebota entre los dos lados** (`pan` con un seno rápido: cada golpe cae en otro sitio; el drop era mono exacto) y una reverb pequeña. Varias notas a la vez. Sin oír.
+  stabW: '.s("sawtooth").lpf(4800).lpq(2).lpenv(3).lpa(0.002).lpd(0.14).lps(0).decay(0.16).sustain(0).release(0.08).pan(sine.range(0.12,0.88).fast(2)).room(0.3).gain(0.35)',
+  // la melodía brillante del mismo remix (spec 056): el `lead` de siempre (cuadrada con eco) con el filtro abierto a 3200 Hz en vez de 1800 (más cuerpo en los medios-agudos), una reverb pequeña y un vaivén lento y corto entre los lados. Sin oír.
+  leadW: '.s("square").lpf(3200).decay(0.2).sustain(0.5).delay(0.25).room(0.25).pan(sine.range(0.35,0.65).slow(4))',
   riser: '.s("pink").attack(0.12).decay(0.2).sustain(0.7).release(0.05).gain(0.6).room(0.3)',
 }
 

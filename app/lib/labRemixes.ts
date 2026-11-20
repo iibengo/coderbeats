@@ -15,7 +15,7 @@ import { PERC_MIDI } from './percSamples'
 import { LAC, lacSlice } from './lacrimosa'
 import type { MelodySynth } from './melody'
 import { fast, shift, ELISA_A, ELISA_B, GRIEG_A, GRIEG_B, HABANERA_A, HABANERA_B } from './publicTunes'
-import { KORO_BASS, KORO_BASS_CLIMB, KORO_BREAK, KORO_CLIMB, KORO_HOOK, KORO_STABS, KORO_TUNE, KORO_TUNE2 } from './korobeiniki'
+import { KORO_BASS, KORO_BASS_CLIMB, KORO_BREAK, KORO_CLIMB, KORO_HAT, KORO_HOOK, KORO_OPEN, KORO_STABS, KORO_TUNE, KORO_TUNE2 } from './korobeiniki'
 import type { KitId, StyleId } from './types'
 import { MAX_LAYERS, MAX_PARTS, partsFromSong, type LabLayer, type LabPart } from './remixParts'
 export { MAX_LAYERS, MAX_PARTS }
@@ -256,20 +256,23 @@ function korobeinikiTechno(): LabRemix {
   const MID = 0.6
   const FULL = 1
   const tema = (notes: readonly Note[], synth: MelodySynth, strength: number): LabLayer => ({ key: 'tema', label: 'tema', mel: [{ notes, synth, strength }] })
-  const acordes = (strength: number): LabLayer => ({ key: 'acordes', label: 'acordes', mel: [{ notes: KORO_STABS, synth: 'keys', strength }] })
+  const acordes = (strength: number): LabLayer => ({ key: 'acordes', label: 'acordes', mel: [{ notes: KORO_STABS, synth: 'stabW', strength }] })
   const bajo = (notes: readonly Note[]): LabLayer => ({ key: 'bajo', label: 'bajo', mel: [{ notes, synth: 'sub' }] })
-  const clap = '~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ sd ~ ~ ~'
+  // la caja de siempre en el 4 (paso 12) y un redoble corto al final del compás 4 de cada vuelta; el charles propio (`KORO_HAT`, con golpes fantasma) y el abierto, en vez del dibujo fijo del kit
+  const clap = drums4('sd', [[12], [12], [12], [12, 14, 15]])
   const platillo = { notes: MZ_CRASH, synth: 'crash' as const }
   const subida: LabLayer = { key: 'subida', label: 'subida', mel: [{ notes: RISER_NOISE, synth: 'riser' }, { notes: RISER_PAD, synth: 'pad' }] }
-  const ritmo: LabLayer = { key: 'ritmo', label: 'ritmo', drums: { bd: T.bd4, sd: clap, hh: DEMOS.techno2.hh }, mel: [platillo] }
+  const charles = { notes: KORO_HAT.notes, strengths: KORO_HAT.strengths, synth: 'hat' as const }
+  const abierto = { notes: KORO_OPEN, synth: 'hatOpen' as const }
+  const ritmo: LabLayer = { key: 'ritmo', label: 'ritmo', drums: { bd: T.bd4, sd: clap }, mel: [charles, abierto, platillo] }
   const parts: { name: string; bars: Turns; layers: LabLayer[] }[] = [
     { name: 'Intro', bars: 4, layers: [acordes(SOFT), tema(KORO_HOOK, 'pad', SOFT)] },
-    { name: 'Estrofa', bars: 8, layers: [L.hat(DEMOS.techno2.hh), bajo(KORO_BASS), acordes(LOW), tema(KORO_TUNE, 'lead', LOW)] },
-    { name: 'Subida', bars: 4, layers: [{ key: 'caja', label: 'caja', drums: { sd: T.roll, hh: T.hats16 } }, subida, bajo(KORO_BASS_CLIMB), tema(KORO_CLIMB, 'lead', MID)] },
-    { name: 'Drop', bars: 16, layers: [ritmo, bajo(KORO_BASS), acordes(FULL), tema(KORO_TUNE, 'lead', FULL)] },
+    { name: 'Estrofa', bars: 8, layers: [L.hat(DEMOS.techno2.hh), bajo(KORO_BASS), acordes(LOW), tema(KORO_TUNE, 'leadW', LOW)] },
+    { name: 'Subida', bars: 4, layers: [{ key: 'caja', label: 'caja', drums: { sd: T.roll, hh: T.hats16 } }, subida, bajo(KORO_BASS_CLIMB), tema(KORO_CLIMB, 'leadW', MID)] },
+    { name: 'Drop', bars: 16, layers: [ritmo, bajo(KORO_BASS), acordes(FULL), tema(KORO_TUNE, 'leadW', FULL)] },
     { name: 'Break', bars: 8, layers: [acordes(MID), tema(KORO_BREAK, 'pad', MID)] },
     { name: 'Puente', bars: 4, layers: [tema(KORO_HOOK, 'pad', SOFT), { key: 'subida', label: 'subida', mel: [{ notes: RISER_NOISE, synth: 'riser' }] }] },
-    { name: 'Drop 2', bars: 16, layers: [ritmo, bajo(KORO_BASS), acordes(FULL), tema(KORO_TUNE2, 'lead', FULL)] },
+    { name: 'Drop 2', bars: 16, layers: [ritmo, bajo(KORO_BASS), acordes(FULL), tema(KORO_TUNE2, 'leadW', FULL)] },
     { name: 'Final', bars: 4, layers: [acordes(SOFT), tema(KORO_HOOK, 'pad', SOFT)] },
   ]
   const song = songFromParts(parts)

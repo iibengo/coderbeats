@@ -55,3 +55,20 @@ export function koroStabs(roots: readonly number[]): Note[] {
 export const KORO_BASS = koroBass(ROOTS_A)
 export const KORO_BASS_CLIMB = koroBass(ROOTS_CLIMB)
 export const KORO_STABS = koroStabs(ROOTS_A)
+
+/** Un golpe de charles: paso del compás y fuerza (0..1). */
+type Hit = readonly [step: number, strength: number]
+/**
+ * El charles del drop (spec 056), 4 compases: el «tss» a contratiempo (pasos 2, 6, 10 y 14, a tope) con golpes fantasma de semicorchea entre medias (fuerza 0,3–0,5) que dan **groove**, y un redoble de
+ * semicorcheas que crece al final del compás 4 (el remate de cada vuelta del loop). Antes era un solo dibujo fijo del kit.
+ */
+const HAT_BARS: readonly (readonly Hit[])[] = [
+  [[2, 1], [5, 0.4], [6, 0.9], [7, 0.35], [10, 1], [13, 0.4], [15, 0.45]],
+  [[2, 1], [3, 0.35], [6, 0.9], [10, 1], [11, 0.35], [13, 0.4], [15, 0.5]],
+  [[2, 1], [5, 0.4], [6, 0.9], [9, 0.3], [10, 1], [15, 0.5]],
+  [[2, 1], [6, 0.9], [12, 0.5], [13, 0.6], [14, 0.8], [15, 1]],
+]
+const hits = HAT_BARS.flatMap((bar, b) => bar.map(([step, strength]) => ({ note: [b * BAR + step, 1, 60] as const, strength })))
+export const KORO_HAT = { notes: hits.map((h) => h.note) as readonly Note[], strengths: hits.map((h) => h.strength) as readonly number[] }
+/** El charles abierto: un acento breve que **sustituye** al cerrado en el paso 14 de los compases 1, 2 y 3 y en el 10 del 4 (antes del redoble): nunca suenan los dos a la vez. */
+export const KORO_OPEN: readonly Note[] = [[14, 1, 60], [30, 1, 60], [46, 1, 60], [58, 1, 60]]

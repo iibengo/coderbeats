@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { labRemixById, LAB_REMIXES, remixBars, remixBpm, remixSeconds } from '../../app/lib/labRemixes'
-import { cut, KORO_BASS, KORO_BREAK, KORO_CLIMB, KORO_HOOK, KORO_STABS, KORO_TUNE, KORO_TUNE2, koroBass, staccato } from '../../app/lib/korobeiniki'
+import { MELODY_SYNTHS, REGISTER, SYNTH_SOUND } from '../../app/lib/melody'
+import { MAX_LOOPS } from '../../app/lib/freeLoops'
+import { cut, KORO_HAT, KORO_OPEN, KORO_BASS, KORO_BREAK, KORO_CLIMB, KORO_HOOK, KORO_STABS, KORO_TUNE, KORO_TUNE2, koroBass, staccato } from '../../app/lib/korobeiniki'
 import { KOROBEINIKI_A, shift } from '../../app/lib/publicTunes'
 
 const midis = (n: readonly (readonly [number, number, number])[]) => n.map((x) => x[2])
@@ -72,5 +74,40 @@ describe('Korobeiniki en techno: el remix', () => {
     expect(keys('Drop')).toEqual(['ritmo', 'bajo', 'acordes', 'tema'])
     expect(keys('Subida')).not.toContain('ritmo')
     expect(keys('Intro')).toEqual(['acordes', 'tema'])
+  })
+})
+
+describe('Korobeiniki en techno: el sonido (spec 056)', () => {
+  const r = labRemixById('korobeiniki-techno')!
+  it('sintes nuevos: están registrados y los de siempre no cambian', () => {
+    for (const k of ['stabW', 'leadW'] as const) {
+      expect(MELODY_SYNTHS).toContain(k)
+      expect(REGISTER[k]).toBeDefined()
+      expect(SYNTH_SOUND[k]).toContain('.pan(') // rebotan entre los dos lados
+    }
+    // los de siempre, intactos (lo guardado suena igual)
+    expect(SYNTH_SOUND.lead).toBe('.s("square").lpf(1800).decay(0.2).sustain(0.5).delay(0.25)')
+    expect(SYNTH_SOUND.keys).toBe('.s("triangle").fm(0.8).decay(0.5).sustain(0.15).lpf(2600).room(0.3).gain(0.4)')
+    expect(SYNTH_SOUND.hat).toContain('hpf(6500)')
+  })
+  it('el charles tiene golpes fantasma y un redoble al final del 4.º compás; el abierto, en pasos distintos', () => {
+    expect(KORO_HAT.strengths.length).toBe(KORO_HAT.notes.length)
+    expect(KORO_HAT.strengths.some((x) => x <= 0.4)).toBe(true) // fantasma
+    expect(KORO_HAT.strengths.some((x) => x === 1)).toBe(true)
+    const last = KORO_HAT.notes.filter((n) => n[0] >= 48 + 12)
+    expect(last.length).toBeGreaterThanOrEqual(4) // el redoble
+    const hatPos = new Set(KORO_HAT.notes.map((n) => n[0]))
+    for (const [p] of KORO_OPEN) expect(hatPos.has(p)).toBe(false) // el abierto no pisa al cerrado
+  })
+  it('el drop usa los sintes anchos y cabe en los 8 loops de una parte', () => {
+    for (const name of ['Drop', 'Drop 2']) {
+      const p = r.parts.find((x) => x.name === name)!
+      expect(p.layers.find((l) => l.key === 'acordes')!.mel![0]!.synth).toBe('stabW')
+      expect(p.layers.find((l) => l.key === 'tema')!.mel![0]!.synth).toBe('leadW')
+      const ritmo = p.layers.find((l) => l.key === 'ritmo')!
+      expect(ritmo.mel!.map((m) => m.synth).sort()).toEqual(['crash', 'hat', 'hatOpen'])
+      const cell = r.song.cells[r.parts.indexOf(p)]!
+      expect(cell.loops.length).toBeLessThanOrEqual(MAX_LOOPS)
+    }
   })
 })
