@@ -19,4 +19,4 @@ Melodía popular (dominio público), escrita como notas, sin grabaciones ni arre
 - `techno2` y no `techno` (el viejo está marcado `legacy`).
 - Los stabs y el bajo son sencillos a propósito; si suena soso, se añade un arpegio.
 - Si el gancho de 2 compases y aire se queda corto como intro.
-- **Sin oír.** Ni el picado del tema, ni el bajo a contratiempo con el `sub`, ni el salto del drop.
+- **Oído por Ion (2026-11-20): «se escucha bien».** Falta contrastar las notas con una partitura y probarlo en un iPhone.
