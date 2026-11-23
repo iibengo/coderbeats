@@ -48,11 +48,25 @@ Stack: [Nuxt](https://nuxt.com) 4, Vue 3, Tailwind, Web Audio y [Strudel](https:
 - `app/components/lab/`: las pantallas del Laboratorio. `app/components/`: el Estudio.
 - `specs/`: las especificaciones, una por función, más [`specs/ESTADO.md`](specs/ESTADO.md) (lo hecho y qué probar) y los principios del proyecto ([`PRINCIPIOS.md`](specs/PRINCIPIOS.md), [`DISENO.md`](specs/DISENO.md)).
 - `tests/unit/` (Vitest) y `tests/browser/` (guiones de Chrome sin pantalla, a mano).
+- `tools/conversor/`: el conversor de notas a canción, su guía, ejemplos y las instrucciones del agente `cancionero`.
 - `public/samples/`: los samples, con su licencia en [`CREDITS.md`](public/samples/CREDITS.md).
 
 ## Hacer canciones con un asistente de IA (Claude Code / opencode)
 
-`tools/conversor/` tiene un conversor que pasa una canción en texto (notas, bajo, acordes) a un `.json` que se importa en la app, con su guía y ejemplos. El repo incluye un agente **cancionero** (`.claude/agents/` para Claude Code, `.opencode/agent/` para opencode) que guía a una persona sin conocimientos técnicos, una pregunta cada vez, y puede mejorar el conversor si se lo pides. En este repo solo entra música de dominio público u original. Mira [`tools/conversor/guia.md`](tools/conversor/guia.md).
+`tools/conversor/` es una pequeña herramienta de terminal que pasa una canción escrita en texto (melodía, bajo, acordes, estilo) a un `.json` que se importa en la app (**Estudio → Mis canciones → ⋯ → Importar**). Va aparte de la app pero sincronizada con ella: una prueba (`tests/unit/conversor.test.ts`) falla si la app gana un estilo o un sinte y el conversor no.
+
+```bash
+# escribe mis-canciones/mi-cancion.txt (parte de tools/conversor/ejemplos/) y luego:
+node tools/conversor/notas-a-json.mjs mis-canciones/mi-cancion.txt            # → mi-cancion.json
+node tools/conversor/notas-a-json.mjs mis-canciones/mi-cancion.txt --estilo drill
+```
+
+- **Ejemplos** (`tools/conversor/ejemplos/`): el Himno de la alegría (dominio público) y tres piezas originales (techno minimal, dub techno y drill).
+- **Guía** ([`tools/conversor/guia.md`](tools/conversor/guia.md)): el formato, las reglas para que no suene a trozos, los estilos y sintes, y cómo se arma una canción larga (el Lacrimosa en drill es el modelo).
+- **Agente `cancionero`** (`.claude/agents/` para Claude Code, `.opencode/agent/` para opencode): abre el repo en Claude Code u opencode y pide una canción. Está pensado para gente sin conocimientos técnicos: una pregunta cada vez, lenguaje sencillo, escribe el `.txt`, lo convierte, te dice cómo importarlo y puede mejorar el conversor **solo si le dices que sí** (y con la prueba en verde).
+- **Reglas:** en este repo solo música de **dominio público u original**, nada de temas de cine, videojuegos o canciones modernas. Tus canciones viven en `mis-canciones/`, que git ignora, y no se suben a ningún sitio.
+
+> El agente aún no se ha probado en una sesión real y el archivo del agente de opencode está escrito de memoria: avísanos si no funciona.
 
 ## Privacidad
 

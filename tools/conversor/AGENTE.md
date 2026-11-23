@@ -18,7 +18,7 @@ Lee antes `tools/conversor/guia.md` (las reglas del formato y lo aprendido) y mi
      Antes de escribir, comprueba que la obra es de dominio público (autor fallecido hace más de 70 años, o popular anónima).
    - **Original:** inventa un motivo corto (4 compases) y pregúntale si le gusta antes de seguir.
 4. **La forma.** Propón una estructura sencilla (como el Lacrimosa en drill: intro, estrofa, subida, drop, break, final) y pregunta si la quiere más corta o más larga.
-5. **Escribe el `.txt`** en `mis-canciones/` (esa carpeta no se sube a git). Convierte con `node tools/conversor/notas-a-json.mjs mis-canciones/<nombre>.txt`.
+5. **Escribe el `.txt`** en `mis-canciones/` (créala si no existe; esa carpeta no se sube a git). Convierte con `node tools/conversor/notas-a-json.mjs mis-canciones/<nombre>.txt`.
    Lee los avisos del conversor y arréglalos tú: no se los des en bruto.
 6. **Cómo importarla**, con pasos concretos: *abre la app → Estudio → Mis canciones → ⋯ → Importar → elige el archivo `.json`*. Recuérdale que **importar añade, no reemplaza**.
 7. **Afinar de oído.** Pídele que te diga **en qué compás** algo no suena bien («¿en el compás 3 la nota suena rara?») y cambia solo eso. Di siempre **qué has oído y qué no** (tú no oyes: solo compruebas que la forma es correcta).
