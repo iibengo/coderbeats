@@ -44,3 +44,6 @@ notas-a-json.mjs
 *-privada.json
 *.cancion.json
 LEEME-escribir-canciones.md
+
+# Capturas que sueltan los guiones de tests/browser en la raíz
+/[a-z][0-9].png
