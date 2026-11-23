@@ -64,14 +64,14 @@ export function styleChips(list: readonly Pick<Searchable, 'style'>[]): StyleChi
 export const styleLabel = (s: StyleId): string => STYLES[s]?.label ?? s
 
 /**
- * La carátula de un remix: cinco alturas (0..1), una por voz en el orden de la paleta (`LANES`: bombo, bajo, caja, platillo, melodía), según **cuántos golpes** tiene cada voz en su línea de tiempo.
- * La más cargada llega al tope; ninguna baja de `FLOOR` (una voz que existe siempre se ve). Sin golpes, todas al mínimo.
+ * La carátula de un remix: cinco alturas (0..1), una por voz en el orden de la paleta (`LANES`: bombo, bajo, caja, platillo, melodía), según **cuántos golpes** tiene cada voz en su línea de tiempo, **con raíz cuadrada** para que una voz escasa (la caja del techno, un golpe por compás frente a ocho del charles) no se quede en un punto.
+ * La más cargada llega al tope; ninguna baja de `COVER_FLOOR` (una voz que existe siempre se ve). Sin golpes, todas al mínimo.
  */
-export const COVER_FLOOR = 0.14
+export const COVER_FLOOR = 0.2
 export function coverBars(tl: Pick<Timeline, 'lanes'>): number[] {
   const counts = LANES.map((v) => tl.lanes[v].t.length)
   const max = Math.max(0, ...counts)
-  return counts.map((n) => (n <= 0 ? COVER_FLOOR : max > 0 ? Math.max(COVER_FLOOR, n / max) : COVER_FLOOR))
+  return counts.map((n) => (n <= 0 ? COVER_FLOOR : max > 0 ? Math.max(COVER_FLOOR, Math.sqrt(n / max)) : COVER_FLOOR))
 }
 
 /** «1:59» */
