@@ -13,7 +13,7 @@ for (const lang of ['es-ES', 'en-US', 'eu-ES', 'fr-FR']) {
   console.log(lang, '→ título:', h1, '| html lang:', await p.evaluate(() => document.documentElement.lang), errs)
   if (lang === 'es-ES') {
     await p.evaluate(() => document.querySelector('[data-lang=eu]').click()); await sleep(500)
-    console.log('  selector → euskera:', await p.evaluate(() => document.querySelector('h1')?.textContent), '|', await p.evaluate(() => document.querySelector('li button div:last-child')?.textContent))
+    console.log('  selector → euskera:', await p.evaluate(() => document.querySelector('h1')?.textContent), '|', await p.evaluate(() => document.querySelector('[data-lab-remixes] span span:last-child')?.textContent))
     await p.evaluate(() => document.querySelector('[data-lang=en]').click()); await sleep(500)
     console.log('  selector → inglés:', await p.evaluate(() => document.querySelector('h1')?.textContent))
   }

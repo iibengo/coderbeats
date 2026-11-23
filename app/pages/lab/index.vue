@@ -11,15 +11,18 @@ useHead({ title: 'Laboratorio · coderbeats' })
 
 type Id = 'capas' | 'piano' | 'coro' | 'circulo' | 'remixes'
 // Remixes va primero (spec 050): es la pantalla más completa y la que invita a empezar
-const SCREENS: Id[] = ['remixes', 'capas', 'piano', 'coro', 'circulo']
-// el adelanto del Pulso en la tarjeta de Remixes: las cinco voces con sus colores (bombo, bajo, caja, charles, melodía), quietas: nada se mueve sin música
-const PULSO_ICON = [
-  { c: VOICE_HEX.bd, h: '55%' },
-  { c: VOICE_HEX.bass, h: '100%' },
-  { c: VOICE_HEX.sd, h: '38%' },
-  { c: VOICE_HEX.hh, h: '24%' },
-  { c: VOICE_HEX.mel, h: '72%' },
-]
+const SCREENS: Id[] = ['remixes', 'capas', 'piano', 'circulo', 'coro']
+// el adelanto del Pulso en la tarjeta de Remixes: cinco barras quietas (nada se mueve sin música)
+const PULSO_ICON = [55, 100, 38, 24, 72]
+// Collage (spec 057): cada tarjeta lleva el color de su instrumento (VOICE_HEX) y un tamaño distinto
+const INK = '#0B0B0F'
+const TILE: Record<Id, { bg: string; cls: string; text: boolean }> = {
+  remixes: { bg: ACCENT, cls: 'col-span-2 row-span-2', text: true },
+  capas: { bg: VOICE_HEX.bass, cls: 'row-span-2', text: true },
+  piano: { bg: VOICE_HEX.mel, cls: '', text: false },
+  circulo: { bg: VOICE_HEX.bd, cls: '', text: false },
+  coro: { bg: VOICE_HEX.hh, cls: 'col-span-2', text: true },
+}
 const { t } = useI18n()
 const route = useRoute()
 const screen = ref<Id | null>(null)
@@ -59,27 +62,36 @@ onMounted(() => {
   <main v-else class="mx-auto min-h-dvh max-w-xl bg-black px-4 py-8 text-white">
     <h1 class="mt-3 text-3xl font-medium tracking-tight">{{ t('lab.title') }}</h1>
     <p class="mt-1 text-white/60">{{ t('lab.intro') }}</p>
-    <ul class="mt-6 grid gap-3">
-      <li v-for="s in SCREENS" :key="s">
+    <ul class="mt-6 grid auto-rows-[92px] grid-cols-2 gap-3" data-lab-collage>
+      <li v-for="s in SCREENS" :key="s" :class="TILE[s].cls">
         <button
-          v-if="s === 'remixes'"
-          class="flex w-full items-center justify-between gap-4 rounded-2xl border-2 bg-white/5 p-5 text-left disabled:opacity-50"
-          :style="{ borderColor: ACCENT }"
+          class="relative flex h-full w-full flex-col justify-between overflow-hidden rounded-2xl p-4 text-left transition active:scale-[.98] disabled:opacity-50 motion-reduce:transition-none"
+          :style="{ background: TILE[s].bg, color: INK }"
           :disabled="busy"
-          data-lab-remixes
+          :data-lab-remixes="s === 'remixes' ? '' : undefined"
           @click="go(s)"
         >
-          <span class="min-w-0">
-            <span class="block text-xl">{{ t('lab.screens.remixes.title') }}</span>
-            <span class="mt-0.5 block text-sm text-white/60">{{ t('lab.screens.remixes.text') }}</span>
+          <span class="block min-w-0">
+            <span class="block font-medium leading-tight" :class="s === 'remixes' ? 'text-2xl' : 'text-lg'">{{ t(`lab.screens.${s}.title`) }}</span>
+            <span v-if="TILE[s].text" class="mt-1 block text-xs leading-snug" :class="s === 'coro' ? 'line-clamp-2 pr-24' : 'line-clamp-3'" style="opacity: .7">{{ t(`lab.screens.${s}.text`) }}</span>
           </span>
-          <span class="flex h-14 shrink-0 items-end gap-1" aria-hidden="true">
-            <span v-for="(b, i) in PULSO_ICON" :key="i" class="w-3 rounded-sm" :style="{ height: b.h, background: b.c }" />
-          </span>
-        </button>
-        <button v-else class="w-full rounded-2xl border border-white/15 bg-white/5 p-4 text-left disabled:opacity-50" :disabled="busy" @click="go(s)">
-          <div class="text-lg">{{ t(`lab.screens.${s}.title`) }}</div>
-          <div class="text-sm text-white/60">{{ t(`lab.screens.${s}.text`) }}</div>
+          <svg v-if="s === 'remixes'" class="absolute bottom-4 right-4 h-16 w-24" viewBox="0 0 96 64" aria-hidden="true">
+            <rect v-for="(h, i) in PULSO_ICON" :key="i" :x="i * 20" :y="64 - h * 0.64" width="14" :height="h * 0.64" rx="3" :fill="INK" />
+          </svg>
+          <svg v-else-if="s === 'capas'" class="h-10 w-10 self-end" viewBox="0 0 40 40" aria-hidden="true">
+            <rect x="4" y="5" width="32" height="8" rx="4" :fill="INK" /><rect x="4" y="16" width="24" height="8" rx="4" :fill="INK" opacity=".7" /><rect x="4" y="27" width="14" height="8" rx="4" :fill="INK" opacity=".45" />
+          </svg>
+          <svg v-else-if="s === 'piano'" class="absolute bottom-3 right-3 h-9 w-12" viewBox="0 0 48 36" aria-hidden="true">
+            <rect x="1" y="1" width="46" height="34" rx="5" fill="none" :stroke="INK" stroke-width="3" />
+            <path d="M16 3v30M32 3v30" :stroke="INK" stroke-width="3" /><rect x="11" y="3" width="10" height="16" rx="2" :fill="INK" /><rect x="27" y="3" width="10" height="16" rx="2" :fill="INK" />
+          </svg>
+          <svg v-else-if="s === 'circulo'" class="absolute bottom-3 right-3 h-10 w-10" viewBox="0 0 40 40" aria-hidden="true">
+            <circle cx="20" cy="20" r="17" fill="none" :stroke="INK" stroke-width="3" /><circle cx="20" cy="20" r="9" fill="none" :stroke="INK" stroke-width="3" opacity=".6" />
+            <circle cx="20" cy="3" r="3.5" :fill="INK" /><circle cx="37" cy="20" r="3.5" :fill="INK" /><circle cx="20" cy="20" r="3" :fill="INK" />
+          </svg>
+          <svg v-else class="absolute bottom-3 right-4 h-9 w-20" viewBox="0 0 80 36" aria-hidden="true">
+            <circle cx="12" cy="24" r="9" :fill="INK" /><circle cx="40" cy="12" r="9" :fill="INK" opacity=".7" /><circle cx="68" cy="22" r="9" :fill="INK" opacity=".45" />
+          </svg>
         </button>
       </li>
     </ul>
