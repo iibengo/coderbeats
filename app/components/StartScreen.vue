@@ -53,7 +53,7 @@ async function onStart(noMic = false) {
     <p v-if="error" class="max-w-sm text-sm text-red-300">{{ error }}</p>
     <p class="max-w-xs text-xs text-neutral-500">{{ t('start.withMic') }}</p>
     <button class="text-xs text-neutral-500 underline underline-offset-4" @click="about = !about">{{ about ? t('start.close') : t('start.about') }}</button>
-    <LangSwitch />
+    <LangSwitch compact />
     <div v-if="about" class="max-h-[40dvh] max-w-sm overflow-y-auto text-left"><AboutPanel /></div>
   </section>
 </template>

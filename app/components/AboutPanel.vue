@@ -5,7 +5,7 @@ import { CREDITS, LICENSE_ID, LICENSE_NAME, LICENSE_URL, SOURCE_URL } from '~/li
 
 <template>
   <div class="grid gap-3 text-xs text-neutral-400">
-    <LangSwitch />
+    <LangSwitch compact />
     <p class="text-sm text-neutral-200">coderbeats · tu beatbox convertido en batería y en código Strudel.</p>
     <p>
       Software libre bajo la <a class="text-white underline underline-offset-4" :href="LICENSE_URL" target="_blank" rel="noopener">{{ LICENSE_NAME }}</a>
