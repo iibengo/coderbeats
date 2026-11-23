@@ -1,67 +1,76 @@
+<p align="center"><img src="public/icon-192.png" alt="coderbeats" width="96"></p>
+
 # coderbeats
 
-Un instrumento para jugar con la voz: haces beatbox (**bum · pff · ts**) y coderbeats lo convierte en batería que suena en bucle y en **código [Strudel](https://strudel.cc)** que puedes copiar y pegar. Todo corre en el navegador (también en el móvil): **el micrófono se analiza en tu dispositivo y no se envía nada a ningún servidor**; tus canciones y tus grabaciones se guardan solo en tu navegador.
+**English** · [Español](README.es.md)
 
-> Estado: proyecto personal en marcha, en español. Se desarrolla con ayuda de IA y cada decisión queda escrita en [`specs/`](specs/).
+An instrument to *play*, not a production tool. coderbeats turns your taps (and, optionally, your voice) into music that always sounds good, built on [Strudel](https://strudel.cc). No music knowledge needed, phone first, everything runs in your browser.
 
-## Para probarlo
+Inspired by Incredibox, Magic Piano, Groove Pizza and Song Maker. The code it shows, pasted into strudel.cc, sounds the same.
 
-1. Abre la app (HTTPS o `localhost`: el micrófono lo exige) y pulsa **Empezar**. No hay que calibrar nada: trae un modelo de sonidos por defecto.
-2. Dale a **▶** y haz «bum · pff · ts»: tus golpes aparecen en la gota y suenan en bucle.
-3. Si no acierta con tu voz o tu micro, sale «¿Te afino a tu voz?» (o ⋯ → «Calibrar mis sonidos»: unos 20 segundos, a manos libres).
-4. Sin micro también se puede: «Entrar sin micro» abre una demo para tocar con el dedo.
+> Status: personal project in progress. It is developed with the help of AI, and every decision is written down in [`specs/`](specs/) (in Spanish).
 
-## Qué hace
+## The two parts
 
-- **Escucha continua**: graba frases de beatbox, las cuantiza al compás y las deja como loops (bombo, caja, platillo).
-- **Dos modos**: **Jugar** (una gota, la voz y el dedo, con un primer minuto guiado) y **Componer** (el mapa de células, grupos y disparadores). Son dos vistas de la misma canción.
-- **Melodía**: con la voz (cantando «na»), con el órgano de la franja de melodía, con «🎹 Agua» y con la **célula de melodía**, un sintetizador de dedo (mantén y desliza: arriba/abajo = nota de la escala, lados = filtro).
-- **Células y canción**: cada célula es un aro con sus loops, bajo y acordes; varias, una tras otra, forman una canción; hay grupos en paralelo.
-- **Fondo y efectos**: bajo y acordes por estilo (hip hop, house, drum and bass, dembow, techno), filtro, espacio, calor y «wowo». Una opción de **Producción** (swing, matices, transiciones) para que suene menos a máquina.
-- **Código = sonido**: el código mostrado, pegado en strudel.cc, suena igual que en coderbeats. (La app añade una cadena master «cálida» que strudel.cc no tiene: el código copiado suena algo más seco.)
-- **Remixes** de dominio público (Himno de la alegría, Dies Irae, Sinfonía n.º 40) y **vídeo** (exportar lo que ves y oyes).
-- **PWA**: se instala y funciona en móvil.
+- **Lab** (`/lab`, also what `/` opens): small screens, each one a way to play, with no microphone. Layers (with a DJ inside), Magic Piano, Choir, Rhythm circle and Remixes. A remix is something you *perform* here.
+- **Studio** (`/estudio`; shared links `/#…` open here): the advanced app, for **creating and editing remixes** (parts, layers, drums, melody with the Organ).
 
-## Cómo se construye
+A remix is one object with two faces: you edit it in the Studio and perform it in the Lab. Up to 8 parts, 4 layers per part, 1 to 2 minutes.
 
-Necesitas Node.js y npm.
+## Features
+
+- **Always in tune and in time**: locked scale, everything on the beat, only sounds that fit the style (hip hop, house, drum and bass, dembow, techno, drill).
+- **Remixes** of public-domain melodies (Mozart, Beethoven, Grieg, Gregorian chant, Russian folk tunes…) with arrangements written for coderbeats.
+- **Save and share**: a link (the song lives in the URL fragment and never reaches a server), a video, or an MP3 of the remix.
+- **Code = sound**: you can see the Strudel code behind what you hear.
+- **PWA**: installable, works offline.
+- **Languages**: Spanish, English and Basque (picked from the browser, selectable in «About»).
+
+## Run it
+
+You need Node.js and npm.
 
 ```bash
-npm install          # instala dependencias (y prepara Nuxt)
-npm run dev          # servidor de desarrollo en http://localhost:3000 (incluye /spike, el banco de pruebas de Strudel, y /lab/wowo, el del wowo)
-npm run dev:phone    # igual, accesible desde el móvil por HTTPS (el micrófono lo exige, salvo en localhost)
-npm test             # tests unitarios (Vitest)
-npm run test:coverage
+npm install          # install dependencies (and prepare Nuxt)
+npm run dev          # dev server at http://localhost:3000
+npm run dev:phone    # same, over HTTPS so a phone can use the microphone
+npm test             # unit tests (Vitest)
 npm run typecheck
-npm run build        # build de producción (.output/); `npm run preview` para probarlo
+npm run build        # production build (.output/); `npm run preview` to try it
 ```
 
-Stack: [Nuxt](https://nuxt.com) 4, Vue 3, Tailwind, Web Audio y [Strudel](https://strudel.cc) (`@strudel/web`).
+Stack: [Nuxt](https://nuxt.com) 4, Vue 3, Tailwind, Web Audio and [Strudel](https://strudel.cc) (`@strudel/web`). There is no backend: the audio engine needs the browser, so the app routes are client-rendered.
 
-## Cómo está hecho
+## How it is organised
 
-- `app/` — la aplicación (Nuxt 4 + Vue 3 + TypeScript): `lib/` es la lógica pura (con tests), `composables/useAudioEngine.ts` el motor de audio (Strudel/`superdough`), `workers/analysis.worker.ts` el análisis de la voz (detección de golpes, MFCC, clasificador) y `components/` la interfaz y los visuales (canvas 2D y WebGL2).
-- `specs/` — las especificaciones, en orden, con sus enmiendas y decisiones. Empieza por [`specs/001-mvp`](specs/001-mvp/spec.md) y [`specs/ESTADO.md`](specs/ESTADO.md).
-- `tests/unit/` — Vitest (más de mil tests de la lógica y del código Strudel generado, evaluado en Node). `tests/browser/` — guiones con Chrome sin pantalla y un micrófono de mentira (a mano; ver su README).
-- `public/samples/` — los samples (con su licencia en [`CREDITS.md`](public/samples/CREDITS.md)). `kits/coderbeats-kits/` — el mismo kit «Vinilo» empaquetado para strudel.cc.
+- `app/lib/`: pure logic with no DOM, tested in `tests/unit/`.
+- `app/composables/`: the audio engine (`useAudioEngine.ts`) and the app state.
+- `app/components/lab/`: the Lab screens. `app/components/`: the Studio.
+- `specs/`: the specifications, one per feature, plus [`specs/ESTADO.md`](specs/ESTADO.md) (what is done and what to test) and the project principles ([`PRINCIPIOS.md`](specs/PRINCIPIOS.md), [`DISENO.md`](specs/DISENO.md)). **They are written in Spanish.**
+- `tests/unit/` (Vitest) and `tests/browser/` (headless Chrome scripts, run by hand).
+- `public/samples/`: the samples, with their licences in [`CREDITS.md`](public/samples/CREDITS.md).
 
-## Privacidad
+## Privacy
 
-Sin cuentas, sin analítica y sin servidor propio: el audio del micrófono se analiza en el navegador y no sale del dispositivo. Las canciones, la calibración y las voces grabadas se guardan en `localStorage`/IndexedDB de tu navegador; un enlace para compartir lleva solo los datos de la canción (no las voces).
+No accounts, no analytics, no server of our own. Audio is analysed in your browser and never leaves your device. Your songs, calibration and preferences are stored in your browser (`localStorage` / IndexedDB). A share link carries only the song data. Songs are never uploaded anywhere.
 
-## Contribuir
+## Contributing
 
-Issues y propuestas, bienvenidos. Antes de un cambio grande, mira `specs/` (cada función tiene la suya). Un cambio se acepta con `npm test`, `npm run typecheck` y `npm run build` en verde. Las tomas de voz de laboratorio (`tests/fixtures/voice/`) son privadas y no se suben: los tests que las usan se saltan si no están.
+Issues and ideas are welcome. Before a big change, look at `specs/` (each feature has its own). A change is accepted when `npm test`, `npm run typecheck` and `npm run build` all pass.
 
-## Licencia
+Music rules: only samples with a clear licence (CC0, Unlicense or similar), and only melodies in the **public domain**, written as notes. No recordings, no modern arrangements, no copyrighted themes.
 
-coderbeats es software libre bajo la **GNU Affero General Public License v3.0 o posterior** (AGPL-3.0-or-later). Mira el archivo [`LICENSE`](LICENSE). Si ofreces una versión modificada como servicio en red, la AGPL te obliga a ofrecer a sus usuarios el código fuente correspondiente.
+## Licence
 
-Cualquiera puede usar, estudiar, modificar y compartir coderbeats con esas condiciones; el aviso y los créditos también están en la app (⋯ → «acerca de»).
+coderbeats is free software under the **GNU Affero General Public License v3.0 or later** (AGPL-3.0-or-later). See [`LICENSE`](LICENSE). If you offer a modified version as a network service, the AGPL requires you to offer its users the corresponding source code.
 
-## Créditos
+The notice and credits are also in the app («⋯» → «About»).
 
-- **[Strudel](https://strudel.cc)** (`@strudel/web`, AGPL-3.0-or-later): el motor de patrones y de audio. coderbeats genera y evalúa código Strudel; gracias al proyecto Strudel y a TidalCycles, de donde viene.
-- **[Meyda](https://meyda.js.org)** (MIT): extracción de características de audio para clasificar los sonidos de la voz.
-- **Samples**: ver [`public/samples/CREDITS.md`](public/samples/CREDITS.md) (tidal-drum-machines y uzu-drumkit, con sus licencias y condiciones).
-- Nuxt, Vue, Tailwind y el resto de dependencias, con sus respectivas licencias (ver `package.json`).
+## Credits
+
+- **[Strudel](https://strudel.cc)** (`@strudel/web`, AGPL-3.0-or-later): the pattern and audio engine. Thanks to the Strudel project and to TidalCycles, where it comes from.
+- **[uzu-drumkit](https://github.com/tidalcycles/uzu-drumkit)** (Unlicense; Switch Angel, Mot4i), **[Michael Fischer's TR-808](https://github.com/tidalcycles/sounds-tr808-fischer)** (CC0), **[Boochi44](https://github.com/Boochi44/free-drum-samples)** (CC0) and **Karoryfer Samples** ([guitars](https://github.com/sfzinstruments/karoryfer.black-and-green-guitars), [drums](https://github.com/sfzinstruments/karoryfer.big-rusty-drums); CC0): the samples. Details in [`public/samples/CREDITS.md`](public/samples/CREDITS.md).
+- **[Meyda](https://meyda.js.org)** (MIT): audio feature extraction.
+- **[lamejs](https://github.com/shijinyu/lamejs)** (`@breezystack/lamejs`, LGPL-3.0): MP3 encoder, loaded only when you save audio.
+- **Inter** and **JetBrains Mono** (SIL Open Font License 1.1): the typefaces.
+- Nuxt, Vue, Tailwind and the other dependencies, under their own licences (see `package.json`).
