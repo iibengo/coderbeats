@@ -1,0 +1,25 @@
+# Dub techno (original, sin derechos): un bombo, un bajo largo y un acorde de Fm9 abierto que se repite con eco.
+#   · sinte: dub     → el stab del dub techno: dos sierras desafinadas, filtro resonante de envolvente rápida, saturación, reverb larga
+#                      y un eco de corchea con puntillo (3/16) con tres repeticiones cada vez más oscuras.
+#   · el acorde se escribe con VARIAS notas a la vez: [F3,Ab3,C4,Eb4,G4]:2  (corto: el stab; el eco hace el resto)
+nombre: Dub de prueba
+estilo: techno2
+tempo: 118
+kit: techno
+escala: fa menor
+sinte: dub
+
+parte: Stab
+charle: no
+compases: 16
+melodia:
+  r:4 [F3,Ab3,C4,Eb4,G4]:2 r:10
+  r:6 [F3,Ab3,C4,Eb4,G4]:2 r:8
+  r:4 [F3,Ab3,C4,Eb4,G4]:2 r:10
+  r:10 [F3,Ab3,C4,Eb4,G4]:2 r:4
+  r:8 [Db3,F3,Ab3,C4,Eb4]:2 r:6
+  r:2 [Db3,F3,Ab3,C4,Eb4]:2 r:12
+  r:4 [F3,Ab3,C4,Eb4,G4]:2 r:10
+  r:6 [F3,Ab3,C4,Eb4,G4]:2 r:6 F3:2
+bajo:
+  F1:16 F1:16 F1:16 F1:16 Db1:16 Db1:16 F1:16 F1:16

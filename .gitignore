@@ -35,15 +35,18 @@ tem/
 docs/anecdotas.md
 *.mkv
 
-# Canciones privadas y conversor de notas (spec 029): viven FUERA del repositorio
+# Canciones privadas (spec 029): viven FUERA del repositorio. El conversor (tools/conversor/) SÍ está en el repo (spec 058)
 # (por ejemplo ~/Descargas/coderbeats-herramientas). Si alguna vez se copian aquí, que no se commiteen.
 # En el repo solo va música de dominio público u original.
 canciones-privadas/
 mis-canciones/
-notas-a-json.mjs
+/notas-a-json.mjs
 *-privada.json
 *.cancion.json
 LEEME-escribir-canciones.md
 
 # Capturas que sueltan los guiones de tests/browser en la raíz
 /[a-z][0-9].png
+
+# Ajustes locales de Claude Code
+.claude/settings.local.json

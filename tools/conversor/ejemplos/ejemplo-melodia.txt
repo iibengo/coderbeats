@@ -1,0 +1,59 @@
+# Ejemplo (melodía de dominio público: Himno de la alegría, Beethoven). Cambia las notas por las tuyas.
+# Cada nota: NOMBRE+OCTAVA:DURACIÓN → negra = 4 pasos, corchea = 2, semicorchea = 1; r:n es un silencio.
+#   Tresillos de corchea: 4/3 (tres notas de 4/3 caben en una negra).
+#   Tresillo de negra: [E4 F#4 G4] (tres notas, una negra cada una; o [E4:4 F#4:4 G4:4]:12 con sus duraciones).
+#   Acordes: [G3,Bb3,D4]:16 (separadas por COMA; por espacios es un tresillo). Una nota puede cruzar la línea de compás.
+# Cada compás son 16 pasos. Una «parte:» = una sección (hasta 16 compases); su largo se ajusta a 1, 2, 4, 8 o 16.
+#
+# Reglas que hacen que no suene a trozos (mira guia.md):
+#   · cada compás suma 16 pasos y no se pasa
+#   · lo que no escribes es silencio: melodía, bajo y acordes llegan al final del loop
+#   · sin silencios de relleno: si el tema no calla, alarga la nota
+#   · primero busca referencias de las notas y la parte que se reconoce; no de memoria
+#
+# Escala: «escala: re mayor» (opcional). El chequeo avisa de las notas de la melodía y del bajo que se salen de ella; sirve para ajustar lo que cantes en la app.
+# Sonido «acid» (el 303): «sinte: acid».
+# Sonido de la melodía: «sinte: guitarra» (guitarra limpia, para arpegios) o «sinte: guitarra-sucia» (más saturada, para el estribillo).
+#   Antes de la primera parte vale para toda la canción; dentro de una parte, solo para ella. Sin «sinte:» suena el de siempre (lead).
+#   «sinte: guitarra-grabada» usa una guitarra de verdad (una Hofner grabada, limpia): notas cortas, para arpegios y baladas.
+#   Los otros son sintes de la app (sierra con filtro y saturación), no una guitarra grabada: suenan a rock sintético.
+#
+# Adornos (techno): «efectos:» dentro de una parte. Cada uno es «sinte:compases  c<compás> …» (c1 = el primer compás de la parte).
+#   riser:1 c8     sube y desemboca en el cambio: solo en el ÚLTIMO compás de la parte y con otra parte detrás
+#   crash:1 c1 c5  el platillo al empezar la sección o una frase de 4 compases (c1, c5, c9…)
+#   impacto:1 c1   el golpe grave al caer: una sola vez en toda la canción
+#   También: boom, downlifter. Nunca en el compás 1 de la canción. Cada efecto es un loop normal de la parte.
+nombre: Mi canción de prueba
+estilo: dembow        # hiphop90 | house | house2 | dnb | dembow | reggaeton | techno | techno2 (o el nombre de la app: «Hip hop 90», «House», «Drum and bass», «Techno»)
+tempo: 112            # opcional (si no, el del estilo)
+kit: 808              # 808 | electro | vinyl
+escala: re mayor      # opcional: sol menor | Gm | La mayor | F#m…; si falta, se deduce de los acordes y se imprime al convertir
+ritmo: si             # si = añade bombo, caja y platillo del estilo; no = solo lo que escribas
+sinte: guitarra       # opcional: lead (por defecto) | guitarra | guitarra-sucia | piano | pad
+
+parte: Tema
+melodia:
+  F#4:4 F#4:4 G4:4 A4:4   A4:4 G4:4 F#4:4 E4:4
+  D4:4 D4:4 E4:4 F#4:4    F#4:6 E4:2 E4:8
+  F#4:4 F#4:4 G4:4 A4:4   A4:4 G4:4 F#4:4 E4:4
+  D4:4 D4:4 E4:4 F#4:4    F#4:6 E4:2 D4:8
+bajo:
+  D2:8 r:8  D2:8 r:8  G2:8 r:8  A2:8 r:8
+  D2:8 r:8  G2:8 r:8  A2:8 r:8  D2:16
+acordes:
+  [D3,F#3,A3]:16  [D3,F#3,A3]:16  [G3,B3,D4]:16  [A3,C#4,E4]:16
+  [D3,F#3,A3]:16  [G3,B3,D4]:16  [A3,C#4,E4]:16  [D3,F#3,A3]:16
+efectos:
+  riser:1 c8       # el riser en el último compás del Tema, antes de entrar el Final
+
+parte: Final
+sinte: guitarra-sucia   # solo en esta parte: la melodía más saturada, como un estribillo
+melodia:
+  D4:8 E4:4 F#4:4  A4:12 r:4   D5:32   # una nota larga que cruza compases (ligadura)
+bajo:
+  D2:16  A2:16  D2:16  D2:16
+acordes:
+  [D3,F#3,A3]:16  [A3,C#4,E4]:16  [D3,F#3,A3]:16  [D3,F#3,A3]:16
+efectos:
+  crash:1 c1       # el crash al entrar en el Final
+  impacto:1 c1     # y el golpe al caer

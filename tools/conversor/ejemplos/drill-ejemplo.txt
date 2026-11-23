@@ -1,0 +1,28 @@
+# Drill (original, sin derechos): UK drill a 140 bpm en re menor. Caja solo en el tiempo 3, bombo escaso y charles en grupos
+# sincopados (todo eso lo pone «estilo: drill» con «ritmo: si»). Un coro de fondo canta el tema y el bajo grave sigue los acordes.
+#   · sinte: coro   → el canto lúgubre de fondo (E3–C6). Otros: cuerdas (E3–F#6), sub (el 808 grave, E1–E3), lead, piano, pad…
+#   · cada compás son 16 pasos; los acordes llevan comas: [D3,F3,A3]:16
+#   · el drill pide pocas notas, largas y graves; deja respirar
+nombre: Drill de prueba
+estilo: drill
+kit: 808
+escala: re menor
+ritmo: si
+sinte: coro
+
+parte: Tema
+melodia:
+  D4:8 F4:4 E4:4   D4:16   F4:8 G4:4 A4:4   A4:16
+bajo:
+  D2:16 Bb1:16 G1:16 A1:16
+acordes:
+  [D3,F3,A3]:16 [Bb2,D3,F3]:16 [G2,Bb2,D3]:16 [A2,C3,E3]:16
+
+parte: Final
+sinte: cuerdas
+melodia:
+  A4:8 G4:4 F4:4   E4:16   F4:8 E4:4 D4:4   D4:16
+bajo:
+  A1:16 G1:16 Bb1:16 D2:16
+acordes:
+  [A2,C3,E3]:16 [G2,Bb2,D3]:16 [Bb2,D3,F3]:16 [D3,F3,A3]:16

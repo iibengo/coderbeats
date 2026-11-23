@@ -50,6 +50,10 @@ Stack: [Nuxt](https://nuxt.com) 4, Vue 3, Tailwind, Web Audio y [Strudel](https:
 - `tests/unit/` (Vitest) y `tests/browser/` (guiones de Chrome sin pantalla, a mano).
 - `public/samples/`: los samples, con su licencia en [`CREDITS.md`](public/samples/CREDITS.md).
 
+## Hacer canciones con un asistente de IA (Claude Code / opencode)
+
+`tools/conversor/` tiene un conversor que pasa una canción en texto (notas, bajo, acordes) a un `.json` que se importa en la app, con su guía y ejemplos. El repo incluye un agente **cancionero** (`.claude/agents/` para Claude Code, `.opencode/agent/` para opencode) que guía a una persona sin conocimientos técnicos, una pregunta cada vez, y puede mejorar el conversor si se lo pides. En este repo solo entra música de dominio público u original. Mira [`tools/conversor/guia.md`](tools/conversor/guia.md).
+
 ## Privacidad
 
 Sin cuentas, sin analítica y sin servidor propio. El audio se analiza en tu navegador y no sale del dispositivo. Tus canciones, calibración y preferencias se guardan en tu navegador (`localStorage` / IndexedDB). Un enlace para compartir lleva solo los datos de la canción. Las canciones nunca se suben a ningún sitio.

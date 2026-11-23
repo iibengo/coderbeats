@@ -1,3 +1,9 @@
+# Tanda 7 (2026-11-23): publicado en GitHub y el conversor en el repo
+
+- **Publicación:** repo público, historial con el correo corregido (ID real de GitHub), README en inglés y español, icono de cascos, selector de idioma ES · EN · EU y collage de inicio (spec 057). Falta Vercel (lo hace Ion), las fuentes en «Acerca de» y el comprobador de licencias de las dependencias.
+- **El conversor entra en el repo** (`tools/conversor/`, spec 058) con la guía, 4 ejemplos y los agentes `cancionero` para Claude Code y opencode. Al conversor se le añadió `drill` y los sintes `coro`, `cuerdas`, `sub`, `stabw`, `leadw`; una prueba nueva lo compara con la app (y encontró el charles de `dnb` y `dembow` desfasado: corregido; el `.json` de `ejemplo-melodia` cambia a propósito). **Sin probar con un agente de verdad.**
+- **Qué probar, en orden:** 1) `npx vitest run tests/unit/conversor.test.ts`. 2) Abre Claude Code en el repo y pide «quiero hacer una canción»: ¿lanza el agente `cancionero`, hace una pregunta cada vez y deja el `.txt` en `mis-canciones/`? 3) Importa su `.json` en Estudio → Mis canciones → ⋯ → Importar y míralo. 4) Haz lo mismo con opencode (el formato del agente está escrito de memoria).
+
 # Estado (2026-11-15) — lo hecho mientras no estabas
 
 # Tanda 6 (2026-11-20): Korobeiniki en techno, arreglo propio (spec 053)

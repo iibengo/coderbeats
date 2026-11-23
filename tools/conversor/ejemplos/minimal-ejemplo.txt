@@ -1,0 +1,36 @@
+# Minimal techno (original, sin derechos): un bombo y un sinte monofónico. El mismo loop 32 compases;
+# el filtro se abre y se cierra despacio (sin añadir notas) y, a mitad, un tono nuevo entra y luego sale.
+#   · compases: 32   → la parte dura 32 compases; el loop de 8 se repite 4 veces
+#   · filtro:        → Hz, uno por compás (32 valores); si faltan, vale el último
+#   · charle: no     → sin charle en esta parte (el filtro de la app filtra TODA la parte, charle incluido)
+#   · percu:         → percusión en pasos concretos (cualquiera: 1–16 en cada compás; decimales = fuera de tiempo; 17–32 = el 2.º compás)
+#   · entra: c17     → un tono nuevo suena desde el compás 17 (y sale: c25 lo quita en el 25)
+nombre: Minimal de prueba
+estilo: techno2
+tempo: 128
+kit: techno
+escala: la menor
+sinte: guitarra
+
+parte: Loop
+compases: 32
+charle: no
+percu:
+  rim 4.5 11 14
+  click 2.5 6.5 10.5 15.5
+  shaker 3 7 11 15
+  cowbell 10 25
+  tom 16
+filtro: 400 450 500 560 630 700 790 890   1000 1120 1260 1420 1600 1800 2000 2250   2500 2800 3100 3500 3900 4400 4900 5500   4800 4200 3600 3100 2600 2200 1800 1500
+melodia:
+  A2:2 r:2 A2:1 r:1 C3:2 r:2 A2:2 r:2 E3:1 r:1
+  A2:2 r:2 A2:1 r:1 C3:2 r:2 A2:2 r:2 E3:1 r:1
+  A2:2 r:2 A2:1 r:1 C3:2 r:2 A2:2 r:2 E3:1 r:1
+  A2:2 r:2 A2:1 r:1 C3:2 r:2 A2:2 r:2 E3:1 r:1
+  A2:2 r:2 A2:1 r:1 C3:2 r:2 A2:2 r:2 E3:1 r:1
+  A2:2 r:2 A2:1 r:1 C3:2 r:2 A2:2 r:2 E3:1 r:1
+  A2:2 r:2 A2:1 r:1 C3:2 r:2 A2:2 r:2 E3:1 r:1
+  A2:2 r:2 A2:1 r:1 C3:2 r:2 A2:2 r:2 G3:2
+entra: c17
+  E4:1 r:15
+sale: c25
