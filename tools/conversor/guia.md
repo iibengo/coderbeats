@@ -21,20 +21,79 @@ las pruebas anteriores. Empieza copiando un ejemplo de `tools/conversor/ejemplos
 `dembow`, `reggaeton`, `techno`, `techno2` (también vale el nombre visible: «Hip hop 90», «House», «Drum and bass»…).
 Kits: `808`, `electro`, `vinyl`. Sin `tempo`, se usa el del estilo.
 
-## Buscar las notas de una melodía de dominio público
+## Antes de escribir: buscar la fuente (y cuándo descartar)
 
-1. **Nunca de memoria.** Una melodía escrita de memoria sale mal casi siempre. Si hay que escribirla «de oído», se dice
-   antes: es una apuesta, no una transcripción.
-2. **Busca las notas en texto** (letras, Do-Re-Mi o tablatura de flauta), en el idioma original y en inglés; también por
-   instrumento (`recorder notes`, `tin whistle tab`) o en IMSLP / Mutopia / Musescore (partituras libres).
-3. **Dos fuentes que coincidan** → adelante. **Una sola** → adelante, avisando. **Fuentes que no coinciden** → no elijas la
-   que más te guste: busca una tercera. **Solo acordes o solo letra** → no inventes la melodía.
-4. **Comprueba que la obra es de dominio público** (autor fallecido hace más de 70 años, o canción popular anónima) y
-   que lo que copias son las **notas** de esa obra, no un arreglo moderno ni una grabación.
+**La memoria no vale.** Una melodía escrita de memoria sale mal casi siempre; las que se hacen con una fuente salen a la primera.
+Si hay que escribir notas «de oído», se **dice antes**: es una apuesta, no una transcripción.
 
-### No adaptes la canción entera: adapta el gancho
-Un loop de 4 u 8 compases con la parte que se reconoce funciona mejor que la obra entera mal repartida. Coge la frase
-que cualquiera tararearía, repítela, y escribe en un comentario qué parte es. Si no cabe en 8 compases, es la obra entera.
+### En 30 segundos
+
+1. ¿La obra es de **dominio público**? (autor fallecido hace más de 70 años, o canción popular anónima). Si no, **no se hace** aquí: mira «Derechos» al final de esta sección.
+2. ¿Qué parte **reconocería cualquiera**? Eso es lo que vas a hacer, no la obra entera (mira «el gancho»).
+3. ¿Hay **notas en texto** de esa parte? Busca de **tres formas** antes de rendirte.
+4. ¿**Dos fuentes coinciden**? → adelante. ¿Solo una? → adelante avisando. ¿Solo acordes y letra? → **no inventes la melodía**.
+5. ¿En qué **compás** va? 4/4 → 16 pasos. 3/4 → 12 pasos y 4 de silencio (regla 0).
+6. Escribe, y pasa el chequeo del conversor.
+
+### Qué es una fuente buena
+
+| Calidad | Qué es | Ejemplo |
+|---|---|---|
+| 🟢 **Buena** | Notas **en texto** (letras o Do-Re-Mi), con octavas o no | tablatura de flauta, página de «letter notes», cancionero de notas, Mutopia |
+| 🟡 **Aceptable** | Partitura en imagen que se **lee bien** (una sola voz) | la primera línea de la partitura en IMSLP |
+| 🔴 **No vale** | Solo acordes, solo la letra, vídeo de Synthesia, partitura de pago que no se puede abrir | «Em – D – C» sin melodía |
+| ⛔ **Trampa** | Otra **obra** con el mismo nombre, o un arreglo moderno de la tuya | «Habanera» de Bizet ≠ otra habanera cualquiera |
+
+### Protocolo: 3 intentos antes de descartar
+
+**No abandones a la primera búsqueda.** Hacen falta **tres intentos con búsquedas distintas**:
+
+1. **Nombre + «notas» / «letter notes» / «tab»**, en el idioma original y en inglés.
+   `"Ode to Joy" letter notes`, `"Himno a la alegría" notas flauta`.
+2. **Por instrumento:** `recorder notes`, `tin whistle tab`, `flauta dulce notas`, `ocarina tabs`.
+   Los sitios de flauta traen las notas en texto casi siempre.
+3. **Por la letra o el arranque:** una frase exacta de la melodía y mira si el resultado trae notas.
+   `"Für Elise" first measures notes`.
+
+Si las tres fallan, prueba además: `site:imslp.org`, `site:musescore.com`, `partitura pdf` (solo ediciones libres), o **pide la foto de la partitura** a la persona.
+
+### Cuándo descartar la obra
+
+| Situación | Qué hacer |
+|---|---|
+| Encontré notas en texto y **dos fuentes coinciden** en el arranque | ✅ **Adelante.** |
+| Encontré **una sola** fuente y se ve clara | 🟡 Adelante, pero avisa: «una sola fuente». |
+| Solo hay **acordes** | 🟡 Sirven para la armonía; **la melodía no la inventes**: pide la fuente o haz un tema original. |
+| Solo hay **letra** o **vídeo** | ❌ Sin notas no hay canción. Pide una foto o cambia de obra. |
+| Las fuentes **no coinciden** | ❌ No elijas «la que más me gusta»: las dos están transcritas por alguien. Busca una tercera o descarta. |
+| Es de **pago** y no se puede leer | ❌ Descartar (salvo que la persona la compre y te la pase). |
+
+### No adaptes la obra entera: adapta el GANCHO
+
+Una pieza de 3 minutos **no cabe** en un loop de 4 u 8 compases, y no hace falta. Lo que hace que alguien diga «¡es esa!» son
+**cuatro o cinco compases**, no la obra completa.
+
+| Tipo de gancho | Ejemplo | Qué coger |
+|---|---|---|
+| **El tema que se canta** | Himno de la alegría (Beethoven) | la frase principal, que todo el mundo tararea |
+| **El motivo de apertura** | Para Elisa (Beethoven), Dies Irae (gregoriano) | los primeros compases |
+| **La frase del instrumento** | En la gruta del rey de la montaña (Grieg) | el motivo que va creciendo |
+| **El ritmo que la define** | Habanera (Bizet) | el ritmo de habanera, antes que la melodía |
+
+**Reglas del gancho:**
+
+1. **Coge la parte que se reconoce, no la primera de la partitura.** A veces la obra empieza por algo que casi nadie tararea.
+2. **Repite el gancho.** Un loop de 4 compases con el gancho, dos veces, se reconoce más que la obra entera mal repartida.
+3. **Cabe en 4 compases.** Si no cabe, usa 8. Si no cabe en 8, no es un gancho: es la obra.
+4. **Dilo en el `.txt`**, en un comentario: «esto es el tema principal, no la introducción».
+5. **Si el gancho depende de algo que no hay** (un ritmo de baile, un instrumento muy concreto), avísalo: sin eso no sonará a la obra aunque las notas sean correctas.
+6. **Mejor el arranque que todo:** si la fuente trae muchas notas (decenas), usa solo **el arranque** y su repetición.
+
+### Derechos (antes de empezar)
+
+- **Solo se hace** música de **dominio público** (autor fallecido hace más de 70 años, o popular anónima) u **original**. Lo que copias son las **notas** de esa obra, no un arreglo moderno ni una grabación.
+- Los temas de cine, videojuegos, series y canciones modernas **no son de dominio público**: aquí no se escriben, ni sus notas ni sus arreglos.
+- Si alguien lo pide, ofrécele una melodía de dominio público o **una pieza original con el mismo ambiente** (estilo, tempo, tonalidad), sin copiar la suya.
 
 ## Las 5 reglas que evitan el 90 % de los problemas
 

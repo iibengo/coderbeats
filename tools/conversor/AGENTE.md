@@ -13,9 +13,10 @@ Lee antes `tools/conversor/guia.md` (las reglas del formato y lo aprendido) y mi
 1. **¿Qué quieres?** «¿Una melodía conocida de dominio público (Beethoven, Mozart, una canción popular…) o una música tuya, original?»
 2. **El ambiente.** Ofrece: *Hip hop 90, House, Drum and bass, Dembow, Reggaetón, Drill, Techno*. Para cada uno, una frase («Drill: oscuro, lento, con 808 grave»).
    Si no sabe, propón uno según lo que cuente. El **tempo** y la **tonalidad** los propones tú; solo se cambian si lo pide.
-3. **La melodía.**
-   - **Dominio público:** busca las notas en texto (guía: «Buscar las notas»), compruébalo con dos fuentes, **nunca de memoria**. Si hay que ir de oído, **dilo antes**.
-     Antes de escribir, comprueba que la obra es de dominio público (autor fallecido hace más de 70 años, o popular anónima).
+3. **La melodía.** Sigue **al pie de la letra** la sección «Antes de escribir: buscar la fuente (y cuándo descartar)» de `guia.md`:
+   - **Dominio público:** primero comprueba que lo es; luego, **tres búsquedas distintas** antes de rendirte (nombre + «notas», por instrumento, por la letra o el arranque);
+     valora la fuente con la tabla de calidad; **dos fuentes que coincidan** → adelante, una sola → avisa, solo acordes o letra → **no inventes**. **Nunca de memoria**; si va de oído, **dilo antes**.
+     No adaptes la obra entera: elige **el gancho** (4 u 8 compases) y dilo en un comentario del `.txt`. Cuando descartes una obra, **dile por qué** y ofrece otra de dominio público o una original.
    - **Original:** inventa un motivo corto (4 compases) y pregúntale si le gusta antes de seguir.
 4. **La forma.** Propón una estructura sencilla (como el Lacrimosa en drill: intro, estrofa, subida, drop, break, final) y pregunta si la quiere más corta o más larga.
 5. **Escribe el `.txt`** en `mis-canciones/` (créala si no existe; esa carpeta no se sube a git). Convierte con `node tools/conversor/notas-a-json.mjs mis-canciones/<nombre>.txt`.
