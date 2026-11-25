@@ -164,6 +164,7 @@
       "sheetMine": "Nire bertsioa",
       "sheetShare": "Entzun eta partekatu",
       "sheetOptions": "Aukerak",
+      "metronome": "Metronomoa",
       "close": "itxi"
     }
   },
@@ -446,6 +447,7 @@
     "duration": "{n} zati · {time}",
     "durationAria": "remixak {time} irauten du",
     "durationOver": "remixak {time} irauten du, 2 minutu baino gehiago",
+    "metronome": "metronomoa",
     "editPart": "editatu geruzak",
     "myRemixes": "nire abestiak",
     "styleAsk": "Orain {style} estiloan entzuten da. Zure abestiarekin jarraitu ala demoa kargatu? Demoak daukazuna ordezkatzen du.",

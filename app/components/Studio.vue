@@ -132,6 +132,12 @@ const moreStyle = computed(() =>
     ? 'position: absolute; top: max(0.5rem, env(safe-area-inset-top)); right: calc(env(safe-area-inset-right, 0px) + 26px); width: 44px; height: 44px'
     : 'position: absolute; top: max(0.5rem, env(safe-area-inset-top)); right: 0.5rem; width: 44px; height: 44px',
 )
+// metrónomo (un clic por tiempo): un icono a la derecha de Play para encenderlo o apagarlo al momento; en horizontal (Play a la derecha), justo debajo de él
+const metroStyle = computed(() =>
+  compact.value
+    ? 'position: absolute; top: calc(50% + 48px); right: calc(env(safe-area-inset-right, 0px) + 26px); width: 44px; height: 44px'
+    : 'position: absolute; bottom: calc(max(1.5rem, env(safe-area-inset-bottom)) + 10px); left: calc(50% + 48px); width: 44px; height: 44px',
+)
 // compartir (spec 061): la flechita junto a ⋯ (a su izquierda)
 const shareStyle = computed(() =>
   compact.value
@@ -242,6 +248,11 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
       </button>
       <span v-if="engine.multi.value" class="whitespace-nowrap px-1 py-2 tabular-nums" :class="totalSeconds > 120 ? 'text-amber-300' : 'text-white/45'" data-duration :aria-label="totalSeconds > 120 ? t('studio.durationOver', { time: totalText }) : t('studio.durationAria', { time: totalText })">{{ t('studio.duration', { n: engine.song.value.order.length, time: totalText }) }}</span>
     </nav>
+
+    <!-- metrónomo: encender o apagar el clic al momento -->
+    <button class="flex items-center justify-center" :class="engine.metronome.value ? '' : 'text-white/35'" :style="[metroStyle, engine.metronome.value ? { color: ACCENT } : {}]" :aria-label="t('studio.metronome')" :aria-pressed="engine.metronome.value" data-metronome @pointerdown.stop @click="engine.setMetronome(!engine.metronome.value)">
+      <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21 10.2 4h3.6L16 21z" /><path d="M12 16 16.5 7.5M14.8 7.5h3.4" /></svg>
+    </button>
 
     <!-- compartir como tarjeta (spec 061) -->
     <button class="flex items-center justify-center text-white/50" :style="shareStyle" :aria-label="t('share.title')" data-share-open @pointerdown.stop @click="shareOpen = true"><ShareIcon /></button>

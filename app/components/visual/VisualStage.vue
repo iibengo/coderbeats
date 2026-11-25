@@ -65,7 +65,7 @@ import { dragValue, lockAxis, type Axis } from '~/lib/gestures'
 import { allArmed } from '~/lib/lanes'
 import { approachTilt, followBase, parallaxOffset, tiltTarget, toFront, toScreen as frontToScreen, type AroView, type Tilt } from '~/lib/aro/view'
 import { addHit, moveHit, removeHit, type EditOptions } from '~/lib/loopEdit'
-import { moveMelNote, resizeMelNote, snapMelMidi, snapMelStep, type MelEditOptions } from '~/lib/melodyEdit'
+import { isFxLoop, moveMelNote, resizeMelNote, snapMelMidi, snapMelStep, type MelEditOptions } from '~/lib/melodyEdit'
 import { STYLE_MUSIC } from '~/lib/styles'
 import { fitToScale, fracToMidi, midiToFrac, rangeOf, scaleNotes } from '~/lib/melodyView'
 import { VOICE_HEX, type Voice } from '~/lib/palette'
@@ -564,6 +564,8 @@ function spawnState(id: number): { s: number; a: number } {
 let lastWater: { x: number; y: number; t: number } | null = null
 /** mantener una célula este tiempo la borra (ms) */
 const COLONY_HOLD_MS = 600
+/** mantener pulsado el agua vacía de la colonia para crear una célula */
+const NEW_CELL_HOLD_MS = 500
 /** último toque sobre una célula, para el doble toque */
 let lastTap: { id: number; t: number } | null = null
 
@@ -1702,7 +1704,20 @@ function endThread(commit: boolean) {
  */
 function colonyHold(): { x: number; y: number; r: number; p: number } | null {
   const gs = gesture
-  if (gs?.kind !== 'colony' || gs.cellId === null || gs.handleId !== null || gs.moved || gs.held || !colonyPick) return null
+  if (gs?.kind !== 'colony' || gs.moved || gs.held || !colonyPick) return null
+  // agua vacía: mantener pulsado crea una célula nueva (no basta un toque: se creaban sin querer)
+  if (gs.cellId === null && gs.handleId === null && gs.labelId === null && gs.threadTo === null) {
+    const w = (performance.now() - gs.t) / NEW_CELL_HOLD_MS
+    if (w < 0.12) return null // un toque rápido no dibuja nada
+    if (w >= 1) {
+      gs.held = true
+      navigator.vibrate?.(12)
+      tapWater(gs.x0, gs.y0)
+      return null
+    }
+    return { x: gs.x0, y: gs.y0, r: 30, p: w }
+  }
+  if (gs.cellId === null || gs.handleId !== null) return null
   const d = colonyPick.discs.find((c) => c.id === gs.cellId)
   if (!d) return null
   const p = (performance.now() - gs.t) / COLONY_HOLD_MS
@@ -1963,7 +1978,7 @@ function onUp(e: PointerEvent, cancelled = false) {
       else if (gs.handleId !== null) tapCell(gs.handleId)
       else if (gs.cellId !== null) tapCell(gs.cellId)
       else if (gs.threadTo !== null) engine.detachCell(gs.threadTo)
-      else tapWater(gs.x0, gs.y0)
+      // el agua vacía ya no crea con un toque: hay que mantener pulsado (`colonyHold`)
     }
     gesture = null
   } else if ((gs?.kind === 'fx' || gs?.kind === 'keys') && gs.id === e.pointerId) gesture = null
@@ -1992,6 +2007,22 @@ function voiceWaves(bar: number): { env: Float32Array; bars: number; bar: number
   return out
 }
 
+/** el dibujo de cada bola de capa, además del color (trazos en una cuadrícula de 24): bombo, caja, platillo, melodía, bajo, efecto y voz */
+const BALL_ICONS = {
+  bd: 'M12 6.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 1 0 0-11zM12 12h.01',
+  sd: 'M5 9.5h14M5 14.5h14',
+  hh: 'M7 7l10 10M17 7L7 17',
+  mel: 'M10 18V6l8-2v12M10 18a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0zM18 16a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z',
+  bass: 'M3 12h3l2-6 4 12 2-6h7',
+  fx: 'M12 4v16M4 12h16M7 7l10 10M17 7L7 17',
+  voz: 'M12 4a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V7a3 3 0 0 0-3-3zM6 12a6 6 0 0 0 12 0M12 18v3',
+} as const
+function ballIcon(l: FreeLoop): string {
+  if (l.instrument === 'voz') return BALL_ICONS.voz
+  if (l.instrument === 'mel') return isFxLoop(l) ? BALL_ICONS.fx : l.synth === 'bass' || l.synth === 'sub' ? BALL_ICONS.bass : BALL_ICONS.mel
+  return BALL_ICONS[l.instrument as 'bd' | 'sd' | 'hh']
+}
+const BALL_LABEL: Record<string, string> = { bd: 'bombo', sd: 'caja', hh: 'platillo', mel: 'melodía', voz: 'voz' }
 const fill: Record<LoopInstrument, string> = { bd: VOICE_HEX.bd, sd: VOICE_HEX.sd, hh: VOICE_HEX.hh, mel: VOICE_HEX.mel, voz: VOICE_HEX.mel }
 /** medidas reales de la ventana, para el diagnóstico (§16.18) */
 const layoutInfo = () => {
@@ -2206,7 +2237,7 @@ defineExpose({ videoSource, colonyPoints, pointOf: (voice: Voice, step: number) 
     <button
       v-for="l in loops.loops"
       :key="l.id"
-      v-show="adv && !colony && !simple"
+      v-show="!colony && !simple"
       :ref="setEl(l.id)"
       class="loop-ball absolute top-0 left-0 rounded-full will-change-transform"
       :style="{
@@ -2218,12 +2249,14 @@ defineExpose({ videoSource, colonyPoints, pointOf: (voice: Voice, step: number) 
       }"
       data-loop
       :data-glow="l.muted ? '' : fill[l.instrument]"
+      :title="BALL_LABEL[l.instrument] ?? l.instrument"
       :aria-label="`loop ${l.instrument}${l.muted ? ' silenciado' : ''}${voiceGone(l) ? ' (audio no disponible)' : ''}`"
       @pointerdown="loopDown($event, l.id)"
       @pointerup.stop="loopUp(l.id)"
       @pointerleave="loopCancel"
       @contextmenu.prevent
     >
+      <svg class="pointer-events-none absolute inset-0 m-auto h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" :stroke="l.muted ? fill[l.instrument] : '#0B0B0F'" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-ball-icon><path :d="ballIcon(l)" /></svg>
       <span v-if="holding === l.id" class="hold-ring absolute -inset-1.5 rounded-full" />
     </button>
 

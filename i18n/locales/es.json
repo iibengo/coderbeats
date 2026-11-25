@@ -164,6 +164,7 @@
       "sheetMine": "Mi versión",
       "sheetShare": "Escuchar y compartir",
       "sheetOptions": "Opciones",
+      "metronome": "Metrónomo",
       "close": "cerrar"
     }
   },
@@ -446,6 +447,7 @@
     "duration": "{n} partes · {time}",
     "durationAria": "el remix dura {time}",
     "durationOver": "el remix dura {time}, más de 2 minutos",
+    "metronome": "metrónomo",
     "editPart": "editar capas",
     "myRemixes": "mis canciones",
     "styleAsk": "Ahora suena en {style}. ¿Seguir con tu canción o cargar la demo? La demo reemplaza lo que tienes.",

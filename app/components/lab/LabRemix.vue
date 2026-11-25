@@ -34,6 +34,8 @@ function showLibrary() {
   view.value = 'lista'
 }
 // ── la pantalla «reproduciendo» (spec 052): el menú «⋯» (una hoja con los extras), anterior y siguiente remix ──
+let metroBefore = false
+onBeforeUnmount(() => engine.setMetronome(metroBefore))
 const menuOpen = ref(false)
 const shareOpen = ref(false)
 /** el enlace de la tarjeta: un remix de la app, por su id (corto); uno propio, con sus datos (spec 061) */
@@ -88,6 +90,9 @@ const library = useLibrary()
 const route = useRoute()
 onMounted(async () => {
   library.load()
+  // en Remixes el metrónomo viene apagado (se enciende desde el menú «⋯» → Opciones); al salir vuelve a lo que había
+  metroBefore = engine.metronome.value
+  engine.setMetronome(false)
   // «▶ Tocar en el Laboratorio» desde el Estudio: ese remix ya elegido
   const want = route.query.remix
   if (typeof want === 'string') {
@@ -684,6 +689,7 @@ const phrase = computed(() => (remix.value && view.value === 'player' ? t(auto.v
         <div class="mt-2 flex flex-wrap gap-2" role="group" aria-label="opciones">
           <button class="min-h-11 rounded-full border px-4 text-sm" :class="auto ? 'border-[#F496BC] text-white' : 'border-white/20 text-white/60'" data-auto-toggle :aria-pressed="auto" @click="toggleAuto">{{ auto ? t('lab.remix.autoOn') : t('lab.remix.autoOff') }}</button>
           <button class="min-h-11 rounded-full border px-4 text-sm" :class="vista === 'pulso' ? 'border-[#F496BC] text-white' : 'border-white/20 text-white/60'" data-vista-toggle :aria-pressed="vista === 'pulso'" @click="toggleVista">{{ vista === 'pulso' ? t('lab.remix.vistaPulso') : t('lab.remix.vistaCirculos') }}</button>
+          <button class="min-h-11 rounded-full border px-4 text-sm" :class="engine.metronome.value ? 'border-[#F496BC] text-white' : 'border-white/20 text-white/60'" data-metro-toggle :aria-pressed="engine.metronome.value" @click="engine.setMetronome(!engine.metronome.value)">{{ t('lab.remix.metronome') }}</button>
           <button class="min-h-11 rounded-full border px-4 text-sm" :class="zoomOn ? 'border-[#F496BC] text-white' : 'border-white/20 text-white/60'" :aria-label="t('lab.remix.zoomAria')" :aria-pressed="zoomOn" data-zoom-toggle @click="toggleZoom">{{ zoomOn ? t('lab.remix.zoomOn') : t('lab.remix.zoomOff') }}</button>
         </div>
         <button class="mt-5 min-h-12 w-full rounded-2xl border border-white/25 text-base text-white" data-sheet-close @click="menuOpen = false">{{ t('lab.remix.close') }}</button>
