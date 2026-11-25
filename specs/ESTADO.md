@@ -1,3 +1,10 @@
+# Tanda 8 (2026-11-25): preparar Vercel
+
+- **Hecho:** cabeceras de seguridad y caché de `/samples/**` (`nuxt.config.ts`; sin CSP a propósito: Strudel evalúa código y no se puede comprobar sin oír); «Acerca de» traducido (ES · EN · EU, `about.*`) y en el Laboratorio como hoja sobre la pantalla; tarjeta «Estudio» al final de la cuadrícula del Laboratorio (sustituye al enlace pequeño); el botón «Código abierto · haz un fork en GitHub». `scripts/limpiar-historial.sh` ahora cambia cualquier correo que no sea `noreply`.
+- **Pendiente tuyo:** conectar el repo a Vercel (plan Hobby, sin tarjeta). Publicar `iibengo/coderbeats-kits` con la etiqueta `v1` (sin eso, el código del kit «Vinilo» no suena en strudel.cc). Una captura para el README.
+- **Sin probar:** nada visto en un navegador ni en un iPhone; el euskera lo tradujo Claude (que lo revise alguien que lo hable); las cabeceras no se han visto en una respuesta real; micro, vídeo y PWA con las cabeceras nuevas.
+- **Qué probar, en orden:** 1) `/lab`: baja al final, ¿se ve la tarjeta «Estudio» y abre `/estudio`? 2) Cambia el idioma y pulsa «Acerca de»: ¿sale la hoja traducida, con scroll, y se cierra con la X y tocando fuera? 3) El botón rosa abre el repositorio. 4) Ya desplegado: pestaña Red, ¿salen las cabeceras? ¿Suena, pide el micro y se instala como PWA?
+
 # Tanda 7 (2026-11-23): publicado en GitHub y el conversor en el repo
 
 - **Publicación:** repo público, historial con el correo corregido (ID real de GitHub), README en inglés y español, icono de cascos, selector de idioma ES · EN · EU y collage de inicio (spec 057). Falta Vercel (lo hace Ion), las fuentes en «Acerca de» y el comprobador de licencias de las dependencias.
