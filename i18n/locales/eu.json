@@ -8,9 +8,8 @@
     "estudio": "Estudioa"
   },
   "lab": {
-    "title": "Laborategia",
     "studioText": "Sortu eta editatu zure remixak: atalak, geruzak, bateria eta melodia.",
-    "intro": "Mikrofonorik gabe jotzeko moduak. Aukeratu bat; denak ohiko soinu-motorrarekin entzuten dira.",
+    "intro": "Jo, nahasi eta sortu beti ondo entzuten den musika.",
     "screens": {
       "capas": {
         "title": "Geruzak",

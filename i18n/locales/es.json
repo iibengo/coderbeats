@@ -8,9 +8,8 @@
     "estudio": "Estudio"
   },
   "lab": {
-    "title": "Laboratorio",
     "studioText": "Crea y edita tus remixes: partes, capas, batería y melodía.",
-    "intro": "Formas de tocar sin micro. Elige una; todas suenan con el motor de siempre.",
+    "intro": "Toca, mezcla y crea música que siempre suena bien.",
     "screens": {
       "capas": {
         "title": "Capas",

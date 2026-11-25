@@ -8,9 +8,8 @@
     "estudio": "Studio"
   },
   "lab": {
-    "title": "Lab",
     "studioText": "Create and edit your remixes: parts, layers, drums and melody.",
-    "intro": "Ways to play without a mic. Pick one; they all use the same sound engine.",
+    "intro": "Play, mix and make music that always sounds good.",
     "screens": {
       "capas": {
         "title": "Layers",
