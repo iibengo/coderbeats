@@ -9,8 +9,8 @@ import { TURNS, type Cell, type Song, type Turns } from './cells'
 import type { FreeLoop, LoopBars } from './freeLoops'
 import { layersOfCell, roleOf } from './remixParts'
 
-/** lo que dura el resumen (la cifra real sale de los compases enteros más cercanos) */
-export const SUMMARY_SECONDS = 15
+/** lo que dura el resumen (la cifra real sale de los compases enteros más cercanos): con 20 s caben tramos de 4 compases y la melodía suena entera */
+export const SUMMARY_SECONDS = 20
 /** el fundido del final, para que no corte seco */
 export const SUMMARY_FADE_SECONDS = 0.6
 
@@ -31,7 +31,7 @@ export interface SummaryPlan {
 /** lo mínimo que dura un tramo del resumen (con un compás no da tiempo a que se note) */
 const MIN_BARS = 2
 /** castigo, en segundos, por cada célula cuyo loop se corta (a igualdad, mejor no cortar) */
-const CUT_PENALTY = 0.4
+const CUT_PENALTY = 1.2
 const loopBarsOf = (c: Cell): number => c.loops.reduce((m, l) => (l.voice ? m : Math.max(m, l.bars)), 1)
 
 /** El loop recortado a sus primeros `bars` compases (16 semicorcheas por compás). Los de voz y los que ya caben quedan igual. */

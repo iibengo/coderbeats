@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { BARS, CARD_H, CARD_W, SAFE_BOTTOM, SAFE_TOP, drawCard, fadeAmount, progressOf, wrapTitle } from '../../app/lib/cardCanvas'
+import { BARS, CARD_H, CARD_W, SAFE_BOTTOM, SAFE_TOP, drawCard, fadeAmount, metaSize, progressOf, wrapTitle } from '../../app/lib/cardCanvas'
 
 /** un contexto falso que apunta dónde se pinta cada cosa */
 function fake() {
@@ -38,9 +38,20 @@ describe('la tarjeta de la historia (spec 061, paso 3)', () => {
   it('pinta las cinco barras y el título tal cual, centrados', () => {
     const { g, drawn } = fake()
     drawCard(g, { title: 'Wow', meta: 'techno · 132 bpm', madeWith: 'hecha con coderbeats' })
-    expect(drawn.filter((d) => d.kind === 'path').length).toBe(BARS.length + 1) // las barras y la tarjeta
+    expect(drawn.filter((d) => d.kind === 'path').length).toBe(BARS.length + 1) // las cinco voces y la tarjeta
     const t = drawn.find((d) => d.text === 'Wow')!
     expect(t.x).toBe(CARD_W / 2)
+  })
+
+  it('la línea en mono con una firma larga se encoge para caber con margen', () => {
+    const m = (size: number) => 41 * size * 0.6 // 41 caracteres en mono: «iioniias - CafeAndCode · techno · 132 bpm»
+    const maxW = 880 - 140
+    const size = metaSize(m, maxW)
+    expect(size).toBeLessThan(36)
+    expect(m(size)).toBeLessThanOrEqual(maxW)
+    expect(metaSize(() => 300, maxW)).toBe(36) // si ya cabe, no se toca
+    expect(metaSize(() => 99999, maxW)).toBe(22) // nunca por debajo del mínimo
+    expect(metaSize(() => 0, maxW)).toBe(36)
   })
 
   it('el fundido final cubre todo el lienzo y solo cuando se pide', () => {

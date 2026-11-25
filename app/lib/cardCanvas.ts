@@ -2,14 +2,15 @@
  * La tarjeta de la historia dibujada en un lienzo de 1080 × 1920 (spec 061, paso 3). Puro: recibe un contexto 2D (o uno falso en los tests). Fondo `#0B0B0F`, tarjeta centrada con las
  * barras del remix en rosa, el título, «firma · estilo · bpm» en mono y «hecha con coderbeats»; **la franja de abajo queda libre** para el sticker de enlace de Instagram.
  */
-import { ACCENT } from './palette'
+import { VOICE_RGB_CSS } from './palette'
+import { LANES } from './timeline'
 
 export const CARD_W = 1080
 export const CARD_H = 1920
 /** la franja de abajo que no se toca (el sticker de enlace de Instagram) y la de arriba (su barra de herramientas) */
 export const SAFE_BOTTOM = 350
 export const SAFE_TOP = 220
-/** las barras del icono del remix (alturas base, 0..100) */
+/** las cinco barras del icono: una por voz (bombo, bajo, caja, platillo, melodía), cada una con el color de su instrumento; alturas de reposo, 0..100 */
 export const BARS = [55, 100, 38, 24, 72] as const
 
 export interface CardLook {
@@ -17,10 +18,8 @@ export interface CardLook {
   /** «firma · estilo · bpm» (sin firma, sin autor) */
   meta: string
   madeWith: string
-  /** la energía de cada barra, 0..1 (el paso 4 la anima con el audio; 0 = quietas) */
+  /** la energía de cada voz, 0..1, como la del «Pulso» de Remixes (cada golpe la sube y se apaga rápido); sin ella, las barras en reposo */
   level?: readonly number[]
-  /** la fila de barras en texto (▁▂▃▄▅▆▇) bajo el título; sin ella, quieta */
-  ascii?: string
   /** 0 = nada, 1 = todo negro: el fundido del final */
   fade?: number
 }
@@ -57,6 +56,13 @@ export function wrapTitle(measure: (s: string) => number, text: string, maxW: nu
   return kept
 }
 
+/** El tamaño de letra (de 36 hacia abajo, hasta 22) con el que una línea cabe en `maxW`; `widthAt(size)` da lo que mide a ese tamaño. */
+export function metaSize(widthAt: (size: number) => number, maxW: number, max = 36, min = 22): number {
+  const w = widthAt(max)
+  if (w <= maxW || w <= 0) return max
+  return Math.max(min, Math.floor((max * maxW) / w))
+}
+
 /** El fundido del final: 0 hasta que faltan `fadeBars` compases, y sube a 1 en el último. */
 export function fadeAmount(pos: number, totalBars: number, fadeBars: number): number {
   if (fadeBars <= 0 || pos >= totalBars) return pos >= totalBars ? 1 : 0
@@ -87,7 +93,7 @@ export function drawCard(g: Ctx, look: CardLook): void {
   g.font = '600 88px Inter, system-ui, sans-serif'
   const lines = wrapTitle((s) => g.measureText(s).width, look.title, cardW - 120)
   const titleH = lines.length * 104
-  const cardH = 150 + 230 + 70 + titleH + 40 + 50 + 70 + 120 + 40
+  const cardH = 150 + 230 + 70 + titleH + 40 + 50 + 120 + 40
   const usable = CARD_H - SAFE_BOTTOM - SAFE_TOP
   const x = (CARD_W - cardW) / 2
   const y = SAFE_TOP + Math.max(0, (usable - cardH) / 2)
@@ -105,10 +111,10 @@ export function drawCard(g: Ctx, look: CardLook): void {
   const total = BARS.length * bw + (BARS.length - 1) * gap
   const bx = (CARD_W - total) / 2
   const base = y + 150 + 200
-  g.fillStyle = ACCENT
   BARS.forEach((h, i) => {
-    const energy = Math.max(0, Math.min(1, look.level?.[i] ?? 0))
-    const bh = Math.max(24, (h / 100) * 200 * (0.85 + 0.3 * energy))
+    g.fillStyle = `rgb(${VOICE_RGB_CSS[LANES[i]!]})`
+    const e = look.level?.[i]
+    const bh = e === undefined ? (h / 100) * 200 : 24 + Math.max(0, Math.min(1, e)) * 176
     roundRect(g, bx + i * (bw + gap), base - bh, bw, bh, 14)
     g.fill()
   })
@@ -124,11 +130,8 @@ export function drawCard(g: Ctx, look: CardLook): void {
     ty += 104
   }
   g.fillStyle = 'rgba(255,255,255,0.62)'
-  g.font = '400 36px "JetBrains Mono", ui-monospace, monospace'
+  g.font = `400 ${metaSize((s) => ((g.font = `400 ${s}px "JetBrains Mono", ui-monospace, monospace`), g.measureText(look.meta).width), cardW - 140)}px "JetBrains Mono", ui-monospace, monospace`
   g.fillText(look.meta, CARD_W / 2, ty + 20)
-  g.fillStyle = 'rgba(255,255,255,0.32)'
-  g.font = '400 44px "JetBrains Mono", ui-monospace, monospace'
-  g.fillText(look.ascii ?? '', CARD_W / 2, ty + 90)
   g.fillStyle = 'rgba(255,255,255,0.40)'
   g.font = '400 30px "JetBrains Mono", ui-monospace, monospace'
   g.fillText(look.madeWith, CARD_W / 2, y + cardH - 56)

@@ -8,7 +8,7 @@ import { songFromLoops } from '../../app/lib/cells'
 const bpmOf = (r: (typeof LAB_REMIXES)[number]) => r.song.bpm ?? STYLES[r.style].bpm
 
 describe('resumen de 15 s de la tarjeta (spec 061)', () => {
-  it('cada remix de la app da un resumen válido, a compases enteros y en torno a 15 s', () => {
+  it('cada remix de la app da un resumen válido, a compases enteros y en torno a 20 s', () => {
     const rows: string[] = []
     for (const r of LAB_REMIXES) {
       const bpm = bpmOf(r)
@@ -34,8 +34,8 @@ describe('resumen de 15 s de la tarjeta (spec 061)', () => {
       })
       expect(p.seconds).toBeCloseTo((p.bars.reduce((s, b) => s + b, 0) * 240) / bpm, 6) // compases enteros
       expect(p.fadeSeconds).toBe(SUMMARY_FADE_SECONDS)
-      expect(p.seconds).toBeGreaterThan(11)
-      expect(p.seconds).toBeLessThan(19)
+      expect(p.seconds).toBeGreaterThan(17)
+      expect(p.seconds).toBeLessThan(24)
       p.song.groups.forEach((g) => expect(g.on).toBe(false))
       rows.push(`${r.id.padEnd(24)} ${String(Math.round(bpm)).padStart(3)} bpm  ${p.roles.map((x, i) => `${x}:${p.bars[i]}`).join(' ')}  ${p.seconds.toFixed(1)} s`)
     }

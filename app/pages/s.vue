@@ -4,7 +4,9 @@
  * «Abrir en coderbeats». Todo en el fragmento: no llega a ningún servidor. Solo datos: lo recibido se valida (`parseCardHash`, `resolveCard`) y nunca se evalúa.
  */
 import { ACCENT } from '~/lib/palette'
-import { asciiRow, quietRow, smoothLevels } from '~/lib/cardLevels'
+import { songTimeline, LANES } from '~/lib/timeline'
+import { makePulso, PULSO_COMPACT, sampleLane, type PulsoScene } from '~/lib/visuals/pulso'
+import { VOICE_HEX } from '~/lib/palette'
 import { STYLES } from '~/lib/constants'
 import { cardHash, cardMeta, parseCardHash, resolveCard, type CardData, type CardRef } from '~/lib/shareCard'
 
@@ -19,33 +21,44 @@ const card = ref<CardData | null>(null)
 const ref_ = ref<CardRef | null>(null)
 const busy = ref(false)
 const BARS = [55, 100, 38, 24, 72]
-const ASCII_N = 16
 
-// la animación al ritmo (spec 061, paso 4): un solo `requestAnimationFrame` mientras suena; con movimiento reducido, todo quieto
+// la animación al ritmo (spec 061, paso 4): como el «Pulso» de Remixes, cada voz (bombo, bajo, caja, platillo, melodía) es una columna de su color que salta en su golpe y se apaga rápido.
+// La energía sale de los golpes de la canción, no del sonido: salta justo en el golpe. Un solo `requestAnimationFrame` mientras suena; con movimiento reducido, todo quieto.
+const BAR_COLORS = LANES.map((v) => VOICE_HEX[v])
 const level = ref<number[]>([0, 0, 0, 0, 0])
-const ascii = ref(quietRow(ASCII_N))
 let raf = 0
-let barsNow: number[] = []
-let rowNow: number[] = []
+let pulso: PulsoScene | null = null
+let pos0: number | null = null
 const reduced = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
 function frame() {
-  barsNow = smoothLevels(barsNow, engine.levels(5) ?? [0, 0, 0, 0, 0])
-  rowNow = smoothLevels(rowNow, engine.levels(ASCII_N) ?? [])
-  level.value = barsNow
-  ascii.value = rowNow.length ? asciiRow(rowNow) : quietRow(ASCII_N)
+  const c = engine.clockNow()
+  if (c && pulso) {
+    const pos = c.bar + c.barPhase
+    if (pos0 === null) pos0 = pos
+    // la canción da vueltas: el tiempo se mide dentro de su duración
+    const t = (((pos - pos0) % Math.max(1, pulso.tl.bars)) + Math.max(1, pulso.tl.bars)) % Math.max(1, pulso.tl.bars) * pulso.tl.barSeconds + 0.04
+    const next = level.value.slice()
+    for (let i = 0; i < 5; i++) {
+      sampleLane(pulso, i, t)
+      next[i] = pulso.energy[i]!
+    }
+    level.value = next
+  }
   raf = requestAnimationFrame(frame)
 }
 function stopAnim() {
   cancelAnimationFrame(raf)
   raf = 0
-  barsNow = []
-  rowNow = []
+  pos0 = null
   level.value = [0, 0, 0, 0, 0]
-  ascii.value = quietRow(ASCII_N)
 }
+/** la altura de cada columna: en reposo, la del dibujo; sonando, la energía de su voz */
+const heightOf = (i: number): number => (engine.playing.value && !reduced() ? 6 + (level.value[i] ?? 0) * 58 : BARS[i]! * 0.64)
 watch(() => engine.playing.value, (on) => {
-  if (on && !reduced() && !raf) frame()
-  else if (!on) stopAnim()
+  if (on && !reduced() && !raf && card.value) {
+    pulso = makePulso(songTimeline(card.value.song, card.value.style), card.value.title, PULSO_COMPACT)
+    frame()
+  } else if (!on) stopAnim()
 })
 
 async function load() {
@@ -108,11 +121,11 @@ const openHref = computed(() => {
       <!-- la tarjeta -->
       <section class="mt-6 w-full rounded-[2rem] border border-white/10 bg-white/[.04] px-7 pb-6 pt-8 text-center" data-card>
         <svg class="mx-auto h-16 w-24" viewBox="0 0 96 64" aria-hidden="true">
-          <rect v-for="(h, i) in BARS" :key="i" :x="i * 20" :y="64 - h * 0.64 * (0.85 + 0.3 * (level[i] ?? 0))" width="14" :height="h * 0.64 * (0.85 + 0.3 * (level[i] ?? 0))" rx="3" :fill="ACCENT" />
+          <rect v-for="(h, i) in BARS" :key="i" :x="i * 20" :y="64 - heightOf(i)" width="14" :height="heightOf(i)" rx="3" :fill="BAR_COLORS[i]" />
         </svg>
         <h1 class="mt-6 text-balance text-3xl font-semibold leading-tight tracking-tight" data-card-title>{{ card.title }}</h1>
         <p class="mt-3 font-mono text-xs text-white/60" data-card-meta>{{ meta }}</p>
-        <p class="mt-2 font-mono text-base leading-none text-white/30" aria-hidden="true" data-card-ascii>{{ ascii }}</p>
+
         <p class="mt-10 font-mono text-[11px] text-white/40">{{ t('card.madeWith') }}</p>
       </section>
 

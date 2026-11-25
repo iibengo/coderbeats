@@ -25,7 +25,6 @@ import { melodyOfPhrase } from '~/lib/melodyAssist'
 import { midiName } from '~/lib/noteScore'
 import type { Remix } from '~/lib/remixes'
 import { STYLE_MUSIC } from '~/lib/styles'
-import { bandEdges, bandLevels } from '~/lib/cardLevels'
 import { GLUE_WARM, saturationCurve } from '~/lib/masterChain'
 import { DEFAULT_MODE, type Mode } from '~/lib/modes'
 import { drumStepsOf, sameSuggestion, suggestFor, type Suggestion } from '~/lib/suggestion'
@@ -189,10 +188,6 @@ let eqNodes: { dry: GainNode; wet: GainNode } | null = null
 let meterNode: AnalyserNode | null = null
 let meterBuf: Float32Array<ArrayBuffer> | null = null
 let videoTap: MediaStreamAudioDestinationNode | null = null
-/** el analizador de la animación de la tarjeta (spec 061, paso 4): una rama pasiva que solo escucha el final de la cadena maestra */
-let analyserNode: AnalyserNode | null = null
-let analyserBuf: Uint8Array<ArrayBuffer> | null = null
-const ANALYSER_FFT = 1024
 let S: StrudelModule | null = null
 let stream: MediaStream | null = null
 /** el nodo del micro, para poder soltarlo y volver a abrirlo (spec 016 §17) */
@@ -1415,7 +1410,6 @@ export function useAudioEngine() {
         ceiling.connect(brick).connect(ctx!.destination)
         masterEnd = brick
         if (videoTap) brick.connect(videoTap)
-        if (analyserNode) brick.connect(analyserNode)
       } catch (e) {
         log('error', `master-limiter: ${e instanceof Error ? e.message : String(e)} (sin limitador de pico)`)
       }
@@ -2909,20 +2903,6 @@ export function useAudioEngine() {
         masterEnd.connect(videoTap)
       }
       return videoTap.stream
-    },
-    /**
-     * La energía del audio que se oye, en `count` bandas de 0 a 1 (la animación de la tarjeta, spec 061, paso 4). Solo escucha el final de la cadena maestra con un `AnalyserNode`:
-     * no cambia el sonido ni toca el reloj. `null` si todavía no hay audio.
-     */
-    levels: (count = 5): number[] | null => {
-      if (!ctx || !masterEnd) return null
-      if (!analyserNode) {
-        analyserNode = new AnalyserNode(ctx, { fftSize: ANALYSER_FFT, smoothingTimeConstant: 0.5 })
-        analyserBuf = new Uint8Array(analyserNode.frequencyBinCount)
-        masterEnd.connect(analyserNode)
-      }
-      analyserNode.getByteFrequencyData(analyserBuf!)
-      return bandLevels(analyserBuf!, ctx.sampleRate, ANALYSER_FFT, bandEdges(count))
     },
     /**
      * Baja la salida a cero en `seconds` (el fundido del final del vídeo de la tarjeta, spec 061). Solo rampa la ganancia maestra: no toca el reloj. `play()` la devuelve a 1.
