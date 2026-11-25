@@ -5,8 +5,7 @@
  */
 import { ACCENT } from '~/lib/palette'
 import { STYLES } from '~/lib/constants'
-import { cardHash, parseCardHash, resolveCard, type CardData, type CardRef } from '~/lib/shareCard'
-import { STYLE_SHORT } from '~/lib/styleNames'
+import { cardHash, cardMeta, parseCardHash, resolveCard, type CardData, type CardRef } from '~/lib/shareCard'
 
 definePageMeta({ ssr: false })
 const { t } = useI18n()
@@ -42,7 +41,7 @@ const meta = computed(() => {
   const c = card.value
   if (!c) return ''
   const bpm = Math.round(c.bpm || STYLES[c.style].bpm)
-  return [c.by, STYLE_SHORT[c.style], t('card.bpm', { n: bpm })].filter(Boolean).join(' · ')
+  return cardMeta(c, t('card.bpm', { n: bpm }))
 })
 
 /** el ▶: el contexto de audio nace en este toque; la canción suena entera, como la compartieron */

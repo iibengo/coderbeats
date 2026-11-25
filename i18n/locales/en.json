@@ -9,6 +9,18 @@
     "copied": "Link copied",
     "building": "Preparing the link…",
     "fail": "The link could not be prepared",
+    "video": "Create a video for your story",
+    "videoHelp": "A summary of about 15 s, vertical.",
+    "videoWorking": "Preparing your video… {n} %",
+    "videoKeep": "Keep this screen open: it takes about {s} seconds and it plays while recording.",
+    "videoCancel": "Cancel",
+    "videoShare": "Share video",
+    "videoSave": "Save video",
+    "videoSaved": "Video saved",
+    "videoDone": "Done. Upload the video to your story and paste the link in the link sticker.",
+    "videoUnsupported": "This browser cannot record video with sound. Try Safari or Chrome.",
+    "videoFail": "The video could not be created.",
+    "videoHidden": "Cancelled because you left the screen.",
     "copyFail": "Could not copy: long-press the link",
     "defaultName": "My remix"
   },
@@ -24,7 +36,7 @@
     "bpm": "{n} bpm"
   },
   "inapp": {
-    "title": "To hear it, open it in your browser",
+    "title": "No sound? Open it in your browser",
     "hint": "⋯ top right → Open in external browser"
   },
   "app": {
@@ -445,7 +457,7 @@
     "editPartShort": "Layers"
   },
   "about": {
-    "intro": "coderbeats · your beatbox turned into drums and Strudel code.",
+    "intro": "coderbeats · play, mix and make music that always sounds good.",
     "fork": "Open source · fork it on GitHub",
     "licensePre": "Free software under the",
     "licensePost": "You can use, study, modify and share it; if you offer a modified version as a network service, you must offer its source code to whoever uses it.",

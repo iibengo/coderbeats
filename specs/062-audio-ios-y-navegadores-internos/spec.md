@@ -5,7 +5,7 @@ En el navegador interno de Instagram (iPhone) la app no suena. Hay dos causas pr
 
 ## Qué cambia
 - **Primer toque** (`app/plugins/audioUnlock.client.ts`, `useAudioUnlock.ts`): si existe `navigator.audioSession`, `type = 'playback'`; si no, en iOS se reproduce en bucle un `<audio>` mudo (un WAV de 0,5 s en una dirección `data:`). Una vez; si el navegador no deja, sigue como estaba y se reintenta en el siguiente toque. El `AudioContext` del motor se crea o se reanuda en su propio toque (`start`), sin cambios.
-- **Aviso** (`InAppNotice.vue`, en `app.vue`): en Instagram, Facebook o TikTok (por el user agent, `app/lib/inApp.ts`), una tarjeta pequeña arriba que no bloquea: «Para oírla, ábrela en tu navegador» y «⋯ arriba a la derecha → Abrir en navegador externo». Se cierra con una X (hasta cerrar la pestaña). ES, EN y EU.
+- **Aviso** (`InAppNotice.vue`, en `app.vue`): en Instagram, Facebook o TikTok (por el user agent, `app/lib/inApp.ts`), una tarjeta pequeña arriba que no bloquea: «¿No suena? Ábrela en tu navegador» y «⋯ arriba a la derecha → Abrir en navegador externo»; se quita solo a los 6 s (Ion lo vio sonar en Instagram, 2026-11-25). Se cierra con una X (hasta cerrar la pestaña). ES, EN y EU.
 
 ## Principios
 1 ✔ un aviso de dos líneas · 2 ✔ · 3 ✔ · 4 ✔ · 5 ✔ · 6 ✔ · 7 ⚠ precedente: el truco del `<audio>` mudo es el habitual para el modo silencio de iOS; sin probar · 8 ✔ nada más se añade.

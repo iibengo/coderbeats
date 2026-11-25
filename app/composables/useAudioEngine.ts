@@ -2903,6 +2903,16 @@ export function useAudioEngine() {
       }
       return videoTap.stream
     },
+    /**
+     * Baja la salida a cero en `seconds` (el fundido del final del vídeo de la tarjeta, spec 061). Solo rampa la ganancia maestra: no toca el reloj. `play()` la devuelve a 1.
+     */
+    fadeOut: (seconds: number) => {
+      if (!ctx || !masterIn) return
+      const t = ctx.currentTime
+      masterIn.gain.cancelScheduledValues(t)
+      masterIn.gain.setValueAtTime(masterIn.gain.value, t)
+      masterIn.gain.linearRampToValueAtTime(0, t + Math.max(0.05, seconds))
+    },
     voiceRec,
     voiceEnv,
     voiceMissing,

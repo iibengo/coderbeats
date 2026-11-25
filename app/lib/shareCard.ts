@@ -8,6 +8,7 @@ import type { Song } from './cells'
 import { labRemixById } from './labRemixes'
 import { cleanName } from './library'
 import { decodeShare, MAX_LINK_CHARS } from './shareLink'
+import { STYLE_SHORT } from './styleNames'
 import type { BackgroundMode } from './background'
 import type { KitId, StyleId } from './types'
 
@@ -85,3 +86,6 @@ export async function resolveCard(ref: CardRef): Promise<CardData | null> {
   if (!saved) return null
   return { title: saved.name, ...(by ? { by } : {}), style: saved.style, kit: saved.kit, bpm: saved.song.bpm ?? STYLES[saved.style].bpm, song: saved.song, bgMode: saved.bgMode }
 }
+
+/** La línea en mono de la tarjeta: «firma · estilo · bpm». Sin firma, sin autor: nada de «anónimo». `bpmText` ya viene traducido («132 bpm»). */
+export const cardMeta = (c: Pick<CardData, 'by' | 'style'>, bpmText: string): string => [c.by, STYLE_SHORT[c.style], bpmText].filter(Boolean).join(' · ')

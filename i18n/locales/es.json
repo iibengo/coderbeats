@@ -9,6 +9,18 @@
     "copied": "Enlace copiado",
     "building": "Preparando el enlace…",
     "fail": "No se pudo preparar el enlace",
+    "video": "Crear vídeo para tu historia",
+    "videoHelp": "Un resumen de unos 15 s, en vertical.",
+    "videoWorking": "Preparando tu vídeo… {n} %",
+    "videoKeep": "Deja esta pantalla abierta: son unos {s} segundos y suena mientras se graba.",
+    "videoCancel": "Cancelar",
+    "videoShare": "Compartir vídeo",
+    "videoSave": "Guardar vídeo",
+    "videoSaved": "Vídeo guardado",
+    "videoDone": "Listo. Sube el vídeo a tu historia y pega el enlace en el sticker de enlace.",
+    "videoUnsupported": "Este navegador no puede grabar vídeo con sonido. Prueba en Safari o en Chrome.",
+    "videoFail": "No se pudo crear el vídeo.",
+    "videoHidden": "Se canceló porque saliste de la pantalla.",
     "copyFail": "No se pudo copiar: mantén pulsado el enlace",
     "defaultName": "Mi remix"
   },
@@ -24,7 +36,7 @@
     "bpm": "{n} bpm"
   },
   "inapp": {
-    "title": "Para oírla, ábrela en tu navegador",
+    "title": "¿No suena? Ábrela en tu navegador",
     "hint": "⋯ arriba a la derecha → Abrir en navegador externo"
   },
   "app": {
@@ -445,7 +457,7 @@
     "editPartShort": "Capas"
   },
   "about": {
-    "intro": "coderbeats · tu beatbox convertido en batería y en código Strudel.",
+    "intro": "coderbeats · toca, mezcla y crea música que siempre suena bien.",
     "fork": "Código abierto · haz un fork en GitHub",
     "licensePre": "Software libre bajo la",
     "licensePost": "Puedes usarlo, estudiarlo, modificarlo y compartirlo; si ofreces una versión modificada como servicio en red, debes ofrecer su código fuente a quien la use.",

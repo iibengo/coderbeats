@@ -18,6 +18,15 @@ Compartir un remix como una tarjeta bonita, estilo Spotify, con la estética de 
 - Un enlace roto, un id que no existe o datos que no valen enseñan un aviso y un botón a la app. `noindex`. La ruta `/s` va sin SSR. Textos en ES, EN y EU (`card.*`). `STYLE_SHORT` pasa a `app/lib/styleNames.ts`, compartido con el Estudio.
 - Probado en el navegador sin pantalla (390 × 844): remix con y sin firma, canción propia, id desconocido, datos rotos y sin fragmento; ▶ y ■ cambian `engine.playing`. La franja inferior queda libre.
 
+## Paso 3: el botón Compartir y el vídeo de la historia
+- **El botón:** la flechita junto a «⋯» en Remixes del Laboratorio y en el Estudio abre `ShareSheet`: «firmar como» (opcional, vacío, solo en el enlace; no se guarda), **Compartir** (hoja del sistema) y **Copiar enlace** (con respaldo si el portapapeles no deja). Un remix de la app da un enlace corto `/s#r=<id>`; una canción propia, `/s#c=<datos>`.
+- **El vídeo** (`useCardVideo`, `cardCanvas.ts`): ~15 s en vertical (1080 × 1920). Un lienzo propio con la tarjeta y el audio del motor en un `MediaRecorder`, en tiempo real, sin ffmpeg; la canción derivada (`planSummary`) se toca de principio a fin con el reproductor de siempre. El avance que se enseña (**«Preparando tu vídeo… 53 %»**) es el real: dónde va la canción respecto a sus compases. Al acabar, el motor vuelve a lo que había. Si la persona sale de la pantalla, se cancela (el audio de una pestaña oculta no es fiable).
+- **Al terminar:** vista previa, **Compartir vídeo** (`navigator.share` con el archivo) o **Guardar vídeo** (descarga), y el enlace sigue a mano para pegarlo en el sticker de enlace de la historia.
+- **Fundido:** imagen y audio bajan a negro en los últimos 0,6 s. El audio grabado va unas décimas por detrás de la imagen, así que se graban 0,6 s más (ya en negro) para que la rampa termine dentro del vídeo; el vídeo dura ~15,1 s.
+- **Medido** (navegador sin pantalla, Korobeiniki, 132 bpm): 1080 × 1920, 15,15 s, audio con sonido (−19 dB de media, −3 dB de pico) que cae a silencio en el último 0,4 s; la franja de abajo (350 px) y la de arriba (220 px), **0 píxeles** que no sean fondo. Un test comprueba además que `drawCard` no pinta fuera de la zona útil.
+- No hay barra de progreso falsa; el botón de vídeo solo sale si el navegador sabe grabar vídeo con sonido (si no, un texto lo dice).
+- Queda el paso 4 (animación al ritmo con `AnalyserNode`): las barras ya aceptan `level`.
+
 ## Principios
 1 ✔ · 2 ✔ solo suena lo que la canción ya lleva · 3 ✔ · 4 ✔ la persona decide si firma y comparte · 5 ✔ · 6 ✔ compartir fácil y sin servidor · 7 ⚠ precedente: las tarjetas de Spotify y los vídeos de Reels; sin probar con alguien que no conozca la app · 8 ✔ reutiliza el enlace, el motor y el exportador de siempre.
 

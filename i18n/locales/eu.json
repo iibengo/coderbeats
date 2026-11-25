@@ -9,6 +9,18 @@
     "copied": "Esteka kopiatuta",
     "building": "Esteka prestatzen…",
     "fail": "Ezin izan da esteka prestatu",
+    "video": "Sortu bideo bat zure istorioarentzat",
+    "videoHelp": "15 s inguruko laburpena, bertikalean.",
+    "videoWorking": "Zure bideoa prestatzen… % {n}",
+    "videoKeep": "Utzi pantaila hau irekita: {s} segundo inguru dira, eta grabatzen den bitartean entzuten da.",
+    "videoCancel": "Utzi",
+    "videoShare": "Partekatu bideoa",
+    "videoSave": "Gorde bideoa",
+    "videoSaved": "Bideoa gordeta",
+    "videoDone": "Prest. Igo bideoa zure istorioan eta itsatsi esteka estekaren pegatinan.",
+    "videoUnsupported": "Nabigatzaile honek ezin du soinudun bideorik grabatu. Probatu Safari edo Chrome.",
+    "videoFail": "Ezin izan da bideoa sortu.",
+    "videoHidden": "Bertan behera geratu da pantailatik atera zaralako.",
     "copyFail": "Ezin izan da kopiatu: luze sakatu esteka",
     "defaultName": "Nire remixa"
   },
@@ -24,7 +36,7 @@
     "bpm": "{n} bpm"
   },
   "inapp": {
-    "title": "Entzuteko, ireki zure nabigatzailean",
+    "title": "Ez da entzuten? Ireki zure nabigatzailean",
     "hint": "⋯ goian eskuinean → Ireki kanpoko nabigatzailean"
   },
   "app": {
@@ -445,7 +457,7 @@
     "editPartShort": "Geruzak"
   },
   "about": {
-    "intro": "coderbeats · zure beatboxa bateria eta Strudel kode bihurtuta.",
+    "intro": "coderbeats · jo, nahasi eta sortu beti ondo entzuten den musika.",
     "fork": "Kode irekia · egin fork GitHuben",
     "licensePre": "Software librea honako lizentziapean:",
     "licensePost": "Erabili, aztertu, aldatu eta partekatu dezakezu; bertsio aldatu bat sareko zerbitzu gisa eskaintzen baduzu, erabiltzen duenari bere iturburu-kodea eskaini behar diozu.",
