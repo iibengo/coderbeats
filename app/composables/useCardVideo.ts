@@ -88,6 +88,7 @@ export function useCardVideo() {
       // el avance y el dibujo siguen a la canción de verdad (los compases que lleva), no a un reloj aparte
       let pos0: number | null = null
       let tailStart: number | null = null
+      let stung = false
       let fading = false
       // las barras salen de los golpes de la canción (como el «Pulso» de Remixes): cada golpe de su voz sube la barra y se apaga rápido; así saltan justo en el golpe
       const pulso = makePulso(songTimeline(plan.song, card.style), card.title, PULSO_COMPACT)
@@ -111,6 +112,11 @@ export function useCardVideo() {
           // el brillo de detrás respira con el bajo; las barras vuelven a su reposo al apagarse la tarjeta; y al final todo se funde a oscuro (último 40 % de la cola) para que el bucle de la historia no corte en seco
           drawCard(g, { ...look, level: bars, glow: bars[1], rest: partProgress(u, TIMES.card), fade: Math.min(1, u / TIMES.card[1]) })
           drawOutro(g, mkPath, u)
+          // el sonido del diablillo entra cuando empieza a dibujarse, mientras la canción ya baja; va por su propio camino y el fundido de la canción no lo apaga
+          if (!stung && u >= TIMES.contour[0]) {
+            stung = true
+            engine.playSting()
+          }
           if (tailStart !== null) drawEndFade(g, (((performance.now() - tailStart) / TAIL_MS) - 0.6) / 0.4)
           state.progress = progressOf(pos, totalBars)
           // al acabar la canción se sigue dibujando la imagen final un rato (la cola): un lienzo quieto no da fotogramas y el nombre no llegaría a verse

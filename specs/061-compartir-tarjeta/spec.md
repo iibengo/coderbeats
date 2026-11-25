@@ -46,6 +46,13 @@ Compartir un remix como una tarjeta bonita, estilo Spotify, con la estética de 
 - **Firma vacía:** la línea queda «techno · 132 bpm», sin separador delante (con test).
 - **`<html lang>`:** sí está en el HTML servido (`lang="es"`, también en la web publicada) y sigue el idioma del navegador: es→es, en→en, eu→eu y los demás → en, en `/`, `/lab`, `/estudio` y `/s` (comprobado con un contexto limpio por caso; con la cookie `coderbeats_lang` manda la cookie). Sin cambios.
 
+## Paso 7: el sonido del diablillo (`devilSting.ts`, `engine.playSting`)
+- **La versión D1, elegida por Ion** tras oír tres propuestas (y la risa en dos vocales): un **barrido que sube** (el neón que se enciende), un **golpe grave** cuando se cierra el contorno y una **risita «ji-ji»** (voz de formantes, vocal «i», dos sílabas, la segunda más alta), con una cola corta. 2,4 s, pico en −3 dBFS, la risa unos 5 dB por debajo del golpe. **Sintetizado** en el navegador (osciladores, filtro de estado variable y formantes; sin muestras, sin derechos), repetible (generador con semilla) y con la frecuencia de muestreo del contexto.
+- **Por su propio camino:** entra **directo al final de la cadena** (`masterEnd`, antes del limitador de pico, que lo suena y lo graba), sin pasar por la ganancia maestra. Así el fundido de la canción (`fadeOut`) no lo apaga y suena **mientras la canción baja**, como en la mezcla que le gustó. Se dispara cuando el diablillo empieza a dibujarse (1,6 s antes del final de la música).
+- **Medido en el audio grabado** (navegador sin pantalla): la música baja de −3 a −13 dB mientras el sonido sube a −0,8 y −4,8 dB (golpe y risa), la cola se apaga y a 0,5 s del final hay silencio. Tests: dura 2,4 s en 44,1 y 48 kHz, sin NaN, pico −3 dBFS, repetible, estéreo, cada cosa en su sitio (barrido, golpe, las dos sílabas, cola) y acaba sin chasquido.
+- **Un fallo encontrado al portarlo** de Python a TypeScript: el filtro del barrido se volvía inestable por el orden de los pasos (ahora con un comentario y cubierto por los tests).
+- **Sin oír:** nadie ha oído todavía el sonido dentro del vídeo grabado en el iPhone.
+
 ## Canciones propias y voz
 - Una canción propia se comparte con `/s#c=<datos>` (en el Estudio y en «Mis remixes» del Laboratorio); la página, el ▶ y «Abrir en coderbeats» (que abre el Estudio) funcionan igual. **Las voces grabadas como audio no viajan en el enlace** (el audio vive en el navegador de quien lo grabó): la hoja avisa. El vídeo sí las lleva, porque se graba en el mismo dispositivo. Aviso también si el enlace pasa de 8 000 caracteres.
 - Comprobado en el navegador: el enlace de una canción propia y su página (`/s#c=…`) con firma; **sin comprobar** el vídeo de una canción propia con varias células.

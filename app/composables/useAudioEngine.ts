@@ -25,6 +25,7 @@ import { melodyOfPhrase } from '~/lib/melodyAssist'
 import { midiName } from '~/lib/noteScore'
 import type { Remix } from '~/lib/remixes'
 import { STYLE_MUSIC } from '~/lib/styles'
+import { renderSting } from '~/lib/devilSting'
 import { GLUE_WARM, saturationCurve } from '~/lib/masterChain'
 import { DEFAULT_MODE, type Mode } from '~/lib/modes'
 import { drumStepsOf, sameSuggestion, suggestFor, type Suggestion } from '~/lib/suggestion'
@@ -188,6 +189,8 @@ let eqNodes: { dry: GainNode; wet: GainNode } | null = null
 let meterNode: AnalyserNode | null = null
 let meterBuf: Float32Array<ArrayBuffer> | null = null
 let videoTap: MediaStreamAudioDestinationNode | null = null
+/** el sonido del diablillo, ya sintetizado (se hace una vez por frecuencia de muestreo) */
+let stingBuf: AudioBuffer | null = null
 let S: StrudelModule | null = null
 let stream: MediaStream | null = null
 /** el nodo del micro, para poder soltarlo y volver a abrirlo (spec 016 §17) */
@@ -2903,6 +2906,27 @@ export function useAudioEngine() {
         masterEnd.connect(videoTap)
       }
       return videoTap.stream
+    },
+    /**
+     * El sonido del diablillo de coderbeats (spec 061, paso 7), al final del vídeo de la tarjeta. Entra **directo al final de la cadena** (antes del limitador de pico, que lo suena y lo
+     * graba), sin pasar por la ganancia maestra: así el fundido de la canción (`fadeOut`) no lo apaga y se oye mientras la música baja. Se sintetiza al primer uso con la frecuencia
+     * de muestreo del contexto. `false` si todavía no hay audio.
+     */
+    playSting: (): boolean => {
+      const c = ctx
+      if (!c || !masterEnd) return false
+      if (!stingBuf || stingBuf.sampleRate !== c.sampleRate) {
+        const { l, r } = renderSting(c.sampleRate)
+        stingBuf = c.createBuffer(2, l.length, c.sampleRate)
+        stingBuf.copyToChannel(l as Float32Array<ArrayBuffer>, 0)
+        stingBuf.copyToChannel(r as Float32Array<ArrayBuffer>, 1)
+      }
+      const src = c.createBufferSource()
+      src.buffer = stingBuf
+      src.connect(masterEnd)
+      src.onended = () => src.disconnect()
+      src.start()
+      return true
     },
     /**
      * Baja la salida a cero en `seconds` (el fundido del final del vídeo de la tarjeta, spec 061). Solo rampa la ganancia maestra: no toca el reloj. `play()` la devuelve a 1.
