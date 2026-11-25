@@ -12,6 +12,7 @@ const { t } = useI18n()
       {{ t('about.licensePre') }} <a class="text-white underline underline-offset-4" :href="LICENSE_URL" target="_blank" rel="noopener">{{ LICENSE_NAME }}</a>
       ({{ LICENSE_ID }}). {{ t('about.licensePost') }}
     </p>
+    <p class="text-neutral-300" data-about-privacy>{{ t('about.privacy') }}</p>
     <a
       class="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[#F496BC]/50 px-4 py-3 text-sm text-[#F496BC]"
       :href="SOURCE_URL" target="_blank" rel="noopener" data-about-fork
