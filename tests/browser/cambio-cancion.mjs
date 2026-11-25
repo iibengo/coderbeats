@@ -4,7 +4,7 @@ const { b, p, errs } = await open()
 let nativos = 0
 p.on('dialog', async (d) => { nativos++; await d.dismiss() })
 const st = () => p.evaluate(() => ({ playing: window.__engine.playing.value, cells: window.__engine.song.value.order.length, clock: !!window.__engine.pilot.clock() }))
-await clickLabel(p, 'ajustes'); await sleep(500); await clickLabel(p, 'Cargar demo'); await sleep(800)
+await p.evaluate(() => window.__engine.loadDemo()); await sleep(800)
 await clickExact(p, 'tocar'); await sleep(4000); console.log('demo sonando', JSON.stringify(await st()))
 const abrir = (i) => p.evaluate((i) => [...document.querySelectorAll('button')].filter(b => b.textContent.trim() === 'Abrir')[i].click(), i)
 await clickLabel(p, 'remixes'); await sleep(700); await abrir(0); await sleep(600)

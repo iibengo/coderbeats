@@ -402,7 +402,7 @@ let voiceHoldUntil = 0
 let voiceHoldTimer: ReturnType<typeof setTimeout> | null = null
 const style = ref<StyleId>('hiphop90')
 const assist = ref(true)
-const metronome = ref(true)
+const metronome = ref(false)
 const bgMode = ref<BackgroundMode>('manual')
 const lastBgMode = ref<Exclude<BackgroundMode, 'off'>>('manual')
 /** modo manual: partes que has encendido con las bolas (§16.17) */
@@ -1505,7 +1505,8 @@ export function useAudioEngine() {
     // la prueba de eco corre mientras se carga Strudel (en el iPhone el import son ~0,6 s)
     const [echoResult] = await Promise.all([runEchoTest(), strudelReady])
     echo.value = echoResult
-    metronome.value = !echoResult.bleed
+    // con fuga del altavoz al micro, el clic se colaría en las tomas: se apaga; si no, se deja como está (apagado de entrada, o lo que la persona guardó)
+    if (echoResult.bleed) metronome.value = false
     ready.value = true
     refreshImageDelay()
   }

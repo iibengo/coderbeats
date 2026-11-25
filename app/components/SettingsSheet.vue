@@ -8,7 +8,7 @@ import type { PhraseMode, RepeatMode } from '~/composables/useAudioEngine'
 
 const open = defineModel<boolean>('open', { required: true })
 const props = defineProps<{ renderer: string; layout: () => string }>()
-const emit = defineEmits<{ recalibrate: ['latency' | 'sounds']; pilot: []; preview: []; video: []; simple: [] }>()
+const emit = defineEmits<{ recalibrate: ['latency' | 'sounds']; pilot: []; preview: []; video: [] }>()
 const engine = useAudioEngine()
 const { t } = useI18n()
 const prefsStudio = useStudioPrefs()
@@ -63,14 +63,6 @@ async function copyDiag() {
   await copyText([`visual: ${props.renderer}`, `pantalla: ${props.layout()}`, ...lines].join('\n'))
   diagCopied.value = true
   setTimeout(() => (diagCopied.value = false), 1500)
-}
-
-/** Demo del estilo actual; si ya hay loops, se pide confirmación antes de reemplazarlos (§16.20). */
-async function loadDemo() {
-  if ((loops.value.loops.length || multi.value) && !(await askConfirm('¿Reemplazar tu canción por la demo de este estilo?'))) return
-  engine.loadDemo()
-  library.setCurrent(null)
-  open.value = false
 }
 
 /** Prueba de rendimiento (diagnóstico): la demo repetida hasta 8 o 16 células. */
@@ -282,11 +274,6 @@ watch(open, (o) => {
               <input class="flex-1" type="range" min="0" max="1" step="0.01" :value="fx.warmth" @input="engine.setFx({ warmth: val($event) })" />
             </label>
             <div class="flex items-center gap-3">
-              <button class="shrink-0 rounded-full border border-white/15 px-4 py-2" @click="loadDemo">{{ t('settings.demo') }}</button>
-              <span class="text-xs text-neutral-500"></span>
-              <InfoTip :text="t('settings.info.demo')" />
-            </div>
-            <div class="flex items-center gap-3">
               <button class="shrink-0 rounded-full border border-white/15 px-4 py-2 disabled:opacity-40" :disabled="!loops.loops.length && !multi" @click="emit('preview'); open = false">{{ t('settings.preview') }}</button>
               <span class="text-xs text-neutral-500">{{ t('settings.previewHelp') }}</span>
               <InfoTip :text="t('settings.info.preview')" />
@@ -302,11 +289,6 @@ watch(open, (o) => {
               <InfoTip :text="t('settings.info.convert')" />
             </div>
             <div class="flex items-center gap-3">
-              <button class="shrink-0 rounded-full border border-white/15 px-4 py-2" @click="engine.restartGuide(); restartTutorial(); open = false">{{ t('settings.guide') }}</button>
-              <span class="text-xs text-neutral-500">{{ t('settings.guideHelp') }}</span>
-              <InfoTip :text="t('settings.info.guide')" />
-            </div>
-            <div class="flex items-center gap-3">
               <button class="shrink-0 rounded-full border border-white/15 px-4 py-2" @click="addFree">{{ t('settings.free') }}</button>
               <span class="text-xs text-neutral-500">{{ t('settings.freeHelp') }}</span>
               <InfoTip :text="t('settings.info.free')" />
@@ -315,11 +297,6 @@ watch(open, (o) => {
               <span class="flex items-center gap-1.5">{{ t('settings.syncMelody') }} <span class="text-xs text-neutral-500">{{ t('settings.syncMelodyHint') }}</span> <InfoTip :text="t('settings.info.syncMelody')" /></span>
               <input type="checkbox" :checked="ui.state.syncMelody" @change="ui.setSync(($event.target as HTMLInputElement).checked)" />
             </label>
-            <div class="flex items-center gap-3">
-              <button class="shrink-0 rounded-full border border-white/15 px-4 py-2" @click="open = false; emit('simple')">{{ t('settings.simple') }}</button>
-              <span class="text-xs text-neutral-500">{{ t('settings.simpleHelp') }}</span>
-              <InfoTip :text="t('settings.info.simple')" />
-            </div>
             <div class="flex items-center gap-3">
               <button class="shrink-0 rounded-full border border-white/15 px-4 py-2" @click="engine.addMelodyCell(); open = false">{{ t('settings.addMelody') }}</button>
               <span class="text-xs text-neutral-500">{{ t('settings.addMelodyHelp') }}</span>

@@ -13,7 +13,7 @@ import { decodeShare, payloadFromHash } from '~/lib/shareLink'
 import ModeSwitch from './ModeSwitch.vue'
 import VisualStage from './visual/VisualStage.vue'
 
-const emit = defineEmits<{ recalibrate: ['latency' | 'sounds']; simple: [] }>()
+const emit = defineEmits<{ recalibrate: ['latency' | 'sounds'] }>()
 const engine = useAudioEngine()
 const { t } = useI18n()
 const route = useRoute()
@@ -339,7 +339,7 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
   <LibrarySheet v-model:open="libraryOpen" @preview="(t) => startPreview(t)" @created="partOpen = true" />
   <PartPanel v-model:open="partOpen" @drums="drumsOpen = true" @organ="openOrgan" />
   <DrumEditor v-model:open="drumsOpen" @mic="partOpen = false; stage?.switchMode('jugar')" />
-  <SettingsSheet v-model:open="settingsOpen" :renderer="renderer" :layout="layoutInfo" @recalibrate="(w) => emit('recalibrate', w)" @simple="emit('simple')" @pilot="startPilot" @preview="startPreview()" @video="videoOpen = true" />
+  <SettingsSheet v-model:open="settingsOpen" :renderer="renderer" :layout="layoutInfo" @recalibrate="(w) => emit('recalibrate', w)" @pilot="startPilot" @preview="startPreview()" @video="videoOpen = true" />
   <VideoSheet v-model:open="videoOpen" :exporter="exporter" />
   <ShareSheet v-model:open="shareOpen" :build="buildShare" :title="shareName" :has-voice="hasVoiceLoops(engine.song.value)" />
   <button

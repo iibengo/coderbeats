@@ -27,7 +27,7 @@ function afterLatency() {
 
 <template>
   <Portada v-if="screen === 'portada'" @recalibrate="(s) => (screen = s)" @estudio="screen = 'studio'" />
-  <Studio v-else-if="screen === 'studio'" @recalibrate="(s) => (screen = s)" @simple="navigateTo('/lab')" />
+  <Studio v-else-if="screen === 'studio'" @recalibrate="(s) => (screen = s)" />
   <main v-else class="mx-auto flex min-h-dvh max-w-xl flex-col px-4 py-5">
     <header v-if="screen !== 'start'" class="mb-6 text-sm font-medium tracking-tight">coderbeats</header>
     <StartScreen v-if="screen === 'start'" @started="afterStart" />

@@ -4,7 +4,7 @@ let fails = 0
 for (const modo of ['terminar', 'parar']) {
   const { b, p, errs } = await open()
   await clickExact(p, 'techno'); await sleep(400)
-  await clickLabel(p, 'ajustes'); await sleep(500); await clickLabel(p, 'Cargar demo'); await sleep(800)
+  await p.evaluate(() => window.__engine.loadDemo()); await sleep(800)
   const before = await p.evaluate(() => { const e = window.__engine; e.setSuggestions(true); return JSON.stringify({ song: e.snapshot().song, style: e.style.value, kit: e.kit.value, sug: e.suggestions.value, assist: e.assist.value }) })
   await clickLabel(p, 'ajustes'); await sleep(500); await clickLabel(p, 'Previsualizar'); await sleep(modo === 'parar' ? 9000 : 1000)
   if (modo === 'parar') await p.touchscreen.tap(200, 400)

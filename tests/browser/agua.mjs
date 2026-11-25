@@ -2,7 +2,7 @@
 import { open, sleep, clickLabel, clickExact } from './lib.mjs'
 const { b, p, errs } = await open()
 await clickExact(p, 'techno'); await sleep(300)
-await clickLabel(p, 'ajustes'); await sleep(400); await clickLabel(p, 'Cargar demo'); await sleep(600)
+await p.evaluate(() => window.__engine.loadDemo()); await sleep(600)
 await clickExact(p, 'tocar'); await sleep(3500)
 await p.evaluate(() => window.__engine.pilot.begin()) // (sin el pitido del micro de mentira)
 console.log('agua', await clickLabel(p, 'teclado de agua')); await sleep(300)

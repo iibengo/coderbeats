@@ -2,7 +2,7 @@
 import { open, sleep, clickLabel, clickExact } from './lib.mjs'
 const { b, p, errs } = await open()
 await clickExact(p, 'dnb'); await sleep(300)
-await clickLabel(p, 'ajustes'); await sleep(400); await clickLabel(p, 'Cargar demo'); await sleep(800)
+await p.evaluate(() => window.__engine.loadDemo()); await sleep(800)
 await clickExact(p, 'Componer'); await sleep(2500)
 const info = () => p.evaluate(() => ({ n: window.__engine.song.value.cells.length, undo: window.__engine.undoInfo.value, at: window.__engine.song.value.cells.map(c => [Math.round(c.at.x * 10) / 10, Math.round(c.at.y * 10) / 10]) }))
 const before = await info()

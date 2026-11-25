@@ -1,7 +1,7 @@
 import { open, labels, sleep, clickLabel, clickExact } from './lib.mjs'
 const { b, p, errs } = await open()
 p.on('console', m => { const t = m.text(); if (/error|not found|sound/i.test(t) && !/getTrigger/.test(t)) console.log('C', t.slice(0,140)) })
-await clickLabel(p, 'ajustes'); await sleep(500); await clickLabel(p, 'Cargar demo'); await sleep(800)
+await p.evaluate(() => window.__engine.loadDemo()); await sleep(800)
 await clickExact(p, 'tocar'); await sleep(4000)
 console.log('btn', (await labels(p)).filter(x=>/voz/i.test(x)))
 console.log('click', await clickLabel(p, 'grabar tu voz'))

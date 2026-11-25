@@ -2,7 +2,7 @@
 import { open, sleep, clickLabel, clickExact } from './lib.mjs'
 const { b, p, errs } = await open()
 await clickExact(p, 'techno'); await sleep(300)
-await clickLabel(p, 'ajustes'); await sleep(400); await clickLabel(p, 'Cargar demo'); await sleep(600)
+await p.evaluate(() => window.__engine.loadDemo()); await sleep(600)
 await clickExact(p, 'tocar'); await sleep(3000)
 await p.evaluate(() => window.__engine.pilot.begin())
 const px = () => p.evaluate(() => { const c = [...document.querySelectorAll('canvas')].pop(); const g = c.getContext('2d'); const d = g.getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i] > 8) n++; return n })

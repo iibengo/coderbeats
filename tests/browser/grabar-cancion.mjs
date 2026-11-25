@@ -1,7 +1,7 @@
 import { open, labels, sleep, clickLabel, clickExact } from './lib.mjs'
 const { b, p, errs } = await open()
 await clickLabel(p, 'ajustes'); await sleep(600)
-await clickLabel(p, 'Cargar demo'); await sleep(1000)
+await p.evaluate(() => window.__engine.loadDemo()); await sleep(1000)
 await clickExact(p, 'tocar'); await sleep(4000)
 await clickLabel(p, 'Escenario'); await sleep(500)
 await p.screenshot({ path: 'h1.png' })

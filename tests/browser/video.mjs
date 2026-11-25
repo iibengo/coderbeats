@@ -2,7 +2,7 @@
 import { open, sleep, clickLabel, clickExact } from './lib.mjs'
 const { b, p, errs } = await open()
 await clickExact(p, 'techno'); await sleep(300)
-await clickLabel(p, 'ajustes'); await sleep(400); await clickLabel(p, 'Cargar demo'); await sleep(800)
+await p.evaluate(() => window.__engine.loadDemo()); await sleep(800)
 await clickExact(p, 'tocar'); await sleep(3000)
 const t0 = Date.now()
 const ok = await p.evaluate(() => window.__video.start({ what: 'cell', bars: 2, format: 'vertical', size: 720, fps: 30, mark: true }))

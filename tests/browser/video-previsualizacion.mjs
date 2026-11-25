@@ -2,7 +2,7 @@
 import { open, sleep, clickLabel, clickExact } from './lib.mjs'
 const { b, p, errs } = await open()
 await clickExact(p, 'dembow'); await sleep(300)
-await clickLabel(p, 'ajustes'); await sleep(400); await clickLabel(p, 'Cargar demo'); await sleep(800)
+await p.evaluate(() => window.__engine.loadDemo()); await sleep(800)
 const sig = () => p.evaluate(() => JSON.stringify(window.__engine.snapshot().song.order.map(id => { const c = window.__engine.snapshot().song.cells.find(c => c.id === id); return [c.turns, c.loops.map(l => [l.instrument, l.hits.length])] })))
 const antes = await sig()
 const t0 = Date.now()

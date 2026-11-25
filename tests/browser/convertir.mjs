@@ -2,7 +2,7 @@ import { open, labels, sleep, clickLabel, clickExact } from './lib.mjs'
 const { b, p, errs } = await open()
 const E = (f) => p.evaluate(f)
 await clickExact(p, 'techno'); await sleep(400)
-await clickLabel(p, 'ajustes'); await sleep(500); await clickLabel(p, 'Cargar demo'); await sleep(800)
+await p.evaluate(() => window.__engine.loadDemo()); await sleep(800)
 await clickExact(p, 'tocar'); await sleep(5000)
 console.log('sugerencia', await E(() => !!window.__engine.suggestion.value), 'canConvert', await E(() => window.__engine.canConvert.value))
 await p.screenshot({ path: 'u1.png' })
