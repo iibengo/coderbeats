@@ -12,6 +12,12 @@ Compartir un remix como una tarjeta bonita, estilo Spotify, con la estética de 
 - **Tamaño medido** (canción más grande, Lacrimosa en drill, 8 partes): **3,4 KB** comprimida (los demás, entre 1,4 y 2 KB). Muy por debajo de los 8 KB. Las grabaciones de voz no son audio (se guardan como notas y golpes): cualquier remix cabe.
 - **Resumen:** una canción derivada con entrada, subida y drop (por nombre de célula o por lo que llevan), a compases enteros, a 15 s lo más cerca posible (**14,5–16,6 s** en los 12 remixes de la app) y con un fundido corto (0,6 s) que aplicará la grabación. **El motor mantiene una célula al menos lo que dura su loop más largo** (medido: con 2 vueltas y un loop de 4 compases, la célula dura 4), así que se recortan los propios loops a los compases del tramo; la nota que cruza el final se acorta. Los grupos en paralelo que sonaban se encienden donde tocan. Los tramos duran de 2 a 8 compases.
 
+## Paso 2: la página `/s` (`app/pages/s.vue`)
+- Lee el fragmento (`parseCardHash` → `resolveCard`), pinta la tarjeta (barras del remix en rosa, título, «firma · estilo · bpm» en mono, «hecha con coderbeats») y un **▶ grande** de 80 px que arranca el motor en ese toque y toca la canción entera (ya sin micro: `useLab().begin`). Segundo toque, ■.
+- Debajo: «hazla tuya · crea tus remixes · toca, juega» y **«Abrir en coderbeats»**: un remix de la app abre `/lab?remix=<id>` (Remixes), una canción propia abre `/#c=<datos>` (el enlace de siempre, que abre el Estudio).
+- Un enlace roto, un id que no existe o datos que no valen enseñan un aviso y un botón a la app. `noindex`. La ruta `/s` va sin SSR. Textos en ES, EN y EU (`card.*`). `STYLE_SHORT` pasa a `app/lib/styleNames.ts`, compartido con el Estudio.
+- Probado en el navegador sin pantalla (390 × 844): remix con y sin firma, canción propia, id desconocido, datos rotos y sin fragmento; ▶ y ■ cambian `engine.playing`. La franja inferior queda libre.
+
 ## Principios
 1 ✔ · 2 ✔ solo suena lo que la canción ya lleva · 3 ✔ · 4 ✔ la persona decide si firma y comparte · 5 ✔ · 6 ✔ compartir fácil y sin servidor · 7 ⚠ precedente: las tarjetas de Spotify y los vídeos de Reels; sin probar con alguien que no conozca la app · 8 ✔ reutiliza el enlace, el motor y el exportador de siempre.
 

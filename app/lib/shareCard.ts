@@ -8,6 +8,7 @@ import type { Song } from './cells'
 import { labRemixById } from './labRemixes'
 import { cleanName } from './library'
 import { decodeShare, MAX_LINK_CHARS } from './shareLink'
+import type { BackgroundMode } from './background'
 import type { KitId, StyleId } from './types'
 
 /** como mucho 24 caracteres de firma (cabe en la tarjeta y en un enlace corto) */
@@ -68,6 +69,8 @@ export interface CardData {
   song: Song
   /** el id del remix de la app, si lo es */
   remixId?: string
+  /** el fondo (bajo y acordes) con el que se guardó una canción propia */
+  bgMode?: BackgroundMode
 }
 
 /** Del enlace a la canción: un remix de la app por su id, o una propia por sus datos. `null` si el id no existe o los datos no valen. */
@@ -80,5 +83,5 @@ export async function resolveCard(ref: CardRef): Promise<CardData | null> {
   }
   const saved = await decodeShare(ref.payload)
   if (!saved) return null
-  return { title: saved.name, ...(by ? { by } : {}), style: saved.style, kit: saved.kit, bpm: saved.song.bpm ?? STYLES[saved.style].bpm, song: saved.song }
+  return { title: saved.name, ...(by ? { by } : {}), style: saved.style, kit: saved.kit, bpm: saved.song.bpm ?? STYLES[saved.style].bpm, song: saved.song, bgMode: saved.bgMode }
 }

@@ -36,7 +36,7 @@ export default defineNuxtConfig({
     } },
     // Los samples no cambian a menudo: una semana de caché ahorra ancho de banda.
     '/samples/**': { headers: { 'Cache-Control': 'public, max-age=604800' } },
-    '/': { ssr: false }, '/lab': { ssr: false }, '/estudio': { ssr: false },
+    '/': { ssr: false }, '/lab': { ssr: false }, '/estudio': { ssr: false }, '/s': { ssr: false },
     ...(process.env.NODE_ENV === 'production' ? {} : { '/spike': { ssr: false }, '/lab/voz': { ssr: false }, '/lab/aro': { ssr: false }, '/lab/sonido': { ssr: false }, '/lab/estudio': { ssr: false }, '/visual': { ssr: false } }) },
 
   // Páginas de desarrollo (en dev/): /spike (banco de pruebas de Strudel) y /lab/voz (laboratorio de voz, spec 002).

@@ -1,4 +1,15 @@
 {
+  "card": {
+    "play": "tocar",
+    "stop": "parar",
+    "madeWith": "hecha con coderbeats",
+    "promo": "hazla tuya · crea tus remixes · toca, juega",
+    "open": "Abrir en coderbeats",
+    "invalid": "Este enlace no vale: está roto o es demasiado antiguo.",
+    "openApp": "Ir a coderbeats",
+    "loading": "Cargando…",
+    "bpm": "{n} bpm"
+  },
   "inapp": {
     "title": "Para oírla, ábrela en tu navegador",
     "hint": "⋯ arriba a la derecha → Abrir en navegador externo"

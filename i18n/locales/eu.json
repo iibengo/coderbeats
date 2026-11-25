@@ -1,4 +1,15 @@
 {
+  "card": {
+    "play": "jo",
+    "stop": "gelditu",
+    "madeWith": "coderbeats-ekin egina",
+    "promo": "egizu zurea · sortu zure remixak · jo, jolastu",
+    "open": "Ireki coderbeats-en",
+    "invalid": "Esteka hau ez da baliozkoa: hautsita dago edo zaharregia da.",
+    "openApp": "Joan coderbeats-era",
+    "loading": "Kargatzen…",
+    "bpm": "{n} bpm"
+  },
   "inapp": {
     "title": "Entzuteko, ireki zure nabigatzailean",
     "hint": "⋯ goian eskuinean → Ireki kanpoko nabigatzailean"

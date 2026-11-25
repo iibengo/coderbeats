@@ -2,6 +2,7 @@
 // Pantalla principal (§16.16): solo el agua, los loops flotando, Play y el estilo.
 import { STYLES } from '~/lib/constants'
 import { ACCENT } from '~/lib/palette'
+import { STYLE_SHORT } from '~/lib/styleNames'
 import { TEMPO_RESET_MS, TEMPO_TAPS } from '~/lib/tempo'
 import { songBars, type Song } from '~/lib/cells'
 import type { KitId, StyleId } from '~/lib/types'
@@ -60,7 +61,6 @@ const stage = ref<InstanceType<typeof VisualStage> | null>(null)
 const renderer = computed(() => stage.value?.rendererName ?? '')
 const layoutInfo = () => stage.value?.layoutInfo() ?? ''
 
-const STYLE_SHORT: Record<StyleId, string> = { hiphop90: 'hip hop', house: 'house (clásico)', dnb: 'dnb', dembow: 'dembow', reggaeton: 'reggaetón', drill: 'drill', techno: 'techno (clásico)', house2: 'house', techno2: 'techno' }
 // la lista para elegir lleva los 5 estilos; un estilo clásico solo sale si es el de la canción que se tiene abierta
 const styleMenu = ref(false)
 /** cambiar de estilo (spec 059): suena al momento; vacío, carga la demo; con algo hecho, pregunta si seguir con tu canción o cargar la demo */

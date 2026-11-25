@@ -1,4 +1,15 @@
 {
+  "card": {
+    "play": "play",
+    "stop": "stop",
+    "madeWith": "made with coderbeats",
+    "promo": "make it yours · create your remixes · play, have fun",
+    "open": "Open in coderbeats",
+    "invalid": "This link is not valid: it is broken or too old.",
+    "openApp": "Go to coderbeats",
+    "loading": "Loading…",
+    "bpm": "{n} bpm"
+  },
   "inapp": {
     "title": "To hear it, open it in your browser",
     "hint": "⋯ top right → Open in external browser"
