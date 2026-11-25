@@ -1,4 +1,17 @@
 {
+  "share": {
+    "title": "Share",
+    "sign": "Sign as (optional)",
+    "signPlaceholder": "your name or nickname",
+    "signHelp": "It only travels in the link; it is not saved anywhere.",
+    "share": "Share",
+    "copy": "Copy link",
+    "copied": "Link copied",
+    "building": "Preparing the link…",
+    "fail": "The link could not be prepared",
+    "copyFail": "Could not copy: long-press the link",
+    "defaultName": "My remix"
+  },
   "card": {
     "play": "play",
     "stop": "stop",

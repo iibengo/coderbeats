@@ -13,6 +13,7 @@ import { addSong, makeSaved } from '~/lib/library'
 import { autoNext, barSeconds, finalPartOf, remixSeconds, labRemixFromSaved, LAB_REMIXES, partLoops, partsOn, remixTake, songFromTake, takePlan, type LabLayer, type LabRemix, type TakeBar } from '~/lib/labRemixes'
 import { readJson, writeText } from '~/lib/storage'
 import { encodeShare, shareUrl } from '~/lib/shareLink'
+import type { CardRef } from '~/lib/shareCard'
 import { diveProgress, diveWindow, dives, hitsNext, levelsFor, NESTED_SCALE, reducedFade, stackAt, type Ring } from '~/lib/zoomStack'
 import type { StageFrame } from './LabStage.vue'
 
@@ -34,6 +35,15 @@ function showLibrary() {
 }
 // ── la pantalla «reproduciendo» (spec 052): el menú «⋯» (una hoja con los extras), anterior y siguiente remix ──
 const menuOpen = ref(false)
+const shareOpen = ref(false)
+/** el enlace de la tarjeta: un remix de la app, por su id (corto); uno propio, con sus datos (spec 061) */
+async function buildShare(): Promise<CardRef | null> {
+  const r = remix.value
+  if (!r) return null
+  if (LAB_REMIXES.some((x) => x.id === r.id)) return { kind: 'r', id: r.id }
+  const payload = await encodeShare({ ...engine.snapshot(), style: r.style, kit: r.kit, song: r.song }, r.title)
+  return { kind: 'c', payload }
+}
 const remixList = computed(() => [...LAB_REMIXES, ...mios.value])
 const remixSub = computed(() => (remix.value ? [remix.value.composer, remix.value.key, styleLabel(remix.value.style)].filter(Boolean).join(' · ') : ''))
 /** anterior y siguiente: si sonaba, el nuevo sigue sonando desde su primera parte (la persona ya había empezado); si estaba parado, queda parado */
@@ -581,6 +591,7 @@ const phrase = computed(() => (remix.value && view.value === 'player' ? t(auto.v
 <template>
   <LabShell :title="view === 'player' && remix ? remix.title : t('lab.screens.remixes.title')" :phrase="phrase" hide-style bare @back="emit('back')" @style="() => {}" @play="remix ? goPart(part) : undefined" @stop="lab.stopAll()">
     <template #header>
+      <button v-if="remix && view === 'player'" class="grid h-11 w-11 place-items-center rounded-full border border-white/20" :aria-label="t('share.title')" data-share-open @click="shareOpen = true"><ShareIcon /></button>
       <button v-if="remix && view === 'player'" class="grid h-11 w-11 place-items-center rounded-full border border-white/20 text-lg" :aria-label="t('lab.remix.more')" aria-haspopup="dialog" data-more @click="menuOpen = true">⋯</button>
     </template>
     <!-- la biblioteca (spec 051): buscador, filtros por estilo y una fila por remix con su carátula -->
@@ -647,6 +658,7 @@ const phrase = computed(() => (remix.value && view.value === 'player' ? t(auto.v
         <button class="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-white/30 text-lg" :aria-label="engine.playing.value ? t('app.stopAll') : t('app.play')" data-mini-play @click="miniToggle">{{ engine.playing.value ? '■' : '▶' }}</button>
       </div>
     </div>
+    <ShareSheet v-if="remix && view === 'player'" v-model:open="shareOpen" :build="buildShare" :title="remix.title" />
     <!-- la hoja «⋯» (spec 052): los extras, fuera de la pantalla principal. Con la hoja cerrada los botones siguen en el DOM (`v-show`) -->
     <div v-if="remix && view === 'player'" v-show="menuOpen" class="fixed inset-0 z-20" data-more-sheet>
       <div class="absolute inset-0 bg-black/60" @click="menuOpen = false" />

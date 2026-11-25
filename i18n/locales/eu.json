@@ -1,4 +1,17 @@
 {
+  "share": {
+    "title": "Partekatu",
+    "sign": "Sinatu honela (aukerakoa)",
+    "signPlaceholder": "zure izena edo ezizena",
+    "signHelp": "Estekan bakarrik doa; ez da inon gordetzen.",
+    "share": "Partekatu",
+    "copy": "Kopiatu esteka",
+    "copied": "Esteka kopiatuta",
+    "building": "Esteka prestatzen…",
+    "fail": "Ezin izan da esteka prestatu",
+    "copyFail": "Ezin izan da kopiatu: luze sakatu esteka",
+    "defaultName": "Nire remixa"
+  },
   "card": {
     "play": "jo",
     "stop": "gelditu",

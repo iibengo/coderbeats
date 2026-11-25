@@ -3,6 +3,8 @@
 import { STYLES } from '~/lib/constants'
 import { ACCENT } from '~/lib/palette'
 import { STYLE_SHORT } from '~/lib/styleNames'
+import { encodeShare } from '~/lib/shareLink'
+import type { CardRef } from '~/lib/shareCard'
 import { TEMPO_RESET_MS, TEMPO_TAPS } from '~/lib/tempo'
 import { songBars, type Song } from '~/lib/cells'
 import type { KitId, StyleId } from '~/lib/types'
@@ -53,6 +55,16 @@ const firstPlay = computed(
   () => !playing.value && !engine.multi.value && engine.loops.value.loops.length === 0 && !readJson('coderbeats:guide:v1', (x): x is { done: true } => !!x && (x as { done?: unknown }).done === true),
 )
 const settingsOpen = ref(false)
+const shareOpen = ref(false)
+/** el nombre con el que se comparte: el de la canción guardada que está abierta, o uno genérico */
+const shareName = computed(() => {
+  const lib = useLibrary()
+  return lib.lib.value.entries.find((e) => e.saved?.id === lib.currentId.value)?.saved?.name ?? t('share.defaultName')
+})
+/** el enlace de la tarjeta de lo que hay ahora en el Estudio (spec 061): los datos van en el enlace, sin servidor */
+async function buildShare(): Promise<CardRef | null> {
+  return { kind: 'c', payload: await encodeShare(engine.snapshot(), shareName.value) }
+}
 const libraryOpen = ref(false)
 const drumsOpen = ref(false)
 const partOpen = ref(false)
@@ -119,6 +131,12 @@ const moreStyle = computed(() =>
   compact.value
     ? 'position: absolute; top: max(0.5rem, env(safe-area-inset-top)); right: calc(env(safe-area-inset-right, 0px) + 26px); width: 44px; height: 44px'
     : 'position: absolute; top: max(0.5rem, env(safe-area-inset-top)); right: 0.5rem; width: 44px; height: 44px',
+)
+// compartir (spec 061): la flechita junto a ⋯ (a su izquierda)
+const shareStyle = computed(() =>
+  compact.value
+    ? 'position: absolute; top: max(0.5rem, env(safe-area-inset-top)); right: calc(env(safe-area-inset-right, 0px) + 170px); width: 44px; height: 44px'
+    : 'position: absolute; top: max(0.5rem, env(safe-area-inset-top)); right: 3.4rem; width: 44px; height: 44px',
 )
 // Mis canciones (spec 006): arriba a la izquierda, frente a ⋯; en horizontal, donde están los estilos, a la izquierda de ⋯
 const libraryStyle = computed(() =>
@@ -225,6 +243,9 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
       <span v-if="engine.multi.value" class="whitespace-nowrap px-1 py-2 tabular-nums" :class="totalSeconds > 120 ? 'text-amber-300' : 'text-white/45'" data-duration :aria-label="totalSeconds > 120 ? t('studio.durationOver', { time: totalText }) : t('studio.durationAria', { time: totalText })">{{ t('studio.duration', { n: engine.song.value.order.length, time: totalText }) }}</span>
     </nav>
 
+    <!-- compartir como tarjeta (spec 061) -->
+    <button class="flex items-center justify-center text-white/50" :style="shareStyle" :aria-label="t('share.title')" data-share-open @pointerdown.stop @click="shareOpen = true"><ShareIcon /></button>
+
     <!-- mis canciones (spec 006) -->
     <button
       class="flex items-center justify-center text-white/50"
@@ -309,6 +330,7 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
   <DrumEditor v-model:open="drumsOpen" @mic="partOpen = false; stage?.switchMode('jugar')" />
   <SettingsSheet v-model:open="settingsOpen" :renderer="renderer" :layout="layoutInfo" @recalibrate="(w) => emit('recalibrate', w)" @simple="emit('simple')" @pilot="startPilot" @preview="startPreview()" @video="videoOpen = true" />
   <VideoSheet v-model:open="videoOpen" :exporter="exporter" />
+  <ShareSheet v-model:open="shareOpen" :build="buildShare" :title="shareName" />
   <button
     v-if="tutorial.text.value && !pilotState.active && !engine.thereminShown.value"
     class="tutorial-line absolute left-1/2 z-10 -translate-x-1/2 rounded-full bg-black/45 px-5 py-2 text-sm text-white/90 backdrop-blur"

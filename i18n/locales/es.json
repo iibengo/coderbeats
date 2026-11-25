@@ -1,4 +1,17 @@
 {
+  "share": {
+    "title": "Compartir",
+    "sign": "Firmar como (opcional)",
+    "signPlaceholder": "tu nombre o apodo",
+    "signHelp": "Solo va en el enlace; no se guarda en ningún sitio.",
+    "share": "Compartir",
+    "copy": "Copiar enlace",
+    "copied": "Enlace copiado",
+    "building": "Preparando el enlace…",
+    "fail": "No se pudo preparar el enlace",
+    "copyFail": "No se pudo copiar: mantén pulsado el enlace",
+    "defaultName": "Mi remix"
+  },
   "card": {
     "play": "tocar",
     "stop": "parar",
