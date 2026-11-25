@@ -4,10 +4,12 @@
     "menuAria": "menura itzuli",
     "stopAll": "dena gelditu",
     "play": "jo",
+    "about": "Honi buruz",
     "estudio": "Estudioa"
   },
   "lab": {
     "title": "Laborategia",
+    "studioText": "Sortu eta editatu zure remixak: atalak, geruzak, bateria eta melodia.",
     "intro": "Mikrofonorik gabe jotzeko moduak. Aukeratu bat; denak ohiko soinu-motorrarekin entzuten dira.",
     "screens": {
       "capas": {
@@ -412,5 +414,28 @@
     "demoConfirm": "Dituzunaren ordez {style} demoa jarri?",
     "replace": "Ordezkatu",
     "editPartShort": "Zatia"
+  },
+  "about": {
+    "intro": "coderbeats · zure beatboxa bateria eta Strudel kode bihurtuta.",
+    "fork": "Kode irekia · egin fork GitHuben",
+    "licensePre": "Software librea honako lizentziapean:",
+    "licensePost": "Erabili, aztertu, aldatu eta partekatu dezakezu; bertsio aldatu bat sareko zerbitzu gisa eskaintzen baduzu, erabiltzen duenari bere iturburu-kodea eskaini behar diozu.",
+    "source": "Iturburu-kodea",
+    "sourcePost": "zure musikarekin sortzen duzun kodea zurea da; zure grabazioak zure gailuan geratzen dira.",
+    "share": "Partekatzean: bateria akustikoa, techno kita edo grabatutako gitarra duten abestiak osorik entzuten dira aplikazioan; strudel.cc-n dagoen kodeak strudel-en soinuak erabiltzen ditu.",
+    "marks": "«808» eta «Roland» beren jabeen markak dira eta soinua deskribatzeko bakarrik daude. Sample bakoitzaren xehetasunak:",
+    "creditsTitle": "Kredituak",
+    "credits": {
+      "strudel": "patroien eta audioaren motorra (superdough). coderbeatsek Strudel kodea sortzen eta ebaluatzen du.",
+      "tidal": "Strudel nondik datorren eta patroiak idazteko duen modua.",
+      "meyda": "zure ahotsaren soinuaren analisia.",
+      "uzu": "«Elektronikoa» eta «Techno» kitak (Switch Angel eta Mot4i).",
+      "tr808": "«808» kita, benetako TR-808 batetik grabatua.",
+      "boochi": "«Binilo» kita (free-drum-samples).",
+      "blackgreen": "gitarra (Hofner Club, nota bakunak).",
+      "bigrusty": "«Bateria» kita (bateria akustikoa: bonbo, danborra eta charleya).",
+      "lamejs": "«Gorde audioa»rako MP3 kodetzailea (esportatzean bakarrik kargatzen da).",
+      "nuxt": "aplikazioaren oinarria."
+    }
   }
 }

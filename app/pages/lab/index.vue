@@ -24,6 +24,7 @@ const TILE: Record<Id, { bg: string; cls: string; text: boolean }> = {
   coro: { bg: VOICE_HEX.hh, cls: 'col-span-2', text: true },
 }
 const { t } = useI18n()
+const aboutOpen = ref(false)
 const route = useRoute()
 const screen = ref<Id | null>(null)
 const engine = useAudioEngine()
@@ -97,7 +98,36 @@ onMounted(() => {
       </li>
     </ul>
     <p v-if="error" class="mt-4 text-sm text-red-300">{{ error }}</p>
-    <NuxtLink to="/estudio" class="mt-10 block text-center text-xs text-white/35 underline decoration-white/20">{{ t('app.estudio') }}</NuxtLink>
+    <NuxtLink to="/estudio" class="mt-3 block rounded-2xl border border-white/25 p-4 transition active:scale-[.98] motion-reduce:transition-none" data-lab-estudio>
+      <span class="block text-lg font-medium leading-tight">{{ t('app.estudio') }}</span>
+      <span class="mt-1 block text-xs leading-snug text-white/60">{{ t('lab.studioText') }}</span>
+    </NuxtLink>
     <div class="mt-4 flex justify-center"><LangSwitch dark compact /></div>
+    <button class="mx-auto mt-2 block min-h-11 px-4 text-xs text-white/35 underline decoration-white/20" data-lab-about @click="aboutOpen = !aboutOpen">{{ t('app.about') }}</button>
+    <Transition name="about">
+      <div v-if="aboutOpen" class="fixed inset-0 z-20 flex items-end sm:items-center sm:justify-center" data-lab-about-sheet @keydown.esc="aboutOpen = false">
+        <div class="absolute inset-0 bg-black/70" @click="aboutOpen = false" />
+        <section role="dialog" aria-modal="true" :aria-label="t('app.about')" class="relative max-h-[85dvh] w-full max-w-xl overflow-y-auto rounded-t-2xl border border-white/10 bg-[#121217] px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 sm:rounded-2xl">
+          <div class="mb-3 flex items-center justify-between">
+            <span class="h-1 w-10 rounded-full bg-white/20" />
+            <button class="flex h-11 w-11 items-center justify-center text-white/60" :aria-label="t('start.close')" data-lab-about-close @click="aboutOpen = false">
+              <svg class="h-5 w-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 4l12 12M16 4L4 16" /></svg>
+            </button>
+          </div>
+          <AboutPanel />
+        </section>
+      </div>
+    </Transition>
   </main>
 </template>
+
+<style scoped>
+.about-enter-active,
+.about-leave-active { transition: opacity 0.2s ease; }
+.about-enter-from,
+.about-leave-to { opacity: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .about-enter-active,
+  .about-leave-active { transition: opacity 0.1s linear; }
+}
+</style>

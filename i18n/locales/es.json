@@ -4,10 +4,12 @@
     "menuAria": "volver al menú",
     "stopAll": "parar todo",
     "play": "tocar",
+    "about": "Acerca de",
     "estudio": "Estudio"
   },
   "lab": {
     "title": "Laboratorio",
+    "studioText": "Crea y edita tus remixes: partes, capas, batería y melodía.",
     "intro": "Formas de tocar sin micro. Elige una; todas suenan con el motor de siempre.",
     "screens": {
       "capas": {
@@ -412,5 +414,28 @@
     "demoConfirm": "¿Reemplazar lo que tienes por la demo de {style}?",
     "replace": "Reemplazar",
     "editPartShort": "Parte"
+  },
+  "about": {
+    "intro": "coderbeats · tu beatbox convertido en batería y en código Strudel.",
+    "fork": "Código abierto · haz un fork en GitHub",
+    "licensePre": "Software libre bajo la",
+    "licensePost": "Puedes usarlo, estudiarlo, modificarlo y compartirlo; si ofreces una versión modificada como servicio en red, debes ofrecer su código fuente a quien la use.",
+    "source": "Código fuente",
+    "sourcePost": "el código que generas con tu música es tuyo; tus grabaciones se quedan en tu dispositivo.",
+    "share": "Al compartir: las canciones con la batería acústica, el kit de techno o la guitarra grabada suenan completas en la app; el código en strudel.cc usa los sonidos de strudel.",
+    "marks": "«808» y «Roland» son marcas de sus dueños y solo describen el sonido. Detalle de cada sample en",
+    "creditsTitle": "Créditos",
+    "credits": {
+      "strudel": "el motor de patrones y de audio (superdough). coderbeats genera y evalúa código Strudel.",
+      "tidal": "de donde viene Strudel y su manera de escribir patrones.",
+      "meyda": "análisis del sonido de tu voz.",
+      "uzu": "kits «Electrónico» y «Techno» (Switch Angel y Mot4i).",
+      "tr808": "kit «808», grabado de una TR-808 real.",
+      "boochi": "kit «Vinilo» (free-drum-samples).",
+      "blackgreen": "guitarra (Hofner Club, notas sueltas).",
+      "bigrusty": "kit «Batería» (batería acústica: bombo, caja y charles).",
+      "lamejs": "codificador de MP3 para «Guardar audio» (se carga solo al exportar).",
+      "nuxt": "la base de la app."
+    }
   }
 }

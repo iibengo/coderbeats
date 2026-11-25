@@ -4,10 +4,12 @@
     "menuAria": "back to the menu",
     "stopAll": "stop everything",
     "play": "play",
+    "about": "About",
     "estudio": "Studio"
   },
   "lab": {
     "title": "Lab",
+    "studioText": "Create and edit your remixes: parts, layers, drums and melody.",
     "intro": "Ways to play without a mic. Pick one; they all use the same sound engine.",
     "screens": {
       "capas": {
@@ -412,5 +414,28 @@
     "demoConfirm": "Replace what you have with the {style} demo?",
     "replace": "Replace",
     "editPartShort": "Part"
+  },
+  "about": {
+    "intro": "coderbeats · your beatbox turned into drums and Strudel code.",
+    "fork": "Open source · fork it on GitHub",
+    "licensePre": "Free software under the",
+    "licensePost": "You can use, study, modify and share it; if you offer a modified version as a network service, you must offer its source code to whoever uses it.",
+    "source": "Source code",
+    "sourcePost": "the code you generate with your music is yours; your recordings stay on your device.",
+    "share": "When sharing: songs with the acoustic drums, the techno kit or the recorded guitar play fully in the app; the code on strudel.cc uses strudel’s own sounds.",
+    "marks": "“808” and “Roland” are trademarks of their owners and only describe the sound. Details of each sample in",
+    "creditsTitle": "Credits",
+    "credits": {
+      "strudel": "the pattern and audio engine (superdough). coderbeats generates and evaluates Strudel code.",
+      "tidal": "where Strudel comes from, and its way of writing patterns.",
+      "meyda": "analysis of the sound of your voice.",
+      "uzu": "“Electronic” and “Techno” kits (Switch Angel and Mot4i).",
+      "tr808": "“808” kit, recorded from a real TR-808.",
+      "boochi": "“Vinyl” kit (free-drum-samples).",
+      "blackgreen": "guitar (Hofner Club, single notes).",
+      "bigrusty": "“Drums” kit (acoustic drums: kick, snare and hi-hat).",
+      "lamejs": "MP3 encoder for “Save audio” (loaded only when exporting).",
+      "nuxt": "the base of the app."
+    }
   }
 }
