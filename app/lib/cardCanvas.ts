@@ -10,6 +10,8 @@ export const CARD_H = 1920
 /** la franja de abajo que no se toca (el sticker de enlace de Instagram) y la de arriba (su barra de herramientas) */
 export const SAFE_BOTTOM = 350
 export const SAFE_TOP = 220
+/** el radio de cada mancha del brillo de detrás */
+const GLOW_R = 420
 /** las cinco barras del icono: una por voz (bombo, bajo, caja, platillo, melodía), cada una con el color de su instrumento; alturas de reposo, 0..100 */
 export const BARS = [55, 100, 38, 24, 72] as const
 
@@ -20,11 +22,17 @@ export interface CardLook {
   madeWith: string
   /** la energía de cada voz, 0..1, como la del «Pulso» de Remixes (cada golpe la sube y se apaga rápido); sin ella, las barras en reposo */
   level?: readonly number[]
+  /** la energía del bajo (0..1): el brillo de detrás respira con ella */
+  glow?: number
+  /** 0..1: lleva las barras a su altura de reposo (en el final, para que no corten en seco) */
+  rest?: number
+  /** la dirección, pequeña y en mono, arriba del todo (sin ella, nada) */
+  site?: string
   /** 0 = nada, 1 = todo negro: el fundido del final */
   fade?: number
 }
 
-type Ctx = Pick<CanvasRenderingContext2D, 'fillRect' | 'beginPath' | 'moveTo' | 'arcTo' | 'closePath' | 'fill' | 'stroke' | 'fillText' | 'measureText'> & {
+type Ctx = Pick<CanvasRenderingContext2D, 'fillRect' | 'beginPath' | 'moveTo' | 'arcTo' | 'closePath' | 'fill' | 'stroke' | 'fillText' | 'measureText' | 'createRadialGradient'> & {
   fillStyle: unknown
   strokeStyle: unknown
   lineWidth: number
@@ -89,6 +97,28 @@ export function drawCard(g: Ctx, look: CardLook): void {
   g.fillStyle = '#0B0B0F'
   g.fillRect(0, 0, CARD_W, CARD_H)
 
+  // un brillo muy suave y difuso detrás de la tarjeta, con los colores de las cinco voces (los de las barras) y poca opacidad; respira con el bajo.
+  // Cada mancha cabe entera en la zona útil (nada llega a la franja del sticker).
+  const mid = SAFE_TOP + (CARD_H - SAFE_BOTTOM - SAFE_TOP) / 2
+  const breath = Math.max(0, Math.min(1, look.glow ?? 0))
+  LANES.forEach((v, i) => {
+    const a = -Math.PI / 2 + (i * Math.PI * 2) / LANES.length
+    const gx = CARD_W / 2 + Math.cos(a) * 230
+    const gy = mid + Math.sin(a) * 230
+    const gr = g.createRadialGradient(gx, gy, 0, gx, gy, GLOW_R)
+    gr.addColorStop(0, `rgba(${VOICE_RGB_CSS[v]},${0.07 + 0.05 * breath})`)
+    gr.addColorStop(1, `rgba(${VOICE_RGB_CSS[v]},0)`)
+    g.fillStyle = gr
+    g.fillRect(gx - GLOW_R, gy - GLOW_R, GLOW_R * 2, GLOW_R * 2)
+  })
+  if (look.site) {
+    g.textAlign = 'center'
+    g.textBaseline = 'alphabetic'
+    g.fillStyle = 'rgba(255,255,255,0.38)'
+    g.font = '400 28px "JetBrains Mono", ui-monospace, monospace'
+    g.fillText(look.site, CARD_W / 2, SAFE_TOP + 44)
+  }
+
   const cardW = 880
   g.font = '600 88px Inter, system-ui, sans-serif'
   const lines = wrapTitle((s) => g.measureText(s).width, look.title, cardW - 120)
@@ -114,7 +144,10 @@ export function drawCard(g: Ctx, look: CardLook): void {
   BARS.forEach((h, i) => {
     g.fillStyle = `rgb(${VOICE_RGB_CSS[LANES[i]!]})`
     const e = look.level?.[i]
-    const bh = e === undefined ? (h / 100) * 200 : 24 + Math.max(0, Math.min(1, e)) * 176
+    const design = (h / 100) * 200
+    const live = e === undefined ? design : 24 + Math.max(0, Math.min(1, e)) * 176
+    const r = Math.max(0, Math.min(1, look.rest ?? 0))
+    const bh = live + (design - live) * r
     roundRect(g, bx + i * (bw + gap), base - bh, bw, bh, 14)
     g.fill()
   })

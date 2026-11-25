@@ -38,6 +38,14 @@ Compartir un remix como una tarjeta bonita, estilo Spotify, con la estética de 
 - Medido en el navegador sin pantalla: los últimos ~2 s del vídeo muestran el diablillo y el nombre completos y estables. Tests: no pinta nada antes de empezar, 6 trazos + nombre + punto al acabar, todo dentro de la zona útil, y el dibujo del código es idéntico al del SVG aprobado.
 - **Sin cambiar todavía:** `og.png` (la imagen del enlace compartido) sigue con el nombre y el punto rosa.
 
+## Paso 6: pulido tras ver el vídeo de Korobeiniki en un iPhone
+- **Resumen de ~23 s en total** (21,5 s de música + 1,5 s de cola): la **intro dura 1–2 compases**, la subida 2–4 y el **drop (donde suena el tema) 4–8**; el planificador castiga que el tema suene menos del 70 % del resumen y cada compás sin tema antes de que entre. Cortes siempre en compases enteros. En los 12 remixes de la app: entre 19,3 y 22,7 s de música.
+- **Fondo:** detrás de la tarjeta, un brillo muy suave y difuso con los cinco colores de las barras (opacidad 0,07; hasta 0,12 con el bajo), que **respira con el bajo**. Cada mancha cabe entera en la zona útil.
+- **Arriba, pequeña y en mono:** la dirección (`location.host`, «coderbeats.vercel.app»). Nada en la franja de abajo (medido: 0 de diferencia con el fondo en los 350 px de abajo y en los 220 de arriba).
+- **Final suave:** el audio baja en el último segundo (antes 0,6 s), las barras vuelven a su reposo al apagarse la tarjeta y, tras el diablillo, el último 40 % de la cola se funde a oscuro, para que el bucle de la historia no corte en seco.
+- **Firma vacía:** la línea queda «techno · 132 bpm», sin separador delante (con test).
+- **`<html lang>`:** sí está en el HTML servido (`lang="es"`, también en la web publicada) y sigue el idioma del navegador: es→es, en→en, eu→eu y los demás → en, en `/`, `/lab`, `/estudio` y `/s` (comprobado con un contexto limpio por caso; con la cookie `coderbeats_lang` manda la cookie). Sin cambios.
+
 ## Canciones propias y voz
 - Una canción propia se comparte con `/s#c=<datos>` (en el Estudio y en «Mis remixes» del Laboratorio); la página, el ▶ y «Abrir en coderbeats» (que abre el Estudio) funcionan igual. **Las voces grabadas como audio no viajan en el enlace** (el audio vive en el navegador de quien lo grabó): la hoja avisa. El vídeo sí las lleva, porque se graba en el mismo dispositivo. Aviso también si el enlace pasa de 8 000 caracteres.
 - Comprobado en el navegador: el enlace de una canción propia y su página (`/s#c=…`) con firma; **sin comprobar** el vídeo de una canción propia con varias células.

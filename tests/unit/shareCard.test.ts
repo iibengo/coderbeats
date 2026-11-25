@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { LAB_REMIXES } from '../../app/lib/labRemixes'
 import { MAX_LINK_CHARS, encodeShare } from '../../app/lib/shareLink'
-import { MAX_BY, hasVoiceLoops, cardHash, cardUrl, cleanBy, parseCardHash, resolveCard } from '../../app/lib/shareCard'
+import { MAX_BY, cardMeta, hasVoiceLoops, cardHash, cardUrl, cleanBy, parseCardHash, resolveCard } from '../../app/lib/shareCard'
 import { STYLES } from '../../app/lib/constants'
 import { songFromLoops } from '../../app/lib/cells'
 
@@ -78,6 +78,14 @@ describe('enlace de la tarjeta (spec 061)', () => {
     expect(await resolveCard({ kind: 'c', payload: 'zAAAA' })).toBeNull()
     expect(await resolveCard({ kind: 'c', payload: 'jeyJ2IjoxfQ' })).toBeNull()
     expect(await resolveCard({ kind: 'c', payload: 'j' + 'A'.repeat(50) })).toBeNull()
+  })
+
+  it('la línea en mono sin firma es «estilo · bpm», sin separador suelto delante', () => {
+    expect(cardMeta({ style: 'techno2' }, '132 bpm')).toBe('techno · 132 bpm')
+    expect(cardMeta({ style: 'techno2', by: '' }, '132 bpm')).toBe('techno · 132 bpm')
+    expect(cardMeta({ style: 'techno2', by: 'Ionias' }, '132 bpm')).toBe('Ionias · techno · 132 bpm')
+    expect(cardMeta({ style: 'techno2' }, '132 bpm').startsWith(' ')).toBe(false)
+    expect(cardMeta({ style: 'techno2' }, '132 bpm').startsWith('·')).toBe(false)
   })
 
   it('avisa de las grabaciones de voz como audio, que no viajan en el enlace', () => {

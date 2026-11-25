@@ -58,6 +58,7 @@ export function outroLayout(): { x: number; y: number; scale: number; wordY: num
 }
 
 interface Ctx {
+  fillRect(x: number, y: number, w: number, h: number): void
   save(): void
   restore(): void
   translate(x: number, y: number): void
@@ -140,4 +141,13 @@ export function drawOutro(g: Ctx, mk: (d: string) => unknown, u: number): void {
     g.fill()
     g.restore()
   }
+}
+
+/** El fundido suave del final, hasta el fondo oscuro (0 = nada, 1 = todo oscuro): así el bucle de la historia no corta en seco. */
+export function drawEndFade(g: Pick<Ctx, 'fillRect' | 'fillStyle' | 'globalAlpha'>, out: number): void {
+  if (!(out > 0)) return
+  g.globalAlpha = Math.min(1, out)
+  g.fillStyle = '#0B0B0F'
+  g.fillRect(0, 0, CARD_W, CARD_H)
+  g.globalAlpha = 1
 }

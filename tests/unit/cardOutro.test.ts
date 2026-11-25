@@ -1,12 +1,13 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { CARD_H, CARD_W, SAFE_BOTTOM, SAFE_TOP } from '../../app/lib/cardCanvas'
-import { DEVIL, ICON_PX, OUTRO_S, TIMES, drawOutro, outroLayout, outroU, partProgress } from '../../app/lib/cardOutro'
+import { DEVIL, ICON_PX, OUTRO_S, TIMES, drawEndFade, drawOutro, outroLayout, outroU, partProgress } from '../../app/lib/cardOutro'
 
 function fake() {
   const calls: { kind: string; dash?: number[]; offset?: number; text?: string; alpha?: number; x?: number; y?: number }[] = []
   let dash: number[] = []
   const g = {
+    fillRect: (x: number, y: number, w: number, h: number) => calls.push({ kind: 'rect', x, y, alpha: g.globalAlpha, text: `${w}x${h}` }),
     save: () => {}, restore: () => {}, translate: () => {}, scale: () => {},
     createLinearGradient: () => ({ addColorStop: () => {} }),
     setLineDash: (d: number[]) => { dash = d },
@@ -84,6 +85,21 @@ describe('el final del vídeo: el diablillo y el nombre (spec 061, paso 5)', () 
     const t = z.calls.find((c) => c.kind === 'text')!
     expect(t.x).toBeGreaterThan(0)
     expect(t.y!).toBeLessThanOrEqual(CARD_H - SAFE_BOTTOM)
+  })
+
+  it('el fundido final llega a oscuro y no pinta nada si no toca', () => {
+    const a = fake()
+    drawEndFade(a.g, 0)
+    drawEndFade(a.g, -1)
+    drawEndFade(a.g, Number.NaN)
+    expect(a.calls).toEqual([])
+    const b = fake()
+    drawEndFade(b.g, 0.5)
+    expect(b.calls).toEqual([{ kind: 'rect', x: 0, y: 0, alpha: 0.5, text: `${CARD_W}x${CARD_H}` }])
+    const c = fake()
+    drawEndFade(c.g, 3)
+    expect(c.calls[0]!.alpha).toBe(1)
+    expect(c.g.globalAlpha).toBe(1) // lo deja como estaba
   })
 
   it('el dibujo del código es el mismo que el de public/brand/diablillo.svg (el aprobado)', () => {

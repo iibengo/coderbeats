@@ -8,7 +8,7 @@ import { songFromLoops } from '../../app/lib/cells'
 const bpmOf = (r: (typeof LAB_REMIXES)[number]) => r.song.bpm ?? STYLES[r.style].bpm
 
 describe('resumen de 15 s de la tarjeta (spec 061)', () => {
-  it('cada remix de la app da un resumen válido, a compases enteros y en torno a 20 s', () => {
+  it('cada remix de la app da un resumen válido, a compases enteros y en torno a 21 s', () => {
     const rows: string[] = []
     for (const r of LAB_REMIXES) {
       const bpm = bpmOf(r)
@@ -24,7 +24,7 @@ describe('resumen de 15 s de la tarjeta (spec 061)', () => {
         expect(TURNS.includes(b as never), `${r.id}: ${b} compases es un valor de vueltas`).toBe(true)
         const cell = p.song.cells.find((c) => c.id === p.cellIds[i])!
         expect(cell.turns).toBe(b)
-        expect(b).toBeGreaterThanOrEqual(2)
+        expect(b).toBeGreaterThanOrEqual(1)
         expect(b).toBeLessThanOrEqual(8)
         for (const l of cell.loops) {
           if (l.voice) continue
@@ -34,8 +34,13 @@ describe('resumen de 15 s de la tarjeta (spec 061)', () => {
       })
       expect(p.seconds).toBeCloseTo((p.bars.reduce((s, b) => s + b, 0) * 240) / bpm, 6) // compases enteros
       expect(p.fadeSeconds).toBe(SUMMARY_FADE_SECONDS)
-      expect(p.seconds).toBeGreaterThan(17)
-      expect(p.seconds).toBeLessThan(24)
+      expect(p.seconds).toBeGreaterThan(18)
+      expect(p.seconds).toBeLessThan(25)
+      // la intro, corta (1–2 compases); el drop, donde suena el tema, tiene el mayor peso
+      p.roles.forEach((role, i) => {
+        if (role === 'intro') expect(p.bars[i]!, `${r.id}: intro corta`).toBeLessThanOrEqual(2)
+        if (role === 'drop') expect(p.bars[i]!, `${r.id}: drop`).toBeGreaterThanOrEqual(4)
+      })
       p.song.groups.forEach((g) => expect(g.on).toBe(false))
       rows.push(`${r.id.padEnd(24)} ${String(Math.round(bpm)).padStart(3)} bpm  ${p.roles.map((x, i) => `${x}:${p.bars[i]}`).join(' ')}  ${p.seconds.toFixed(1)} s`)
     }

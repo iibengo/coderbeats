@@ -9,10 +9,10 @@ import { TURNS, type Cell, type Song, type Turns } from './cells'
 import type { FreeLoop, LoopBars } from './freeLoops'
 import { layersOfCell, roleOf } from './remixParts'
 
-/** lo que dura el resumen (la cifra real sale de los compases enteros más cercanos): con 20 s caben tramos de 4 compases y la melodía suena entera */
-export const SUMMARY_SECONDS = 20
+/** lo que dura el resumen (la cifra real sale de los compases enteros más cercanos); con la cola del final animado, el vídeo entero dura ~23 s */
+export const SUMMARY_SECONDS = 21.5
 /** el fundido del final, para que no corte seco */
-export const SUMMARY_FADE_SECONDS = 0.6
+export const SUMMARY_FADE_SECONDS = 1
 
 export interface SummaryPlan {
   /** la canción derivada: las células elegidas con sus vueltas recortadas; los grupos en paralelo que sonaban, encendidos donde tocan */
@@ -28,8 +28,13 @@ export interface SummaryPlan {
   fadeSeconds: number
 }
 
-/** lo mínimo que dura un tramo del resumen (con un compás no da tiempo a que se note) */
-const MIN_BARS = 2
+/** los compases posibles de cada tramo: la intro, corta (1–2); la subida, 2–4; el drop (donde suena el tema), 4–8 */
+const BARS_FOR = { intro: [1, 2], rise: [2, 4], drop: [4, 8] } as const
+/** lo que pesa (en segundos equivalentes) que el tema suene menos del 70 % del resumen, y cada compás sin tema antes de que entre */
+const MELODY_SHARE = 0.7
+const MELODY_SHARE_W = 8
+const LATE_MELODY_W = 0.6
+const FX_SYNTHS: readonly string[] = ['riser', 'crash', 'boom', 'impacto', 'downlifter']
 /** castigo, en segundos, por cada célula cuyo loop se corta (a igualdad, mejor no cortar) */
 const CUT_PENALTY = 1.2
 const loopBarsOf = (c: Cell): number => c.loops.reduce((m, l) => (l.voice ? m : Math.max(m, l.bars)), 1)
@@ -51,6 +56,8 @@ interface Entry {
   layers: number
   /** los grupos en paralelo que suenan tras empezar esta célula */
   active: number[]
+  /** ¿suena el tema (una melodía que no sea un efecto)? */
+  melody: boolean
 }
 
 function entriesOf(song: Song): Entry[] {
@@ -75,7 +82,8 @@ function entriesOf(song: Song): Entry[] {
   return raw.map((r, i) => {
     const name = (r.cell.name ?? '').trim()
     const role = KNOWN.test(name) ? name.replace(/\s+\d+$/, '').toLowerCase() : roleOf(r.layers, i, raw.length).toLowerCase()
-    return { cell: r.cell, role, layers: r.layers.length, active: r.active }
+    const melody = r.layers.some((l) => l.mel?.some((m) => !FX_SYNTHS.includes(m.synth ?? '')))
+    return { cell: r.cell, role, layers: r.layers.length, active: r.active, melody }
   })
 }
 
@@ -115,7 +123,7 @@ export function planSummary(song: Song, bpm: number, target = SUMMARY_SECONDS): 
     ...(p.rise ? [{ role: 'rise' as const, e: p.rise }] : []),
     { role: 'drop' as const, e: p.drop },
   ]
-  const options = chosen.map(() => TURNS.filter((t) => t >= MIN_BARS && t <= 8))
+  const options = chosen.map((c) => TURNS.filter((t) => (BARS_FOR[c.role] as readonly number[]).includes(t)))
   const barSeconds = 240 / bpm
   let best: { bars: Turns[]; score: number } | null = null
   const walk = (i: number, acc: Turns[]) => {
@@ -126,6 +134,13 @@ export function planSummary(song: Song, bpm: number, target = SUMMARY_SECONDS): 
       acc.forEach((b, k) => {
         if (b < loopBarsOf(chosen[k]!.e.cell)) score += CUT_PENALTY
       })
+      // la melodía: que suene la mayor parte del resumen y que entre pronto
+      const total = acc.reduce((n, b) => n + b, 0)
+      const withMel = acc.reduce((n, b, k) => n + (chosen[k]!.e.melody ? b : 0), 0)
+      score += MELODY_SHARE_W * Math.max(0, MELODY_SHARE - withMel / total)
+      let before = 0
+      for (let k = 0; k < acc.length && !chosen[k]!.e.melody; k++) before += acc[k]!
+      score += LATE_MELODY_W * (withMel > 0 ? before : 0)
       if (!best || score < best.score) best = { bars: [...acc], score }
       return
     }

@@ -6,7 +6,7 @@
 import { reactive } from 'vue'
 import { planSummary } from '~/lib/cardSummary'
 import { CARD_H, CARD_W, drawCard, progressOf } from '~/lib/cardCanvas'
-import { drawOutro, outroU, TIMES } from '~/lib/cardOutro'
+import { drawEndFade, drawOutro, outroU, partProgress, TIMES } from '~/lib/cardOutro'
 import { makeSaved } from '~/lib/library'
 import { songTimeline } from '~/lib/timeline'
 import { makePulso, PULSO_COMPACT, sampleLane } from '~/lib/visuals/pulso'
@@ -19,7 +19,7 @@ const state = reactive({ phase: 'idle' as CardVideoPhase, progress: 0, seconds: 
 export const useCardVideoState = () => state
 const VIDEO_BPS = 6_000_000
 /** lo que se sigue grabando tras el último compás, con el diablillo y el nombre ya completos (y para que termine el fundido del audio) */
-const TAIL_MS = 1300
+const TAIL_MS = 1500
 /** el sonido sale unos milisegundos después de su compás en el reloj: las barras se adelantan un poco para saltar con el golpe que se oye */
 const LEAD_S = 0.04
 let cancelNow: (() => void) | null = null
@@ -57,7 +57,7 @@ export function useCardVideo() {
     out.height = CARD_H
     const g = out.getContext('2d')!
     const mkPath = (d: string) => new Path2D(d)
-    const look = { title: card.title, meta: cardMeta(card, texts.bpm), madeWith: texts.madeWith }
+    const look = { title: card.title, meta: cardMeta(card, texts.bpm), madeWith: texts.madeWith, site: location.host }
     let rec: MediaRecorder | null = null
     let cancelled = false
     let raf = 0
@@ -108,8 +108,10 @@ export function useCardVideo() {
           }
           // el final: la tarjeta se apaga y el diablillo de coderbeats se dibuja como un neón, con el nombre debajo
           const u = outroU(pos, totalBars, barSeconds)
-          drawCard(g, { ...look, level: bars, fade: Math.min(1, u / TIMES.card[1]) })
+          // el brillo de detrás respira con el bajo; las barras vuelven a su reposo al apagarse la tarjeta; y al final todo se funde a oscuro (último 40 % de la cola) para que el bucle de la historia no corte en seco
+          drawCard(g, { ...look, level: bars, glow: bars[1], rest: partProgress(u, TIMES.card), fade: Math.min(1, u / TIMES.card[1]) })
           drawOutro(g, mkPath, u)
+          if (tailStart !== null) drawEndFade(g, (((performance.now() - tailStart) / TAIL_MS) - 0.6) / 0.4)
           state.progress = progressOf(pos, totalBars)
           // al acabar la canción se sigue dibujando la imagen final un rato (la cola): un lienzo quieto no da fotogramas y el nombre no llegaría a verse
           if (pos >= totalBars && tailStart === null) tailStart = performance.now()
