@@ -1,0 +1,4 @@
+<!-- El diablillo de coderbeats (spec 061), en trazo grueso y sin brillo para tamaños pequeños. El dibujo grande está en public/brand/diablillo.svg. -->
+<template>
+  <svg viewBox="0 0 512 512" aria-hidden="true"><defs><linearGradient id="dm-neon" gradientUnits="userSpaceOnUse" x1="120" y1="70" x2="400" y2="460"><stop offset="0" stop-color="#B7A6F2"/><stop offset="1" stop-color="#F496BC"/></linearGradient></defs><g><g fill="none" stroke="url(#dm-neon)" stroke-linecap="round" stroke-linejoin="round"><path d="M183 185 A128 128 0 0 1 329 185 Q346 128 384 100 C402 146 396 190 367 226 A128 128 0 1 1 145 226 C116 190 110 146 128 100 Q166 128 183 185 Z" stroke-width="18"/><path d="M104 232 A162 162 0 0 0 104 348" stroke-width="40"/><path d="M408 232 A162 162 0 0 1 408 348" stroke-width="40"/><path d="M204 282 L238 296" stroke-width="26"/><path d="M308 282 L274 296" stroke-width="26"/><path d="M192 332 Q256 400 320 332" stroke-width="22"/></g></g></svg>
+</template>

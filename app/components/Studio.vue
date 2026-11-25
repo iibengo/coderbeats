@@ -150,7 +150,7 @@ const libraryStyle = computed(() =>
     ? 'position: absolute; top: max(0.5rem, env(safe-area-inset-top)); right: calc(env(safe-area-inset-right, 0px) + 74px); width: 44px; height: 44px'
     : 'position: absolute; top: max(0.5rem, env(safe-area-inset-top)); left: 0.5rem; width: 44px; height: 44px',
 )
-// Cascos → Laboratorio (spec 024): el paso directo del Estudio al Laboratorio con el remix de ahora; arriba, debajo de Mis remixes
+// El diablillo con cascos de coderbeats → Laboratorio (spec 024): el paso directo del Estudio al Laboratorio con el remix de ahora; arriba, debajo de Mis remixes
 const labStyle = computed(() =>
   compact.value
     ? 'position: absolute; top: max(0.5rem, env(safe-area-inset-top)); right: calc(env(safe-area-inset-right, 0px) + 122px); width: 44px; height: 44px'
@@ -281,10 +281,7 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
 
     <!-- tocar en el Laboratorio (spec 024): el paso directo, a la vista -->
     <button class="flex items-center justify-center" :style="labStyle" :aria-label="t('studio.toLabAria')" :title="t('studio.toLabAria')" data-to-lab-main @pointerdown.stop @click="toLab.playInLab()">
-      <svg class="h-6 w-6" viewBox="0 0 512 512" aria-hidden="true">
-        <path d="M120 292A136 136 0 0 1 392 292" fill="none" :stroke="ACCENT" stroke-width="40" stroke-linecap="round" />
-        <rect x="78" y="256" width="92" height="160" rx="46" :fill="ACCENT" /><rect x="342" y="256" width="92" height="160" rx="46" :fill="ACCENT" />
-      </svg>
+      <DevilMark class="h-6 w-6" />
     </button>
 
     <!-- modo (spec 011): Jugar | Componer -->

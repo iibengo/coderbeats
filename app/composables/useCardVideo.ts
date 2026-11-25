@@ -5,7 +5,8 @@
  */
 import { reactive } from 'vue'
 import { planSummary } from '~/lib/cardSummary'
-import { CARD_H, CARD_W, drawCard, fadeAmount, progressOf } from '~/lib/cardCanvas'
+import { CARD_H, CARD_W, drawCard, progressOf } from '~/lib/cardCanvas'
+import { drawOutro, outroU, TIMES } from '~/lib/cardOutro'
 import { makeSaved } from '~/lib/library'
 import { songTimeline } from '~/lib/timeline'
 import { makePulso, PULSO_COMPACT, sampleLane } from '~/lib/visuals/pulso'
@@ -17,8 +18,8 @@ export type CardVideoError = 'unsupported' | 'fail' | 'hidden' | ''
 const state = reactive({ phase: 'idle' as CardVideoPhase, progress: 0, seconds: 0, error: '' as CardVideoError, url: '', name: '', file: null as File | null })
 export const useCardVideoState = () => state
 const VIDEO_BPS = 6_000_000
-/** lo que se sigue grabando tras el último compás, con la imagen en negro, para que termine el fundido del audio */
-const TAIL_MS = 600
+/** lo que se sigue grabando tras el último compás, con el diablillo y el nombre ya completos (y para que termine el fundido del audio) */
+const TAIL_MS = 1300
 /** el sonido sale unos milisegundos después de su compás en el reloj: las barras se adelantan un poco para saltar con el golpe que se oye */
 const LEAD_S = 0.04
 let cancelNow: (() => void) | null = null
@@ -55,6 +56,7 @@ export function useCardVideo() {
     out.width = CARD_W
     out.height = CARD_H
     const g = out.getContext('2d')!
+    const mkPath = (d: string) => new Path2D(d)
     const look = { title: card.title, meta: cardMeta(card, texts.bpm), madeWith: texts.madeWith }
     let rec: MediaRecorder | null = null
     let cancelled = false
@@ -85,6 +87,7 @@ export function useCardVideo() {
 
       // el avance y el dibujo siguen a la canción de verdad (los compases que lleva), no a un reloj aparte
       let pos0: number | null = null
+      let tailStart: number | null = null
       let fading = false
       // las barras salen de los golpes de la canción (como el «Pulso» de Remixes): cada golpe de su voz sube la barra y se apaga rápido; así saltan justo en el golpe
       const pulso = makePulso(songTimeline(plan.song, card.style), card.title, PULSO_COMPACT)
@@ -103,16 +106,19 @@ export function useCardVideo() {
             sampleLane(pulso, i, Math.max(0, pos) * barSeconds + LEAD_S)
             bars[i] = pulso.energy[i]!
           }
-          drawCard(g, { ...look, level: bars, fade: fadeAmount(pos, totalBars, fadeBars) })
+          // el final: la tarjeta se apaga y el diablillo de coderbeats se dibuja como un neón, con el nombre debajo
+          const u = outroU(pos, totalBars, barSeconds)
+          drawCard(g, { ...look, level: bars, fade: Math.min(1, u / TIMES.card[1]) })
+          drawOutro(g, mkPath, u)
           state.progress = progressOf(pos, totalBars)
-          if (cancelled || pos >= totalBars || performance.now() - t0 > (plan.seconds + 5) * 1000) return resolve()
+          // al acabar la canción se sigue dibujando la imagen final un rato (la cola): un lienzo quieto no da fotogramas y el nombre no llegaría a verse
+          if (pos >= totalBars && tailStart === null) tailStart = performance.now()
+          if (cancelled || (tailStart !== null && performance.now() - tailStart > TAIL_MS) || performance.now() - t0 > (plan.seconds + 5) * 1000) return resolve()
           raf = requestAnimationFrame(tick)
         }
         tick()
       })
       cancelAnimationFrame(raf)
-      // el audio grabado va unas décimas por detrás de la imagen: se deja una cola (con la imagen ya en negro) para que el fundido de audio termine dentro del vídeo
-      if (!cancelled) await new Promise((r) => setTimeout(r, TAIL_MS))
       engine.stop()
       if (rec.state !== 'inactive') rec.stop()
       await stopped
