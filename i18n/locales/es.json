@@ -151,6 +151,8 @@
     "drumsHint": "bombo, caja y platillo",
     "melody": "melodía",
     "melodyHint": "el tema",
+    "propose": "Proponer una melodía",
+    "proposeNone": "Primero hace falta un ritmo en esta parte (batería).",
     "bass": "bajo",
     "bassHint": "el del estilo",
     "chords": "acordes",

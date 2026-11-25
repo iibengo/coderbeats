@@ -36,6 +36,8 @@ interface Slot {
   toggle: () => void
   edit?: (e: MouseEvent) => void
   hint: string
+  /** «Proponer una melodía» (solo la capa de melodía, mientras está vacía) */
+  propose?: () => void
 }
 function setLoops(ls: FreeLoop[]) {
   const target = !anyOn(ls)
@@ -44,13 +46,17 @@ function setLoops(ls: FreeLoop[]) {
 const slots = computed<Slot[]>(() => {
   const s: Slot[] = [
     { key: 'bateria', label: t('part.drums'), color: VOICE_HEX.bd, has: drumLoops.value.length > 0, on: anyOn(drumLoops.value), toggle: () => setLoops(drumLoops.value), edit: () => emit('drums'), hint: t('part.drumsHint') },
-    { key: 'melodia', label: t('part.melody'), color: VOICE_HEX.mel, has: !!melodyLoop.value, on: !!melodyLoop.value && !melodyLoop.value.muted, toggle: () => melodyLoop.value && engine.mute(melodyLoop.value.id), edit: (e) => emit('organ', e), hint: t('part.melodyHint') },
+    { key: 'melodia', label: t('part.melody'), color: VOICE_HEX.mel, has: !!melodyLoop.value, on: !!melodyLoop.value && !melodyLoop.value.muted, toggle: () => melodyLoop.value && engine.mute(melodyLoop.value.id), edit: (e) => emit('organ', e), hint: t('part.melodyHint'), propose: () => proposeMelody() },
     { key: 'bajo', label: t('part.bass'), color: VOICE_HEX.bass, has: true, on: engine.bgManual.value.bass, toggle: () => engine.toggleBackgroundPart('bass'), hint: t('part.bassHint') },
     { key: 'acordes', label: t('part.chords'), color: GREY, has: true, on: engine.bgManual.value.chords, toggle: () => engine.toggleBackgroundPart('chords'), hint: t('part.chordsHint') },
   ]
   if (fxLoops.value.length) s.push({ key: 'efectos', label: t('part.fx'), color: GREY, has: true, on: anyOn(fxLoops.value), toggle: () => setLoops(fxLoops.value), hint: t('part.fxHint') })
   return s
 })
+const proposeMsg = ref('')
+function proposeMelody() {
+  proposeMsg.value = engine.proposeMelody() ? '' : t('part.proposeNone')
+}
 const MAX_PARTS = 8
 /** «Duplicar con variación» (decisión de la auditoría: las variaciones solo salen al duplicar una parte): copia la parte justo detrás y propone variaciones (+ energía, − energía, melodía, relleno) */
 const canDuplicate = computed(() => order.value.length < MAX_PARTS)
@@ -138,10 +144,12 @@ if (import.meta.dev && import.meta.client) (window as unknown as Record<string, 
                 <span class="block truncate text-xs text-neutral-500">{{ !s.has ? t('part.tapToCreate') : s.on ? t('part.on') : t('part.off') }}</span>
               </span>
             </button>
-            <button v-if="s.edit" class="mt-3 w-full rounded-full border border-white/20 py-2 text-xs text-white" :data-edit="s.key" @click="s.edit($event)">{{ t('part.editBtn') }}</button>
+            <button v-if="s.propose && !s.has" class="mt-3 w-full rounded-full border border-[#7FD6C2] py-2 text-xs text-white" data-propose-melody @click="s.propose()">{{ t('part.propose') }}</button>
+            <button v-if="s.edit" class="mt-2 w-full rounded-full border border-white/20 py-2 text-xs text-white" :data-edit="s.key" @click="s.edit($event)">{{ t('part.editBtn') }}</button>
             <p v-else class="mt-3 text-center text-xs text-neutral-600">{{ s.hint }}</p>
           </div>
         </div>
+        <p v-if="proposeMsg" class="mt-2 text-xs text-amber-300" role="status" data-propose-msg>{{ proposeMsg }}</p>
         <!-- cantar esta parte (spec 039) -->
         <div class="mt-3 rounded-2xl border border-white/10 p-3" data-sing>
           <div class="flex items-center gap-2">

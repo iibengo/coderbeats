@@ -52,8 +52,14 @@ describe('usePrefs: ajustes y canción en el navegador (spec 001 §16.16)', () =
     expect(engine.style.value).toBe(style)
     expect(ls.data.get(PREFS)).toBe(bad)
   })
-  it('«sugerencias» sin guardar (versiones anteriores) vale encendido', async () => {
+  it('«sugerencias» sin guardar vale apagado (spec 060: la melodía no suena sola)', async () => {
     const { engine, prefs } = await fresh((s) => s.data.set(PREFS, stored()))
+    engine.suggestions.value = true
+    prefs.load()
+    expect(engine.suggestions.value).toBe(false)
+  })
+  it('«sugerencias» guardado como encendido se respeta (no se pisa lo de nadie)', async () => {
+    const { engine, prefs } = await fresh((s) => s.data.set(PREFS, stored({ suggestions: true })))
     engine.suggestions.value = false
     prefs.load()
     expect(engine.suggestions.value).toBe(true)

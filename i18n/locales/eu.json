@@ -151,6 +151,8 @@
     "drumsHint": "bonboa, danborra eta platera",
     "melody": "melodia",
     "melodyHint": "gaia",
+    "propose": "Proposatu melodia bat",
+    "proposeNone": "Atal honek lehenik erritmo bat behar du (bateria).",
     "bass": "baxua",
     "bassHint": "estiloarena",
     "chords": "akordeak",

@@ -151,6 +151,8 @@
     "drumsHint": "kick, snare and hi-hat",
     "melody": "melody",
     "melodyHint": "the theme",
+    "propose": "Suggest a melody",
+    "proposeNone": "This part needs a rhythm first (drums).",
     "bass": "bass",
     "bassHint": "the style's own",
     "chords": "chords",

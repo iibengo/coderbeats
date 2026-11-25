@@ -68,7 +68,7 @@ export function usePrefs() {
       engine.metronome.value = p.metronome && !engine.echo.value?.bleed
       engine.bgMode.value = p.bgMode
       engine.mode.value = modeFromSaved(p.mode)
-      engine.suggestions.value = p.suggestions ?? true
+      engine.suggestions.value = p.suggestions ?? false
       engine.production.value = p.production === true
       engine.flow.value = p.flow !== false
       if (p.bgManual) engine.setBackgroundManual(p.bgManual)

@@ -27,7 +27,8 @@ import type { Remix } from '~/lib/remixes'
 import { STYLE_MUSIC } from '~/lib/styles'
 import { GLUE_WARM, saturationCurve } from '~/lib/masterChain'
 import { DEFAULT_MODE, type Mode } from '~/lib/modes'
-import { sameSuggestion, suggestFor, type Suggestion } from '~/lib/suggestion'
+import { drumStepsOf, sameSuggestion, suggestFor, type Suggestion } from '~/lib/suggestion'
+import { rhythmKey, suggestMelody } from '~/lib/suggestMelody'
 import { varyCell, variationOrder, withVariation, type VariationKind } from '~/lib/variations'
 import { convertToSong } from '~/lib/songTemplates'
 import { MIN_RHYTHM_HITS } from '~/lib/suggestion'
@@ -266,7 +267,7 @@ const guideNonce = ref(0)
 /** Sin micro (denegado o sin dispositivo): se entra igual, con un micro mudo; se toca con el dedo (Agua, Escenario, el aro). */
 const noMic = ref(false)
 /** «Sugerencias» (spec 012, §3.4): la melodía sugerida y las variaciones; apagado, no se propone nada. Separado de «Ayuda» (`assist`) */
-const suggestions = ref(true)
+const suggestions = ref(false)
 /** producción opcional (spec 014): swing y matices de volumen; apagada por defecto (las canciones no cambian solas) */
 const production = ref(false)
 /** el fluido del agua (estela del dedo y venas): por defecto encendido; el vigilante de frames lo apaga si va lento */
@@ -2519,6 +2520,19 @@ export function useAudioEngine() {
     return true
   }
 
+  /**
+   * «Proponer una melodía» (spec 060): la melodía que antes sonaba en fantasma, ahora como una capa normal de la parte que se ve, que se edita con el Órgano.
+   * Se hace a petición (nunca sola): a partir del ritmo de la parte, el estilo y el tempo. `next` pide la siguiente de la misma secuencia fija. `false` si no hay ritmo.
+   */
+  function proposeMelody(next = false): boolean {
+    if (pilotStrict) return false
+    const drums = drumStepsOf(loops.value.loops)
+    const key = rhythmKey(style.value, drums)
+    if (next) suggestSeeds.set(key, (suggestSeeds.get(key) ?? 0) + 1)
+    const hits = suggestMelody({ style: style.value, drums, bpm: bpm.value, synth: STYLE_MUSIC[style.value].synth, seed: suggestSeeds.get(key) ?? 0 })
+    return commitMelody(hits)
+  }
+
   /** Crea una célula libre (⋯ → "añadir célula libre"): un grupo nuevo de una célula, apagado y vacío; entra en ella para llenarla. */
   function addGroupCell(): number | null {
     const r = withNewGroup(liveSong())
@@ -3440,6 +3454,7 @@ export function useAudioEngine() {
     refreshSuggestion,
     /** Tocar la sugerida = aceptarla: pasa a ser un loop de melodía normal (nacerá en la siguiente línea de compás, en su mismo sitio). */
     acceptSuggestion,
+    proposeMelody,
     /** «↻ otra»: la siguiente sugerencia de este ritmo (secuencia fija). */
     otherSuggestion: () => {
       const sg = suggestion.value
