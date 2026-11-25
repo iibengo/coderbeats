@@ -1,4 +1,8 @@
 {
+  "inapp": {
+    "title": "Para oírla, ábrela en tu navegador",
+    "hint": "⋯ arriba a la derecha → Abrir en navegador externo"
+  },
   "app": {
     "back": "← Menú",
     "menuAria": "volver al menú",

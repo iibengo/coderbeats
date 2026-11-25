@@ -1,4 +1,8 @@
 {
+  "inapp": {
+    "title": "Entzuteko, ireki zure nabigatzailean",
+    "hint": "⋯ goian eskuinean → Ireki kanpoko nabigatzailean"
+  },
   "app": {
     "back": "← Menua",
     "menuAria": "menura itzuli",

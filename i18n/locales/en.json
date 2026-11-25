@@ -1,4 +1,8 @@
 {
+  "inapp": {
+    "title": "To hear it, open it in your browser",
+    "hint": "⋯ top right → Open in external browser"
+  },
   "app": {
     "back": "← Menu",
     "menuAria": "back to the menu",

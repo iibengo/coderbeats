@@ -8,6 +8,7 @@ useHead({ htmlAttrs: { lang: locale } })
   <div class="min-h-dvh bg-ink font-sans text-neutral-100 antialiased">
     <NuxtRouteAnnouncer />
     <NuxtPage />
+    <ClientOnly><InAppNotice /></ClientOnly>
   </div>
 </template>
 
