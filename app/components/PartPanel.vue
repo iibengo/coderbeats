@@ -46,13 +46,18 @@ function setLoops(ls: FreeLoop[]) {
 const slots = computed<Slot[]>(() => {
   const s: Slot[] = [
     { key: 'bateria', label: t('part.drums'), color: VOICE_HEX.bd, has: drumLoops.value.length > 0, on: anyOn(drumLoops.value), toggle: () => setLoops(drumLoops.value), edit: () => emit('drums'), hint: t('part.drumsHint') },
-    { key: 'melodia', label: t('part.melody'), color: VOICE_HEX.mel, has: !!melodyLoop.value, on: !!melodyLoop.value && !melodyLoop.value.muted, toggle: () => melodyLoop.value && engine.mute(melodyLoop.value.id), edit: (e) => emit('organ', e), hint: t('part.melodyHint'), propose: () => proposeMelody() },
+    { key: 'melodia', label: t('part.melody'), color: VOICE_HEX.mel, has: !!melodyLoop.value, on: !!melodyLoop.value && !melodyLoop.value.muted, toggle: () => melodyLoop.value && engine.mute(melodyLoop.value.id), edit: (e) => editMelody(e), hint: t('part.melodyHint'), propose: () => proposeMelody() },
     { key: 'bajo', label: t('part.bass'), color: VOICE_HEX.bass, has: true, on: engine.bgManual.value.bass, toggle: () => engine.toggleBackgroundPart('bass'), hint: t('part.bassHint') },
     { key: 'acordes', label: t('part.chords'), color: GREY, has: true, on: engine.bgManual.value.chords, toggle: () => engine.toggleBackgroundPart('chords'), hint: t('part.chordsHint') },
   ]
   if (fxLoops.value.length) s.push({ key: 'efectos', label: t('part.fx'), color: GREY, has: true, on: anyOn(fxLoops.value), toggle: () => setLoops(fxLoops.value), hint: t('part.fxHint') })
   return s
 })
+/** «editar» la melodía: si suena una melodía sugerida (fantasma) y todavía no hay capa, se queda como capa y el Órgano la enseña, no vacío (spec 060) */
+function editMelody(e: MouseEvent) {
+  if (!melodyLoop.value && engine.suggestion.value) engine.acceptSuggestion()
+  emit('organ', e)
+}
 const proposeMsg = ref('')
 function proposeMelody() {
   proposeMsg.value = engine.proposeMelody() ? '' : t('part.proposeNone')

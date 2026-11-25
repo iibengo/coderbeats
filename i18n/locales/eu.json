@@ -408,7 +408,7 @@
     "duration": "{n} zati · {time}",
     "durationAria": "remixak {time} irauten du",
     "durationOver": "remixak {time} irauten du, 2 minutu baino gehiago",
-    "editPart": "editatu zatia",
+    "editPart": "editatu geruzak",
     "myRemixes": "nire abestiak",
     "styleAsk": "Orain {style} estiloan entzuten da. Zure abestiarekin jarraitu ala demoa kargatu? Demoak daukazuna ordezkatzen du.",
     "styleDemo": "Kargatu demoa",
@@ -418,7 +418,7 @@
     "toLab": "Lab",
     "toLabAria": "jo remix hau Laborategian",
     "replace": "Ordezkatu",
-    "editPartShort": "Zatia"
+    "editPartShort": "Geruzak"
   },
   "about": {
     "intro": "coderbeats · zure beatboxa bateria eta Strudel kode bihurtuta.",

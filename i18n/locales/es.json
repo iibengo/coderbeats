@@ -408,7 +408,7 @@
     "duration": "{n} partes · {time}",
     "durationAria": "el remix dura {time}",
     "durationOver": "el remix dura {time}, más de 2 minutos",
-    "editPart": "editar parte",
+    "editPart": "editar capas",
     "myRemixes": "mis canciones",
     "styleAsk": "Ahora suena en {style}. ¿Seguir con tu canción o cargar la demo? La demo reemplaza lo que tienes.",
     "styleDemo": "Cargar la demo",
@@ -418,7 +418,7 @@
     "toLab": "Lab",
     "toLabAria": "tocar este remix en el Laboratorio",
     "replace": "Reemplazar",
-    "editPartShort": "Parte"
+    "editPartShort": "Capas"
   },
   "about": {
     "intro": "coderbeats · tu beatbox convertido en batería y en código Strudel.",

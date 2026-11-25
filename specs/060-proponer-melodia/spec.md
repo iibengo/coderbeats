@@ -6,6 +6,7 @@ La melodía sugerida (spec 012) sonaba sola, en fantasma, en cuanto había un ri
 ## Qué cambia
 - **«Sugerencias» apagado por defecto** (`useAudioEngine.ts`, `usePrefs.ts`). Quien ya lo tenga guardado conserva su valor. Se enciende en ajustes («⋯» → «Sugerencias»).
 - **«Proponer una melodía»** en la capa de melodía de «Parte» (`PartPanel.vue`), solo mientras está vacía: genera la melodía con `suggestMelody` a partir del ritmo de la parte, el estilo y el tempo, y la **añade como capa normal** (`commitMelody`): suena, se edita con el Órgano, se silencia o se borra. Sin ritmo en la parte, dice que primero hace falta uno. La secuencia es la fija de siempre (`suggestSeeds`).
+- **«editar» recoge la fantasma:** si suena una melodía sugerida y la parte aún no tiene capa de melodía, al pulsar «editar» pasa a ser la capa y el Órgano la enseña (antes salía vacío; Ion, 2026-11-25).
 - Motor: `proposeMelody(next?)`, junto a `commitMelody`. No toca el reloj.
 
 ## Principios

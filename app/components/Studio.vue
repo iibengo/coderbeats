@@ -242,7 +242,10 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
     </button>
 
     <!-- editar parte (spec 020): las capas de la parte, con la batería y la melodía dentro -->
-    <button class="flex items-center justify-center gap-2 rounded-full border border-white/30 bg-white/10 text-base font-medium text-white backdrop-blur" :style="partStyle" :aria-label="t('studio.editPart')" data-edit-part @pointerdown.stop @click="partOpen = true">✎ {{ t('studio.editPartShort') }}</button>
+    <button class="flex items-center justify-center gap-2 rounded-full border border-white/30 bg-white/10 text-base font-medium text-white backdrop-blur" :style="partStyle" :aria-label="t('studio.editPart')" data-edit-part @pointerdown.stop @click="partOpen = true">
+      <svg class="h-5 w-5" viewBox="0 0 40 40" fill="currentColor" aria-hidden="true"><rect x="4" y="5" width="32" height="8" rx="4" /><rect x="4" y="16" width="24" height="8" rx="4" opacity=".7" /><rect x="4" y="27" width="14" height="8" rx="4" opacity=".45" /></svg>
+      {{ t('studio.editPartShort') }}
+    </button>
 
     <!-- tocar en el Laboratorio (spec 024): el paso directo, a la vista -->
     <button class="flex items-center justify-center" :style="labStyle" :aria-label="t('studio.toLabAria')" :title="t('studio.toLabAria')" data-to-lab-main @pointerdown.stop @click="toLab.playInLab()">

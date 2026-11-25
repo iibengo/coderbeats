@@ -408,7 +408,7 @@
     "duration": "{n} parts · {time}",
     "durationAria": "the remix lasts {time}",
     "durationOver": "the remix lasts {time}, more than 2 minutes",
-    "editPart": "edit part",
+    "editPart": "edit layers",
     "myRemixes": "my songs",
     "styleAsk": "It now plays in {style}. Keep your song or load the demo? The demo replaces what you have.",
     "styleDemo": "Load the demo",
@@ -418,7 +418,7 @@
     "toLab": "Lab",
     "toLabAria": "play this remix in the Lab",
     "replace": "Replace",
-    "editPartShort": "Part"
+    "editPartShort": "Layers"
   },
   "about": {
     "intro": "coderbeats · your beatbox turned into drums and Strudel code.",
