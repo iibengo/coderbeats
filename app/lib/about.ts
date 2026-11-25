@@ -6,6 +6,8 @@ export const LICENSE_NAME = 'GNU Affero General Public License v3.0 o posterior'
 export const LICENSE_URL = 'https://www.gnu.org/licenses/agpl-3.0.html'
 /** AGPL §13: quien usa la app por red tiene derecho al código fuente correspondiente. */
 export const SOURCE_URL = 'https://github.com/iibengo/coderbeats'
+/** El conversor de notas y el agente «cancionero» (spec 058). */
+export const CONVERTER_URL = `${SOURCE_URL}/tree/main/tools/conversor`
 
 export interface Credit {
   /** clave de la traducción (`about.credits.<id>`); `what` queda como texto base en español */

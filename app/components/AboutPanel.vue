@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // «Acerca de»: licencia (AGPL) y créditos. Sin estado; lo usan los ajustes, la pantalla de inicio y el Laboratorio. Textos en i18n (`about.*`).
-import { CREDITS, LICENSE_ID, LICENSE_NAME, LICENSE_URL, SOURCE_URL } from '~/lib/about'
+import { CREDITS, LICENSE_ID, LICENSE_NAME, LICENSE_URL, SOURCE_URL, CONVERTER_URL } from '~/lib/about'
 const { t } = useI18n()
 </script>
 
@@ -21,6 +21,10 @@ const { t } = useI18n()
     <p>
       <a class="text-white underline underline-offset-4" :href="SOURCE_URL" target="_blank" rel="noopener">{{ t('about.source') }}</a>
       · {{ t('about.sourcePost') }}
+    </p>
+    <p class="text-neutral-500" data-about-convert>
+      {{ t('about.convert') }}
+      <a class="text-neutral-300 underline underline-offset-4" :href="CONVERTER_URL" target="_blank" rel="noopener">{{ t('about.convertLink') }}</a>
     </p>
     <h3 class="mt-1 text-neutral-200">{{ t('about.creditsTitle') }}</h3>
     <ul class="grid gap-2">

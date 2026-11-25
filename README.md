@@ -51,7 +51,9 @@ Stack: [Nuxt](https://nuxt.com) 4, Vue 3, Tailwind, Web Audio and [Strudel](http
 - `tools/conversor/`: the notes-to-song converter, its guide, examples and the `cancionero` agent instructions.
 - `public/samples/`: the samples, with their licences in [`CREDITS.md`](public/samples/CREDITS.md).
 
-## Make songs with an AI assistant (Claude Code / opencode)
+## Write your own pieces with an AI assistant (Claude Code / opencode)
+
+> **Only public-domain or original music** goes in this repo: no themes from films, games or modern songs. The agent is **new and not yet tested at length with real users**: treat it as an experiment.
 
 `tools/conversor/` is a small command-line tool that turns a plain-text song (melody, bass, chords, style) into a `.json` file you can import in the app (**Studio → My songs → ⋯ → Import**). It is separate from the app but kept in sync with it: a test (`tests/unit/conversor.test.ts`) fails if the app gains a style or a synth and the converter does not.
 
@@ -64,7 +66,7 @@ node tools/conversor/notas-a-json.mjs mis-canciones/my-song.txt --estilo drill
 - **Examples** (`tools/conversor/ejemplos/`): Ode to Joy (public domain) and three original pieces (minimal techno, dub techno, drill).
 - **Guide** ([`tools/conversor/guia.md`](tools/conversor/guia.md), in Spanish): the format, the rules that keep a song from sounding choppy, the styles and synths, and how a long song is shaped (the Lacrimosa in drill is the model).
 - **Agent `cancionero`** (`.claude/agents/` for Claude Code, `.opencode/agent/` for opencode): open the repo in Claude Code or opencode and ask for a song. It is written for non-technical people: one question at a time, simple language, it writes the `.txt`, converts it, tells you how to import it, and can improve the converter **only if you say yes** (and with the test passing).
-- **Rules:** only **public-domain or original** music in this repo, no themes from films, games or modern songs. Your songs live in `mis-canciones/`, which git ignores, and are never uploaded anywhere.
+- **Where yours live:** Your songs live in `mis-canciones/`, which git ignores, and are never uploaded anywhere.
 
 > The agent has not been tested in a real session yet, and the opencode agent file is written from memory: tell us if it does not work.
 

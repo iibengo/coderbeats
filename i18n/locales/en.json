@@ -424,6 +424,8 @@
     "sourcePost": "the code you generate with your music is yours; your recordings stay on your device.",
     "share": "When sharing: songs with the acoustic drums, the techno kit or the recorded guitar play fully in the app; the code on strudel.cc uses strudel’s own sounds.",
     "marks": "“808” and “Roland” are trademarks of their owners and only describe the sound. Details of each sample in",
+    "convert": "Want to bring your own melodies? The repo has a notes converter and an agent to help you (public domain or original music only).",
+    "convertLink": "See the converter",
     "creditsTitle": "Credits",
     "credits": {
       "strudel": "the pattern and audio engine (superdough). coderbeats generates and evaluates Strudel code.",

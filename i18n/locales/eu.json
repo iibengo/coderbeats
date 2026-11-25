@@ -424,6 +424,8 @@
     "sourcePost": "zure musikarekin sortzen duzun kodea zurea da; zure grabazioak zure gailuan geratzen dira.",
     "share": "Partekatzean: bateria akustikoa, techno kita edo grabatutako gitarra duten abestiak osorik entzuten dira aplikazioan; strudel.cc-n dagoen kodeak strudel-en soinuak erabiltzen ditu.",
     "marks": "«808» eta «Roland» beren jabeen markak dira eta soinua deskribatzeko bakarrik daude. Sample bakoitzaren xehetasunak:",
+    "convert": "Zure melodiak sartu nahi dituzu? Biltegiak nota-bihurgailu bat eta lagunduko dizun agente bat ditu (jabetza publikoko edo originala den musika bakarrik).",
+    "convertLink": "Ikusi bihurgailua",
     "creditsTitle": "Kredituak",
     "credits": {
       "strudel": "patroien eta audioaren motorra (superdough). coderbeatsek Strudel kodea sortzen eta ebaluatzen du.",

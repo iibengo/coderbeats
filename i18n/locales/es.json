@@ -424,6 +424,8 @@
     "sourcePost": "el código que generas con tu música es tuyo; tus grabaciones se quedan en tu dispositivo.",
     "share": "Al compartir: las canciones con la batería acústica, el kit de techno o la guitarra grabada suenan completas en la app; el código en strudel.cc usa los sonidos de strudel.",
     "marks": "«808» y «Roland» son marcas de sus dueños y solo describen el sonido. Detalle de cada sample en",
+    "convert": "¿Quieres meter tus propias melodías? El repo trae un conversor de notas y un agente que te ayuda (solo dominio público u originales).",
+    "convertLink": "Ver el conversor",
     "creditsTitle": "Créditos",
     "credits": {
       "strudel": "el motor de patrones y de audio (superdough). coderbeats genera y evalúa código Strudel.",
