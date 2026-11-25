@@ -7,7 +7,7 @@ import { onBeforeUnmount } from 'vue'
 import { ACCENT, VOICE_HEX } from '~/lib/palette'
 
 definePageMeta({ ssr: false })
-useHead({ title: 'Laboratorio · coderbeats' })
+useHead({ title: 'coderbeats' })
 
 type Id = 'capas' | 'piano' | 'coro' | 'circulo' | 'remixes'
 // Remixes va primero (spec 050): es la pantalla más completa y la que invita a empezar
@@ -62,8 +62,7 @@ onMounted(() => {
   <LabRemix v-else-if="screen === 'remixes'" @back="back" />
   <main v-else class="mx-auto min-h-dvh max-w-xl bg-black px-4 py-8 text-white">
     <h1 class="mt-3 text-3xl font-medium tracking-tight">coderbeats</h1>
-    <p class="mt-1 text-sm font-medium uppercase tracking-widest" :style="{ color: ACCENT }" data-lab-title>{{ t('lab.title') }}</p>
-    <p class="mt-3 text-white/60">{{ t('lab.intro') }}</p>
+    <p class="mt-3 text-white/60" data-lab-intro>{{ t('lab.intro') }}</p>
     <ul class="mt-6 grid auto-rows-[92px] grid-cols-2 gap-3" data-lab-collage>
       <li v-for="s in SCREENS" :key="s" :class="TILE[s].cls">
         <button

@@ -9,13 +9,13 @@ for (const lang of ['es-ES', 'en-US', 'eu-ES', 'fr-FR']) {
   const errs = []
   p.on('pageerror', (e) => errs.push(String(e).slice(0, 200)))
   await p.goto('http://localhost:3999/lab', { waitUntil: 'networkidle2', timeout: 120000 }); await sleep(2500)
-  const h1 = await p.evaluate(() => document.querySelector('[data-lab-title]')?.textContent)
+  const h1 = await p.evaluate(() => document.querySelector('[data-lab-intro]')?.textContent)
   console.log(lang, '→ título:', h1, '| html lang:', await p.evaluate(() => document.documentElement.lang), errs)
   if (lang === 'es-ES') {
     await p.evaluate(() => document.querySelector('[data-lang=eu]').click()); await sleep(500)
-    console.log('  selector → euskera:', await p.evaluate(() => document.querySelector('[data-lab-title]')?.textContent), '|', await p.evaluate(() => document.querySelector('[data-lab-remixes] span span:last-child')?.textContent))
+    console.log('  selector → euskera:', await p.evaluate(() => document.querySelector('[data-lab-intro]')?.textContent), '|', await p.evaluate(() => document.querySelector('[data-lab-remixes] span span:last-child')?.textContent))
     await p.evaluate(() => document.querySelector('[data-lang=en]').click()); await sleep(500)
-    console.log('  selector → inglés:', await p.evaluate(() => document.querySelector('[data-lab-title]')?.textContent))
+    console.log('  selector → inglés:', await p.evaluate(() => document.querySelector('[data-lab-intro]')?.textContent))
   }
   await b.close()
 }
