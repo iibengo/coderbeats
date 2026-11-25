@@ -2,9 +2,9 @@
 import { open, sleep } from './lib.mjs'
 const { b, p, errs } = await open()
 await p.evaluate(() => document.querySelector('[data-style-label]').click()); await sleep(300)
-console.log('estilos:', await p.evaluate(() => [...document.querySelectorAll('[data-load-demo]')].map((x) => x.dataset.style)))
-await p.evaluate(() => document.querySelector('[data-load-demo][data-style=reggaeton]').click()); await sleep(1500)
-await p.evaluate(() => [...document.querySelectorAll('[role=alertdialog] button')].find((x) => x.textContent.includes('Reemplazar'))?.click()); await sleep(1000)
+console.log('estilos:', await p.evaluate(() => [...document.querySelectorAll('[data-style-menu] [role=option]')].map((x) => x.textContent.trim())))
+await p.evaluate(() => [...document.querySelectorAll('[data-style-menu] [role=option]')].find((x) => /reggaet|dembow/i.test(x.textContent))?.click()); await sleep(1500)
+await p.evaluate(() => document.querySelector('[data-demo-start]')?.click()); await sleep(1000)
 console.log('tras la demo:', JSON.stringify(await p.evaluate(() => ({ estilo: window.__engine.style.value, bpm: window.__engine.bpm.value, loops: window.__engine.loops.value.loops.map((l) => l.instrument + ':' + l.hits.length) }))))
 await p.evaluate(() => { window.__engine.setBackgroundMode('manual'); window.__engine.setBackgroundManual({ bass: true, chords: true }); window.__engine.play() }); await sleep(6000)
 const t = []

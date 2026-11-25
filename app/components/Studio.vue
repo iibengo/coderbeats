@@ -63,18 +63,15 @@ const layoutInfo = () => stage.value?.layoutInfo() ?? ''
 const STYLE_SHORT: Record<StyleId, string> = { hiphop90: 'hip hop', house: 'house (clásico)', dnb: 'dnb', dembow: 'dembow', reggaeton: 'reggaetón', drill: 'drill', techno: 'techno (clásico)', house2: 'house', techno2: 'techno' }
 // la lista para elegir lleva los 5 estilos; un estilo clásico solo sale si es el de la canción que se tiene abierta
 const styleMenu = ref(false)
-/** cambiar de estilo con algo hecho cambia el bajo, los acordes y el tempo (el ritmo y la melodía se quedan): se avisa */
+/** cambiar de estilo cambia el bajo, los acordes y el tempo; el ritmo y la melodía se quedan, así que no se pregunta */
 async function pickStyle(id: StyleId) {
   styleMenu.value = false
   if (id === style.value) return
-  if ((engine.loops.value.loops.length || engine.multi.value) && !(await askConfirm(t('studio.styleChange'), t('studio.change')))) return
   await engine.setStyle(id)
 }
-/** «demo» de cada estilo (botón a la vista): pone el estilo y su ritmo de demostración; si hay algo hecho, pide confirmar */
-async function loadStyleDemo(id: StyleId) {
-  styleMenu.value = false
-  if ((engine.loops.value.loops.length || engine.multi.value) && !(await askConfirm(t('studio.demoConfirm', { style: STYLE_SHORT[id] }), t('studio.replace')))) return
-  if (id !== style.value) await engine.setStyle(id)
+/** Estudio vacío: «Empezar con una demo» pone el ritmo de demostración del estilo que se ve (no hay nada que perder, así que no se pregunta) */
+const emptyStudio = computed(() => !engine.multi.value && engine.loops.value.loops.length === 0)
+function startWithDemo() {
   engine.loadDemo()
   useLibrary().setCurrent(null)
 }
@@ -205,7 +202,6 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
           <li v-for="s in navStyles" :key="s.id">
             <div class="flex items-center gap-1">
               <button class="min-w-0 flex-1 rounded-lg px-3 py-2 text-left" :class="style === s.id ? 'text-white' : 'text-white/60'" role="option" :aria-selected="style === s.id" @click="pickStyle(s.id as StyleId)">{{ STYLE_SHORT[s.id as StyleId] }} <span class="text-xs text-white/35">{{ s.bpm }}</span></button>
-              <button class="shrink-0 rounded-full border border-white/20 px-2.5 py-1 text-xs text-white/70" :aria-label="t('studio.demoAria', { style: STYLE_SHORT[s.id as StyleId] })" data-load-demo :data-style="s.id" @click="loadStyleDemo(s.id as StyleId)">{{ t('studio.demo') }}</button>
             </div>
           </li>
         </ul>
@@ -288,6 +284,17 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
       </svg>
     </button>
     <!-- la primera vez, nada más que esto: un latido en Play y dos palabras -->
+    <button
+      v-if="emptyStudio && !tutorial.text.value && !pilotState.active"
+      class="absolute left-1/2 grid -translate-x-1/2 gap-0.5 rounded-2xl border border-white/20 bg-white/5 px-4 py-2.5 text-center backdrop-blur"
+      style="bottom: calc(max(1.5rem, env(safe-area-inset-bottom)) + 126px)"
+      data-demo-start
+      @pointerdown.stop
+      @click="startWithDemo()"
+    >
+      <span class="text-sm font-medium text-white">{{ t('studio.demoStart', { style: STYLE_SHORT[style] }) }}</span>
+      <span class="text-xs text-white/50">{{ t('studio.demoWhy') }}</span>
+    </button>
     <span v-if="firstPlay" class="first-play pointer-events-none absolute left-1/2 -translate-x-1/2 text-sm text-white/70" style="bottom: calc(max(1.5rem, env(safe-area-inset-bottom)) + 84px)" role="status">Dale a ▶</span>
   </VisualStage>
 
