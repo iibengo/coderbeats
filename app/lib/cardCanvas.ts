@@ -19,6 +19,8 @@ export interface CardLook {
   madeWith: string
   /** la energía de cada barra, 0..1 (el paso 4 la anima con el audio; 0 = quietas) */
   level?: readonly number[]
+  /** la fila de barras en texto (▁▂▃▄▅▆▇) bajo el título; sin ella, quieta */
+  ascii?: string
   /** 0 = nada, 1 = todo negro: el fundido del final */
   fade?: number
 }
@@ -85,7 +87,7 @@ export function drawCard(g: Ctx, look: CardLook): void {
   g.font = '600 88px Inter, system-ui, sans-serif'
   const lines = wrapTitle((s) => g.measureText(s).width, look.title, cardW - 120)
   const titleH = lines.length * 104
-  const cardH = 150 + 230 + 70 + titleH + 40 + 50 + 120 + 40
+  const cardH = 150 + 230 + 70 + titleH + 40 + 50 + 70 + 120 + 40
   const usable = CARD_H - SAFE_BOTTOM - SAFE_TOP
   const x = (CARD_W - cardW) / 2
   const y = SAFE_TOP + Math.max(0, (usable - cardH) / 2)
@@ -124,6 +126,9 @@ export function drawCard(g: Ctx, look: CardLook): void {
   g.fillStyle = 'rgba(255,255,255,0.62)'
   g.font = '400 36px "JetBrains Mono", ui-monospace, monospace'
   g.fillText(look.meta, CARD_W / 2, ty + 20)
+  g.fillStyle = 'rgba(255,255,255,0.32)'
+  g.font = '400 44px "JetBrains Mono", ui-monospace, monospace'
+  g.fillText(look.ascii ?? '', CARD_W / 2, ty + 90)
   g.fillStyle = 'rgba(255,255,255,0.40)'
   g.font = '400 30px "JetBrains Mono", ui-monospace, monospace'
   g.fillText(look.madeWith, CARD_W / 2, y + cardH - 56)

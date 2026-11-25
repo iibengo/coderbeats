@@ -89,3 +89,9 @@ export async function resolveCard(ref: CardRef): Promise<CardData | null> {
 
 /** La línea en mono de la tarjeta: «firma · estilo · bpm». Sin firma, sin autor: nada de «anónimo». `bpmText` ya viene traducido («132 bpm»). */
 export const cardMeta = (c: Pick<CardData, 'by' | 'style'>, bpmText: string): string => [c.by, STYLE_SHORT[c.style], bpmText].filter(Boolean).join(' · ')
+
+/** ¿Lleva grabaciones de voz como audio? Ese audio vive solo en el navegador de quien lo grabó: el enlace lleva la referencia, no el sonido, y quien lo abra no las oirá. */
+export const hasVoiceLoops = (song: Song): boolean => song.cells.some((c) => c.loops.some((l) => !!l.voice))
+
+/** Pasado este tamaño, el enlace es largo para algunos sitios (un sticker, un mensaje): se avisa. */
+export const LONG_LINK = 8000

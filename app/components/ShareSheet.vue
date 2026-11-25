@@ -4,9 +4,9 @@
  * para compartir y «Copiar enlace». El enlace lo arma `cardUrl`; para una canción propia se codifica al abrir la hoja (`build`). Sin servidor.
  */
 import { ACCENT } from '~/lib/palette'
-import { cardUrl, MAX_BY, resolveCard, type CardRef } from '~/lib/shareCard'
+import { cardUrl, LONG_LINK, MAX_BY, resolveCard, type CardRef } from '~/lib/shareCard'
 
-const props = defineProps<{ build: () => Promise<CardRef | null>; title: string }>()
+const props = defineProps<{ build: () => Promise<CardRef | null>; title: string; /** la canción lleva grabaciones de voz como audio: el enlace no las lleva */ hasVoice?: boolean }>()
 const open = defineModel<boolean>('open', { required: true })
 const { t } = useI18n()
 
@@ -92,6 +92,7 @@ async function shareVideo() {
   if (r === 'downloaded') say(t('share.videoSaved'))
 }
 const pct = computed(() => Math.round(vs.progress * 100))
+const longLink = computed(() => url.value.length > LONG_LINK)
 const shown = computed(() => (url.value.length > 64 ? `${url.value.slice(0, 36)}…${url.value.slice(-16)}` : url.value))
 </script>
 
@@ -123,6 +124,9 @@ const shown = computed(() => (url.value.length > 64 ? `${url.value.slice(0, 36)}
         <p class="mt-1 text-xs text-white/40">{{ t('share.signHelp') }}</p>
 
         <p class="mt-4 truncate font-mono text-xs text-white/50" data-share-url>{{ state === 'building' ? t('share.building') : state === 'fail' ? t('share.fail') : shown }}</p>
+
+        <p v-if="hasVoice" class="mt-2 text-xs text-amber-300" role="note" data-share-voice>{{ t('share.voiceWarn') }}</p>
+        <p v-if="longLink" class="mt-2 text-xs text-amber-300" role="note" data-share-long>{{ t('share.longWarn') }}</p>
 
         <div class="mt-3 grid gap-2">
           <button v-if="canShare" class="min-h-12 rounded-full border px-4 text-base font-medium disabled:opacity-40" :style="{ borderColor: ACCENT, color: ACCENT }" :disabled="state !== 'ready'" data-share-native @click="share">{{ t('share.share') }}</button>

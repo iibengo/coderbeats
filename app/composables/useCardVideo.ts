@@ -7,6 +7,7 @@ import { reactive } from 'vue'
 import { planSummary } from '~/lib/cardSummary'
 import { CARD_H, CARD_W, drawCard, fadeAmount, progressOf } from '~/lib/cardCanvas'
 import { makeSaved } from '~/lib/library'
+import { asciiRow, quietRow, smoothLevels } from '~/lib/cardLevels'
 import { cardMeta, type CardData } from '~/lib/shareCard'
 import { AUDIO_BPS, pickMime } from '~/lib/videoExport'
 
@@ -17,6 +18,8 @@ export const useCardVideoState = () => state
 const VIDEO_BPS = 6_000_000
 /** lo que se sigue grabando tras el último compás, con la imagen en negro, para que termine el fundido del audio */
 const TAIL_MS = 600
+/** cuántas barras lleva la fila de texto bajo el título */
+const ASCII_N = 16
 let cancelNow: (() => void) | null = null
 
 const slug = (t: string) => t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'cancion'
@@ -68,7 +71,7 @@ export function useCardVideo() {
       engine.setKit(card.kit)
       engine.setBackgroundMode(card.bgMode ?? 'manual')
       engine.setSong(plan.song)
-      drawCard(g, look)
+      drawCard(g, { ...look, ascii: quietRow(ASCII_N) })
       const stream = out.captureStream(30)
       const audio = engine.videoAudio()
       if (audio) for (const t of audio.getAudioTracks()) stream.addTrack(t)
@@ -82,6 +85,8 @@ export function useCardVideo() {
       // el avance y el dibujo siguen a la canción de verdad (los compases que lleva), no a un reloj aparte
       let pos0: number | null = null
       let fading = false
+      let bars: number[] = []
+      let row: number[] = []
       const t0 = performance.now()
       await new Promise<void>((resolve) => {
         const tick = () => {
@@ -92,7 +97,10 @@ export function useCardVideo() {
             fading = true
             engine.fadeOut(plan.fadeSeconds)
           }
-          drawCard(g, { ...look, fade: fadeAmount(pos, totalBars, fadeBars) })
+          // las barras y la fila siguen a lo que suena (suavizadas para que no tiemblen)
+          bars = smoothLevels(bars, engine.levels(5) ?? [0, 0, 0, 0, 0])
+          row = smoothLevels(row, engine.levels(ASCII_N) ?? [])
+          drawCard(g, { ...look, level: bars, ascii: row.length ? asciiRow(row) : quietRow(ASCII_N), fade: fadeAmount(pos, totalBars, fadeBars) })
           state.progress = progressOf(pos, totalBars)
           if (cancelled || pos >= totalBars || performance.now() - t0 > (plan.seconds + 5) * 1000) return resolve()
           raf = requestAnimationFrame(tick)

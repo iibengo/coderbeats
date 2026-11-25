@@ -13,7 +13,7 @@ import { addSong, makeSaved } from '~/lib/library'
 import { autoNext, barSeconds, finalPartOf, remixSeconds, labRemixFromSaved, LAB_REMIXES, partLoops, partsOn, remixTake, songFromTake, takePlan, type LabLayer, type LabRemix, type TakeBar } from '~/lib/labRemixes'
 import { readJson, writeText } from '~/lib/storage'
 import { encodeShare, shareUrl } from '~/lib/shareLink'
-import type { CardRef } from '~/lib/shareCard'
+import { hasVoiceLoops, type CardRef } from '~/lib/shareCard'
 import { diveProgress, diveWindow, dives, hitsNext, levelsFor, NESTED_SCALE, reducedFade, stackAt, type Ring } from '~/lib/zoomStack'
 import type { StageFrame } from './LabStage.vue'
 
@@ -591,8 +591,10 @@ const phrase = computed(() => (remix.value && view.value === 'player' ? t(auto.v
 <template>
   <LabShell :title="view === 'player' && remix ? remix.title : t('lab.screens.remixes.title')" :phrase="phrase" hide-style bare @back="emit('back')" @style="() => {}" @play="remix ? goPart(part) : undefined" @stop="lab.stopAll()">
     <template #header>
-      <button v-if="remix && view === 'player'" class="grid h-11 w-11 place-items-center rounded-full border border-white/20" :aria-label="t('share.title')" data-share-open @click="shareOpen = true"><ShareIcon /></button>
-      <button v-if="remix && view === 'player'" class="grid h-11 w-11 place-items-center rounded-full border border-white/20 text-lg" :aria-label="t('lab.remix.more')" aria-haspopup="dialog" data-more @click="menuOpen = true">⋯</button>
+      <div v-if="remix && view === 'player'" class="flex items-center gap-1">
+        <button class="grid h-11 w-11 place-items-center text-white/70" :aria-label="t('share.title')" data-share-open @click="shareOpen = true"><ShareIcon /></button>
+        <button class="grid h-11 w-11 place-items-center rounded-full border border-white/20 text-lg" :aria-label="t('lab.remix.more')" aria-haspopup="dialog" data-more @click="menuOpen = true">⋯</button>
+      </div>
     </template>
     <!-- la biblioteca (spec 051): buscador, filtros por estilo y una fila por remix con su carátula -->
     <div v-if="view === 'lista'" class="pb-28" data-library>
@@ -658,7 +660,7 @@ const phrase = computed(() => (remix.value && view.value === 'player' ? t(auto.v
         <button class="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-white/30 text-lg" :aria-label="engine.playing.value ? t('app.stopAll') : t('app.play')" data-mini-play @click="miniToggle">{{ engine.playing.value ? '■' : '▶' }}</button>
       </div>
     </div>
-    <ShareSheet v-if="remix && view === 'player'" v-model:open="shareOpen" :build="buildShare" :title="remix.title" />
+    <ShareSheet v-if="remix && view === 'player'" v-model:open="shareOpen" :build="buildShare" :title="remix.title" :has-voice="hasVoiceLoops(remix.song)" />
     <!-- la hoja «⋯» (spec 052): los extras, fuera de la pantalla principal. Con la hoja cerrada los botones siguen en el DOM (`v-show`) -->
     <div v-if="remix && view === 'player'" v-show="menuOpen" class="fixed inset-0 z-20" data-more-sheet>
       <div class="absolute inset-0 bg-black/60" @click="menuOpen = false" />

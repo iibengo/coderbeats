@@ -25,7 +25,14 @@ Compartir un remix como una tarjeta bonita, estilo Spotify, con la estética de 
 - **Fundido:** imagen y audio bajan a negro en los últimos 0,6 s. El audio grabado va unas décimas por detrás de la imagen, así que se graban 0,6 s más (ya en negro) para que la rampa termine dentro del vídeo; el vídeo dura ~15,1 s.
 - **Medido** (navegador sin pantalla, Korobeiniki, 132 bpm): 1080 × 1920, 15,15 s, audio con sonido (−19 dB de media, −3 dB de pico) que cae a silencio en el último 0,4 s; la franja de abajo (350 px) y la de arriba (220 px), **0 píxeles** que no sean fondo. Un test comprueba además que `drawCard` no pinta fuera de la zona útil.
 - No hay barra de progreso falsa; el botón de vídeo solo sale si el navegador sabe grabar vídeo con sonido (si no, un texto lo dice).
-- Queda el paso 4 (animación al ritmo con `AnalyserNode`): las barras ya aceptan `level`.
+## Paso 4: la animación al ritmo
+- `engine.levels(n)` (un `AnalyserNode` colgado, pasivo, del final de la cadena maestra: solo escucha) da la energía por bandas; `cardLevels.ts` la convierte a 0..1 con curva de raíz y la suaviza (sube deprisa, baja despacio). Las 5 barras del icono y una **fila de texto** (`▁▂▃▄▅▆▇`, 16 barras) bajo la línea en mono se mueven en la página `/s` (un solo `requestAnimationFrame`, solo mientras suena, quieta con movimiento reducido) y en el vídeo. Nada en la franja reservada al sticker.
+- Medido en el navegador sin pantalla: 11 filas distintas en 12 muestras mientras suena, y todo quieto al parar.
+
+## Canciones propias y voz
+- Una canción propia se comparte con `/s#c=<datos>` (en el Estudio y en «Mis remixes» del Laboratorio); la página, el ▶ y «Abrir en coderbeats» (que abre el Estudio) funcionan igual. **Las voces grabadas como audio no viajan en el enlace** (el audio vive en el navegador de quien lo grabó): la hoja avisa. El vídeo sí las lleva, porque se graba en el mismo dispositivo. Aviso también si el enlace pasa de 8 000 caracteres.
+- Comprobado en el navegador: el enlace de una canción propia y su página (`/s#c=…`) con firma; **sin comprobar** el vídeo de una canción propia con varias células.
+
 
 ## Principios
 1 ✔ · 2 ✔ solo suena lo que la canción ya lleva · 3 ✔ · 4 ✔ la persona decide si firma y comparte · 5 ✔ · 6 ✔ compartir fácil y sin servidor · 7 ⚠ precedente: las tarjetas de Spotify y los vídeos de Reels; sin probar con alguien que no conozca la app · 8 ✔ reutiliza el enlace, el motor y el exportador de siempre.

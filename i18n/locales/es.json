@@ -21,6 +21,8 @@
     "videoUnsupported": "Este navegador no puede grabar vídeo con sonido. Prueba en Safari o en Chrome.",
     "videoFail": "No se pudo crear el vídeo.",
     "videoHidden": "Se canceló porque saliste de la pantalla.",
+    "voiceWarn": "Esta canción lleva grabaciones de tu voz como audio: no viajan en el enlace, así que quien lo abra no las oirá. El vídeo sí las lleva.",
+    "longWarn": "El enlace es largo y puede no caber en algunos sitios.",
     "copyFail": "No se pudo copiar: mantén pulsado el enlace",
     "defaultName": "Mi remix"
   },

@@ -4,7 +4,7 @@ import { STYLES } from '~/lib/constants'
 import { ACCENT } from '~/lib/palette'
 import { STYLE_SHORT } from '~/lib/styleNames'
 import { encodeShare } from '~/lib/shareLink'
-import type { CardRef } from '~/lib/shareCard'
+import { hasVoiceLoops, type CardRef } from '~/lib/shareCard'
 import { TEMPO_RESET_MS, TEMPO_TAPS } from '~/lib/tempo'
 import { songBars, type Song } from '~/lib/cells'
 import type { KitId, StyleId } from '~/lib/types'
@@ -330,7 +330,7 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibil
   <DrumEditor v-model:open="drumsOpen" @mic="partOpen = false; stage?.switchMode('jugar')" />
   <SettingsSheet v-model:open="settingsOpen" :renderer="renderer" :layout="layoutInfo" @recalibrate="(w) => emit('recalibrate', w)" @simple="emit('simple')" @pilot="startPilot" @preview="startPreview()" @video="videoOpen = true" />
   <VideoSheet v-model:open="videoOpen" :exporter="exporter" />
-  <ShareSheet v-model:open="shareOpen" :build="buildShare" :title="shareName" />
+  <ShareSheet v-model:open="shareOpen" :build="buildShare" :title="shareName" :has-voice="hasVoiceLoops(engine.song.value)" />
   <button
     v-if="tutorial.text.value && !pilotState.active && !engine.thereminShown.value"
     class="tutorial-line absolute left-1/2 z-10 -translate-x-1/2 rounded-full bg-black/45 px-5 py-2 text-sm text-white/90 backdrop-blur"

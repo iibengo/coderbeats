@@ -4,6 +4,7 @@
  * «Abrir en coderbeats». Todo en el fragmento: no llega a ningún servidor. Solo datos: lo recibido se valida (`parseCardHash`, `resolveCard`) y nunca se evalúa.
  */
 import { ACCENT } from '~/lib/palette'
+import { asciiRow, quietRow, smoothLevels } from '~/lib/cardLevels'
 import { STYLES } from '~/lib/constants'
 import { cardHash, cardMeta, parseCardHash, resolveCard, type CardData, type CardRef } from '~/lib/shareCard'
 
@@ -18,6 +19,34 @@ const card = ref<CardData | null>(null)
 const ref_ = ref<CardRef | null>(null)
 const busy = ref(false)
 const BARS = [55, 100, 38, 24, 72]
+const ASCII_N = 16
+
+// la animación al ritmo (spec 061, paso 4): un solo `requestAnimationFrame` mientras suena; con movimiento reducido, todo quieto
+const level = ref<number[]>([0, 0, 0, 0, 0])
+const ascii = ref(quietRow(ASCII_N))
+let raf = 0
+let barsNow: number[] = []
+let rowNow: number[] = []
+const reduced = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+function frame() {
+  barsNow = smoothLevels(barsNow, engine.levels(5) ?? [0, 0, 0, 0, 0])
+  rowNow = smoothLevels(rowNow, engine.levels(ASCII_N) ?? [])
+  level.value = barsNow
+  ascii.value = rowNow.length ? asciiRow(rowNow) : quietRow(ASCII_N)
+  raf = requestAnimationFrame(frame)
+}
+function stopAnim() {
+  cancelAnimationFrame(raf)
+  raf = 0
+  barsNow = []
+  rowNow = []
+  level.value = [0, 0, 0, 0, 0]
+  ascii.value = quietRow(ASCII_N)
+}
+watch(() => engine.playing.value, (on) => {
+  if (on && !reduced() && !raf) frame()
+  else if (!on) stopAnim()
+})
 
 async function load() {
   state.value = 'loading'
@@ -32,6 +61,7 @@ onMounted(() => {
   window.addEventListener('hashchange', load)
 })
 onBeforeUnmount(() => {
+  stopAnim()
   window.removeEventListener('hashchange', load)
   engine.stop()
 })
@@ -78,10 +108,11 @@ const openHref = computed(() => {
       <!-- la tarjeta -->
       <section class="mt-6 w-full rounded-[2rem] border border-white/10 bg-white/[.04] px-7 pb-6 pt-8 text-center" data-card>
         <svg class="mx-auto h-16 w-24" viewBox="0 0 96 64" aria-hidden="true">
-          <rect v-for="(h, i) in BARS" :key="i" :x="i * 20" :y="64 - h * 0.64" width="14" :height="h * 0.64" rx="3" :fill="ACCENT" />
+          <rect v-for="(h, i) in BARS" :key="i" :x="i * 20" :y="64 - h * 0.64 * (0.85 + 0.3 * (level[i] ?? 0))" width="14" :height="h * 0.64 * (0.85 + 0.3 * (level[i] ?? 0))" rx="3" :fill="ACCENT" />
         </svg>
         <h1 class="mt-6 text-balance text-3xl font-semibold leading-tight tracking-tight" data-card-title>{{ card.title }}</h1>
         <p class="mt-3 font-mono text-xs text-white/60" data-card-meta>{{ meta }}</p>
+        <p class="mt-2 font-mono text-base leading-none text-white/30" aria-hidden="true" data-card-ascii>{{ ascii }}</p>
         <p class="mt-10 font-mono text-[11px] text-white/40">{{ t('card.madeWith') }}</p>
       </section>
 

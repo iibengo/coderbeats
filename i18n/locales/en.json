@@ -21,6 +21,8 @@
     "videoUnsupported": "This browser cannot record video with sound. Try Safari or Chrome.",
     "videoFail": "The video could not be created.",
     "videoHidden": "Cancelled because you left the screen.",
+    "voiceWarn": "This song has recordings of your voice as audio: they do not travel in the link, so whoever opens it will not hear them. The video does include them.",
+    "longWarn": "The link is long and may not fit in some places.",
     "copyFail": "Could not copy: long-press the link",
     "defaultName": "My remix"
   },

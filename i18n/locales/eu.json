@@ -21,6 +21,8 @@
     "videoUnsupported": "Nabigatzaile honek ezin du soinudun bideorik grabatu. Probatu Safari edo Chrome.",
     "videoFail": "Ezin izan da bideoa sortu.",
     "videoHidden": "Bertan behera geratu da pantailatik atera zaralako.",
+    "voiceWarn": "Abesti honek zure ahotsaren grabazioak ditu audio gisa: ez dira estekan joaten, beraz irekitzen duenak ez ditu entzungo. Bideoak bai dakartza.",
+    "longWarn": "Esteka luzea da eta baliteke leku batzuetan ez sartzea.",
     "copyFail": "Ezin izan da kopiatu: luze sakatu esteka",
     "defaultName": "Nire remixa"
   },

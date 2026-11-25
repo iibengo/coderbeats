@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { LAB_REMIXES } from '../../app/lib/labRemixes'
 import { MAX_LINK_CHARS, encodeShare } from '../../app/lib/shareLink'
-import { MAX_BY, cardHash, cardUrl, cleanBy, parseCardHash, resolveCard } from '../../app/lib/shareCard'
+import { MAX_BY, hasVoiceLoops, cardHash, cardUrl, cleanBy, parseCardHash, resolveCard } from '../../app/lib/shareCard'
 import { STYLES } from '../../app/lib/constants'
+import { songFromLoops } from '../../app/lib/cells'
 
 const fx = { filter: 1, space: 0.3, warmth: 0 }
 const snapOf = (r: (typeof LAB_REMIXES)[number]) => ({ style: r.style, kit: r.kit, bgMode: 'manual' as const, fx, song: r.song })
@@ -77,5 +78,14 @@ describe('enlace de la tarjeta (spec 061)', () => {
     expect(await resolveCard({ kind: 'c', payload: 'zAAAA' })).toBeNull()
     expect(await resolveCard({ kind: 'c', payload: 'jeyJ2IjoxfQ' })).toBeNull()
     expect(await resolveCard({ kind: 'c', payload: 'j' + 'A'.repeat(50) })).toBeNull()
+  })
+
+  it('avisa de las grabaciones de voz como audio, que no viajan en el enlace', () => {
+    const base = { id: 1, instrument: 'bd', bars: 1, phaseBar: 0, muted: false, bornAt: 0, fromTemplate: false, hits: [{ pos: 0, strength: 1 }] }
+    const sin = songFromLoops({ nextId: 2, loops: [base] as never })
+    const con = songFromLoops({ nextId: 3, loops: [base, { ...base, id: 2, instrument: 'voice', hits: [], voice: { audio: 'v-abc', bpm: 120, sampleRate: 48000 } }] as never })
+    expect(hasVoiceLoops(sin)).toBe(false)
+    expect(hasVoiceLoops(con)).toBe(true)
+    for (const r of LAB_REMIXES) expect(hasVoiceLoops(r.song), r.id).toBe(false) // los remixes de la app no llevan
   })
 })
