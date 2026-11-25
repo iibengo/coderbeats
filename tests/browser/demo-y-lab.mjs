@@ -1,7 +1,7 @@
 // Botón «Lab» a la vista y «demo» de cada estilo en la lista de estilos.
 import { open, sleep } from './lib.mjs'
 const { b, p, errs } = await open()
-console.log('botón Lab en la pantalla principal:', await p.evaluate(() => document.querySelector('[data-to-lab-main]')?.textContent.trim()))
+console.log('botón Lab en la pantalla principal:', await p.evaluate(() => !!document.querySelector('[data-to-lab-main] svg')))
 await p.evaluate(() => document.querySelector('[data-style-label]').click()); await sleep(300)
 console.log('demos por estilo:', await p.evaluate(() => [...document.querySelectorAll('[data-load-demo]')].map((x) => x.dataset.style)))
 await p.evaluate(() => document.querySelector('[data-load-demo][data-style=techno2]').click()); await sleep(1500)
