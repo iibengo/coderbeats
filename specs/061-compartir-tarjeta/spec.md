@@ -53,6 +53,11 @@ Compartir un remix como una tarjeta bonita, estilo Spotify, con la estética de 
 - **Un fallo encontrado al portarlo** de Python a TypeScript: el filtro del barrido se volvía inestable por el orden de los pasos (ahora con un comentario y cubierto por los tests).
 - **Sin oír:** nadie ha oído todavía el sonido dentro del vídeo grabado en el iPhone.
 
+## Arreglo de la sincronía de las barras (2026-11-25, tras verlo Ion en un iPhone)
+- **El fallo:** las barras del vídeo (y de la página `/s`) no coincidían con el golpe como en Remixes. El código restaba la posición del **primer fotograma** (`pos0`) y añadía un adelanto de 0,04 s a ojo: si ese primer fotograma llegaba unas décimas después de que sonara la primera nota, todas las barras iban tarde por esa misma cantidad, y distinta en cada dispositivo.
+- **El arreglo:** el momento de la canción se toma **directo del reloj del motor** (`clockNow`, que ya descuenta la latencia de salida), igual que `LabPulso` en Remixes; sin `pos0` y sin adelanto.
+- **Medido** (navegador sin pantalla, Korobeiniki, bombo del audio contra la subida de su barra, 9 golpes): antes, mediana **+183 ms** (barras tarde) y muy irregular (de −257 a +230 ms); ahora **−47 ms** y regular (de −90 a −23 ms), menos de dos fotogramas. En un iPhone el desfase de grabación puede ser distinto: pendiente de verlo.
+
 ## Canciones propias y voz
 - Una canción propia se comparte con `/s#c=<datos>` (en el Estudio y en «Mis remixes» del Laboratorio); la página, el ▶ y «Abrir en coderbeats» (que abre el Estudio) funcionan igual. **Las voces grabadas como audio no viajan en el enlace** (el audio vive en el navegador de quien lo grabó): la hoja avisa. El vídeo sí las lleva, porque se graba en el mismo dispositivo. Aviso también si el enlace pasa de 8 000 caracteres.
 - Comprobado en el navegador: el enlace de una canción propia y su página (`/s#c=…`) con firma; **sin comprobar** el vídeo de una canción propia con varias células.

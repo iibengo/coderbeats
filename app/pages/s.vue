@@ -28,15 +28,13 @@ const BAR_COLORS = LANES.map((v) => VOICE_HEX[v])
 const level = ref<number[]>([0, 0, 0, 0, 0])
 let raf = 0
 let pulso: PulsoScene | null = null
-let pos0: number | null = null
 const reduced = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
 function frame() {
   const c = engine.clockNow()
   if (c && pulso) {
-    const pos = c.bar + c.barPhase
-    if (pos0 === null) pos0 = pos
-    // la canción da vueltas: el tiempo se mide dentro de su duración
-    const t = (((pos - pos0) % Math.max(1, pulso.tl.bars)) + Math.max(1, pulso.tl.bars)) % Math.max(1, pulso.tl.bars) * pulso.tl.barSeconds + 0.04
+    // el momento de la canción, tal cual lo da el reloj del motor (como Remixes); la canción da vueltas, así que se mide dentro de su duración
+    const bars = Math.max(1, pulso.tl.bars)
+    const t = ((((c.bar + c.barPhase) % bars) + bars) % bars) * pulso.tl.barSeconds
     const next = level.value.slice()
     for (let i = 0; i < 5; i++) {
       sampleLane(pulso, i, t)
@@ -49,7 +47,6 @@ function frame() {
 function stopAnim() {
   cancelAnimationFrame(raf)
   raf = 0
-  pos0 = null
   level.value = [0, 0, 0, 0, 0]
 }
 /** la altura de cada columna: en reposo, la del dibujo; sonando, la energía de su voz */

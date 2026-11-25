@@ -20,8 +20,6 @@ export const useCardVideoState = () => state
 const VIDEO_BPS = 6_000_000
 /** lo que se sigue grabando tras el último compás, con el diablillo y el nombre ya completos (y para que termine el fundido del audio) */
 const TAIL_MS = 1500
-/** el sonido sale unos milisegundos después de su compás en el reloj: las barras se adelantan un poco para saltar con el golpe que se oye */
-const LEAD_S = 0.04
 let cancelNow: (() => void) | null = null
 
 const slug = (t: string) => t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'cancion'
@@ -86,7 +84,6 @@ export function useCardVideo() {
       await engine.play()
 
       // el avance y el dibujo siguen a la canción de verdad (los compases que lleva), no a un reloj aparte
-      let pos0: number | null = null
       let tailStart: number | null = null
       let stung = false
       let fading = false
@@ -96,15 +93,15 @@ export function useCardVideo() {
       const t0 = performance.now()
       await new Promise<void>((resolve) => {
         const tick = () => {
+          // el momento de la canción, tal cual lo da el reloj del motor (que ya descuenta la latencia de salida), como hace Remixes: sin restar el primer fotograma ni adelantos a ojo
           const c = engine.clockNow()
-          if (c && pos0 === null) pos0 = c.bar + c.barPhase
-          const pos = c && pos0 !== null ? c.bar + c.barPhase - pos0 : 0
+          const pos = c ? c.bar + c.barPhase : 0
           if (!fading && pos >= totalBars - fadeBars) {
             fading = true
             engine.fadeOut(plan.fadeSeconds)
           }
           for (let i = 0; i < 5; i++) {
-            sampleLane(pulso, i, Math.max(0, pos) * barSeconds + LEAD_S)
+            sampleLane(pulso, i, Math.max(0, pos) * barSeconds)
             bars[i] = pulso.energy[i]!
           }
           // el final: la tarjeta se apaga y el diablillo de coderbeats se dibuja como un neón, con el nombre debajo
