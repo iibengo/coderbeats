@@ -26,7 +26,18 @@ export default defineNuxtConfig({
   typescript: { strict: true },
 
   // Todo el audio corre en el navegador: la página no se renderiza en el servidor.
-  routeRules: { '/': { ssr: false }, '/lab': { ssr: false }, '/estudio': { ssr: false }, ...(process.env.NODE_ENV === 'production' ? {} : { '/spike': { ssr: false }, '/lab/voz': { ssr: false }, '/lab/aro': { ssr: false }, '/lab/sonido': { ssr: false }, '/lab/estudio': { ssr: false }, '/visual': { ssr: false } }) },
+  routeRules: {
+    // Cabeceras de seguridad para todo (spec de publicación). Sin CSP a propósito: Strudel evalúa código y usa worklets, y no se puede comprobar sin oír.
+    '/**': { headers: {
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
+      'Referrer-Policy': 'strict-origin-when-cross-origin',
+      'Permissions-Policy': 'microphone=(self), camera=(), geolocation=(), payment=(), usb=()',
+    } },
+    // Los samples no cambian a menudo: una semana de caché ahorra ancho de banda.
+    '/samples/**': { headers: { 'Cache-Control': 'public, max-age=604800' } },
+    '/': { ssr: false }, '/lab': { ssr: false }, '/estudio': { ssr: false },
+    ...(process.env.NODE_ENV === 'production' ? {} : { '/spike': { ssr: false }, '/lab/voz': { ssr: false }, '/lab/aro': { ssr: false }, '/lab/sonido': { ssr: false }, '/lab/estudio': { ssr: false }, '/visual': { ssr: false } }) },
 
   // Páginas de desarrollo (en dev/): /spike (banco de pruebas de Strudel) y /lab/voz (laboratorio de voz, spec 002).
   // Solo existen con `nuxt dev`: no entran en el build.
