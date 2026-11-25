@@ -63,11 +63,14 @@ const layoutInfo = () => stage.value?.layoutInfo() ?? ''
 const STYLE_SHORT: Record<StyleId, string> = { hiphop90: 'hip hop', house: 'house (clásico)', dnb: 'dnb', dembow: 'dembow', reggaeton: 'reggaetón', drill: 'drill', techno: 'techno (clásico)', house2: 'house', techno2: 'techno' }
 // la lista para elegir lleva los 5 estilos; un estilo clásico solo sale si es el de la canción que se tiene abierta
 const styleMenu = ref(false)
-/** cambiar de estilo cambia el bajo, los acordes y el tempo; el ritmo y la melodía se quedan, así que no se pregunta */
+/** cambiar de estilo (spec 059): suena al momento; vacío, carga la demo; con algo hecho, pregunta si seguir con tu canción o cargar la demo */
 async function pickStyle(id: StyleId) {
   styleMenu.value = false
   if (id === style.value) return
+  const hadWork = !emptyStudio.value
   await engine.setStyle(id)
+  if (!hadWork) return startWithDemo()
+  if (await askConfirm(t('studio.styleAsk', { style: STYLE_SHORT[id] }), t('studio.styleDemo'), t('studio.styleKeep'))) startWithDemo()
 }
 /** Estudio vacío: «Empezar con una demo» pone el ritmo de demostración del estilo que se ve (no hay nada que perder, así que no se pregunta) */
 const emptyStudio = computed(() => !engine.multi.value && engine.loops.value.loops.length === 0)

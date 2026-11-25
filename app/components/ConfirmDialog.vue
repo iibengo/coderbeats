@@ -8,7 +8,7 @@ const state = useConfirmState()
     <div class="w-full max-w-sm rounded-2xl border border-white/10 bg-[#121217] p-5 text-sm text-white/90">
       <p class="mb-5 leading-relaxed">{{ state.message }}</p>
       <div class="flex justify-end gap-2">
-        <button class="rounded-full border border-white/20 px-4 py-2" @click="answerConfirm(false)">Cancelar</button>
+        <button class="rounded-full border border-white/20 px-4 py-2" @click="answerConfirm(false)">{{ state.cancel }}</button>
         <button class="rounded-full bg-white px-4 py-2 font-medium text-black" @click="answerConfirm(true)">{{ state.ok }}</button>
       </div>
     </div>

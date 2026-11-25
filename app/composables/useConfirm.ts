@@ -4,15 +4,16 @@
  */
 import { reactive } from 'vue'
 
-const state = reactive<{ open: boolean; message: string; ok: string }>({ open: false, message: '', ok: 'Continuar' })
+const state = reactive<{ open: boolean; message: string; ok: string; cancel: string }>({ open: false, message: '', ok: 'Continuar', cancel: 'Cancelar' })
 let resolver: ((v: boolean) => void) | null = null
 
 export const useConfirmState = () => state
 
-export function askConfirm(message: string, ok = 'Continuar'): Promise<boolean> {
+export function askConfirm(message: string, ok = 'Continuar', cancel = 'Cancelar'): Promise<boolean> {
   resolver?.(false)
   state.message = message
   state.ok = ok
+  state.cancel = cancel
   state.open = true
   return new Promise((resolve) => (resolver = resolve))
 }
